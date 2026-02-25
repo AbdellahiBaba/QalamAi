@@ -18,6 +18,8 @@ import Tickets from "@/pages/tickets";
 import TicketDetail from "@/pages/ticket-detail";
 import Admin from "@/pages/admin";
 import AdminTicket from "@/pages/admin-ticket";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -45,6 +47,8 @@ function PublicRouter() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       <Route path="/about" component={About} />
       <Route path="/features" component={Features} />
       <Route path="/pricing" component={Pricing} />

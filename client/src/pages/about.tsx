@@ -69,9 +69,9 @@ export default function About() {
               </Link>
             ))}
           </div>
-          <a href="/api/login">
+          <Link href="/login">
             <Button data-testid="button-login">تسجيل الدخول</Button>
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -218,11 +218,11 @@ export default function About() {
           <p className="text-muted-foreground max-w-xl mx-auto">
             انضمّ إلى QalamAI اليوم وابدأ في كتابة روايتك العربية بمساعدة أبو هاشم.
           </p>
-          <a href="/api/login">
+          <Link href="/login">
             <Button size="lg" data-testid="button-cta-about">
               ابدأ الكتابة الآن
             </Button>
-          </a>
+          </Link>
         </div>
       </section>
 

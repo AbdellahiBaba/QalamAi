@@ -75,9 +75,9 @@ export default function Contact() {
               <Button variant="outline" data-testid="button-dashboard">لوحة التحكم</Button>
             </Link>
           ) : (
-            <a href="/api/login">
+            <Link href="/login">
               <Button data-testid="button-login">تسجيل الدخول</Button>
-            </a>
+            </Link>
           )}
         </div>
       </nav>

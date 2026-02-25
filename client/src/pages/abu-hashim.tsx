@@ -71,9 +71,9 @@ export default function AbuHashim() {
               </Link>
             ))}
           </div>
-          <a href="/api/login">
+          <Link href="/login">
             <Button data-testid="button-login">تسجيل الدخول</Button>
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -249,12 +249,12 @@ export default function AbuHashim() {
           <p className="text-muted-foreground max-w-xl mx-auto">
             اكتشف قوة الكتابة الإبداعية بالذكاء الاصطناعي، وحوّل أفكارك إلى رواية عربية أصيلة
           </p>
-          <a href="/api/login">
+          <Link href="/login">
             <Button size="lg" data-testid="button-cta-start">
               <Sparkles className="w-4 h-4 ml-2" />
               ابدأ الكتابة الآن
             </Button>
-          </a>
+          </Link>
         </div>
       </section>
 

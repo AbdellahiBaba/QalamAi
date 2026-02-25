@@ -83,9 +83,9 @@ export default function Features() {
               </Link>
             ))}
           </div>
-          <a href="/api/login">
+          <Link href="/login">
             <Button data-testid="button-login">تسجيل الدخول</Button>
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -128,11 +128,11 @@ export default function Features() {
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
             انضم إلى QalamAI واكتشف كيف يمكن للذكاء الاصطناعي أن يساعدك في تحويل أفكارك إلى روايات عربية مكتملة
           </p>
-          <a href="/api/login">
+          <Link href="/login">
             <Button size="lg" data-testid="button-cta-features">
               ابدأ الكتابة الآن
             </Button>
-          </a>
+          </Link>
         </div>
       </section>
 

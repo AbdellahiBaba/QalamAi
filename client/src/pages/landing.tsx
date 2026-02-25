@@ -55,12 +55,12 @@ export default function Landing() {
           </div>
 
           <div className="flex items-center gap-3">
-            <a href="/api/login">
+            <Link href="/login">
               <Button variant="outline" data-testid="button-login">تسجيل الدخول</Button>
-            </a>
-            <a href="/api/login">
+            </Link>
+            <Link href="/login">
               <Button data-testid="button-signup">إنشاء حساب جديد</Button>
-            </a>
+            </Link>
             <Button
               size="icon"
               variant="ghost"
@@ -109,17 +109,17 @@ export default function Landing() {
               منصّة QalamAI تجمع بين الذكاء الاصطناعي والأدب العربي لتقدّم لك تجربة كتابة روائية فريدة. أبو هاشم — مساعدك الأدبي — مستوحى من أساليب كبار الروائيين العرب مثل أحلام مستغانمي وإبراهيم نصر الله والدكتورة خولة حمدي.
             </p>
             <div className="flex flex-wrap gap-3">
-              <a href="/api/login">
+              <Link href="/login">
                 <Button size="lg" data-testid="button-get-started">
                   <PenTool className="w-4 h-4 ml-2" />
                   إنشاء حساب جديد
                 </Button>
-              </a>
-              <a href="/api/login">
+              </Link>
+              <Link href="/login">
                 <Button size="lg" variant="outline" data-testid="button-hero-login">
                   تسجيل الدخول
                 </Button>
-              </a>
+              </Link>
               <Link href="/features">
                 <Button size="lg" variant="outline" data-testid="button-discover-more">
                   اكتشف المزيد
@@ -332,12 +332,12 @@ export default function Landing() {
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
             انضم إلى QalamAI واكتشف قوة الكتابة الأدبية بالذكاء الاصطناعي. أبو هاشم في انتظارك لمساعدتك في كتابة روايتك العربية الأولى.
           </p>
-          <a href="/api/login">
+          <Link href="/login">
             <Button size="lg" data-testid="button-cta-bottom">
               <Sparkles className="w-4 h-4 ml-2" />
               ابدأ مشروعك الروائي
             </Button>
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -378,11 +378,11 @@ export default function Landing() {
                     فكرة الرواية
                   </span>
                 </Link>
-                <a href="/api/login">
+                <Link href="/login">
                   <span className="text-sm opacity-80 hover:opacity-100 transition-opacity cursor-pointer" data-testid="link-footer-login">
                     تسجيل الدخول
                   </span>
-                </a>
+                </Link>
               </div>
             </div>
           </div>

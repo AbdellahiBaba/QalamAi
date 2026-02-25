@@ -111,9 +111,9 @@ export default function Pricing() {
               </Link>
             ))}
           </div>
-          <a href="/api/login">
+          <Link href="/login">
             <Button data-testid="button-login">تسجيل الدخول</Button>
-          </a>
+          </Link>
         </div>
       </nav>
 

@@ -9,7 +9,7 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - **Frontend**: React SPA with RTL Arabic layout, Tailwind CSS, Shadcn UI
 - **Backend**: Express.js with PostgreSQL database
 - **AI**: OpenAI GPT-5.2 via Replit AI Integrations (Abu Hashim agent persona)
-- **Auth**: Replit Auth (OpenID Connect)
+- **Auth**: Email/password registration + Replit Auth (OpenID Connect) — dual auth system
 - **Payments**: Stripe (via Replit Stripe connector + stripe-replit-sync)
 
 ## Brand Identity
@@ -33,6 +33,8 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - **About** (`/about`) - Mission, vision, values, how AI works
 - **Features** (`/features`) - Detailed feature explanations
 - **Pricing** (`/pricing`) - Fixed-price novel tiers (150pg/$300, 200pg/$350, 250pg/$450, 300pg/$600)
+- **Login** (`/login`) - Email/password login with Replit Auth option
+- **Register** (`/register`) - Email/password registration with Replit Auth option
 - **Contact** (`/contact`) - Contact form submitting real tickets to DB
 - **Abu Hashim** (`/abu-hashim`) - Meet the AI literary agent
 - **Novel Theme** (`/novel-theme`) - Sample novel concept
@@ -85,6 +87,10 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - `POST /api/projects/:projectId/chapters/:chapterId/generate` - Stream chapter generation (SSE)
 - `POST /api/projects/:id/create-checkout` - Create Stripe checkout session
 - `POST /api/projects/:id/payment-success` - Verify payment & unlock project
+- `POST /api/auth/register` - Register with email/password (public)
+- `POST /api/auth/login` - Login with email/password (public)
+- `POST /api/auth/logout` - Logout (destroys session)
+- `GET /api/auth/user` - Get current authenticated user
 - `POST /api/stripe/webhook` - Stripe webhook handler (registered before express.json())
 - `POST /api/tickets` - Create support ticket (public, attaches userId if authenticated)
 - `GET /api/tickets` - List user's tickets (authenticated)

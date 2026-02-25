@@ -26,9 +26,9 @@ export default function NovelTheme() {
             <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-contact">تواصل معنا</Link>
             <Link href="/abu-hashim" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-abu-hashim">أبو هاشم</Link>
           </div>
-          <a href="/api/login">
+          <Link href="/login">
             <Button data-testid="button-login">تسجيل الدخول</Button>
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -152,11 +152,11 @@ export default function NovelTheme() {
           <p className="text-muted-foreground max-w-xl mx-auto">
             انضمّ إلى QalamAI واستعن بأبو هاشم في تحويل أفكارك الأدبية إلى روايات عربية أصيلة
           </p>
-          <a href="/api/login">
+          <Link href="/login">
             <Button size="lg" data-testid="button-cta-start">
               ابدأ مشروعك الروائي
             </Button>
-          </a>
+          </Link>
         </div>
       </section>
 
