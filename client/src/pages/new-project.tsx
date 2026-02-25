@@ -15,12 +15,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 
+const PAGE_OPTIONS = [
+  { value: 20, label: "20 صفحة — قصة قصيرة" },
+  { value: 50, label: "50 صفحة — رواية قصيرة" },
+  { value: 80, label: "80 صفحة — رواية متوسطة" },
+  { value: 100, label: "100 صفحة" },
+  { value: 120, label: "120 صفحة" },
+  { value: 150, label: "150 صفحة — رواية طويلة" },
+  { value: 200, label: "200 صفحة — رواية كبيرة" },
+];
+
 const projectFormSchema = z.object({
   title: z.string().min(1, "عنوان الرواية مطلوب"),
   mainIdea: z.string().min(10, "يجب أن تكون الفكرة الرئيسية 10 أحرف على الأقل"),
   timeSetting: z.string().min(1, "الزمن مطلوب"),
   placeSetting: z.string().min(1, "المكان مطلوب"),
   narrativePov: z.string().min(1, "نوع السرد مطلوب"),
+  pageCount: z.number().min(10).max(200),
   characters: z.array(z.object({
     name: z.string().min(1, "اسم الشخصية مطلوب"),
     background: z.string().min(1, "خلفية الشخصية مطلوبة"),
@@ -48,6 +59,7 @@ export default function NewProject() {
       timeSetting: "",
       placeSetting: "",
       narrativePov: "",
+      pageCount: 50,
       characters: [{ name: "", background: "", role: "protagonist" }],
       relationships: [],
     },
@@ -179,25 +191,53 @@ export default function NewProject() {
                     </FormItem>
                   )} />
 
-                  <FormField control={form.control} name="narrativePov" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>نوع السرد</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-pov">
-                            <SelectValue placeholder="اختر نوع السرد" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="first_person">الراوي بضمير المتكلم (أنا)</SelectItem>
-                          <SelectItem value="third_person">الراوي بضمير الغائب (هو/هي)</SelectItem>
-                          <SelectItem value="omniscient">الراوي العليم</SelectItem>
-                          <SelectItem value="multiple">تعدد الأصوات السردية</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="narrativePov" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>نوع السرد</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-pov">
+                              <SelectValue placeholder="اختر نوع السرد" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="first_person">الراوي بضمير المتكلم (أنا)</SelectItem>
+                            <SelectItem value="third_person">الراوي بضمير الغائب (هو/هي)</SelectItem>
+                            <SelectItem value="omniscient">الراوي العليم</SelectItem>
+                            <SelectItem value="multiple">تعدد الأصوات السردية</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="pageCount" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>عدد صفحات الرواية</FormLabel>
+                        <Select onValueChange={(v) => field.onChange(parseInt(v))} value={String(field.value)}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-page-count">
+                              <SelectValue placeholder="اختر حجم الرواية" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PAGE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  {form.watch("pageCount") >= 100 && (
+                    <div className="rounded-md bg-primary/5 border border-primary/10 p-4 text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground mb-1">رواية طويلة ({form.watch("pageCount")} صفحة)</p>
+                      <p>سيتم تقسيم الرواية إلى فصول متعددة، وقد يتم كتابة كل فصل على أجزاء لضمان الجودة والتفصيل. الكتابة الكاملة ستستغرق وقتاً أطول.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

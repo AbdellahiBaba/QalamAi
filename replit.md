@@ -11,8 +11,9 @@ An AI-powered Arabic novel writing assistant that helps users create original Ar
 
 ## Key Features
 - Multi-step project creation (novel details, characters, relationships)
-- AI-generated novel outlines with chapter breakdown
-- Chapter-by-chapter writing with streaming output
+- Configurable novel length (20-200 pages) with automatic chapter/structure calculation
+- AI-generated novel outlines with chapter breakdown scaled to page count
+- Chapter-by-chapter writing with streaming output and multi-part generation for long chapters
 - RTL Arabic UI with Amiri/Cairo/Tajawal fonts
 - User authentication and project management
 

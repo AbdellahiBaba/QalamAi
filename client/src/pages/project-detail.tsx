@@ -28,6 +28,7 @@ export default function ProjectDetail() {
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
   const [generatingChapter, setGeneratingChapter] = useState<number | null>(null);
   const [streamedContent, setStreamedContent] = useState("");
+  const [generationProgress, setGenerationProgress] = useState<{ currentPart: number; totalParts: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -66,6 +67,7 @@ export default function ProjectDetail() {
   const generateChapter = async (chapterId: number) => {
     setGeneratingChapter(chapterId);
     setStreamedContent("");
+    setGenerationProgress(null);
     setExpandedChapter(chapterId);
     setActiveTab("chapters");
 
@@ -100,8 +102,12 @@ export default function ProjectDetail() {
               fullContent += event.content;
               setStreamedContent(fullContent);
             }
+            if (event.totalParts && event.currentPart) {
+              setGenerationProgress({ currentPart: event.currentPart, totalParts: event.totalParts });
+            }
             if (event.done) {
               queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+              setGenerationProgress(null);
             }
           } catch {}
         }
@@ -110,6 +116,7 @@ export default function ProjectDetail() {
       toast({ title: "حدث خطأ في كتابة الفصل", variant: "destructive" });
     } finally {
       setGeneratingChapter(null);
+      setGenerationProgress(null);
     }
   };
 
@@ -223,6 +230,10 @@ export default function ProjectDetail() {
                     <div className="flex justify-between gap-2">
                       <span className="text-muted-foreground">نوع السرد:</span>
                       <span className="font-medium">{povLabel(project.narrativePov)}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">حجم الرواية:</span>
+                      <span className="font-medium">{project.pageCount} صفحة (~{(project.pageCount * 250).toLocaleString()} كلمة)</span>
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-muted-foreground">عدد الشخصيات:</span>
@@ -397,7 +408,14 @@ export default function ProjectDetail() {
                             </Button>
                           )}
                           {isGenerating && (
-                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                              {generationProgress && generationProgress.totalParts > 1 && (
+                                <span className="text-xs text-muted-foreground">
+                                  جزء {generationProgress.currentPart}/{generationProgress.totalParts}
+                                </span>
+                              )}
+                            </div>
                           )}
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </div>

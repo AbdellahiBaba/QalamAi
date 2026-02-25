@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, calculateNovelStructure } from "./abu-hashim";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -47,7 +47,7 @@ export async function registerRoutes(
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title, mainIdea, timeSetting, placeSetting, narrativePov, characters: chars, relationships } = req.body;
+      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships } = req.body;
 
       const project = await storage.createProject({
         userId,
@@ -56,6 +56,7 @@ export async function registerRoutes(
         timeSetting,
         placeSetting,
         narrativePov,
+        pageCount: Math.min(200, Math.max(10, pageCount || 50)),
       });
 
       const createdChars = [];
@@ -112,14 +113,15 @@ export async function registerRoutes(
 
       const outline = response.choices[0]?.message?.content || "";
 
-      const chapterMatches = outline.match(/الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|\d+)\s*[:\-—–]\s*(.+)/g);
-
       const updated = await storage.updateProject(id, { outline, status: "outline" });
+
+      const chapterRegex = /الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر|السادس عشر|السابع عشر|الثامن عشر|التاسع عشر|العشرون|الحادي والعشرون|الثاني والعشرون|الثالث والعشرون|الرابع والعشرون|الخامس والعشرون|الثلاثون|\d+)\s*[:\-—–]\s*(.+)/g;
+      const chapterMatches = outline.match(chapterRegex);
 
       if (chapterMatches) {
         let chapterNum = 1;
         for (const match of chapterMatches) {
-          const titleMatch = match.match(/الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|\d+)\s*[:\-—–]\s*(.+)/);
+          const titleMatch = match.match(/الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر|السادس عشر|السابع عشر|الثامن عشر|التاسع عشر|العشرون|الحادي والعشرون|الثاني والعشرون|الثالث والعشرون|الرابع والعشرون|الخامس والعشرون|الثلاثون|\d+)\s*[:\-—–]\s*(.+)/);
           const chapterTitle = titleMatch?.[1]?.trim() || `الفصل ${chapterNum}`;
           await storage.createChapter({
             projectId: id,
@@ -128,6 +130,16 @@ export async function registerRoutes(
             summary: null,
           });
           chapterNum++;
+        }
+      } else {
+        const structure = calculateNovelStructure(project.pageCount);
+        for (let i = 1; i <= structure.chapterCount; i++) {
+          await storage.createChapter({
+            projectId: id,
+            chapterNumber: i,
+            title: `الفصل ${i}`,
+            summary: null,
+          });
         }
       }
 
@@ -169,29 +181,48 @@ export async function registerRoutes(
       const allChapters = await storage.getChaptersByProject(projectId);
       const previousChapters = allChapters.filter(c => c.chapterNumber < chapter.chapterNumber);
 
-      const { system, user } = buildChapterPrompt(project, chars, chapter, previousChapters, project.outline || "");
+      const structure = calculateNovelStructure(project.pageCount);
+      const totalParts = structure.partsPerChapter;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      const stream = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-        stream: true,
-        max_completion_tokens: 8192,
-      });
+      res.write(`data: ${JSON.stringify({ totalParts, currentPart: 1 })}\n\n`);
 
       let fullContent = "";
 
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        if (content) {
-          fullContent += content;
-          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      for (let part = 1; part <= totalParts; part++) {
+        if (part > 1) {
+          await storage.updateChapter(chapterId, { content: fullContent });
+          res.write(`data: ${JSON.stringify({ currentPart: part, totalParts })}\n\n`);
+        }
+
+        const updatedChapter = part > 1
+          ? await storage.getChapter(chapterId)
+          : chapter;
+
+        const { system, user } = buildChapterPrompt(
+          project, chars, updatedChapter!, previousChapters, project.outline || "",
+          part, totalParts
+        );
+
+        const stream = await openai.chat.completions.create({
+          model: "gpt-5.2",
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          stream: true,
+          max_completion_tokens: 8192,
+        });
+
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          if (content) {
+            fullContent += content;
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
         }
       }
 

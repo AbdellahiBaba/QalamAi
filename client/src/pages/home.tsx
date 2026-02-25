@@ -108,14 +108,14 @@ export default function Home() {
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {project.mainIdea}
                     </p>
-                    <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
                         {new Date(project.createdAt).toLocaleDateString("ar-EG")}
                       </span>
                       <span className="flex items-center gap-1">
                         <FileText className="w-3.5 h-3.5" />
-                        {project.placeSetting}
+                        {project.pageCount} صفحة
                       </span>
                     </div>
                   </CardContent>

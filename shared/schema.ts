@@ -14,6 +14,7 @@ export const novelProjects = pgTable("novel_projects", {
   timeSetting: text("time_setting").notNull(),
   placeSetting: text("place_setting").notNull(),
   narrativePov: text("narrative_pov").notNull(),
+  pageCount: integer("page_count").notNull().default(50),
   status: text("status").notNull().default("draft"),
   outline: text("outline"),
   outlineApproved: integer("outline_approved").notNull().default(0),
