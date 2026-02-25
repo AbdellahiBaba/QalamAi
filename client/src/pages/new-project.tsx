@@ -318,6 +318,31 @@ export default function NewProject() {
                                     <SelectItem value="tragic">شخصية مأساوية</SelectItem>
                                     <SelectItem value="rebel">المتمرد</SelectItem>
                                     <SelectItem value="guardian">الحامي / الوصي</SelectItem>
+                                    <SelectItem value="trickster">المحتال / الماكر</SelectItem>
+                                    <SelectItem value="healer">المعالج / الطبيب</SelectItem>
+                                    <SelectItem value="outcast">المنبوذ / المنعزل</SelectItem>
+                                    <SelectItem value="diplomat">الدبلوماسي / الوسيط</SelectItem>
+                                    <SelectItem value="scholar">العالم / الباحث</SelectItem>
+                                    <SelectItem value="warrior">المحارب / الفارس</SelectItem>
+                                    <SelectItem value="prophet">النبي / صاحب الرؤيا</SelectItem>
+                                    <SelectItem value="servant">الخادم / التابع</SelectItem>
+                                    <SelectItem value="merchant">التاجر</SelectItem>
+                                    <SelectItem value="artist">الفنان / الأديب</SelectItem>
+                                    <SelectItem value="spy">الجاسوس</SelectItem>
+                                    <SelectItem value="mother_figure">الأم / الأمومة</SelectItem>
+                                    <SelectItem value="father_figure">الأب / الأبوّة</SelectItem>
+                                    <SelectItem value="orphan">اليتيم</SelectItem>
+                                    <SelectItem value="lover_betrayed">العاشق المخدوع</SelectItem>
+                                    <SelectItem value="avenger">المنتقم</SelectItem>
+                                    <SelectItem value="dreamer">الحالم</SelectItem>
+                                    <SelectItem value="survivor">الناجي</SelectItem>
+                                    <SelectItem value="tyrant">الطاغية</SelectItem>
+                                    <SelectItem value="refugee">اللاجئ / المهاجر</SelectItem>
+                                    <SelectItem value="detective">المحقق</SelectItem>
+                                    <SelectItem value="rival">المنافس / الغريم</SelectItem>
+                                    <SelectItem value="shapeshifter">المتلوّن / متقلب الأقنعة</SelectItem>
+                                    <SelectItem value="scapegoat">كبش الفداء</SelectItem>
+                                    <SelectItem value="confessor">المعترف / حامل الأسرار</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
