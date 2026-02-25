@@ -1,55 +1,80 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Feather, Check, Crown } from "lucide-react";
+import { Feather, Check, Crown, BookOpen, FileText, Sparkles } from "lucide-react";
 import { Link } from "wouter";
+import { WORDS_PER_PAGE } from "@shared/schema";
 
 const tiers = [
   {
-    name: "الباقة المجانية",
-    price: "مجاناً",
-    description: "للمبتدئين الذين يرغبون في استكشاف عالم الكتابة الروائية",
+    pages: 150,
+    name: "رواية ١٥٠ صفحة",
+    price: "٣٠٠ دولار",
+    priceNote: "دفعة واحدة",
+    wordCount: (150 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
     highlighted: false,
     features: [
-      "كتابة محدودة (3 فصول شهرياً)",
-      "مشروع واحد نشط",
-      "تطوير شخصيتين رئيسيتين",
-      "مخطط رواية أساسي",
-      "دعم عبر البريد الإلكتروني",
+      "١٥٠ صفحة من الكتابة الروائية",
+      `${(150 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
+      "تطوير شخصيات كامل",
+      "مخطط رواية تفصيلي",
+      "كتابة تلقائية بالذكاء الاصطناعي",
+      "تصدير بصيغة PDF",
     ],
-    cta: "ابدأ مجاناً",
+    cta: "ابدأ الآن",
   },
   {
-    name: "باقة الكاتب المحترف",
-    price: "٤٩ ر.س/شهرياً",
-    description: "للكتّاب الجادّين الذين يسعون لإنجاز رواية كاملة باحترافية",
+    pages: 200,
+    name: "رواية ٢٠٠ صفحة",
+    price: "٣٥٠ دولار",
+    priceNote: "دفعة واحدة",
+    wordCount: (200 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
+    highlighted: false,
+    features: [
+      "٢٠٠ صفحة من الكتابة الروائية",
+      `${(200 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
+      "تطوير شخصيات كامل",
+      "مخطط رواية تفصيلي",
+      "كتابة تلقائية بالذكاء الاصطناعي",
+      "تصدير بصيغة PDF",
+    ],
+    cta: "ابدأ الآن",
+  },
+  {
+    pages: 250,
+    name: "رواية ٢٥٠ صفحة",
+    price: "٤٥٠ دولار",
+    priceNote: "دفعة واحدة",
+    wordCount: (250 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
     highlighted: true,
     features: [
-      "كتابة رواية كاملة بلا حدود",
-      "حتى 5 مشاريع نشطة",
-      "تطوير شخصيات غير محدود",
-      "مخططات تفصيلية وأقواس سردية",
-      "تحرير وتحسين الفصول",
+      "٢٥٠ صفحة من الكتابة الروائية",
+      `${(250 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
+      "تطوير شخصيات كامل",
+      "مخطط رواية تفصيلي وأقواس سردية",
+      "كتابة تلقائية بالذكاء الاصطناعي",
       "تصدير بصيغة PDF",
       "دعم ذو أولوية",
     ],
-    cta: "اشترك الآن",
+    cta: "ابدأ الآن",
   },
   {
-    name: "باقة الاستوديو",
-    price: "٩٩ ر.س/شهرياً",
-    description: "للمؤلفين المحترفين ودور النشر التي تحتاج إنتاجية عالية",
+    pages: 300,
+    name: "رواية ٣٠٠ صفحة",
+    price: "٦٠٠ دولار",
+    priceNote: "دفعة واحدة",
+    wordCount: (300 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
     highlighted: false,
     features: [
-      "مشاريع غير محدودة",
-      "كتابة وتحرير بلا حدود",
+      "٣٠٠ صفحة من الكتابة الروائية",
+      `${(300 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
       "تطوير شخصيات غير محدود",
-      "مخططات تفصيلية متقدمة",
+      "مخطط رواية تفصيلي وأقواس سردية",
+      "كتابة تلقائية بالذكاء الاصطناعي",
       "تحليل أسلوبي متعمّق",
-      "تصدير بصيغ متعددة",
+      "تصدير بصيغة PDF",
       "دعم سريع على مدار الساعة",
-      "وصول مبكر للميزات الجديدة",
     ],
-    cta: "اشترك الآن",
+    cta: "ابدأ الآن",
   },
 ];
 
@@ -95,21 +120,21 @@ export default function Pricing() {
       <section className="pt-32 pb-16 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="font-serif text-4xl lg:text-5xl font-bold mb-4 text-foreground" data-testid="text-pricing-title">
-            خطط الأسعار
+            أسعار كتابة الرواية
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            اختر الباقة المناسبة لرحلتك في عالم الكتابة الروائية العربية
+            اختر حجم روايتك وابدأ الكتابة فوراً — أسعار ثابتة بالدولار الأمريكي
           </p>
         </div>
       </section>
 
       <section className="pb-24 px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
           {tiers.map((tier, index) => (
             <Card
               key={index}
               className={`relative flex flex-col ${tier.highlighted ? "border-primary border-2 shadow-lg" : ""}`}
-              data-testid={`card-tier-${index}`}
+              data-testid={`card-tier-${tier.pages}`}
             >
               {tier.highlighted && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -120,14 +145,21 @@ export default function Pricing() {
                 </div>
               )}
               <CardContent className="p-6 flex flex-col flex-1">
-                <div className="space-y-4 mb-8">
-                  <h3 className="font-serif text-xl font-bold text-foreground" data-testid={`text-tier-name-${index}`}>
-                    {tier.name}
-                  </h3>
-                  <div className="font-serif text-3xl font-bold text-primary" data-testid={`text-tier-price-${index}`}>
-                    {tier.price}
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    <h3 className="font-serif text-lg font-bold text-foreground" data-testid={`text-tier-name-${tier.pages}`}>
+                      {tier.name}
+                    </h3>
                   </div>
-                  <p className="text-sm text-muted-foreground">{tier.description}</p>
+                  <div data-testid={`text-tier-price-${tier.pages}`}>
+                    <span className="font-serif text-3xl font-bold text-primary">{tier.price}</span>
+                    <span className="text-sm text-muted-foreground mr-2">{tier.priceNote}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <FileText className="w-4 h-4" />
+                    <span data-testid={`text-tier-pages-${tier.pages}`}>{tier.pages} صفحة — {tier.wordCount} كلمة</span>
+                  </div>
                 </div>
                 <ul className="space-y-3 mb-8 flex-1">
                   {tier.features.map((feature, fIndex) => (
@@ -137,16 +169,17 @@ export default function Pricing() {
                     </li>
                   ))}
                 </ul>
-                <a href="/api/login">
+                <Link href="/new-project">
                   <Button
                     className="w-full"
                     variant={tier.highlighted ? "default" : "outline"}
                     size="lg"
-                    data-testid={`button-tier-cta-${index}`}
+                    data-testid={`button-tier-cta-${tier.pages}`}
                   >
+                    <Sparkles className="w-4 h-4 ml-2" />
                     {tier.cta}
                   </Button>
-                </a>
+                </Link>
               </CardContent>
             </Card>
           ))}
@@ -160,16 +193,20 @@ export default function Pricing() {
           </h2>
           <div className="max-w-3xl mx-auto grid gap-6 text-right mt-8">
             <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">هل يمكنني تغيير الباقة لاحقاً؟</h3>
-              <p className="text-sm text-muted-foreground">نعم، يمكنك الترقية أو تخفيض باقتك في أي وقت. ستُطبَّق التغييرات فوراً.</p>
+              <h3 className="font-serif font-semibold text-foreground">كيف يعمل نظام الأسعار؟</h3>
+              <p className="text-sm text-muted-foreground">تختار حجم روايتك (عدد الصفحات) وتدفع مرة واحدة. يتم تحديد عدد الكلمات المسموح بها بناءً على عدد الصفحات المختار.</p>
             </div>
             <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">هل تُحفظ مشاريعي عند انتهاء الاشتراك؟</h3>
-              <p className="text-sm text-muted-foreground">بالتأكيد، جميع مشاريعك وفصولك محفوظة بأمان ويمكنك الوصول إليها دائماً.</p>
+              <h3 className="font-serif font-semibold text-foreground">ماذا يحدث بعد الدفع؟</h3>
+              <p className="text-sm text-muted-foreground">بعد إتمام الدفع، يتم تفعيل مشروعك فوراً ويمكنك البدء بكتابة المخطط والفصول باستخدام الذكاء الاصطناعي.</p>
             </div>
             <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">هل يوجد ضمان استرداد الأموال؟</h3>
-              <p className="text-sm text-muted-foreground">نقدم ضمان استرداد كامل خلال 14 يوماً من الاشتراك إذا لم تكن راضياً عن الخدمة.</p>
+              <h3 className="font-serif font-semibold text-foreground">هل تُحفظ مشاريعي بأمان؟</h3>
+              <p className="text-sm text-muted-foreground">بالتأكيد، جميع مشاريعك وفصولك محفوظة بأمان ويمكنك الوصول إليها في أي وقت.</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-serif font-semibold text-foreground">ما هو الحد الأقصى للكلمات؟</h3>
+              <p className="text-sm text-muted-foreground">كل صفحة تعادل {WORDS_PER_PAGE} كلمة. على سبيل المثال، رواية ٢٠٠ صفحة تتيح لك كتابة حتى {(200 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة.</p>
             </div>
           </div>
         </div>

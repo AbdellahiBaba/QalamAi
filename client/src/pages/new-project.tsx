@@ -16,13 +16,10 @@ import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2 } f
 import { Link } from "wouter";
 
 const PAGE_OPTIONS = [
-  { value: 20, label: "20 صفحة — قصة قصيرة" },
-  { value: 50, label: "50 صفحة — رواية قصيرة" },
-  { value: 80, label: "80 صفحة — رواية متوسطة" },
-  { value: 100, label: "100 صفحة" },
-  { value: 120, label: "120 صفحة" },
-  { value: 150, label: "150 صفحة — رواية طويلة" },
-  { value: 200, label: "200 صفحة — رواية كبيرة" },
+  { value: 150, label: "١٥٠ صفحة — ٣٠٠ دولار" },
+  { value: 200, label: "٢٠٠ صفحة — ٣٥٠ دولار" },
+  { value: 250, label: "٢٥٠ صفحة — ٤٥٠ دولار" },
+  { value: 300, label: "٣٠٠ صفحة — ٦٠٠ دولار" },
 ];
 
 const projectFormSchema = z.object({
@@ -31,7 +28,7 @@ const projectFormSchema = z.object({
   timeSetting: z.string().min(1, "الزمن مطلوب"),
   placeSetting: z.string().min(1, "المكان مطلوب"),
   narrativePov: z.string().min(1, "نوع السرد مطلوب"),
-  pageCount: z.number().min(10).max(200),
+  pageCount: z.number().min(150).max(300),
   characters: z.array(z.object({
     name: z.string().min(1, "اسم الشخصية مطلوب"),
     background: z.string().min(1, "خلفية الشخصية مطلوبة"),
@@ -59,7 +56,7 @@ export default function NewProject() {
       timeSetting: "",
       placeSetting: "",
       narrativePov: "",
-      pageCount: 50,
+      pageCount: 150,
       characters: [{ name: "", background: "", role: "protagonist" }],
       relationships: [],
     },
@@ -232,12 +229,10 @@ export default function NewProject() {
                     )} />
                   </div>
 
-                  {form.watch("pageCount") >= 100 && (
-                    <div className="rounded-md bg-primary/5 border border-primary/10 p-4 text-sm text-muted-foreground">
-                      <p className="font-medium text-foreground mb-1">رواية طويلة ({form.watch("pageCount")} صفحة)</p>
-                      <p>سيتم تقسيم الرواية إلى فصول متعددة، وقد يتم كتابة كل فصل على أجزاء لضمان الجودة والتفصيل. الكتابة الكاملة ستستغرق وقتاً أطول.</p>
-                    </div>
-                  )}
+                  <div className="rounded-md bg-primary/5 border border-primary/10 p-4 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">رواية {form.watch("pageCount")} صفحة — {form.watch("pageCount") * 250} كلمة</p>
+                    <p>سيتم تقسيم الرواية إلى فصول متعددة، وقد يتم كتابة كل فصل على أجزاء لضمان الجودة والتفصيل.</p>
+                  </div>
                 </CardContent>
               </Card>
             )}

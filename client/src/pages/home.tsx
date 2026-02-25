@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard } from "lucide-react";
 import type { NovelProject } from "@shared/schema";
+import { getProjectPriceUSD, WORDS_PER_PAGE } from "@shared/schema";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -14,22 +15,28 @@ export default function Home() {
     queryKey: ["/api/projects"],
   });
 
-  const statusLabel = (status: string) => {
+  const statusLabel = (status: string, paid: boolean) => {
+    if (!paid && status === "locked") return "مشروع مقفل";
     switch (status) {
       case "draft": return "مسودة";
       case "outline": return "المخطط";
       case "writing": return "قيد الكتابة";
       case "completed": return "مكتمل";
+      case "finished": return "مكتمل (حد الكلمات)";
+      case "locked": return "مشروع مقفل";
       default: return status;
     }
   };
 
-  const statusColor = (status: string) => {
+  const statusColor = (status: string, paid: boolean) => {
+    if (!paid && status === "locked") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
     switch (status) {
       case "draft": return "bg-muted text-muted-foreground";
       case "outline": return "bg-primary/10 text-primary";
       case "writing": return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
       case "completed": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+      case "finished": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+      case "locked": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
       default: return "bg-muted text-muted-foreground";
     }
   };
@@ -101,13 +108,30 @@ export default function Home() {
                       <h3 className="font-serif text-lg font-semibold line-clamp-2" data-testid={`text-project-title-${project.id}`}>
                         {project.title}
                       </h3>
-                      <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${statusColor(project.status)}`}>
-                        {statusLabel(project.status)}
+                      <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${statusColor(project.status, project.paid)}`} data-testid={`badge-status-${project.id}`}>
+                        {!project.paid && <Lock className="w-3 h-3 inline ml-1" />}
+                        {statusLabel(project.status, project.paid)}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {project.mainIdea}
                     </p>
+                    {!project.paid && (
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <span className="text-sm font-semibold text-primary" data-testid={`text-price-${project.id}`}>
+                          {getProjectPriceUSD(project.pageCount)} دولار
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                          <CreditCard className="w-3.5 h-3.5" />
+                          إتمام الدفع
+                        </span>
+                      </div>
+                    )}
+                    {project.paid && project.allowedWords > 0 && (
+                      <div className="text-xs text-muted-foreground" data-testid={`text-words-remaining-${project.id}`}>
+                        عدد الكلمات المتبقية: {(project.allowedWords - project.usedWords).toLocaleString()}
+                      </div>
+                    )}
                     <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />

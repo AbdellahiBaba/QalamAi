@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
-  Sparkles, ChevronDown, ChevronUp, PenTool, Download
+  Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard, AlertTriangle
 } from "lucide-react";
 import { generateNovelPDF } from "@/lib/pdf-generator";
 import type { NovelProject, Character, Chapter, CharacterRelationship } from "@shared/schema";
+import { getProjectPriceUSD } from "@shared/schema";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -47,12 +48,38 @@ export default function ProjectDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
       toast({ title: "تم إنشاء المخطط بنجاح" });
     },
-    onError: () => {
-      toast({ title: "حدث خطأ", description: "فشل في إنشاء المخطط", variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: "حدث خطأ", description: err?.message || "فشل في إنشاء المخطط", variant: "destructive" });
     },
   });
 
   const [autoWriteAll, setAutoWriteAll] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      toast({ title: "تم الدفع بنجاح! يمكنك الآن بدء كتابة روايتك." });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      window.history.replaceState({}, "", `/project/${projectId}`);
+    } else if (params.get("payment") === "cancelled") {
+      toast({ title: "تم إلغاء عملية الدفع", variant: "destructive" });
+      window.history.replaceState({}, "", `/project/${projectId}`);
+    }
+  }, [projectId]);
+
+  const paymentMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/payment-success`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تم تفعيل المشروع بنجاح!" });
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ في معالجة الدفع", variant: "destructive" });
+    },
+  });
 
   const approveOutlineMutation = useMutation({
     mutationFn: async () => {
@@ -82,7 +109,10 @@ export default function ProjectDetail() {
         credentials: "include",
       });
 
-      if (!res.ok) throw new Error("Failed to generate chapter");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to generate chapter");
+      }
 
       const reader = res.body?.getReader();
       if (!reader) throw new Error("No reader");
@@ -123,8 +153,8 @@ export default function ProjectDetail() {
         }
       }
       return true;
-    } catch {
-      toast({ title: "حدث خطأ في كتابة الفصل", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: err?.message || "حدث خطأ في كتابة الفصل", variant: "destructive" });
       return false;
     } finally {
       setGeneratingChapter(null);
@@ -328,6 +358,74 @@ export default function ProjectDetail() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {!project.paid && (
+          <Card className="mb-6 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                  <Lock className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-serif text-lg font-semibold text-red-800 dark:text-red-300" data-testid="text-payment-required">
+                    الرجاء إتمام الدفع لبدء كتابة الرواية
+                  </h3>
+                  <p className="text-sm text-red-700 dark:text-red-400">
+                    هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المخطط وكتابة الفصول.
+                  </p>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="text-2xl font-bold text-red-800 dark:text-red-300" data-testid="text-project-price">
+                      {getProjectPriceUSD(project.pageCount)} دولار
+                    </div>
+                    <span className="text-sm text-red-600 dark:text-red-400">
+                      ({project.pageCount} صفحة — {project.allowedWords.toLocaleString()} كلمة)
+                    </span>
+                  </div>
+                  <Button
+                    onClick={() => paymentMutation.mutate()}
+                    disabled={paymentMutation.isPending}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    data-testid="button-pay-project"
+                  >
+                    {paymentMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ المعالجة...</>
+                    ) : (
+                      <><CreditCard className="w-4 h-4 ml-2" /> إتمام الدفع</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {project.paid && project.allowedWords > 0 && (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4 mb-2">
+                <span className="text-sm font-medium" data-testid="text-words-counter">
+                  عدد الكلمات المتبقية: {(project.allowedWords - project.usedWords).toLocaleString()} من {project.allowedWords.toLocaleString()}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {Math.round((project.usedWords / project.allowedWords) * 100)}%
+                </span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${Math.min(100, (project.usedWords / project.allowedWords) * 100)}%` }}
+                  data-testid="progress-words"
+                />
+              </div>
+              {project.usedWords >= project.allowedWords && (
+                <div className="flex items-center gap-2 mt-3 text-sm text-amber-600 dark:text-amber-400">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span data-testid="text-word-limit-reached">تم الوصول إلى الحد الأقصى للكلمات لهذه الرواية.</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="overview" data-testid="tab-overview">
@@ -393,13 +491,18 @@ export default function ProjectDetail() {
                   {!project.outline && (
                     <Button
                       onClick={() => generateOutlineMutation.mutate()}
-                      disabled={generateOutlineMutation.isPending}
+                      disabled={generateOutlineMutation.isPending || !project.paid}
                       data-testid="button-generate-outline"
                     >
                       {generateOutlineMutation.isPending ? (
                         <>
                           <Loader2 className="w-4 h-4 ml-2 animate-spin" />
                           جاري إنشاء المخطط...
+                        </>
+                      ) : !project.paid ? (
+                        <>
+                          <Lock className="w-4 h-4 ml-2" />
+                          إنشاء المخطط (يتطلب الدفع)
                         </>
                       ) : (
                         <>
@@ -412,7 +515,7 @@ export default function ProjectDetail() {
                   {project.outline && !project.outlineApproved && (
                     <Button
                       onClick={() => approveOutlineMutation.mutate()}
-                      disabled={approveOutlineMutation.isPending}
+                      disabled={approveOutlineMutation.isPending || !project.paid}
                       data-testid="button-approve-outline"
                     >
                       {approveOutlineMutation.isPending ? (
@@ -517,7 +620,7 @@ export default function ProjectDetail() {
                         <Button
                           size="sm"
                           onClick={() => setAutoWriteAll(true)}
-                          disabled={autoWriteAll}
+                          disabled={autoWriteAll || !project.paid || project.usedWords >= project.allowedWords}
                           data-testid="button-write-all-chapters"
                         >
                           {autoWriteAll ? (
@@ -583,6 +686,7 @@ export default function ProjectDetail() {
                             <Button
                               size="sm"
                               variant="secondary"
+                              disabled={!project.paid || project.usedWords >= project.allowedWords}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 generateChapter(chapter.id);

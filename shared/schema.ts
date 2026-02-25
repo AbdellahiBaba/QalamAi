@@ -1,10 +1,28 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export * from "./models/auth";
 export * from "./models/chat";
+
+export const NOVEL_PRICING: Record<number, number> = {
+  150: 30000,
+  200: 35000,
+  250: 45000,
+  300: 60000,
+};
+
+export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
+export const WORDS_PER_PAGE = 250;
+
+export function getProjectPrice(pageCount: number): number {
+  return NOVEL_PRICING[pageCount] || 0;
+}
+
+export function getProjectPriceUSD(pageCount: number): number {
+  return getProjectPrice(pageCount) / 100;
+}
 
 export const novelProjects = pgTable("novel_projects", {
   id: serial("id").primaryKey(),
@@ -14,10 +32,14 @@ export const novelProjects = pgTable("novel_projects", {
   timeSetting: text("time_setting").notNull(),
   placeSetting: text("place_setting").notNull(),
   narrativePov: text("narrative_pov").notNull(),
-  pageCount: integer("page_count").notNull().default(50),
-  status: text("status").notNull().default("draft"),
+  pageCount: integer("page_count").notNull().default(150),
+  status: text("status").notNull().default("locked"),
   outline: text("outline"),
   outlineApproved: integer("outline_approved").notNull().default(0),
+  paid: boolean("paid").notNull().default(false),
+  allowedWords: integer("allowed_words").notNull().default(0),
+  usedWords: integer("used_words").notNull().default(0),
+  price: integer("price").notNull().default(0),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
@@ -93,6 +115,10 @@ export const insertNovelProjectSchema = createInsertSchema(novelProjects).omit({
   outline: true,
   outlineApproved: true,
   status: true,
+  paid: true,
+  allowedWords: true,
+  usedWords: true,
+  price: true,
 });
 
 export const insertCharacterSchema = createInsertSchema(characters).omit({

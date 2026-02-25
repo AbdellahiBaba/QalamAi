@@ -1,19 +1,25 @@
 import {
   novelProjects, characters, characterRelationships, chapters,
+  users,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
   type Chapter, type InsertChapter,
+  type User, type UpsertUser,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 
 export interface IStorage {
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getProjectsByUser(userId: string): Promise<NovelProject[]>;
   getProject(id: number): Promise<NovelProject | undefined>;
   getProjectWithDetails(id: number): Promise<(NovelProject & { characters: Character[]; chapters: Chapter[]; relationships: CharacterRelationship[] }) | undefined>;
-  createProject(project: InsertNovelProject): Promise<NovelProject>;
+  createProject(project: InsertNovelProject & { allowedWords: number; price: number }): Promise<NovelProject>;
   updateProject(id: number, data: Partial<NovelProject>): Promise<NovelProject>;
+  updateProjectPayment(projectId: number, paid: boolean): Promise<NovelProject>;
+  incrementUsedWords(projectId: number, words: number): Promise<NovelProject>;
   createCharacter(character: InsertCharacter): Promise<Character>;
   getCharactersByProject(projectId: number): Promise<Character[]>;
   createRelationship(data: { projectId: number; character1Id: number; character2Id: number; relationship: string }): Promise<CharacterRelationship>;
@@ -24,6 +30,24 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(user: UpsertUser): Promise<User> {
+    const [existing] = await db.select().from(users).where(eq(users.id, user.id!));
+    if (existing) {
+      const [updated] = await db.update(users).set({
+        ...user,
+        updatedAt: new Date(),
+      }).where(eq(users.id, user.id!)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(users).values(user).returning();
+    return created;
+  }
+
   async getProjectsByUser(userId: string): Promise<NovelProject[]> {
     return db.select().from(novelProjects).where(eq(novelProjects.userId, userId)).orderBy(asc(novelProjects.createdAt));
   }
@@ -51,6 +75,23 @@ export class DatabaseStorage implements IStorage {
 
   async updateProject(id: number, data: Partial<NovelProject>): Promise<NovelProject> {
     const [updated] = await db.update(novelProjects).set({ ...data, updatedAt: new Date() }).where(eq(novelProjects.id, id)).returning();
+    return updated;
+  }
+
+  async updateProjectPayment(projectId: number, paid: boolean): Promise<NovelProject> {
+    const [updated] = await db.update(novelProjects).set({
+      paid,
+      status: paid ? "draft" : "locked",
+      updatedAt: new Date(),
+    }).where(eq(novelProjects.id, projectId)).returning();
+    return updated;
+  }
+
+  async incrementUsedWords(projectId: number, words: number): Promise<NovelProject> {
+    const [updated] = await db.update(novelProjects).set({
+      usedWords: sql`${novelProjects.usedWords} + ${words}`,
+      updatedAt: new Date(),
+    }).where(eq(novelProjects.id, projectId)).returning();
     return updated;
   }
 

@@ -56,7 +56,10 @@ export default function Landing() {
 
           <div className="flex items-center gap-3">
             <a href="/api/login">
-              <Button data-testid="button-login">تسجيل الدخول</Button>
+              <Button variant="outline" data-testid="button-login">تسجيل الدخول</Button>
+            </a>
+            <a href="/api/login">
+              <Button data-testid="button-signup">إنشاء حساب جديد</Button>
             </a>
             <Button
               size="icon"
@@ -109,7 +112,12 @@ export default function Landing() {
               <a href="/api/login">
                 <Button size="lg" data-testid="button-get-started">
                   <PenTool className="w-4 h-4 ml-2" />
-                  ابدأ الكتابة
+                  إنشاء حساب جديد
+                </Button>
+              </a>
+              <a href="/api/login">
+                <Button size="lg" variant="outline" data-testid="button-hero-login">
+                  تسجيل الدخول
                 </Button>
               </a>
               <Link href="/features">
@@ -118,16 +126,6 @@ export default function Landing() {
                   <ChevronLeft className="w-4 h-4 mr-2" />
                 </Button>
               </Link>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                مجاني بالكامل
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                لا حاجة لبطاقة ائتمان
-              </span>
             </div>
           </div>
 

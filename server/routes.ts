@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships } from "@shared/schema";
+import { characterRelationships, getProjectPrice, VALID_PAGE_COUNTS, WORDS_PER_PAGE } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, calculateNovelStructure } from "./abu-hashim";
 import OpenAI from "openai";
@@ -44,10 +44,49 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/projects/:id/create-checkout", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (project.paid) return res.json({ message: "المشروع مدفوع بالفعل" });
+
+      res.json({
+        checkoutUrl: null,
+        message: "يرجى التواصل معنا لإتمام عملية الدفع",
+        price: project.price / 100,
+        currency: "USD",
+      });
+    } catch (error) {
+      console.error("Error creating checkout:", error);
+      res.status(500).json({ error: "Failed to create checkout" });
+    }
+  });
+
+  app.post("/api/projects/:id/payment-success", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+
+      const updated = await storage.updateProjectPayment(id, true);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      res.status(500).json({ error: "Failed to process payment" });
+    }
+  });
+
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships } = req.body;
+
+      const validPageCount = VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150;
+      const allowedWords = validPageCount * WORDS_PER_PAGE;
+      const price = getProjectPrice(validPageCount);
 
       const project = await storage.createProject({
         userId,
@@ -56,7 +95,9 @@ export async function registerRoutes(
         timeSetting,
         placeSetting,
         narrativePov,
-        pageCount: Math.min(200, Math.max(10, pageCount || 50)),
+        pageCount: validPageCount,
+        allowedWords,
+        price,
       });
 
       const createdChars = [];
@@ -96,6 +137,10 @@ export async function registerRoutes(
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+
+      if (!project.paid) {
+        return res.status(402).json({ error: "الرجاء إتمام الدفع لبدء كتابة الرواية." });
+      }
 
       const chars = await storage.getCharactersByProject(id);
       const rels = await db.select().from(characterRelationships).where(eq(characterRelationships.projectId, id));
@@ -174,6 +219,15 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
+      if (!project.paid) {
+        return res.status(402).json({ error: "الرجاء إتمام الدفع لبدء كتابة الرواية." });
+      }
+
+      if (project.usedWords >= project.allowedWords) {
+        await storage.updateProject(projectId, { status: "finished" });
+        return res.status(403).json({ error: "تم الوصول إلى الحد الأقصى للكلمات لهذه الرواية." });
+      }
+
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "Chapter not found" });
 
@@ -235,6 +289,9 @@ export async function registerRoutes(
       }
 
       await storage.updateChapter(chapterId, { content: fullContent, status: "completed" });
+
+      const wordCount = fullContent.split(/\s+/).filter(w => w.length > 0).length;
+      await storage.incrementUsedWords(projectId, wordCount);
 
       const completedCount = allChapters.filter(c => c.status === "completed" || c.id === chapterId).length;
       if (completedCount === allChapters.length) {
