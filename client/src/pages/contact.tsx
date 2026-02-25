@@ -1,0 +1,226 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Feather, Mail, Send, MapPin, Clock } from "lucide-react";
+import { SiX, SiInstagram, SiFacebook } from "react-icons/si";
+import { Link } from "wouter";
+
+const navLinks = [
+  { title: "الرئيسية", href: "/" },
+  { title: "من نحن", href: "/about" },
+  { title: "المميزات", href: "/features" },
+  { title: "الأسعار", href: "/pricing" },
+  { title: "تواصل معنا", href: "/contact" },
+  { title: "أبو هاشم", href: "/abu-hashim" },
+];
+
+export default function Contact() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-background" dir="rtl">
+      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <div className="flex items-center gap-3 cursor-pointer">
+                <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
+                  <Feather className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <span className="font-serif text-xl font-bold" data-testid="text-logo">QalamAI</span>
+              </div>
+            </Link>
+          </div>
+          <div className="hidden md:flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href}>
+                <span className="text-sm text-muted-foreground cursor-pointer hover-elevate px-2 py-1 rounded-md" data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}>
+                  {link.title}
+                </span>
+              </Link>
+            ))}
+          </div>
+          <a href="/api/login">
+            <Button data-testid="button-login">تسجيل الدخول</Button>
+          </a>
+        </div>
+      </nav>
+
+      <section className="pt-32 pb-16 px-6">
+        <div className="max-w-6xl mx-auto text-center">
+          <h1 className="font-serif text-4xl lg:text-5xl font-bold mb-4" data-testid="text-contact-title">
+            تواصل <span className="text-primary">معنا</span>
+          </h1>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+            نسعد بتواصلك معنا! سواء كان لديك استفسار أو اقتراح أو ملاحظة، فريقنا جاهز لمساعدتك.
+          </p>
+        </div>
+      </section>
+
+      <section className="pb-20 px-6">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10">
+          <Card>
+            <CardContent className="p-8">
+              <h2 className="font-serif text-2xl font-bold mb-6" data-testid="text-form-title">نموذج التواصل</h2>
+              {submitted ? (
+                <div className="text-center py-12 space-y-4" data-testid="text-success-message">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                    <Send className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="font-serif text-xl font-semibold">شكراً لتواصلك!</h3>
+                  <p className="text-muted-foreground">تم استلام رسالتك بنجاح. سنعود إليك في أقرب وقت ممكن.</p>
+                  <Button variant="outline" onClick={() => { setSubmitted(false); setName(""); setEmail(""); setMessage(""); }} data-testid="button-send-another">
+                    إرسال رسالة أخرى
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">الاسم الكامل</Label>
+                    <Input
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="أدخل اسمك الكامل"
+                      required
+                      data-testid="input-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">البريد الإلكتروني</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="example@email.com"
+                      required
+                      data-testid="input-email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="message">الرسالة</Label>
+                    <Textarea
+                      id="message"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="اكتب رسالتك هنا..."
+                      required
+                      rows={5}
+                      className="resize-none"
+                      data-testid="input-message"
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" size="lg" data-testid="button-submit">
+                    <Send className="w-4 h-4 ml-2" />
+                    إرسال الرسالة
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="p-8 space-y-6">
+                <h2 className="font-serif text-2xl font-bold" data-testid="text-info-title">معلومات التواصل</h2>
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">البريد الإلكتروني</h3>
+                      <p className="text-muted-foreground text-sm" data-testid="text-email">support@qalamai.com</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <MapPin className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">الموقع</h3>
+                      <p className="text-muted-foreground text-sm" data-testid="text-location">العالم العربي — نعمل عن بُعد</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                      <Clock className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">ساعات الدعم</h3>
+                      <p className="text-muted-foreground text-sm" data-testid="text-hours">الأحد إلى الخميس، ٩ صباحاً – ٥ مساءً (بتوقيت مكة المكرمة)</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-8 space-y-4">
+                <h2 className="font-serif text-2xl font-bold" data-testid="text-social-title">تابعنا على وسائل التواصل</h2>
+                <p className="text-muted-foreground text-sm">
+                  تابعنا على منصات التواصل الاجتماعي لآخر الأخبار والتحديثات حول QalamAI.
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="icon" data-testid="button-social-x">
+                    <SiX className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" data-testid="button-social-instagram">
+                    <SiInstagram className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" data-testid="button-social-facebook">
+                    <SiFacebook className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-8 space-y-3">
+                <h3 className="font-serif text-lg font-semibold" data-testid="text-support-heading">نحن هنا لمساعدتك</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  فريق QalamAI ملتزم بدعم الكتّاب العرب في رحلتهم الإبداعية. لا تتردد في التواصل معنا بأي وقت — سواء كنت بحاجة إلى مساعدة تقنية أو لديك أفكار لتطوير المنصة.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t py-8 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Feather className="w-4 h-4" />
+              <span>QalamAI — منصة كتابة الرواية العربية بالذكاء الاصطناعي</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              {navLinks.map((link) => (
+                <Link key={link.href} href={link.href}>
+                  <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded" data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}>
+                    {link.title}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div className="text-center text-sm text-muted-foreground mt-4">
+            &copy; {new Date().getFullYear()} QalamAI. جميع الحقوق محفوظة.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

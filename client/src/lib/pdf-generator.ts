@@ -95,7 +95,7 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
   ctx.lineTo(PAGE_WIDTH - MARGIN_RIGHT - 100, titleY);
   ctx.stroke();
 
-  drawRTLText("أبو هاشم — مساعد الكتابة الروائية", PAGE_WIDTH - MARGIN_RIGHT, titleY + 40, "18px 'Cairo', sans-serif", "#8B7355");
+  drawRTLText("QalamAI — منصّة الكتابة الروائية العربية", PAGE_WIDTH - MARGIN_RIGHT, titleY + 40, "18px 'Cairo', sans-serif", "#8B7355");
 
   savePage();
 

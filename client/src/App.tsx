@@ -8,6 +8,12 @@ import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import NewProject from "@/pages/new-project";
 import ProjectDetail from "@/pages/project-detail";
+import About from "@/pages/about";
+import Features from "@/pages/features";
+import Pricing from "@/pages/pricing";
+import Contact from "@/pages/contact";
+import AbuHashim from "@/pages/abu-hashim";
+import NovelTheme from "@/pages/novel-theme";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -16,7 +22,28 @@ function AuthenticatedRouter() {
       <Route path="/" component={Home} />
       <Route path="/project/new" component={NewProject} />
       <Route path="/project/:id" component={ProjectDetail} />
+      <Route path="/about" component={About} />
+      <Route path="/features" component={Features} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/contact" component={Contact} />
+      <Route path="/abu-hashim" component={AbuHashim} />
+      <Route path="/novel-theme" component={NovelTheme} />
       <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function PublicRouter() {
+  return (
+    <Switch>
+      <Route path="/" component={Landing} />
+      <Route path="/about" component={About} />
+      <Route path="/features" component={Features} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/contact" component={Contact} />
+      <Route path="/abu-hashim" component={AbuHashim} />
+      <Route path="/novel-theme" component={NovelTheme} />
+      <Route component={Landing} />
     </Switch>
   );
 }
@@ -40,7 +67,7 @@ function AppRouter() {
   }
 
   if (!user) {
-    return <Landing />;
+    return <PublicRouter />;
   }
 
   return <AuthenticatedRouter />;

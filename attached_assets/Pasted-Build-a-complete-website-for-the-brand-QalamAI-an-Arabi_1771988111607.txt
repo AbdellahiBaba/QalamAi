@@ -1,0 +1,172 @@
+Build a complete website for the brand “QalamAI,” an Arabic AI novel‑writing platform powered by the virtual literary agent “Abu Hashim.”
+All pages, all text content, all headings, all UI labels, and all written material MUST be generated in Modern Standard Arabic.
+Only the instructions below are in English — the website itself must be fully Arabic.
+
+1. Brand Identity
+Brand Name: QalamAI
+
+Tagline (Arabic): «حيث تتحوّل الفكرة إلى رواية، والقلم إلى صوت.»
+
+Primary Agent: أبو هاشم — كاتب رواية عربي افتراضي
+
+Brand Personality: Elegant, literary, Arabic‑rooted, modern, trustworthy.
+
+2. Color Palette (apply across the entire site)
+Primary: Black #000000 + Gold #D4AF37
+
+Secondary: Deep Blue #0A1A2F
+
+Accent: Warm Sand #C9B79C
+
+Background: Off‑white #F8F5F0
+
+Use these colors for headers, buttons, highlights, and backgrounds.
+
+3. Typography
+Use Arabic‑friendly fonts:
+
+Headings: Cairo
+
+Body text: Noto Arabic
+
+English fallback (if needed): Inter
+
+4. Pages to Generate (ALL CONTENT IN ARABIC)
+A. Home Page
+Include:
+
+Hero section introducing QalamAI + أبو هاشم
+
+Arabic tagline
+
+Short Arabic description of the platform
+
+Arabic CTA buttons (ابدأ الكتابة – اكتشف المزيد)
+
+Features section (novel writing, character building, outlines, editing)
+
+“Why QalamAI?” section
+
+Testimonials placeholder
+
+Footer with Arabic navigation links
+
+B. About Page
+Include Arabic sections:
+
+من هو أبو هاشم؟
+
+ما هي QalamAI؟
+
+الرسالة
+
+الرؤية
+
+القيم
+
+أهمية الأدب العربي
+
+كيف يعمل الذكاء الاصطناعي بأسلوب مبسّط
+
+C. Features Page
+Arabic explanations for:
+
+كتابة الروايات العربية
+
+تطوير الشخصيات
+
+بناء الحبكة والمخططات
+
+كتابة الفصول
+
+التحرير والتحسين
+
+الالتزام الأخلاقي (لا نسخ – لا محتوى غير لائق)
+
+D. Pricing Page
+Create 3 Arabic pricing tiers:
+
+الباقة المجانية: كتابة محدودة
+
+باقة الكاتب المحترف: كتابة رواية كاملة
+
+باقة الاستوديو: مشاريع غير محدودة + دعم سريع
+
+Each with Arabic descriptions and benefits.
+
+E. Contact Page
+Arabic content including:
+
+نموذج تواصل
+
+بريد إلكتروني
+
+روابط تواصل اجتماعي (Placeholder)
+
+رسالة دعم بسيطة
+
+F. Meet Abu Hashim Page
+Arabic content describing:
+
+تعريف شخصية أبو هاشم
+
+أسلوبه الأدبي
+
+مصادر الإلهام (أحلام مستغانمي، خولة حمدي، إبراهيم نصر الله…)
+
+قواعده (لا نسخ – لا محتوى غير لائق – كتابة عربية فقط)
+
+دوره في مساعدة الكتّاب
+
+G. Novel Theme Page
+Arabic explanation of the core novel concept:
+
+رجل متديّن (ياسين)
+
+يحب زوجته (نادية)
+
+يعيش حبًا غير مكتمل
+
+يفكّر في الزواج الثاني دون خيانة
+
+يواجه ضغط المجتمع والأسرة والضمير
+
+صراع نفسي واجتماعي عميق
+
+لا محتوى غير لائق
+
+5. Mission (Arabic)
+«تمكين الكتّاب العرب من تحويل أفكارهم إلى روايات مكتوبة بلغة عربية فصيحة، عبر ذكاء اصطناعي يحترم القيم ويصون جمال اللغة.»
+
+6. Vision (Arabic)
+«أن تصبح QalamAI المنصّة العربية الأولى في الكتابة الأدبية بالذكاء الاصطناعي، مع الحفاظ على روح اللغة العربية وإحياء فن الرواية.»
+
+7. Brand Voice
+All Arabic content must be:
+
+راقٍ
+
+شاعري
+
+واضح
+
+عربي الهوية
+
+حديث في الأسلوب
+
+8. Implementation Instructions
+Using all the information above:
+
+Generate all pages
+
+Fill each page with polished Arabic content
+
+Apply the color palette
+
+Apply the typography
+
+Maintain the brand voice
+
+Ensure a unified visual identity
+
+Produce a fully functional Arabic website for QalamAI

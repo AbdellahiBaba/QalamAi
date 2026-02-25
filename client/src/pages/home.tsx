@@ -42,7 +42,7 @@ export default function Home() {
             <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
               <Feather className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-serif text-xl font-bold">أبو هاشم</span>
+            <span className="font-serif text-xl font-bold">QalamAI</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
