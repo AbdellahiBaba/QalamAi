@@ -303,9 +303,21 @@ export default function NewProject() {
                                   </FormControl>
                                   <SelectContent>
                                     <SelectItem value="protagonist">بطل رئيسي</SelectItem>
-                                    <SelectItem value="antagonist">شخصية معارضة</SelectItem>
+                                    <SelectItem value="love_interest">الحبيب / الحبيبة</SelectItem>
+                                    <SelectItem value="antagonist">شخصية معارضة (الخصم)</SelectItem>
+                                    <SelectItem value="anti_hero">بطل مضاد</SelectItem>
+                                    <SelectItem value="mentor">المرشد / المعلم</SelectItem>
+                                    <SelectItem value="sidekick">الصديق المقرب / الرفيق</SelectItem>
+                                    <SelectItem value="comic_relief">شخصية فكاهية</SelectItem>
                                     <SelectItem value="secondary">شخصية ثانوية</SelectItem>
+                                    <SelectItem value="mysterious">شخصية غامضة</SelectItem>
+                                    <SelectItem value="villain">الشرير</SelectItem>
+                                    <SelectItem value="wise_elder">الحكيم / الشيخ</SelectItem>
+                                    <SelectItem value="child">طفل / شخصية صغيرة</SelectItem>
                                     <SelectItem value="narrator">راوٍ</SelectItem>
+                                    <SelectItem value="tragic">شخصية مأساوية</SelectItem>
+                                    <SelectItem value="rebel">المتمرد</SelectItem>
+                                    <SelectItem value="guardian">الحامي / الوصي</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />

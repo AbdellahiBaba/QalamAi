@@ -73,8 +73,27 @@ export function buildOutlinePrompt(project: NovelProject, chars: Character[], re
 الشخصيات:
 `;
 
+  const roleMap: Record<string, string> = {
+    protagonist: "بطل رئيسي",
+    love_interest: "الحبيب / الحبيبة",
+    antagonist: "شخصية معارضة (الخصم)",
+    anti_hero: "بطل مضاد",
+    mentor: "المرشد / المعلم",
+    sidekick: "الصديق المقرب / الرفيق",
+    comic_relief: "شخصية فكاهية",
+    secondary: "شخصية ثانوية",
+    mysterious: "شخصية غامضة",
+    villain: "الشرير",
+    wise_elder: "الحكيم / الشيخ",
+    child: "طفل / شخصية صغيرة",
+    narrator: "راوٍ",
+    tragic: "شخصية مأساوية",
+    rebel: "المتمرد",
+    guardian: "الحامي / الوصي",
+  };
+
   for (const char of chars) {
-    const roleAr = char.role === "protagonist" ? "بطل رئيسي" : char.role === "antagonist" ? "شخصية معارضة" : char.role === "secondary" ? "شخصية ثانوية" : "راوٍ";
+    const roleAr = roleMap[char.role] || char.role;
     prompt += `- ${char.name} (${roleAr}): ${char.background}\n`;
   }
 

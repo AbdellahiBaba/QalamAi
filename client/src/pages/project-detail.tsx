@@ -157,13 +157,25 @@ export default function ProjectDetail() {
   }
 
   const roleLabel = (role: string) => {
-    switch (role) {
-      case "protagonist": return "بطل رئيسي";
-      case "antagonist": return "شخصية معارضة";
-      case "secondary": return "شخصية ثانوية";
-      case "narrator": return "راوٍ";
-      default: return role;
-    }
+    const roles: Record<string, string> = {
+      protagonist: "بطل رئيسي",
+      love_interest: "الحبيب / الحبيبة",
+      antagonist: "شخصية معارضة",
+      anti_hero: "بطل مضاد",
+      mentor: "المرشد / المعلم",
+      sidekick: "الصديق المقرب",
+      comic_relief: "شخصية فكاهية",
+      secondary: "شخصية ثانوية",
+      mysterious: "شخصية غامضة",
+      villain: "الشرير",
+      wise_elder: "الحكيم / الشيخ",
+      child: "طفل",
+      narrator: "راوٍ",
+      tragic: "شخصية مأساوية",
+      rebel: "المتمرد",
+      guardian: "الحامي / الوصي",
+    };
+    return roles[role] || role;
   };
 
   const povLabel = (pov: string) => {
