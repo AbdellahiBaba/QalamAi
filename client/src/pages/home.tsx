@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck } from "lucide-react";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD, WORDS_PER_PAGE } from "@shared/schema";
 
@@ -52,6 +52,20 @@ export default function Home() {
             <span className="font-serif text-xl font-bold">QalamAI</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/tickets">
+              <Button variant="ghost" size="sm" data-testid="link-tickets">
+                <TicketCheck className="w-4 h-4 ml-1" />
+                <span className="hidden sm:inline">تذاكر الدعم</span>
+              </Button>
+            </Link>
+            {user?.role === "admin" && (
+              <Link href="/admin">
+                <Button variant="ghost" size="sm" data-testid="link-admin">
+                  <ShieldCheck className="w-4 h-4 ml-1" />
+                  <span className="hidden sm:inline">الإدارة</span>
+                </Button>
+              </Link>
+            )}
             <div className="flex items-center gap-2">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user?.profileImageUrl || undefined} />

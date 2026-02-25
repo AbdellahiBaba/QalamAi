@@ -4,9 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Feather, Mail, Send, MapPin, Clock } from "lucide-react";
+import { Feather, Mail, Send, MapPin, Clock, Loader2 } from "lucide-react";
 import { SiX, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const navLinks = [
   { title: "الرئيسية", href: "/" },
@@ -18,14 +21,30 @@ const navLinks = [
 ];
 
 export default function Contact() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [name, setName] = useState(user?.firstName || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [ticketId, setTicketId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const res = await apiRequest("POST", "/api/tickets", { name, email, subject, message });
+      const ticket = await res.json();
+      setTicketId(ticket.id);
+      setSubmitted(true);
+    } catch (error: any) {
+      const msg = error.message?.includes(":") ? error.message.split(":").slice(1).join(":").trim() : "حدث خطأ أثناء إرسال التذكرة";
+      toast({ title: "خطأ", description: msg, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -51,9 +70,15 @@ export default function Contact() {
               </Link>
             ))}
           </div>
-          <a href="/api/login">
-            <Button data-testid="button-login">تسجيل الدخول</Button>
-          </a>
+          {user ? (
+            <Link href="/">
+              <Button variant="outline" data-testid="button-dashboard">لوحة التحكم</Button>
+            </Link>
+          ) : (
+            <a href="/api/login">
+              <Button data-testid="button-login">تسجيل الدخول</Button>
+            </a>
+          )}
         </div>
       </nav>
 
@@ -79,10 +104,21 @@ export default function Contact() {
                     <Send className="w-8 h-8 text-primary" />
                   </div>
                   <h3 className="font-serif text-xl font-semibold">شكراً لتواصلك!</h3>
-                  <p className="text-muted-foreground">تم استلام رسالتك بنجاح. سنعود إليك في أقرب وقت ممكن.</p>
-                  <Button variant="outline" onClick={() => { setSubmitted(false); setName(""); setEmail(""); setMessage(""); }} data-testid="button-send-another">
-                    إرسال رسالة أخرى
-                  </Button>
+                  <p className="text-muted-foreground">تم استلام رسالتك بنجاح. رقم التذكرة الخاص بك:</p>
+                  <p className="text-2xl font-bold text-primary" data-testid="text-ticket-id">#تذكرة-{ticketId}</p>
+                  <p className="text-sm text-muted-foreground">سنعود إليك في أقرب وقت ممكن.</p>
+                  {user && (
+                    <Link href="/tickets">
+                      <Button variant="outline" className="mt-2" data-testid="button-view-tickets">
+                        متابعة تذاكري
+                      </Button>
+                    </Link>
+                  )}
+                  <div>
+                    <Button variant="ghost" onClick={() => { setSubmitted(false); setSubject(""); setMessage(""); setTicketId(null); }} data-testid="button-send-another">
+                      إرسال رسالة أخرى
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
@@ -110,6 +146,17 @@ export default function Contact() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="subject">الموضوع</Label>
+                    <Input
+                      id="subject"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="موضوع رسالتك"
+                      required
+                      data-testid="input-subject"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="message">الرسالة</Label>
                     <Textarea
                       id="message"
@@ -122,9 +169,13 @@ export default function Contact() {
                       data-testid="input-message"
                     />
                   </div>
-                  <Button type="submit" className="w-full" size="lg" data-testid="button-submit">
-                    <Send className="w-4 h-4 ml-2" />
-                    إرسال الرسالة
+                  <Button type="submit" className="w-full" size="lg" disabled={isSubmitting} data-testid="button-submit">
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 ml-2" />
+                    )}
+                    {isSubmitting ? "جاري الإرسال..." : "إرسال الرسالة"}
                   </Button>
                 </form>
               )}

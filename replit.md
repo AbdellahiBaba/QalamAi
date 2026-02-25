@@ -33,12 +33,16 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - **About** (`/about`) - Mission, vision, values, how AI works
 - **Features** (`/features`) - Detailed feature explanations
 - **Pricing** (`/pricing`) - Fixed-price novel tiers (150pg/$300, 200pg/$350, 250pg/$450, 300pg/$600)
-- **Contact** (`/contact`) - Contact form and info
+- **Contact** (`/contact`) - Contact form submitting real tickets to DB
 - **Abu Hashim** (`/abu-hashim`) - Meet the AI literary agent
 - **Novel Theme** (`/novel-theme`) - Sample novel concept
-- **Home** (`/` authenticated) - User dashboard with projects
+- **Home** (`/` authenticated) - User dashboard with projects + ticket/admin nav links
 - **New Project** (`/project/new`) - Multi-step project creation
 - **Project Detail** (`/project/:id`) - Project workspace (overview, characters, chapters)
+- **Tickets** (`/tickets`) - User's support ticket list
+- **Ticket Detail** (`/tickets/:id`) - Individual ticket with conversation thread
+- **Admin** (`/admin`) - Admin dashboard with ticket stats, filterable ticket list
+- **Admin Ticket** (`/admin/tickets/:id`) - Admin ticket detail with reply, status/priority controls
 
 ## Business Model
 - Fixed per-project pricing: 150pg→$300, 200pg→$350, 250pg→$450, 300pg→$600 (stored in cents)
@@ -49,12 +53,18 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - Stripe Checkout for one-time payments with session verification on success callback
 
 ## Database Schema
-- `users` / `sessions` - Replit Auth tables (users includes stripeCustomerId)
+- `users` / `sessions` - Replit Auth tables (users includes stripeCustomerId, role)
 - `novel_projects` - Novel metadata + payment fields (paid, allowedWords, usedWords, price)
 - `characters` - Character profiles (name, background, role)
 - `character_relationships` - Relationships between characters
 - `chapters` - Individual chapters with generated content and status
+- `support_tickets` - Support tickets (userId nullable, name, email, subject, message, status, priority)
+- `ticket_replies` - Replies to tickets (ticketId FK, userId, message, isAdmin)
 - `stripe.*` - Managed by stripe-replit-sync (DO NOT modify directly)
+
+## User Roles
+- `user` (default) - Regular users
+- `admin` - Can access admin panel at `/admin`, manage all support tickets
 
 ## File Structure
 - `shared/schema.ts` - Drizzle ORM schema + pricing constants
@@ -63,7 +73,7 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - `server/abu-hashim.ts` - AI prompt engineering for novel writing
 - `server/stripeClient.ts` - Stripe SDK client via Replit connector
 - `server/webhookHandlers.ts` - Stripe webhook processing
-- `client/src/pages/` - React pages (landing, home, about, features, pricing, contact, abu-hashim, novel-theme, new-project, project-detail)
+- `client/src/pages/` - React pages (landing, home, about, features, pricing, contact, abu-hashim, novel-theme, new-project, project-detail, tickets, ticket-detail, admin, admin-ticket)
 - `client/src/lib/pdf-generator.ts` - Client-side PDF generation for novels
 
 ## API Routes
@@ -76,3 +86,12 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - `POST /api/projects/:id/create-checkout` - Create Stripe checkout session
 - `POST /api/projects/:id/payment-success` - Verify payment & unlock project
 - `POST /api/stripe/webhook` - Stripe webhook handler (registered before express.json())
+- `POST /api/tickets` - Create support ticket (public, attaches userId if authenticated)
+- `GET /api/tickets` - List user's tickets (authenticated)
+- `GET /api/tickets/:id` - Get ticket with replies (authenticated, owner only)
+- `POST /api/tickets/:id/reply` - User reply to own ticket
+- `GET /api/admin/stats` - Ticket stats by status (admin only)
+- `GET /api/admin/tickets` - List all tickets with optional status filter (admin only)
+- `GET /api/admin/tickets/:id` - Get any ticket with replies (admin only)
+- `PATCH /api/admin/tickets/:id` - Update ticket status/priority (admin only)
+- `POST /api/admin/tickets/:id/reply` - Admin reply to any ticket (admin only)

@@ -14,6 +14,10 @@ import Pricing from "@/pages/pricing";
 import Contact from "@/pages/contact";
 import AbuHashim from "@/pages/abu-hashim";
 import NovelTheme from "@/pages/novel-theme";
+import Tickets from "@/pages/tickets";
+import TicketDetail from "@/pages/ticket-detail";
+import Admin from "@/pages/admin";
+import AdminTicket from "@/pages/admin-ticket";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -22,6 +26,10 @@ function AuthenticatedRouter() {
       <Route path="/" component={Home} />
       <Route path="/project/new" component={NewProject} />
       <Route path="/project/:id" component={ProjectDetail} />
+      <Route path="/tickets" component={Tickets} />
+      <Route path="/tickets/:id" component={TicketDetail} />
+      <Route path="/admin" component={Admin} />
+      <Route path="/admin/tickets/:id" component={AdminTicket} />
       <Route path="/about" component={About} />
       <Route path="/features" component={Features} />
       <Route path="/pricing" component={Pricing} />

@@ -1,14 +1,16 @@
 import {
   novelProjects, characters, characterRelationships, chapters,
-  users,
+  users, supportTickets, ticketReplies,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
   type Chapter, type InsertChapter,
   type User, type UpsertUser,
+  type SupportTicket, type InsertSupportTicket,
+  type TicketReply, type InsertTicketReply,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -28,6 +30,15 @@ export interface IStorage {
   getChaptersByProject(projectId: number): Promise<Chapter[]>;
   getChapter(id: number): Promise<Chapter | undefined>;
   updateChapter(id: number, data: Partial<Chapter>): Promise<Chapter>;
+  createTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
+  getTicketsByUser(userId: string): Promise<SupportTicket[]>;
+  getTicket(id: number): Promise<SupportTicket | undefined>;
+  getAllTickets(status?: string): Promise<SupportTicket[]>;
+  updateTicketStatus(id: number, status: string): Promise<SupportTicket>;
+  updateTicketPriority(id: number, priority: string): Promise<SupportTicket>;
+  createTicketReply(reply: InsertTicketReply): Promise<TicketReply>;
+  getTicketReplies(ticketId: number): Promise<TicketReply[]>;
+  getTicketStats(): Promise<{ status: string; count: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -135,6 +146,54 @@ export class DatabaseStorage implements IStorage {
   async updateChapter(id: number, data: Partial<Chapter>): Promise<Chapter> {
     const [updated] = await db.update(chapters).set(data).where(eq(chapters.id, id)).returning();
     return updated;
+  }
+
+  async createTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
+    const [created] = await db.insert(supportTickets).values(ticket).returning();
+    return created;
+  }
+
+  async getTicketsByUser(userId: string): Promise<SupportTicket[]> {
+    return db.select().from(supportTickets).where(eq(supportTickets.userId, userId)).orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getTicket(id: number): Promise<SupportTicket | undefined> {
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id));
+    return ticket;
+  }
+
+  async getAllTickets(status?: string): Promise<SupportTicket[]> {
+    if (status) {
+      return db.select().from(supportTickets).where(eq(supportTickets.status, status)).orderBy(desc(supportTickets.createdAt));
+    }
+    return db.select().from(supportTickets).orderBy(desc(supportTickets.createdAt));
+  }
+
+  async updateTicketStatus(id: number, status: string): Promise<SupportTicket> {
+    const [updated] = await db.update(supportTickets).set({ status, updatedAt: new Date() }).where(eq(supportTickets.id, id)).returning();
+    return updated;
+  }
+
+  async updateTicketPriority(id: number, priority: string): Promise<SupportTicket> {
+    const [updated] = await db.update(supportTickets).set({ priority, updatedAt: new Date() }).where(eq(supportTickets.id, id)).returning();
+    return updated;
+  }
+
+  async createTicketReply(reply: InsertTicketReply): Promise<TicketReply> {
+    const [created] = await db.insert(ticketReplies).values(reply).returning();
+    await db.update(supportTickets).set({ updatedAt: new Date() }).where(eq(supportTickets.id, reply.ticketId));
+    return created;
+  }
+
+  async getTicketReplies(ticketId: number): Promise<TicketReply[]> {
+    return db.select().from(ticketReplies).where(eq(ticketReplies.ticketId, ticketId)).orderBy(asc(ticketReplies.createdAt));
+  }
+
+  async getTicketStats(): Promise<{ status: string; count: number }[]> {
+    const result = await db.execute(
+      sql`SELECT status, COUNT(*)::int as count FROM support_tickets GROUP BY status`
+    );
+    return result.rows as { status: string; count: number }[];
   }
 }
 

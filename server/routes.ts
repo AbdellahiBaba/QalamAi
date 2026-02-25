@@ -366,5 +366,138 @@ export async function registerRoutes(
     }
   });
 
+  const isAdmin = async (req: any, res: any, next: any) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+    next();
+  };
+
+  app.post("/api/tickets", async (req: any, res) => {
+    try {
+      const { name, email, subject, message } = req.body;
+      if (!name || !email || !subject || !message) {
+        return res.status(400).json({ error: "جميع الحقول مطلوبة" });
+      }
+      const userId = req.user?.claims?.sub || null;
+      const ticket = await storage.createTicket({ name, email, subject, message, userId });
+      res.status(201).json(ticket);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      res.status(500).json({ error: "Failed to create ticket" });
+    }
+  });
+
+  app.get("/api/tickets", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tickets = await storage.getTicketsByUser(userId);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      res.status(500).json({ error: "Failed to fetch tickets" });
+    }
+  });
+
+  app.get("/api/tickets/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ticket = await storage.getTicket(id);
+      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      const replies = await storage.getTicketReplies(id);
+      res.json({ ...ticket, replies });
+    } catch (error) {
+      console.error("Error fetching ticket:", error);
+      res.status(500).json({ error: "Failed to fetch ticket" });
+    }
+  });
+
+  app.post("/api/tickets/:id/reply", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ticket = await storage.getTicket(id);
+      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      const { message } = req.body;
+      if (!message) return res.status(400).json({ error: "الرسالة مطلوبة" });
+      const reply = await storage.createTicketReply({ ticketId: id, userId: req.user.claims.sub, message, isAdmin: false });
+      res.status(201).json(reply);
+    } catch (error) {
+      console.error("Error creating reply:", error);
+      res.status(500).json({ error: "Failed to create reply" });
+    }
+  });
+
+  app.get("/api/admin/stats", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const stats = await storage.getTicketStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  app.get("/api/admin/tickets", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const tickets = await storage.getAllTickets(status);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      res.status(500).json({ error: "Failed to fetch tickets" });
+    }
+  });
+
+  app.get("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ticket = await storage.getTicket(id);
+      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      const replies = await storage.getTicketReplies(id);
+      res.json({ ...ticket, replies });
+    } catch (error) {
+      console.error("Error fetching ticket:", error);
+      res.status(500).json({ error: "Failed to fetch ticket" });
+    }
+  });
+
+  const VALID_STATUSES = ["open", "in_progress", "resolved", "closed"];
+  const VALID_PRIORITIES = ["low", "normal", "high", "urgent"];
+
+  app.patch("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, priority } = req.body;
+      if (status && !VALID_STATUSES.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+      if (priority && !VALID_PRIORITIES.includes(priority)) return res.status(400).json({ error: "أولوية غير صالحة" });
+      let ticket = await storage.getTicket(id);
+      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (status) ticket = await storage.updateTicketStatus(id, status);
+      if (priority) ticket = await storage.updateTicketPriority(id, priority);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket:", error);
+      res.status(500).json({ error: "Failed to update ticket" });
+    }
+  });
+
+  app.post("/api/admin/tickets/:id/reply", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ticket = await storage.getTicket(id);
+      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      const { message } = req.body;
+      if (!message) return res.status(400).json({ error: "الرسالة مطلوبة" });
+      const reply = await storage.createTicketReply({ ticketId: id, userId: req.user.claims.sub, message, isAdmin: true });
+      res.status(201).json(reply);
+    } catch (error) {
+      console.error("Error creating reply:", error);
+      res.status(500).json({ error: "Failed to create reply" });
+    }
+  });
+
   return httpServer;
 }
