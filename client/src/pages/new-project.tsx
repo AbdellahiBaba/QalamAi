@@ -75,12 +75,20 @@ export default function NewProject() {
   const createMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
       const res = await apiRequest("POST", "/api/projects", data);
-      return res.json();
+      const project = await res.json();
+      const checkoutRes = await apiRequest("POST", `/api/projects/${project.id}/create-checkout`);
+      const checkoutData = await checkoutRes.json();
+      return { project, checkoutData };
     },
-    onSuccess: (project) => {
+    onSuccess: ({ project, checkoutData }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "تم إنشاء المشروع بنجاح" });
-      navigate(`/project/${project.id}`);
+      if (checkoutData.checkoutUrl) {
+        toast({ title: "تم إنشاء المشروع — جارٍ توجيهك إلى صفحة الدفع..." });
+        window.location.href = checkoutData.checkoutUrl;
+      } else {
+        toast({ title: "تم إنشاء المشروع بنجاح" });
+        navigate(`/project/${project.id}`);
+      }
     },
     onError: () => {
       toast({ title: "حدث خطأ", description: "فشل في إنشاء المشروع", variant: "destructive" });
@@ -528,12 +536,12 @@ export default function NewProject() {
                   {createMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                      جاري الإنشاء...
+                      جارٍ الإنشاء والتوجيه للدفع...
                     </>
                   ) : (
                     <>
                       <Feather className="w-4 h-4 ml-2" />
-                      أنشئ المشروع
+                      أنشئ المشروع وادفع
                     </>
                   )}
                 </Button>
