@@ -13,6 +13,7 @@ import { eq, and, asc, sql } from "drizzle-orm";
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<User>;
   getProjectsByUser(userId: string): Promise<NovelProject[]>;
   getProject(id: number): Promise<NovelProject | undefined>;
   getProjectWithDetails(id: number): Promise<(NovelProject & { characters: Character[]; chapters: Chapter[]; relationships: CharacterRelationship[] }) | undefined>;
@@ -46,6 +47,14 @@ export class DatabaseStorage implements IStorage {
     }
     const [created] = await db.insert(users).values(user).returning();
     return created;
+  }
+
+  async updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<User> {
+    const [updated] = await db.update(users).set({
+      stripeCustomerId,
+      updatedAt: new Date(),
+    }).where(eq(users.id, userId)).returning();
+    return updated;
   }
 
   async getProjectsByUser(userId: string): Promise<NovelProject[]> {

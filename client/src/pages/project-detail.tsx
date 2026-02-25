@@ -57,27 +57,43 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("payment") === "success") {
-      toast({ title: "تم الدفع بنجاح! يمكنك الآن بدء كتابة روايتك." });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+    const paymentStatus = params.get("payment");
+    const sessionId = params.get("session_id");
+
+    if (paymentStatus === "success" && sessionId) {
+      apiRequest("POST", `/api/projects/${projectId}/payment-success`, { sessionId })
+        .then((res) => res.json())
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+          toast({ title: "تم الدفع بنجاح! يمكنك الآن بدء كتابة روايتك." });
+        })
+        .catch(() => {
+          toast({ title: "حدث خطأ في تأكيد الدفع", variant: "destructive" });
+        });
       window.history.replaceState({}, "", `/project/${projectId}`);
-    } else if (params.get("payment") === "cancelled") {
+    } else if (paymentStatus === "cancelled") {
       toast({ title: "تم إلغاء عملية الدفع", variant: "destructive" });
       window.history.replaceState({}, "", `/project/${projectId}`);
     }
   }, [projectId]);
 
-  const paymentMutation = useMutation({
+  const checkoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/payment-success`);
+      const res = await apiRequest("POST", `/api/projects/${projectId}/create-checkout`);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-      toast({ title: "تم تفعيل المشروع بنجاح!" });
+    onSuccess: (data: any) => {
+      if (data.alreadyPaid) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+        toast({ title: "المشروع مدفوع بالفعل" });
+        return;
+      }
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
     },
     onError: () => {
-      toast({ title: "حدث خطأ في معالجة الدفع", variant: "destructive" });
+      toast({ title: "حدث خطأ في إنشاء جلسة الدفع", variant: "destructive" });
     },
   });
 
@@ -381,12 +397,12 @@ export default function ProjectDetail() {
                     </span>
                   </div>
                   <Button
-                    onClick={() => paymentMutation.mutate()}
-                    disabled={paymentMutation.isPending}
+                    onClick={() => checkoutMutation.mutate()}
+                    disabled={checkoutMutation.isPending}
                     className="bg-red-600 hover:bg-red-700 text-white"
                     data-testid="button-pay-project"
                   >
-                    {paymentMutation.isPending ? (
+                    {checkoutMutation.isPending ? (
                       <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ المعالجة...</>
                     ) : (
                       <><CreditCard className="w-4 h-4 ml-2" /> إتمام الدفع</>

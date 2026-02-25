@@ -7,6 +7,7 @@ import { characterRelationships, getProjectPrice, VALID_PAGE_COUNTS, WORDS_PER_P
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, calculateNovelStructure } from "./abu-hashim";
 import OpenAI from "openai";
+import { getUncachableStripeClient } from "./stripeClient";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -47,17 +48,52 @@ export async function registerRoutes(
   app.post("/api/projects/:id/create-checkout", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
-      if (project.paid) return res.json({ message: "المشروع مدفوع بالفعل" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (project.paid) return res.json({ message: "المشروع مدفوع بالفعل", alreadyPaid: true });
 
-      res.json({
-        checkoutUrl: null,
-        message: "يرجى التواصل معنا لإتمام عملية الدفع",
-        price: project.price / 100,
-        currency: "USD",
+      const stripe = await getUncachableStripeClient();
+
+      const user = await storage.getUser(userId);
+      let customerId = user?.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user?.email || undefined,
+          metadata: { userId },
+        });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customer.id);
+      }
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              unit_amount: project.price,
+              product_data: {
+                name: `رواية: ${project.title}`,
+                description: `${project.pageCount} صفحة — ${project.allowedWords.toLocaleString()} كلمة`,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${baseUrl}/project/${id}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/project/${id}?payment=cancelled`,
+        metadata: {
+          projectId: id.toString(),
+          userId,
+        },
       });
+
+      res.json({ checkoutUrl: session.url });
     } catch (error) {
       console.error("Error creating checkout:", error);
       res.status(500).json({ error: "Failed to create checkout" });
@@ -67,9 +103,20 @@ export async function registerRoutes(
   app.post("/api/projects/:id/payment-success", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (project.paid) return res.json(project);
+
+      const { sessionId } = req.body;
+      if (sessionId) {
+        const stripe = await getUncachableStripeClient();
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== "paid") {
+          return res.status(400).json({ error: "لم يتم تأكيد الدفع بعد" });
+        }
+      }
 
       const updated = await storage.updateProjectPayment(id, true);
       res.json(updated);
