@@ -184,6 +184,8 @@ export async function registerRoutes(
       const structure = calculateNovelStructure(project.pageCount);
       const totalParts = structure.partsPerChapter;
 
+      await storage.updateChapter(chapterId, { status: "generating" });
+
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
@@ -191,6 +193,7 @@ export async function registerRoutes(
       res.write(`data: ${JSON.stringify({ totalParts, currentPart: 1 })}\n\n`);
 
       let fullContent = "";
+      let chunkCount = 0;
 
       for (let part = 1; part <= totalParts; part++) {
         if (part > 1) {
@@ -221,14 +224,19 @@ export async function registerRoutes(
           const content = chunk.choices[0]?.delta?.content || "";
           if (content) {
             fullContent += content;
+            chunkCount++;
             res.write(`data: ${JSON.stringify({ content })}\n\n`);
+
+            if (chunkCount % 50 === 0) {
+              await storage.updateChapter(chapterId, { content: fullContent });
+            }
           }
         }
       }
 
       await storage.updateChapter(chapterId, { content: fullContent, status: "completed" });
 
-      const completedCount = allChapters.filter(c => c.content || c.id === chapterId).length;
+      const completedCount = allChapters.filter(c => c.status === "completed" || c.id === chapterId).length;
       if (completedCount === allChapters.length) {
         await storage.updateProject(projectId, { status: "completed" });
       }
@@ -237,6 +245,14 @@ export async function registerRoutes(
       res.end();
     } catch (error) {
       console.error("Error generating chapter:", error);
+      try {
+        const chapter = await storage.getChapter(parseInt(req.params.chapterId));
+        if (chapter && chapter.status === "generating") {
+          await storage.updateChapter(parseInt(req.params.chapterId), {
+            status: chapter.content ? "incomplete" : "pending"
+          });
+        }
+      } catch {}
       if (res.headersSent) {
         res.write(`data: ${JSON.stringify({ error: "Failed to generate chapter" })}\n\n`);
         res.end();

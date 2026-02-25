@@ -458,7 +458,17 @@ export default function ProjectDetail() {
                           {chapter.status === "completed" && (
                             <CheckCircle className="w-4 h-4 text-green-500" />
                           )}
-                          {!chapter.content && !isGenerating && (
+                          {chapter.status === "incomplete" && !isGenerating && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                              غير مكتمل
+                            </span>
+                          )}
+                          {chapter.status === "generating" && !isGenerating && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                              قيد الكتابة
+                            </span>
+                          )}
+                          {(!chapter.content || chapter.status === "incomplete" || chapter.status === "generating") && !isGenerating && (
                             <Button
                               size="sm"
                               variant="secondary"
@@ -469,7 +479,7 @@ export default function ProjectDetail() {
                               data-testid={`button-write-chapter-${chapter.id}`}
                             >
                               <Feather className="w-3.5 h-3.5 ml-1" />
-                              اكتب الفصل
+                              {chapter.content ? "أكمل الكتابة" : "اكتب الفصل"}
                             </Button>
                           )}
                           {isGenerating && (
@@ -492,6 +502,13 @@ export default function ProjectDetail() {
                               {displayContent}
                             </div>
                           </ScrollArea>
+                          {chapter.status === "incomplete" && !isGenerating && (
+                            <div className="border-t p-4 bg-yellow-50 dark:bg-yellow-900/10 text-center">
+                              <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">
+                                هذا الفصل لم يكتمل بعد. يمكنك إعادة كتابته للحصول على النسخة الكاملة.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </CardContent>
