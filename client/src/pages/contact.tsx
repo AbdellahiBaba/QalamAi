@@ -142,7 +142,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-1">البريد الإلكتروني</h3>
-                      <p className="text-muted-foreground text-sm" data-testid="text-email">support@qalamai.com</p>
+                      <p className="text-muted-foreground text-sm" data-testid="text-email">support@qalamai.net</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
