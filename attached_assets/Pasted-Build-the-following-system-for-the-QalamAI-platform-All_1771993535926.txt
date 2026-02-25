@@ -1,0 +1,161 @@
+Build the following system for the QalamAI platform.
+All UI text, messages, buttons, and labels must be in Modern Standard Arabic.
+Only the instructions below are in English — the implementation must be fully Arabic.
+
+1. Authentication (Replit Auth + Sign Up Button)
+A. Add a “Sign Up” button
+Create a visible Arabic button labeled:
+
+«إنشاء حساب جديد»
+
+When clicked:
+
+Trigger Replit Auth to create a new user account.
+
+After successful signup, redirect the user to their dashboard.
+
+B. Add a “Login” button
+Label:
+
+«تسجيل الدخول»
+
+This also uses Replit Auth.
+
+C. User database entry
+After signup or login, create or load a user entry:
+
+Code
+user = {
+  id,
+  name,
+  email,
+  projects: [],
+  balance: 0,
+  plan: "free"
+}
+Store this in your database.
+
+2. Business Model (Fixed‑Price Novel Projects)
+The platform sells full novel projects at fixed prices.
+All pricing text must be displayed in Arabic.
+
+Pricing
+150‑page novel → 300 USD
+
+200‑page novel → 350 USD
+
+250‑page novel → 450 USD
+
+300‑page novel → 600 USD
+
+Each page = 250 words.
+Total allowed words = pages × 250.
+
+3. Project Workflow
+When a user creates a new novel project:
+
+User chooses page count (150 / 200 / 250 / 300).
+
+System calculates price and allowed words.
+
+Create a project object:
+
+Code
+project = {
+  id,
+  title,
+  pages,
+  allowedWords,
+  usedWords: 0,
+  paid: false,
+  status: "locked"
+}
+Add the project to the user’s projects list.
+
+The project remains locked until payment is completed.
+
+After successful payment:
+
+Code
+project.paid = true
+project.status = "active"
+4. Usage Protection (Stop When Balance Ends)
+Before sending ANY request to the AI agent, enforce:
+
+Code
+if (!project.paid) {
+  return "الرجاء إتمام الدفع لبدء كتابة الرواية.";
+}
+
+if (project.usedWords >= project.allowedWords) {
+  project.status = "finished";
+  return "تم الوصول إلى الحد الأقصى للكلمات لهذه الرواية.";
+}
+Only if both checks pass:
+
+Code
+sendRequestToAgent();
+project.usedWords += generatedWords;
+This ensures your Replit Credits are never consumed unless the user has paid.
+
+5. Payment Integration
+Add a payment button for each project using:
+
+PayPal
+
+Zyla
+
+or any external checkout link
+
+After successful payment:
+
+Code
+project.paid = true
+project.status = "active"
+Store this in the database.
+
+6. Arabic UI Requirements
+All user‑facing text must be in Arabic, including:
+
+«إنشاء حساب جديد» (Sign Up)
+
+«تسجيل الدخول» (Login)
+
+«إنشاء مشروع رواية جديد»
+
+«الرجاء إتمام الدفع لبدء كتابة الرواية»
+
+«تم الوصول إلى الحد الأقصى للكلمات»
+
+«عدد الكلمات المتبقية»
+
+«إتمام الدفع»
+
+«بدء الكتابة»
+
+«مشروع مقفل»
+
+«مشروع نشط»
+
+7. Final Output
+Produce:
+
+Replit Auth login
+
+Replit Auth signup button
+
+User database entry
+
+Project creation system
+
+Payment‑locked workflow
+
+Word‑limit enforcement
+
+Stop‑usage protection
+
+Payment integration hooks
+
+All UI in Arabic
+
+✅ END OF PROMPT
