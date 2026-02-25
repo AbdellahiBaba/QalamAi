@@ -108,6 +108,39 @@ export const characterRelationshipsRelations = relations(characterRelationships,
   }),
 }));
 
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id"),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("open"),
+  priority: text("priority").notNull().default("normal"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const ticketReplies = pgTable("ticket_replies", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull().references(() => supportTickets.id, { onDelete: "cascade" }),
+  userId: varchar("user_id"),
+  message: text("message").notNull(),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const supportTicketsRelations = relations(supportTickets, ({ many }) => ({
+  replies: many(ticketReplies),
+}));
+
+export const ticketRepliesRelations = relations(ticketReplies, ({ one }) => ({
+  ticket: one(supportTickets, {
+    fields: [ticketReplies.ticketId],
+    references: [supportTickets.id],
+  }),
+}));
+
 export const insertNovelProjectSchema = createInsertSchema(novelProjects).omit({
   id: true,
   createdAt: true,
@@ -132,6 +165,19 @@ export const insertChapterSchema = createInsertSchema(chapters).omit({
   status: true,
 });
 
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  priority: true,
+});
+
+export const insertTicketReplySchema = createInsertSchema(ticketReplies).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type NovelProject = typeof novelProjects.$inferSelect;
 export type InsertNovelProject = z.infer<typeof insertNovelProjectSchema>;
 export type Character = typeof characters.$inferSelect;
@@ -139,3 +185,7 @@ export type InsertCharacter = z.infer<typeof insertCharacterSchema>;
 export type CharacterRelationship = typeof characterRelationships.$inferSelect;
 export type Chapter = typeof chapters.$inferSelect;
 export type InsertChapter = z.infer<typeof insertChapterSchema>;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type TicketReply = typeof ticketReplies.$inferSelect;
+export type InsertTicketReply = z.infer<typeof insertTicketReplySchema>;
