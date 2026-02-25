@@ -50,21 +50,24 @@ export default function ProjectDetail() {
     },
   });
 
+  const [autoWriteAll, setAutoWriteAll] = useState(false);
+
   const approveOutlineMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/projects/${projectId}/outline/approve`);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-      toast({ title: "تمت الموافقة على المخطط" });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تمت الموافقة على المخطط — بدأت الكتابة التلقائية" });
+      setAutoWriteAll(true);
     },
     onError: () => {
       toast({ title: "حدث خطأ", variant: "destructive" });
     },
   });
 
-  const generateChapter = async (chapterId: number) => {
+  const generateChapter = async (chapterId: number): Promise<boolean> => {
     setGeneratingChapter(chapterId);
     setStreamedContent("");
     setGenerationProgress(null);
@@ -109,16 +112,44 @@ export default function ProjectDetail() {
               queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
               setGenerationProgress(null);
             }
-          } catch {}
+            if (event.error) {
+              throw new Error(event.error);
+            }
+          } catch (e) {
+            if (e instanceof Error && e.message !== "Failed to generate chapter") throw e;
+          }
         }
       }
+      return true;
     } catch {
       toast({ title: "حدث خطأ في كتابة الفصل", variant: "destructive" });
+      return false;
     } finally {
       setGeneratingChapter(null);
       setGenerationProgress(null);
     }
   };
+
+  useEffect(() => {
+    if (!autoWriteAll || !project?.chapters || generatingChapter) return;
+
+    const pendingChapters = project.chapters
+      .filter(c => c.status !== "completed")
+      .sort((a, b) => a.chapterNumber - b.chapterNumber);
+
+    if (pendingChapters.length === 0) {
+      setAutoWriteAll(false);
+      toast({ title: "تم الانتهاء من كتابة جميع الفصول!" });
+      return;
+    }
+
+    const nextChapter = pendingChapters[0];
+    generateChapter(nextChapter.id).then((success) => {
+      if (!success) {
+        setAutoWriteAll(false);
+      }
+    });
+  }, [autoWriteAll, project?.chapters, generatingChapter]);
 
   useEffect(() => {
     if (contentRef.current && streamedContent) {
@@ -429,7 +460,52 @@ export default function ProjectDetail() {
                 <p>قم بإنشاء المخطط والموافقة عليه من تبويب "نظرة عامة" قبل البدء بكتابة الفصول</p>
               </div>
             ) : project.chapters && project.chapters.length > 0 ? (
-              project.chapters.map((chapter) => {
+              <>
+                {(() => {
+                  const completedCount = project.chapters.filter(c => c.status === "completed").length;
+                  const totalCount = project.chapters.length;
+                  const hasRemaining = completedCount < totalCount;
+                  return (
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-muted-foreground">
+                          {completedCount}/{totalCount} فصل مكتمل
+                        </span>
+                        <div className="w-32 h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${(completedCount / totalCount) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                      {hasRemaining && !generatingChapter && (
+                        <Button
+                          size="sm"
+                          onClick={() => setAutoWriteAll(true)}
+                          disabled={autoWriteAll}
+                          data-testid="button-write-all-chapters"
+                        >
+                          {autoWriteAll ? (
+                            <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ الكتابة...</>
+                          ) : (
+                            <><Sparkles className="w-3.5 h-3.5 ml-1" /> اكتب جميع الفصول</>
+                          )}
+                        </Button>
+                      )}
+                      {autoWriteAll && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setAutoWriteAll(false)}
+                          data-testid="button-stop-writing"
+                        >
+                          إيقاف
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
+              {project.chapters.map((chapter) => {
                 const isExpanded = expandedChapter === chapter.id;
                 const isGenerating = generatingChapter === chapter.id;
                 const displayContent = isGenerating ? streamedContent : chapter.content;
@@ -514,7 +590,8 @@ export default function ProjectDetail() {
                     </CardContent>
                   </Card>
                 );
-              })
+              })}
+              </>
             ) : (
               <div className="text-center py-16 text-muted-foreground">
                 <FileText className="w-12 h-12 mx-auto mb-4 opacity-30" />
