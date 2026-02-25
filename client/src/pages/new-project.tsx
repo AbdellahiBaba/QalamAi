@@ -343,6 +343,34 @@ export default function NewProject() {
                                     <SelectItem value="shapeshifter">المتلوّن / متقلب الأقنعة</SelectItem>
                                     <SelectItem value="scapegoat">كبش الفداء</SelectItem>
                                     <SelectItem value="confessor">المعترف / حامل الأسرار</SelectItem>
+                                    <SelectItem value="wife">الزوجة</SelectItem>
+                                    <SelectItem value="husband">الزوج</SelectItem>
+                                    <SelectItem value="first_wife">الزوجة الأولى</SelectItem>
+                                    <SelectItem value="second_wife">الزوجة الثانية</SelectItem>
+                                    <SelectItem value="ex_wife">الزوجة السابقة</SelectItem>
+                                    <SelectItem value="ex_husband">الزوج السابق</SelectItem>
+                                    <SelectItem value="fiancee">الخطيبة</SelectItem>
+                                    <SelectItem value="fiance">الخطيب</SelectItem>
+                                    <SelectItem value="sister">الأخت</SelectItem>
+                                    <SelectItem value="brother">الأخ</SelectItem>
+                                    <SelectItem value="daughter">الابنة</SelectItem>
+                                    <SelectItem value="son">الابن</SelectItem>
+                                    <SelectItem value="grandmother">الجدة</SelectItem>
+                                    <SelectItem value="grandfather">الجد</SelectItem>
+                                    <SelectItem value="uncle">العم / الخال</SelectItem>
+                                    <SelectItem value="aunt">العمة / الخالة</SelectItem>
+                                    <SelectItem value="cousin_male">ابن العم / ابن الخال</SelectItem>
+                                    <SelectItem value="cousin_female">بنت العم / بنت الخال</SelectItem>
+                                    <SelectItem value="mother_in_law">الحماة</SelectItem>
+                                    <SelectItem value="father_in_law">الحمو</SelectItem>
+                                    <SelectItem value="stepmother">زوجة الأب</SelectItem>
+                                    <SelectItem value="stepfather">زوج الأم</SelectItem>
+                                    <SelectItem value="neighbor">الجار / الجارة</SelectItem>
+                                    <SelectItem value="best_friend">الصديق الحميم</SelectItem>
+                                    <SelectItem value="secret_lover">الحبيب السري</SelectItem>
+                                    <SelectItem value="forbidden_love">الحب المحرّم</SelectItem>
+                                    <SelectItem value="widow">الأرملة</SelectItem>
+                                    <SelectItem value="widower">الأرمل</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
