@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
-  Sparkles, ChevronDown, ChevronUp, PenTool
+  Sparkles, ChevronDown, ChevronUp, PenTool, Download
 } from "lucide-react";
+import { generateNovelPDF } from "@/lib/pdf-generator";
 import type { NovelProject, Character, Chapter, CharacterRelationship } from "@shared/schema";
 
 interface ProjectData extends NovelProject {
@@ -29,6 +30,7 @@ export default function ProjectDetail() {
   const [generatingChapter, setGeneratingChapter] = useState<number | null>(null);
   const [streamedContent, setStreamedContent] = useState("");
   const [generationProgress, setGenerationProgress] = useState<{ currentPart: number; totalParts: number } | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -289,6 +291,39 @@ export default function ProjectDetail() {
               </span>
             </div>
           </div>
+          {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
+            <Button
+              size="sm"
+              onClick={async () => {
+                setIsDownloading(true);
+                try {
+                  await generateNovelPDF({
+                    title: project.title,
+                    chapters: project.chapters
+                      .sort((a, b) => a.chapterNumber - b.chapterNumber)
+                      .map(c => ({
+                        chapterNumber: c.chapterNumber,
+                        title: c.title,
+                        content: c.content,
+                      })),
+                  });
+                  toast({ title: "تم تحميل الرواية بنجاح" });
+                } catch {
+                  toast({ title: "حدث خطأ في إنشاء ملف PDF", variant: "destructive" });
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
+              disabled={isDownloading}
+              data-testid="button-download-pdf"
+            >
+              {isDownloading ? (
+                <><Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> جارٍ التحميل...</>
+              ) : (
+                <><Download className="w-4 h-4 ml-1.5" /> تحميل PDF</>
+              )}
+            </Button>
+          )}
         </div>
       </header>
 
