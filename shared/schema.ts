@@ -46,6 +46,31 @@ export function getProjectPriceByType(projectType: string, pageCount?: number): 
   return getProjectPrice(pageCount || 150);
 }
 
+export const PLAN_TYPES = ["free", "essay", "scenario", "all_in_one"] as const;
+export type PlanType = (typeof PLAN_TYPES)[number];
+
+export const PLAN_PRICES: Record<string, number> = {
+  essay: ESSAY_PRICE,
+  scenario: SCENARIO_PRICE,
+  all_in_one: ALL_IN_ONE_PRICE,
+};
+
+export function userPlanCoversType(plan: string | null | undefined, projectType: string): boolean {
+  if (!plan || plan === "free") return false;
+  if (plan === "all_in_one") return true;
+  if (plan === "essay" && projectType === "essay") return true;
+  if (plan === "scenario" && projectType === "scenario") return true;
+  return false;
+}
+
+export function getPlanPrice(plan: string): number {
+  return PLAN_PRICES[plan] || 0;
+}
+
+export function getPlanPriceUSD(plan: string): number {
+  return getPlanPrice(plan) / 100;
+}
+
 export const novelProjects = pgTable("novel_projects", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),

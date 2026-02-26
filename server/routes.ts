@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure } from "./abu-hashim";
 import OpenAI from "openai";
@@ -24,6 +24,139 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  app.get("/api/user/plan", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      res.json({ plan: user.plan || "free", planPurchasedAt: user.planPurchasedAt });
+    } catch (error) {
+      console.error("Error fetching plan:", error);
+      res.status(500).json({ error: "Failed to fetch plan" });
+    }
+  });
+
+  app.post("/api/plans/purchase", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { plan } = req.body;
+
+      if (!plan || !PLAN_PRICES[plan]) {
+        return res.status(400).json({ error: "خطة غير صالحة" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      if (user.plan === plan || user.plan === "all_in_one") {
+        return res.json({ message: "الخطة مفعّلة بالفعل", alreadyActive: true });
+      }
+
+      if (FREE_ACCESS_USER_IDS.includes(userId)) {
+        await storage.updateUserPlan(userId, plan);
+        const projects = await storage.getProjectsByUser(userId);
+        for (const p of projects) {
+          if (!p.paid && userPlanCoversType(plan, p.projectType || "novel")) {
+            await storage.updateProjectPayment(p.id, true);
+          }
+        }
+        return res.json({ message: "تم تفعيل الخطة مجاناً", alreadyActive: true });
+      }
+
+      const stripe = await getUncachableStripeClient();
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          metadata: { userId },
+        });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customer.id);
+      }
+
+      const planNames: Record<string, string> = {
+        essay: "خطة المقالات",
+        scenario: "خطة السيناريوهات",
+        all_in_one: "الخطة الشاملة",
+      };
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              unit_amount: PLAN_PRICES[plan],
+              product_data: {
+                name: planNames[plan] || plan,
+                description: `QalamAI - ${planNames[plan] || plan}`,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${baseUrl}/pricing?plan_success=true&plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/pricing?plan_cancelled=true`,
+        metadata: {
+          userId,
+          planType: plan,
+          type: "plan_purchase",
+        },
+      });
+
+      res.json({ checkoutUrl: session.url });
+    } catch (error) {
+      console.error("Error creating plan checkout:", error);
+      res.status(500).json({ error: "فشل في إنشاء جلسة الدفع" });
+    }
+  });
+
+  app.post("/api/plans/verify", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId, plan } = req.body;
+
+      if (!sessionId || !plan || !PLAN_PRICES[plan]) {
+        return res.status(400).json({ error: "بيانات غير صالحة" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      if (user.plan === plan || user.plan === "all_in_one") {
+        return res.json({ success: true, plan: user.plan });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      if (session.payment_status !== "paid") {
+        return res.status(400).json({ error: "لم يتم تأكيد الدفع بعد" });
+      }
+
+      if (session.metadata?.planType !== plan || session.metadata?.userId !== userId) {
+        return res.status(400).json({ error: "بيانات الجلسة غير متطابقة" });
+      }
+
+      await storage.updateUserPlan(userId, plan);
+
+      const projects = await storage.getProjectsByUser(userId);
+      for (const p of projects) {
+        if (!p.paid && userPlanCoversType(plan, p.projectType || "novel")) {
+          await storage.updateProjectPayment(p.id, true);
+        }
+      }
+
+      res.json({ success: true, plan });
+    } catch (error) {
+      console.error("Error verifying plan:", error);
+      res.status(500).json({ error: "فشل في التحقق من الدفع" });
+    }
+  });
 
   app.get("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
@@ -58,6 +191,13 @@ export async function registerRoutes(
       if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
       if (project.paid) return res.json({ message: "المشروع مدفوع بالفعل", alreadyPaid: true });
 
+      const user = await storage.getUser(userId);
+      const planCovers = userPlanCoversType(user?.plan, project.projectType || "novel");
+      if (planCovers) {
+        await storage.updateProjectPayment(id, true);
+        return res.json({ message: "الخطة تغطي هذا المشروع", alreadyPaid: true });
+      }
+
       if (FREE_ACCESS_USER_IDS.includes(userId)) {
         await storage.updateProjectPayment(id, true);
         return res.json({ message: "تم تفعيل المشروع مجاناً", alreadyPaid: true });
@@ -65,7 +205,6 @@ export async function registerRoutes(
 
       const stripe = await getUncachableStripeClient();
 
-      const user = await storage.getUser(userId);
       let customerId = user?.stripeCustomerId;
       if (!customerId) {
         const customer = await stripe.customers.create({
@@ -201,6 +340,11 @@ export async function registerRoutes(
       const validPageCount = type === "novel" ? (VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150) : (pageCount || 10);
       const price = getProjectPriceByType(type, validPageCount);
 
+      const user = await storage.getUser(userId);
+      const isFreeUser = FREE_ACCESS_USER_IDS.includes(userId);
+      const planCovers = userPlanCoversType(user?.plan, type);
+      const autoPaid = isFreeUser || planCovers;
+
       const project = await storage.createProject({
         userId,
         title,
@@ -218,6 +362,7 @@ export async function registerRoutes(
         genre: type === "scenario" ? (genre || null) : null,
         episodeCount: type === "scenario" ? (episodeCount || 1) : null,
         formatType: type === "scenario" ? (formatType || "film") : null,
+        ...(autoPaid ? { paid: true, status: "draft" } : {}),
       });
 
       if (chars && Array.isArray(chars) && chars.length > 0) {
@@ -260,9 +405,12 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
-      const isFreeUser = FREE_ACCESS_USER_IDS.includes(req.user.claims.sub);
-      if (!project.paid && !isFreeUser) {
-        return res.status(402).json({ error: "الرجاء إتمام الدفع لبدء كتابة الرواية." });
+      const userId = req.user.claims.sub;
+      const isFreeUser = FREE_ACCESS_USER_IDS.includes(userId);
+      const user = await storage.getUser(userId);
+      const planCovers = userPlanCoversType(user?.plan, project.projectType || "novel");
+      if (!project.paid && !isFreeUser && !planCovers) {
+        return res.status(402).json({ error: "الرجاء إتمام الدفع أو تفعيل خطة مناسبة." });
       }
 
       if (project.outline && project.outlineApproved === 1) {
@@ -419,8 +567,10 @@ export async function registerRoutes(
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
       const isFreeUser = FREE_ACCESS_USER_IDS.includes(req.user.claims.sub);
-      if (!project.paid && !isFreeUser) {
-        return res.status(402).json({ error: "الرجاء إتمام الدفع لبدء كتابة الرواية." });
+      const chapterUser = await storage.getUser(req.user.claims.sub);
+      const chapterPlanCovers = userPlanCoversType(chapterUser?.plan, project.projectType || "novel");
+      if (!project.paid && !isFreeUser && !chapterPlanCovers) {
+        return res.status(402).json({ error: "الرجاء إتمام الدفع أو تفعيل خطة مناسبة." });
       }
 
       const chapter = await storage.getChapter(chapterId);

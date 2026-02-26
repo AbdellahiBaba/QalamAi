@@ -18,7 +18,7 @@ import {
 import { generateNovelPDF, generateChapterPreviewPDF } from "@/lib/pdf-generator";
 import { useAuth } from "@/hooks/use-auth";
 import type { NovelProject, Character, Chapter, CharacterRelationship } from "@shared/schema";
-import { getProjectPriceUSD } from "@shared/schema";
+import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -110,6 +110,14 @@ export default function ProjectDetail() {
     queryKey: ["/api/projects", projectId],
     enabled: !!projectId,
   });
+
+  const { data: planData } = useQuery<{ plan: string; planPurchasedAt: string | null }>({
+    queryKey: ["/api/user/plan"],
+    enabled: !!authUser,
+  });
+
+  const planCoversProject = userPlanCoversType(planData?.plan, project?.projectType || "novel");
+  const hasAccess = hasFreeAccess || planCoversProject || !!project?.paid;
 
   const labels = getTypeLabels(project?.projectType);
 
@@ -502,7 +510,7 @@ export default function ProjectDetail() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {!project.paid && !hasFreeAccess && (
+        {!hasAccess && (
           <Card className="mb-6 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
@@ -511,31 +519,54 @@ export default function ProjectDetail() {
                 </div>
                 <div className="flex-1 space-y-3">
                   <h3 className="font-serif text-lg font-semibold text-red-800 dark:text-red-300" data-testid="text-payment-required">
-                    الرجاء إتمام الدفع لبدء كتابة الرواية
+                    {labels.paymentDesc}
                   </h3>
                   <p className="text-sm text-red-700 dark:text-red-400">
                     {labels.lockedMsg}
                   </p>
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <div className="text-2xl font-bold text-red-800 dark:text-red-300" data-testid="text-project-price">
-                      {getProjectPriceUSD(project.pageCount)} دولار
+                  {project.projectType === "novel" || !project.projectType ? (
+                    <>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="text-2xl font-bold text-red-800 dark:text-red-300" data-testid="text-project-price">
+                          {getProjectPriceUSD(project.pageCount)} دولار
+                        </div>
+                        <span className="text-sm text-red-600 dark:text-red-400">
+                          ({project.pageCount} صفحة)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <Button
+                          onClick={() => checkoutMutation.mutate()}
+                          disabled={checkoutMutation.isPending}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                          data-testid="button-pay-project"
+                        >
+                          {checkoutMutation.isPending ? (
+                            <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ المعالجة...</>
+                          ) : (
+                            <><CreditCard className="w-4 h-4 ml-2" /> دفع لهذا المشروع</>
+                          )}
+                        </Button>
+                        <Link href="/pricing">
+                          <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" data-testid="button-view-plans">
+                            أو احصل على الخطة الشاملة
+                          </Button>
+                        </Link>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Link href="/pricing">
+                        <Button
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                          data-testid="button-buy-plan"
+                        >
+                          <CreditCard className="w-4 h-4 ml-2" />
+                          {project.projectType === "essay" ? "اشتري خطة المقالات" : "اشتري خطة السيناريوهات"}
+                        </Button>
+                      </Link>
                     </div>
-                    <span className="text-sm text-red-600 dark:text-red-400">
-                      ({project.pageCount} صفحة)
-                    </span>
-                  </div>
-                  <Button
-                    onClick={() => checkoutMutation.mutate()}
-                    disabled={checkoutMutation.isPending}
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                    data-testid="button-pay-project"
-                  >
-                    {checkoutMutation.isPending ? (
-                      <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ المعالجة...</>
-                    ) : (
-                      <><CreditCard className="w-4 h-4 ml-2" /> إتمام الدفع</>
-                    )}
-                  </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -663,7 +694,7 @@ export default function ProjectDetail() {
                   {!project.outline && (
                     <Button
                       onClick={() => generateOutlineMutation.mutate()}
-                      disabled={generateOutlineMutation.isPending || (!project.paid && !hasFreeAccess)}
+                      disabled={generateOutlineMutation.isPending || (!hasAccess)}
                       data-testid="button-generate-outline"
                     >
                       {generateOutlineMutation.isPending ? (
@@ -671,7 +702,7 @@ export default function ProjectDetail() {
                           <Loader2 className="w-4 h-4 ml-2 animate-spin" />
                           {labels.outlineCreating}
                         </>
-                      ) : (!project.paid && !hasFreeAccess) ? (
+                      ) : (!hasAccess) ? (
                         <>
                           <Lock className="w-4 h-4 ml-2" />
                           {labels.createOutline} (يتطلب الدفع)
@@ -710,7 +741,7 @@ export default function ProjectDetail() {
                       )}
                       <Button
                         onClick={() => approveOutlineMutation.mutate()}
-                        disabled={approveOutlineMutation.isPending || (!project.paid && !hasFreeAccess)}
+                        disabled={approveOutlineMutation.isPending || (!hasAccess)}
                         data-testid="button-approve-outline"
                       >
                         {approveOutlineMutation.isPending ? (
@@ -873,7 +904,7 @@ export default function ProjectDetail() {
                         <Button
                           size="sm"
                           onClick={() => setAutoWriteAll(true)}
-                          disabled={autoWriteAll || (!project.paid && !hasFreeAccess)}
+                          disabled={autoWriteAll || (!hasAccess)}
                           data-testid="button-write-all-chapters"
                         >
                           {autoWriteAll ? (
@@ -986,7 +1017,7 @@ export default function ProjectDetail() {
                             <Button
                               size="sm"
                               variant="secondary"
-                              disabled={(!project.paid && !hasFreeAccess)}
+                              disabled={(!hasAccess)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 generateChapter(chapter.id);

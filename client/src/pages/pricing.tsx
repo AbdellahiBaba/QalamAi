@@ -1,16 +1,21 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers } from "lucide-react";
-import { Link } from "wouter";
+import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers, Loader2, CheckCircle } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const mainPlans = [
   {
     id: "essay",
+    planKey: "essay",
     name: "خطة المقالات",
     subtitle: "كتابة احترافية للمقالات والأخبار",
     price: "٥٠ دولار",
-    priceNote: "لكل مشروع",
+    priceNote: "دفعة واحدة",
     icon: PenTool,
     highlighted: false,
     features: [
@@ -22,15 +27,16 @@ const mainPlans = [
       "تحسين محركات البحث (SEO)",
       "تصدير بصيغة PDF",
     ],
-    cta: "ابدأ مقالك",
-    href: "/project/new/essay",
+    cta: "اشتري خطة المقالات",
+    createHref: "/project/new/essay",
   },
   {
     id: "all-in-one",
+    planKey: "all_in_one",
     name: "الخطة الشاملة",
     subtitle: "وصول كامل لجميع أنواع الكتابة",
     price: "٥٠٠ دولار",
-    priceNote: "وصول شامل",
+    priceNote: "دفعة واحدة",
     icon: Layers,
     highlighted: true,
     features: [
@@ -42,15 +48,16 @@ const mainPlans = [
       "دعم سريع على مدار الساعة",
       "أفضل قيمة — وفّر أكثر من ٤٠٪",
     ],
-    cta: "احصل على الشاملة",
-    href: "/project/new",
+    cta: "اشتري الخطة الشاملة",
+    createHref: "/project/new",
   },
   {
     id: "scenario",
+    planKey: "scenario",
     name: "خطة السيناريوهات",
     subtitle: "كتابة سيناريوهات أفلام ومسلسلات",
     price: "٢٠٠ دولار",
-    priceNote: "لكل مشروع",
+    priceNote: "دفعة واحدة",
     icon: Film,
     highlighted: false,
     features: [
@@ -62,8 +69,8 @@ const mainPlans = [
       "تطوير شخصيات وأقواس درامية",
       "تصدير بتنسيق السيناريو الاحترافي",
     ],
-    cta: "ابدأ سيناريوك",
-    href: "/project/new/scenario",
+    cta: "اشتري خطة السيناريوهات",
+    createHref: "/project/new/scenario",
   },
 ];
 
@@ -122,11 +129,11 @@ const faqItems = [
   },
   {
     q: "كيف يعمل نظام الأسعار؟",
-    a: "للمقالات والسيناريوهات تدفع لكل مشروع. للروايات تختار حجم روايتك (عدد الصفحات). الخطة الشاملة تمنحك وصولاً لجميع الأنواع بسعر موحّد.",
+    a: "خطط المقالات والسيناريوهات والشاملة تُشترى مرة واحدة وتتيح لك إنشاء مشاريع غير محدودة من النوع المشمول. للروايات بدون الخطة الشاملة، تدفع لكل مشروع حسب عدد الصفحات.",
   },
   {
-    q: "ماذا يحدث بعد الدفع؟",
-    a: "بعد إتمام الدفع، يتم تفعيل مشروعك فوراً ويمكنك البدء بالكتابة باستخدام الذكاء الاصطناعي — سواء كان مقالاً أو سيناريو أو رواية.",
+    q: "ماذا يحدث بعد شراء الخطة؟",
+    a: "بعد إتمام الدفع، يتم تفعيل خطتك فوراً ويمكنك البدء بإنشاء مشاريع غير محدودة من النوع المشمول — جميع المشاريع الجديدة تُفتح تلقائياً.",
   },
   {
     q: "هل يمكنني الكتابة بلهجات مختلفة في السيناريوهات؟",
@@ -151,7 +158,87 @@ const navLinks = [
   { label: "أبو هاشم", href: "/abu-hashim" },
 ];
 
+function isPlanActive(userPlan: string | null | undefined, planKey: string): boolean {
+  if (!userPlan || userPlan === "free") return false;
+  if (userPlan === "all_in_one") return true;
+  return userPlan === planKey;
+}
+
 export default function Pricing() {
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
+
+  const { data: authUser } = useQuery<any>({
+    queryKey: ["/api/auth/user"],
+  });
+
+  const { data: planData } = useQuery<{ plan: string; planPurchasedAt: string | null }>({
+    queryKey: ["/api/user/plan"],
+    enabled: !!authUser,
+  });
+
+  const userPlan = planData?.plan || "free";
+  const isLoggedIn = !!authUser;
+
+  const purchaseMutation = useMutation({
+    mutationFn: async (plan: string) => {
+      const res = await apiRequest("POST", "/api/plans/purchase", { plan });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.alreadyActive) {
+        toast({ title: "الخطة مفعّلة بالفعل" });
+        queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
+        setPurchasingPlan(null);
+      } else if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    },
+    onError: () => {
+      toast({ title: "حدث خطأ أثناء إنشاء جلسة الدفع", variant: "destructive" });
+      setPurchasingPlan(null);
+    },
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: async ({ sessionId, plan }: { sessionId: string; plan: string }) => {
+      const res = await apiRequest("POST", "/api/plans/verify", { sessionId, plan });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "تم تفعيل خطتك بنجاح! 🎉" });
+        queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      }
+    },
+    onError: () => {
+      toast({ title: "فشل في التحقق من الدفع", variant: "destructive" });
+    },
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const planSuccess = params.get("plan_success");
+    const sessionId = params.get("session_id");
+    const plan = params.get("plan");
+
+    if (planSuccess === "true" && sessionId && plan) {
+      verifyMutation.mutate({ sessionId, plan });
+      window.history.replaceState({}, "", "/pricing");
+    }
+  }, []);
+
+  const handlePurchase = (planKey: string) => {
+    if (!isLoggedIn) {
+      setLocation("/login");
+      return;
+    }
+    setPurchasingPlan(planKey);
+    purchaseMutation.mutate(planKey);
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
@@ -189,61 +276,98 @@ export default function Pricing() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             اختر الخطة المناسبة لاحتياجاتك — مقالات احترافية، سيناريوهات درامية، أو وصول شامل لكل شيء
           </p>
+          {isLoggedIn && userPlan !== "free" && (
+            <div className="mt-4 inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium" data-testid="text-current-plan">
+              <CheckCircle className="w-4 h-4" />
+              <span>خطتك الحالية: {userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : userPlan}</span>
+            </div>
+          )}
         </div>
       </section>
 
       <section className="pb-16 px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
-          {mainPlans.map((plan) => (
-            <Card
-              key={plan.id}
-              className={`relative flex flex-col ${plan.highlighted ? "border-primary border-2 shadow-lg" : ""}`}
-              data-testid={`card-plan-${plan.id}`}
-            >
-              {plan.highlighted && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <div className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-medium">
-                    <Crown className="w-4 h-4" />
-                    <span>أفضل قيمة</span>
+          {mainPlans.map((plan) => {
+            const active = isPlanActive(userPlan, plan.planKey);
+            const isPurchasing = purchasingPlan === plan.planKey && purchaseMutation.isPending;
+
+            return (
+              <Card
+                key={plan.id}
+                className={`relative flex flex-col ${plan.highlighted ? "border-primary border-2 shadow-lg" : ""} ${active ? "ring-2 ring-green-500" : ""}`}
+                data-testid={`card-plan-${plan.id}`}
+              >
+                {plan.highlighted && !active && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <div className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-medium">
+                      <Crown className="w-4 h-4" />
+                      <span>أفضل قيمة</span>
+                    </div>
                   </div>
-                </div>
-              )}
-              <CardContent className="p-6 flex flex-col flex-1">
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2">
-                    <plan.icon className="w-5 h-5 text-primary" />
-                    <h3 className="font-serif text-lg font-bold text-foreground" data-testid={`text-plan-name-${plan.id}`}>
-                      {plan.name}
-                    </h3>
+                )}
+                {active && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <div className="flex items-center gap-1.5 bg-green-600 text-white px-4 py-1.5 rounded-full text-sm font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>مفعّلة</span>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
-                  <div data-testid={`text-plan-price-${plan.id}`}>
-                    <span className="font-serif text-3xl font-bold text-primary">{plan.price}</span>
-                    <span className="text-sm text-muted-foreground mr-2">{plan.priceNote}</span>
+                )}
+                <CardContent className="p-6 flex flex-col flex-1">
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-2">
+                      <plan.icon className="w-5 h-5 text-primary" />
+                      <h3 className="font-serif text-lg font-bold text-foreground" data-testid={`text-plan-name-${plan.id}`}>
+                        {plan.name}
+                      </h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
+                    <div data-testid={`text-plan-price-${plan.id}`}>
+                      <span className="font-serif text-3xl font-bold text-primary">{plan.price}</span>
+                      <span className="text-sm text-muted-foreground mr-2">{plan.priceNote}</span>
+                    </div>
                   </div>
-                </div>
-                <ul className="space-y-3 mb-8 flex-1">
-                  {plan.features.map((feature, fIndex) => (
-                    <li key={fIndex} className="flex items-start gap-2 text-sm text-foreground">
-                      <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link href={plan.href}>
-                  <Button
-                    className="w-full"
-                    variant={plan.highlighted ? "default" : "outline"}
-                    size="lg"
-                    data-testid={`button-plan-cta-${plan.id}`}
-                  >
-                    <Sparkles className="w-4 h-4 ml-2" />
-                    {plan.cta}
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
+                  <ul className="space-y-3 mb-8 flex-1">
+                    {plan.features.map((feature, fIndex) => (
+                      <li key={fIndex} className="flex items-start gap-2 text-sm text-foreground">
+                        <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {active ? (
+                    <Link href={plan.createHref}>
+                      <Button
+                        className="w-full"
+                        variant="default"
+                        size="lg"
+                        data-testid={`button-plan-create-${plan.id}`}
+                      >
+                        <Sparkles className="w-4 h-4 ml-2" />
+                        ابدأ مشروعاً جديداً
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      className="w-full"
+                      variant={plan.highlighted ? "default" : "outline"}
+                      size="lg"
+                      onClick={() => handlePurchase(plan.planKey)}
+                      disabled={isPurchasing}
+                      data-testid={`button-plan-cta-${plan.id}`}
+                    >
+                      {isPurchasing ? (
+                        <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 ml-2" />
+                      )}
+                      {isPurchasing ? "جارٍ التحويل..." : plan.cta}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
 
@@ -256,7 +380,11 @@ export default function Pricing() {
                 خطط كتابة الروايات
               </h2>
             </div>
-            <p className="text-muted-foreground">اختر حجم روايتك وابدأ الكتابة فوراً — أسعار ثابتة بالدولار الأمريكي</p>
+            <p className="text-muted-foreground">
+              {isPlanActive(userPlan, "all_in_one")
+                ? "خطتك الشاملة تغطي جميع أحجام الروايات — ابدأ الكتابة الآن!"
+                : "اختر حجم روايتك وابدأ الكتابة فوراً — أسعار ثابتة بالدولار الأمريكي (أو احصل على الخطة الشاملة لتشمل كل شيء)"}
+            </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             {novelTiers.map((tier) => (
@@ -279,8 +407,17 @@ export default function Pricing() {
                       </h3>
                     </div>
                     <div data-testid={`text-tier-price-${tier.pages}`}>
-                      <span className="font-serif text-2xl font-bold text-primary">{tier.price}</span>
-                      <span className="text-xs text-muted-foreground mr-1">دفعة واحدة</span>
+                      {isPlanActive(userPlan, "all_in_one") ? (
+                        <>
+                          <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
+                          <span className="text-xs text-muted-foreground mr-1 line-through">{tier.price}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-serif text-2xl font-bold text-primary">{tier.price}</span>
+                          <span className="text-xs text-muted-foreground mr-1">لكل مشروع</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <ul className="space-y-2 mb-6 flex-1">

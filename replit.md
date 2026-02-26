@@ -69,17 +69,20 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - **Tickets** (`/tickets`) / **Ticket Detail** (`/tickets/:id`)
 - **Admin** (`/admin`) / **Admin Ticket** (`/admin/tickets/:id`)
 
-## Business Model
-- Novel pricing: 150pg→$300, 200pg→$350, 250pg→$450, 300pg→$600
-- Essay pricing: $50/project
-- Scenario pricing: $200/project
-- All-in-One pricing: $500
-- Word counts (`usedWords`) tracked for display only, never enforced
-- Payment required before outline/generation (402 error if unpaid)
-- Free access for admin users (FREE_ACCESS_USER_IDS)
+## Business Model — Plan-Based Pricing
+- **Plans** (one-time purchase, stored in `users.plan`):
+  - `"free"` (default) — no plan, must pay per project
+  - `"essay"` ($50) — unlimited essay projects, auto-unlocked on creation
+  - `"scenario"` ($200) — unlimited scenario projects, auto-unlocked on creation
+  - `"all_in_one"` ($500) — unlimited novels + essays + scenarios, all auto-unlocked
+- **Novel per-project pricing** (for users without All-in-One): 150pg→$300, 200pg→$350, 250pg→$450, 300pg→$600
+- `userPlanCoversType(plan, projectType)` — helper to check if user's plan grants access
+- Projects created under a matching plan are auto-set to `paid: true, status: "draft"`
+- Outline/chapter generation checks both `project.paid` and user plan coverage
+- Free access for admin users (FREE_ACCESS_USER_IDS) bypasses all gates
 
 ## Database Schema
-- `users` / `sessions` - Auth tables (includes stripeCustomerId, role)
+- `users` / `sessions` - Auth tables (includes stripeCustomerId, role, plan, planPurchasedAt)
 - `novel_projects` - Project metadata with `projectType` ("novel"/"essay"/"scenario"), type-specific fields:
   - Novel: mainIdea, timeSetting, placeSetting, narrativePov, pageCount
   - Essay: subject, essayTone, targetAudience
@@ -101,8 +104,11 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - `client/src/lib/pdf-generator.ts` - PDF generation
 
 ## API Routes
-- `POST /api/projects` - Create project (accepts projectType, type-specific fields)
-- `POST /api/projects/:id/outline` - Generate outline (type-aware prompts)
-- `POST /api/projects/:projectId/chapters/:chapterId/generate` - Generate content (type-aware)
-- `POST /api/projects/:id/create-checkout` - Stripe checkout (type-aware description)
+- `GET /api/user/plan` - Get user's current plan and purchase date
+- `POST /api/plans/purchase` - Create Stripe checkout for plan purchase (essay/scenario/all_in_one)
+- `POST /api/plans/verify` - Verify plan payment and activate plan on user account
+- `POST /api/projects` - Create project (auto-unlocks if plan covers type)
+- `POST /api/projects/:id/outline` - Generate outline (checks plan coverage + paid status)
+- `POST /api/projects/:projectId/chapters/:chapterId/generate` - Generate content (checks plan + paid)
+- `POST /api/projects/:id/create-checkout` - Per-project Stripe checkout (for novels without All-in-One)
 - All other routes unchanged from original

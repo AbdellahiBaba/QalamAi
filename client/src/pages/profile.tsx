@@ -104,8 +104,9 @@ export default function Profile() {
 
   const planLabel = (plan: string | null) => {
     switch (plan) {
-      case "pro": return "احترافي";
-      case "premium": return "مميز";
+      case "all_in_one": return "الخطة الشاملة";
+      case "essay": return "خطة المقالات";
+      case "scenario": return "خطة السيناريوهات";
       default: return "مجاني";
     }
   };
@@ -195,6 +196,13 @@ export default function Profile() {
                     <Crown className="w-4 h-4" />
                     {planLabel(user?.plan || null)}
                   </span>
+                  {(!user?.plan || user.plan === "free") && (
+                    <Link href="/pricing">
+                      <span className="text-xs text-primary cursor-pointer hover:underline" data-testid="link-upgrade-plan">
+                        ترقية الخطة
+                      </span>
+                    </Link>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="text-member-since">
                   <CalendarDays className="w-3.5 h-3.5" />

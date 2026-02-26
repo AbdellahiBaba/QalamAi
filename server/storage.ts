@@ -31,6 +31,7 @@ export interface IStorage {
   getChapter(id: number): Promise<Chapter | undefined>;
   updateChapter(id: number, data: Partial<Chapter>): Promise<Chapter>;
   deleteChapter(id: number): Promise<void>;
+  updateUserPlan(userId: string, plan: string): Promise<User>;
   updateUserProfile(userId: string, data: { firstName?: string; lastName?: string }): Promise<User>;
   createTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
   getTicketsByUser(userId: string): Promise<SupportTicket[]>;
@@ -158,6 +159,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChapter(id: number): Promise<void> {
     await db.delete(chapters).where(eq(chapters.id, id));
+  }
+
+  async updateUserPlan(userId: string, plan: string): Promise<User> {
+    const [updated] = await db.update(users).set({
+      plan,
+      planPurchasedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(users.id, userId)).returning();
+    return updated;
   }
 
   async updateUserProfile(userId: string, data: { firstName?: string; lastName?: string }): Promise<User> {

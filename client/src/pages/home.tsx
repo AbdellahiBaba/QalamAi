@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useMemo, useState } from "react";
+import { Crown } from "lucide-react";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -18,6 +19,13 @@ export default function Home() {
   const { data: projects, isLoading } = useQuery<NovelProject[]>({
     queryKey: ["/api/projects"],
   });
+
+  const { data: planData } = useQuery<{ plan: string; planPurchasedAt: string | null }>({
+    queryKey: ["/api/user/plan"],
+  });
+
+  const userPlan = planData?.plan || "free";
+  const planLabel = userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : null;
 
   const stats = useMemo(() => {
     if (!projects) return { total: 0, totalWords: 0, completed: 0, active: 0 };
@@ -144,7 +152,22 @@ export default function Home() {
             <h1 className="font-serif text-3xl font-bold mb-2" data-testid="text-welcome">
               أهلاً {user?.firstName || ""}
             </h1>
-            <p className="text-muted-foreground">مشاريعك الروائية</p>
+            <div className="flex items-center gap-3">
+              <p className="text-muted-foreground">مشاريعك الإبداعية</p>
+              {planLabel && (
+                <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium" data-testid="text-user-plan">
+                  <Crown className="w-3 h-3" />
+                  {planLabel}
+                </span>
+              )}
+              {userPlan === "free" && (
+                <Link href="/pricing">
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary cursor-pointer transition-colors" data-testid="link-upgrade-plan">
+                    ترقية الخطة
+                  </span>
+                </Link>
+              )}
+            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
