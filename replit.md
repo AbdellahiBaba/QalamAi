@@ -16,7 +16,7 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - AI-driven outline generation and sequential content generation (chapters, sections, scenes) with streaming output.
 - Specialized AI knowledge bases for each content type, drawing from renowned Arab literary figures.
 - Advanced authoring tools such as inline editing, chapter version history, and a "Rewrite This Section" feature with tone selection.
-- AI-powered content enhancements: title suggestions, character suggestions, cover image generation (DALL-E 3), originality/plagiarism checks, and glossary auto-generation.
+- AI-powered content enhancements: title suggestions, character suggestions, cover image generation (DALL-E with Arabic title calligraphy, regeneratable), originality/plagiarism checks, and glossary auto-generation.
 - Robust export capabilities: server-side PDF generation (with Amiri Arabic font support for RTL) and EPUB export.
 - User management includes profiles, public author profiles, and an onboarding wizard.
 - Engagement features: in-app notification center, reading progress tracking, and chapter bookmarks.

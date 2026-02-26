@@ -1233,9 +1233,16 @@ Style guidelines:
 - Elegant, literary book cover suitable for an Arabic novel
 - Rich warm colors with gold accents and deep blues
 - Artistic and atmospheric, not photographic
-- Include subtle Arabic calligraphic elements or patterns
 - Evocative mood that reflects the story's themes
 - Professional publisher-quality design
-- Do NOT include any text or letters on the cover
-- Portrait orientation suitable for a book cover`;
+- Portrait orientation suitable for a book cover
+
+Title text requirements:
+- Display the Arabic title "${project.title}" prominently on the cover
+- Render the title in beautiful, elegant Arabic calligraphy style
+- Place the title in the upper third or center of the cover with clear visual prominence
+- Ensure high contrast between the title text and the background so it is easily readable
+- Add subtle decorative framing or ornamental elements around the title
+- The title should feel like a natural, integrated part of the cover design, not pasted on
+- Use gold, white, or cream color for the title lettering to stand out elegantly`;
 }

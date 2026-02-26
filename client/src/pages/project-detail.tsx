@@ -109,6 +109,7 @@ export default function ProjectDetail() {
   const [suggestedChars, setSuggestedChars] = useState<Array<{ name: string; role: string; background: string; traits: string }>>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+  const [showRegenerateCoverConfirm, setShowRegenerateCoverConfirm] = useState(false);
   const [rewriteChapterId, setRewriteChapterId] = useState<number | null>(null);
   const [rewriteContent, setRewriteContent] = useState("");
   const [rewriteTone, setRewriteTone] = useState("formal");
@@ -808,7 +809,7 @@ export default function ProjectDetail() {
           <TabsContent value="overview" className="space-y-6">
             {project.coverImageUrl && (
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-6 space-y-4">
                   <div className="flex justify-center">
                     <img
                       src={project.coverImageUrl}
@@ -816,6 +817,21 @@ export default function ProjectDetail() {
                       className="max-h-96 rounded-lg shadow-lg"
                       data-testid="img-cover"
                     />
+                  </div>
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isGeneratingCover}
+                      onClick={() => setShowRegenerateCoverConfirm(true)}
+                      data-testid="button-regenerate-cover"
+                    >
+                      {isGeneratingCover ? (
+                        <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ إعادة إنشاء الغلاف...</>
+                      ) : (
+                        <><RefreshCw className="w-3.5 h-3.5 ml-1" /> إعادة إنشاء الغلاف</>
+                      )}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1795,6 +1811,39 @@ export default function ProjectDetail() {
                 ) : (
                   "نعم، استعد النسخة"
                 )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showRegenerateCoverConfirm} onOpenChange={setShowRegenerateCoverConfirm}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle data-testid="text-confirm-regenerate-cover-title">إعادة إنشاء الغلاف</AlertDialogTitle>
+              <AlertDialogDescription data-testid="text-confirm-regenerate-cover-desc">
+                هل أنت متأكد من إعادة إنشاء غلاف الرواية؟ سيتم استبدال الغلاف الحالي بغلاف جديد.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel data-testid="button-cancel-regenerate-cover">إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  setShowRegenerateCoverConfirm(false);
+                  setIsGeneratingCover(true);
+                  try {
+                    const res = await apiRequest("POST", `/api/projects/${projectId}/generate-cover`);
+                    await res.json();
+                    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                    toast({ title: "تم إعادة إنشاء غلاف الرواية بنجاح" });
+                  } catch {
+                    toast({ title: "فشل في إعادة إنشاء الغلاف", variant: "destructive" });
+                  } finally {
+                    setIsGeneratingCover(false);
+                  }
+                }}
+                data-testid="button-confirm-regenerate-cover"
+              >
+                نعم، أعد إنشاء الغلاف
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
