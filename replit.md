@@ -35,3 +35,14 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - **DALL-E 3**: Used for AI-generated cover images.
 - **Nodemailer/SMTP**: For sending email notifications (project completion, plan activation, payment confirmation, ticket replies).
 - **pdfkit**: Library used for server-side PDF generation, specifically configured with Amiri Arabic font for correct rendering of RTL text.
+
+## Mobile Responsiveness
+All pages are fully mobile-responsive using Tailwind CSS responsive breakpoints (sm:, md:, lg:):
+- **Landing page**: Responsive hero text (text-2xl→4xl→5xl), stacked feature cards, full-width CTAs, hidden nav links on mobile with hamburger-style compact layout
+- **Admin panel**: Scrollable tab bar with icon-only buttons on mobile, card-based ticket/user lists replacing tables on small screens, responsive search/filter controls
+- **Pricing page**: Responsive title/section sizing, stacked plan cards, compact nav
+- **Profile page**: Responsive header, stacked profile sections
+- **Gallery page**: Single-column grid on mobile, full-width search
+- **Project detail**: Responsive tabs and content layout
+- **Author profile**: Already mobile-optimized
+- **Home dashboard**: Responsive filters (full-width selects on mobile), stacked project cards

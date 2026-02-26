@@ -413,6 +413,7 @@ export default function Admin() {
                 ))}
               </div>
             ) : filteredTickets.length > 0 ? (
+              <>
               <div className="hidden sm:block border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -492,6 +493,7 @@ export default function Admin() {
                   </Card>
                 ))}
               </div>
+              </>
             ) : (
               <div className="text-center py-16">
                 <Ticket className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
