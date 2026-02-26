@@ -131,14 +131,14 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-              <Feather className="w-5 h-5 text-primary-foreground" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
+              <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
             </div>
-            <span className="font-serif text-xl font-bold">QalamAI</span>
+            <span className="font-serif text-lg sm:text-xl font-bold">QalamAI</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             <Link href="/">
               <Button variant="ghost" size="sm" data-testid="link-home">
                 <Home className="w-4 h-4 ml-1" />
@@ -174,8 +174,8 @@ export default function Profile() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <h1 className="font-serif text-3xl font-bold mb-8" data-testid="text-profile-title">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <h1 className="font-serif text-2xl sm:text-3xl font-bold mb-6 sm:mb-8" data-testid="text-profile-title">
           الملف الشخصي
         </h1>
 

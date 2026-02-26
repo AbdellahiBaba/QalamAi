@@ -270,26 +270,26 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/">
-              <div className="flex items-center gap-3 cursor-pointer">
-                <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-                  <Feather className="w-5 h-5 text-primary-foreground" />
+              <div className="flex items-center gap-2 sm:gap-3 cursor-pointer">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
+                  <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
                 </div>
-                <span className="font-serif text-xl font-bold">QalamAI</span>
+                <span className="font-serif text-lg sm:text-xl font-bold">QalamAI</span>
               </div>
             </Link>
-            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium flex items-center gap-1">
+            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium hidden sm:flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5" />
               لوحة الإدارة
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             <Link href="/">
               <Button variant="ghost" size="sm" data-testid="link-dashboard">
-                <ArrowRight className="w-4 h-4 ml-1" />
-                المشاريع
+                <ArrowRight className="w-4 h-4 sm:ml-1" />
+                <span className="hidden sm:inline">المشاريع</span>
               </Button>
             </Link>
             <Avatar className="w-8 h-8">
@@ -305,43 +305,51 @@ export default function Admin() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <h1 className="font-serif text-3xl font-bold mb-8" data-testid="text-admin-title">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <h1 className="font-serif text-2xl sm:text-3xl font-bold mb-6 sm:mb-8" data-testid="text-admin-title">
           لوحة الإدارة
         </h1>
 
-        <div className="flex flex-wrap items-center gap-2 mb-8">
+        <div className="flex items-center gap-2 mb-6 sm:mb-8 overflow-x-auto pb-2">
           <Button
             variant={activeTab === "tickets" ? "default" : "outline"}
             onClick={() => setActiveTab("tickets")}
+            size="sm"
+            className="shrink-0"
             data-testid="button-tab-tickets"
           >
-            <Ticket className="w-4 h-4 ml-2" />
-            تذاكر الدعم
+            <Ticket className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">تذاكر الدعم</span>
           </Button>
           <Button
             variant={activeTab === "users" ? "default" : "outline"}
             onClick={() => setActiveTab("users")}
+            size="sm"
+            className="shrink-0"
             data-testid="button-tab-users"
           >
-            <Users className="w-4 h-4 ml-2" />
-            المستخدمون
+            <Users className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">المستخدمون</span>
           </Button>
           <Button
             variant={activeTab === "analytics" ? "default" : "outline"}
             onClick={() => setActiveTab("analytics")}
+            size="sm"
+            className="shrink-0"
             data-testid="button-tab-analytics"
           >
-            <BarChart3 className="w-4 h-4 ml-2" />
-            إحصائيات
+            <BarChart3 className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">إحصائيات</span>
           </Button>
           <Button
             variant={activeTab === "promos" ? "default" : "outline"}
             onClick={() => setActiveTab("promos")}
+            size="sm"
+            className="shrink-0"
             data-testid="button-tab-promos"
           >
-            <Tag className="w-4 h-4 ml-2" />
-            رموز الخصم
+            <Tag className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">رموز الخصم</span>
           </Button>
         </div>
 
@@ -369,8 +377,8 @@ export default function Admin() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 mb-6">
-              <div className="relative flex-1 min-w-[200px] max-w-md">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-6">
+              <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -381,7 +389,7 @@ export default function Admin() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
                   <SelectValue placeholder="تصفية بالحالة" />
                 </SelectTrigger>
                 <SelectContent>
@@ -405,7 +413,7 @@ export default function Admin() {
                 ))}
               </div>
             ) : filteredTickets.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden">
+              <div className="hidden sm:block border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -452,6 +460,38 @@ export default function Admin() {
                   </table>
                 </div>
               </div>
+              <div className="sm:hidden space-y-3">
+                {filteredTickets.map((ticket) => (
+                  <Card
+                    key={ticket.id}
+                    className="cursor-pointer hover-elevate"
+                    onClick={() => navigate(`/admin/tickets/${ticket.id}`)}
+                    data-testid={`card-ticket-${ticket.id}`}
+                  >
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-medium text-sm line-clamp-2">{ticket.subject}</span>
+                        <span className="font-mono text-xs text-muted-foreground shrink-0">#{ticket.id}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs px-2.5 py-0.5 rounded-full ${statusColors[ticket.status]}`}>
+                          {statusLabels[ticket.status]}
+                        </span>
+                        <span className={`text-xs font-medium ${priorityColors[ticket.priority]}`}>
+                          {priorityLabels[ticket.priority]}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{ticket.name}</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(ticket.createdAt).toLocaleDateString("ar-EG")}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : (
               <div className="text-center py-16">
                 <Ticket className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -463,8 +503,8 @@ export default function Admin() {
 
         {activeTab === "users" && (
           <>
-            <div className="flex flex-wrap items-center gap-4 mb-6">
-              <div className="relative flex-1 min-w-[200px] max-w-md">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-6">
+              <div className="relative flex-1 min-w-0">
                 <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={userSearchQuery}
@@ -512,7 +552,8 @@ export default function Admin() {
                 ))}
               </div>
             ) : filteredUsers.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden">
+              <>
+              <div className="hidden sm:block border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -623,6 +664,58 @@ export default function Admin() {
                   </table>
                 </div>
               </div>
+              <div className="sm:hidden space-y-3">
+                {filteredUsers.map((u) => (
+                  <Card key={u.id} data-testid={`card-user-${u.id}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={selectedUsers.has(u.id)}
+                          onCheckedChange={(checked) => {
+                            const next = new Set(selectedUsers);
+                            if (checked) { next.add(u.id); } else { next.delete(u.id); }
+                            setSelectedUsers(next);
+                          }}
+                          data-testid={`checkbox-user-mobile-${u.id}`}
+                        />
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={u.profileImageUrl || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {u.firstName?.[0] || u.email?.[0] || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {[u.firstName, u.lastName].filter(Boolean).join(" ") || "—"}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
+                        </div>
+                        <Badge variant={u.plan === "free" ? "outline" : "default"} className="shrink-0 text-xs">
+                          {planLabels[u.plan] || u.plan}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{u.totalProjects} مشاريع</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {u.createdAt ? new Date(u.createdAt).toLocaleDateString("ar-EG") : "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewProjects(u.id)} data-testid={`button-view-projects-mobile-${u.id}`}>
+                          <FolderOpen className="w-3.5 h-3.5 ml-1" />
+                          المشاريع
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleChangePlan(u)} data-testid={`button-change-plan-mobile-${u.id}`}>
+                          <Crown className="w-3.5 h-3.5 ml-1" />
+                          تغيير الخطة
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              </>
             ) : (
               <div className="text-center py-16">
                 <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

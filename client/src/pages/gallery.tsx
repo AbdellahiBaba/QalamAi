@@ -53,10 +53,10 @@ export default function Gallery() {
   }, [projects, searchQuery, activeFilter]);
 
   return (
-    <div className="min-h-screen bg-background p-6" dir="rtl">
+    <div className="min-h-screen bg-background p-4 sm:p-6" dir="rtl">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-serif font-bold" data-testid="text-gallery-title">معرض الأعمال</h1>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold" data-testid="text-gallery-title">معرض الأعمال</h1>
           <p className="text-muted-foreground" data-testid="text-gallery-subtitle">استكشف الأعمال الأدبية المشتركة</p>
         </div>
 

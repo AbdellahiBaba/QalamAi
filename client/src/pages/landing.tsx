@@ -34,12 +34,12 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-              <Feather className="w-5 h-5 text-primary-foreground" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
+              <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
             </div>
-            <span className="font-serif text-xl font-bold" data-testid="text-logo">QalamAI</span>
+            <span className="font-serif text-lg sm:text-xl font-bold" data-testid="text-logo">QalamAI</span>
           </div>
 
           <div className="hidden md:flex items-center gap-6">
@@ -55,12 +55,12 @@ export default function Landing() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/login">
-              <Button variant="outline" data-testid="button-login">تسجيل الدخول</Button>
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
             </Link>
             <Link href="/login">
-              <Button data-testid="button-signup">إنشاء حساب جديد</Button>
+              <Button size="sm" className="hidden sm:inline-flex text-xs sm:text-sm" data-testid="button-signup">إنشاء حساب جديد</Button>
             </Link>
             <Button
               size="icon"
@@ -75,7 +75,7 @@ export default function Landing() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden border-t bg-background px-6 py-4 space-y-3">
+          <div className="md:hidden border-t bg-background px-4 sm:px-6 py-4 space-y-3">
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href}>
                 <span
@@ -87,23 +87,31 @@ export default function Landing() {
                 </span>
               </Link>
             ))}
+            <Link href="/login">
+              <span
+                className="block sm:hidden text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer py-1"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                إنشاء حساب جديد
+              </span>
+            </Link>
           </div>
         )}
       </nav>
 
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">منصّة الكتابة الأدبية بالذكاء الاصطناعي</span>
+      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 sm:gap-16 items-center">
+          <div className="space-y-5 sm:space-y-8">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-primary/10 rounded-full">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+              <span className="text-xs sm:text-sm font-medium text-primary">منصّة الكتابة الأدبية بالذكاء الاصطناعي</span>
             </div>
-            <h1 className="font-serif text-5xl lg:text-6xl font-bold leading-tight text-foreground" data-testid="text-hero-title">
+            <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold leading-tight text-foreground" data-testid="text-hero-title">
               QalamAI
               <br />
               <span className="text-primary">وأبو هاشم</span>
             </h1>
-            <p className="font-serif text-xl text-muted-foreground leading-relaxed" data-testid="text-hero-tagline">
+            <p className="font-serif text-base sm:text-xl text-muted-foreground leading-relaxed" data-testid="text-hero-tagline">
               حيث تتحوّل الفكرة إلى رواية، والقلم إلى صوت.
             </p>
             <p className="text-muted-foreground leading-relaxed max-w-lg">
@@ -156,10 +164,10 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-20 px-6 bg-card/50" data-testid="section-features">
+      <section className="py-12 sm:py-20 px-4 sm:px-6 bg-card/50" data-testid="section-features">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-serif text-3xl font-bold mb-4" data-testid="text-features-title">ما الذي يقدّمه QalamAI؟</h2>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold mb-4" data-testid="text-features-title">ما الذي يقدّمه QalamAI؟</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               أدوات متكاملة لتحويل فكرتك إلى رواية عربية أدبية متكاملة
             </p>
@@ -213,10 +221,10 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-20 px-6" data-testid="section-why-qalamai">
+      <section className="py-12 sm:py-20 px-4 sm:px-6" data-testid="section-why-qalamai">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-serif text-3xl font-bold mb-4" data-testid="text-why-title">لماذا QalamAI؟</h2>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold mb-4" data-testid="text-why-title">لماذا QalamAI؟</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               ما يميّزنا عن غيرنا في عالم الكتابة بالذكاء الاصطناعي
             </p>
@@ -253,10 +261,10 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-20 px-6 bg-card/50" data-testid="section-testimonials">
+      <section className="py-12 sm:py-20 px-4 sm:px-6 bg-card/50" data-testid="section-testimonials">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-serif text-3xl font-bold mb-4" data-testid="text-testimonials-title">ماذا يقول كتّابنا؟</h2>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold mb-4" data-testid="text-testimonials-title">ماذا يقول كتّابنا؟</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               آراء من كتّاب استخدموا QalamAI في رحلتهم الأدبية
             </p>
@@ -323,13 +331,13 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-20 px-6">
+      <section className="py-12 sm:py-20 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-primary/10 rounded-full">
             <PenTool className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-primary">ابدأ رحلتك الأدبية اليوم</span>
           </div>
-          <h2 className="font-serif text-3xl font-bold mb-4" data-testid="text-cta-title">حوّل فكرتك إلى رواية</h2>
+          <h2 className="font-serif text-2xl sm:text-3xl font-bold mb-4" data-testid="text-cta-title">حوّل فكرتك إلى رواية</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
             انضم إلى QalamAI واكتشف قوة الكتابة الأدبية بالذكاء الاصطناعي. أبو هاشم في انتظارك لمساعدتك في كتابة روايتك العربية الأولى.
           </p>
@@ -342,7 +350,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="border-t py-12 px-6 bg-secondary text-secondary-foreground">
+      <footer className="border-t py-8 sm:py-12 px-4 sm:px-6 bg-secondary text-secondary-foreground">
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div className="space-y-4">

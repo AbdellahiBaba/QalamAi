@@ -269,14 +269,14 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/">
-              <div className="flex items-center gap-3 cursor-pointer">
-                <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-                  <Feather className="w-5 h-5 text-primary-foreground" />
+              <div className="flex items-center gap-2 sm:gap-3 cursor-pointer">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
+                  <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
                 </div>
-                <span className="font-serif text-xl font-bold" data-testid="text-logo">QalamAI</span>
+                <span className="font-serif text-lg sm:text-xl font-bold" data-testid="text-logo">QalamAI</span>
               </div>
             </Link>
           </div>
@@ -290,14 +290,14 @@ export default function Pricing() {
             ))}
           </div>
           <Link href="/login">
-            <Button data-testid="button-login">تسجيل الدخول</Button>
+            <Button size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
           </Link>
         </div>
       </nav>
 
-      <section className="pt-32 pb-16 px-6">
+      <section className="pt-24 sm:pt-32 pb-12 sm:pb-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto text-center">
-          <h1 className="font-serif text-4xl lg:text-5xl font-bold mb-4 text-foreground" data-testid="text-pricing-title">
+          <h1 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-bold mb-4 text-foreground" data-testid="text-pricing-title">
             خطط الأسعار
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -312,7 +312,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      <section className="pb-8 px-6">
+      <section className="pb-8 px-4 sm:px-6">
         <div className="max-w-md mx-auto">
           <Card data-testid="card-promo-code">
             <CardContent className="p-4 space-y-3">
@@ -365,7 +365,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      <section className="pb-16 px-6">
+      <section className="pb-12 sm:pb-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
           {mainPlans.map((plan) => {
             const active = isPlanActive(userPlan, plan.planKey);
@@ -451,12 +451,12 @@ export default function Pricing() {
         </div>
       </section>
 
-      <section className="py-16 px-6">
+      <section className="py-12 sm:py-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <div className="flex items-center justify-center gap-2 mb-3">
               <BookOpen className="w-6 h-6 text-primary" />
-              <h2 className="font-serif text-2xl font-bold text-foreground" data-testid="text-novel-tiers-title">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground" data-testid="text-novel-tiers-title">
                 خطط كتابة الروايات
               </h2>
             </div>
@@ -524,9 +524,9 @@ export default function Pricing() {
         </div>
       </section>
 
-      <section className="py-16 px-6 bg-card/50">
+      <section className="py-12 sm:py-16 px-4 sm:px-6 bg-card/50">
         <div className="max-w-6xl mx-auto text-center space-y-4">
-          <h2 className="font-serif text-2xl font-bold text-foreground" data-testid="text-faq-title">
+          <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground" data-testid="text-faq-title">
             أسئلة شائعة
           </h2>
           <div className="max-w-3xl mx-auto grid gap-6 text-right mt-8">
@@ -540,8 +540,8 @@ export default function Pricing() {
         </div>
       </section>
 
-      <footer className="border-t py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+      <footer className="border-t py-8 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Feather className="w-4 h-4" />
             <span>QalamAI — منصة الكتابة العربية بالذكاء الاصطناعي</span>
