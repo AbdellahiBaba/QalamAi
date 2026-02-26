@@ -47,29 +47,59 @@ ${body}
 </html>`;
 }
 
-export async function sendNovelCompletionEmail(email: string, novelTitle: string, projectId: number): Promise<void> {
+export async function sendNovelCompletionEmail(email: string, novelTitle: string, projectId: number, projectType?: string): Promise<void> {
   const t = getTransporter();
   if (!t) return;
 
+  const typeLabels: Record<string, string> = {
+    novel: "رواية",
+    essay: "مقال",
+    scenario: "سيناريو",
+  };
+  const typeLabel = typeLabels[projectType || "novel"] || "رواية";
+
+  const typeActions: Record<string, string> = {
+    novel: "يمكنك الآن تحميل روايتك بصيغة PDF أو EPUB من صفحة المشروع.",
+    essay: "يمكنك الآن تحميل مقالك بصيغة PDF من صفحة المشروع.",
+    scenario: "يمكنك الآن تحميل السيناريو بصيغة PDF من صفحة المشروع.",
+  };
+  const actionText = typeActions[projectType || "novel"] || typeActions.novel;
+
+  const projectUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""}/project/${projectId}`;
+
   const body = `
-<p style="color:#333;line-height:1.8;font-size:15px;">تهانينا! روايتك <strong style="color:${BRAND_GOLD};">"${novelTitle}"</strong> مكتملة الآن.</p>
-<p style="color:#333;line-height:1.8;font-size:15px;">يمكنك الآن تحميل روايتك بصيغة PDF أو EPUB من صفحة المشروع.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">تهانينا! ${typeLabel === "رواية" ? "روايتك" : typeLabel === "مقال" ? "مقالك" : "السيناريو الخاص بك"} <strong style="color:${BRAND_GOLD};">"${novelTitle}"</strong> مكتمل${typeLabel === "رواية" ? "ة" : ""} الآن.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">${actionText}</p>
 <div style="text-align:center;margin:24px 0;">
-<a href="${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""}/project/${projectId}" 
+<a href="${projectUrl}" 
    style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
-عرض الرواية
+عرض المشروع وتحميله
 </a>
 </div>`;
+
+  const subjectLabels: Record<string, string> = {
+    novel: `تهانينا! روايتك "${novelTitle}" مكتملة`,
+    essay: `تهانينا! مقالك "${novelTitle}" مكتمل`,
+    scenario: `تهانينا! السيناريو "${novelTitle}" مكتمل`,
+  };
+  const subject = subjectLabels[projectType || "novel"] || subjectLabels.novel;
+
+  const headerLabels: Record<string, string> = {
+    novel: "روايتك مكتملة!",
+    essay: "مقالك مكتمل!",
+    scenario: "السيناريو مكتمل!",
+  };
+  const headerLabel = headerLabels[projectType || "novel"] || headerLabels.novel;
 
   try {
     await t.sendMail({
       from: `"QalamAI" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: `تهانينا! روايتك "${novelTitle}" مكتملة`,
-      html: wrapInTemplate("روايتك مكتملة! 🎉", body),
+      subject,
+      html: wrapInTemplate(headerLabel, body),
     });
   } catch (err) {
-    console.error("Failed to send novel completion email:", err);
+    console.error("Failed to send project completion email:", err);
   }
 }
 

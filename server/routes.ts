@@ -3,9 +3,9 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildRewritePrompt } from "./abu-hashim";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -677,6 +677,9 @@ export async function registerRoutes(
       }
 
       await storage.updateChapter(chapterId, { content: fullContent, status: "completed" });
+      if (fullContent) {
+        await storage.saveChapterVersion(chapterId, fullContent, "ai_generated");
+      }
 
       const wordCount = fullContent.split(/\s+/).filter(w => w.length > 0).length;
       const netWords = wordCount - oldWordCount;
@@ -689,7 +692,7 @@ export async function registerRoutes(
         await storage.updateProject(projectId, { status: "completed" });
         const projectOwner = await storage.getUser(project.userId);
         if (projectOwner?.email) {
-          sendNovelCompletionEmail(projectOwner.email, project.title, projectId).catch(() => {});
+          sendNovelCompletionEmail(projectOwner.email, project.title, projectId, project.projectType || "novel").catch(() => {});
         }
       }
 
@@ -750,7 +753,11 @@ export async function registerRoutes(
       const newWordCount = content.split(/\s+/).filter((w: string) => w.length > 0).length;
       const netWords = newWordCount - oldWordCount;
 
+      if (chapter.content) {
+        await storage.saveChapterVersion(chapterId, chapter.content, "before_edit");
+      }
       const updated = await storage.updateChapter(chapterId, { content });
+      await storage.saveChapterVersion(chapterId, content, "manual_edit");
       if (netWords !== 0) {
         await storage.incrementUsedWords(projectId, netWords);
       }
@@ -828,6 +835,147 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error generating cover:", error);
       res.status(500).json({ error: "فشل في إنشاء الغلاف" });
+    }
+  });
+
+  app.get("/api/projects/:id/export/pdf", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProjectWithDetails(id);
+      if (!project || project.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+
+      const PDFDocument = (await import("pdfkit")).default;
+      const path = await import("path");
+      const fs = await import("fs");
+
+      const fontPath = path.join(process.cwd(), "server", "fonts", "Amiri-Regular.ttf");
+      const boldFontPath = path.join(process.cwd(), "server", "fonts", "Amiri-Bold.ttf");
+
+      const doc = new PDFDocument({
+        size: "A4",
+        margins: { top: 72, bottom: 72, left: 72, right: 72 },
+        info: {
+          Title: project.title,
+          Author: "QalamAI - أبو هاشم",
+        },
+        autoFirstPage: false,
+      });
+
+      if (fs.existsSync(fontPath)) {
+        doc.registerFont("Arabic", fontPath);
+        doc.registerFont("ArabicBold", fs.existsSync(boldFontPath) ? boldFontPath : fontPath);
+      }
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(project.title)}.pdf"`);
+      doc.pipe(res);
+
+      const pageWidth = 595.28 - 144;
+      const pageHeight = 841.89;
+      const drawBorder = () => {
+        doc.rect(36, 36, 595.28 - 72, 841.89 - 72)
+          .lineWidth(1.5)
+          .strokeColor("#8B7355")
+          .stroke();
+        doc.rect(42, 42, 595.28 - 84, 841.89 - 84)
+          .lineWidth(0.5)
+          .strokeColor("#C4A882")
+          .stroke();
+      };
+
+      doc.addPage();
+      drawBorder();
+
+      if (project.coverImageUrl) {
+        try {
+          const response = await fetch(project.coverImageUrl);
+          if (response.ok) {
+            const buffer = Buffer.from(await response.arrayBuffer());
+            doc.image(buffer, 147, 100, { width: 300, height: 400, fit: [300, 400], align: "center" });
+          }
+        } catch (e) {
+          console.error("Failed to load cover image for PDF:", e);
+        }
+      }
+
+      doc.font("ArabicBold")
+        .fontSize(28)
+        .fillColor("#2C1810");
+      const titleWidth = doc.widthOfString(project.title);
+      doc.text(project.title, (595.28 - titleWidth) / 2, project.coverImageUrl ? 530 : 350, {
+        features: ["rtla"],
+      });
+
+      doc.font("Arabic")
+        .fontSize(14)
+        .fillColor("#6B5B4F");
+      const subtitle = "بقلم أبو هاشم — QalamAI";
+      const subWidth = doc.widthOfString(subtitle);
+      doc.text(subtitle, (595.28 - subWidth) / 2, project.coverImageUrl ? 575 : 400, {
+        features: ["rtla"],
+      });
+
+      const chapters = (project.chapters || [])
+        .filter((ch: any) => ch.content && ch.status === "completed")
+        .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
+
+      let pageNumber = 1;
+      for (const chapter of chapters) {
+        doc.addPage();
+        pageNumber++;
+        drawBorder();
+
+        doc.font("ArabicBold")
+          .fontSize(22)
+          .fillColor("#2C1810");
+        const chTitle = chapter.title || `الفصل ${chapter.chapterNumber}`;
+        doc.text(chTitle, 72, 90, {
+          width: pageWidth,
+          align: "right",
+          features: ["rtla"],
+        });
+
+        doc.moveTo(72, 125).lineTo(595.28 - 72, 125).lineWidth(0.5).strokeColor("#C4A882").stroke();
+
+        doc.font("Arabic")
+          .fontSize(13)
+          .fillColor("#333333");
+
+        const paragraphs = (chapter.content || "").split(/\n+/).filter((p: string) => p.trim());
+        let yPos = 140;
+
+        for (const para of paragraphs) {
+          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8 });
+          if (yPos + textHeight > pageHeight - 100) {
+            doc.font("Arabic").fontSize(9).fillColor("#999");
+            doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+            doc.addPage();
+            pageNumber++;
+            drawBorder();
+            yPos = 72;
+          }
+          doc.font("Arabic").fontSize(13).fillColor("#333333");
+          doc.text(para.trim(), 72, yPos, {
+            width: pageWidth,
+            align: "right",
+            lineGap: 8,
+            features: ["rtla"],
+          });
+          yPos += textHeight + 12;
+        }
+
+        doc.font("Arabic").fontSize(9).fillColor("#999");
+        doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+      }
+
+      doc.end();
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "فشل في إنشاء ملف PDF" });
+      }
     }
   });
 
@@ -991,6 +1139,49 @@ ${paragraphs}
     next();
   };
 
+  app.post("/api/chapters/:id/rewrite", isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { content, tone } = req.body;
+
+      if (!content || typeof content !== "string" || content.trim().length < 10) {
+        return res.status(400).json({ error: "النص مطلوب (10 أحرف على الأقل)" });
+      }
+      if (!tone || typeof tone !== "string") {
+        return res.status(400).json({ error: "النبرة مطلوبة" });
+      }
+
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+
+      const project = await storage.getProject(chapter.projectId);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      const { system, user } = buildRewritePrompt(content, tone, project.projectType || "novel");
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 8192,
+      });
+
+      const rewrittenContent = response.choices[0]?.message?.content || "";
+      if (!rewrittenContent) {
+        return res.status(500).json({ error: "فشل في إعادة كتابة النص" });
+      }
+
+      res.json({ rewrittenContent });
+    } catch (error) {
+      console.error("Error rewriting chapter:", error);
+      res.status(500).json({ error: "فشل في إعادة كتابة النص" });
+    }
+  });
+
   app.post("/api/tickets", async (req: any, res) => {
     try {
       const { name, email, subject, message } = req.body;
@@ -1116,6 +1307,174 @@ ${paragraphs}
     } catch (error) {
       console.error("Error creating reply:", error);
       res.status(500).json({ error: "Failed to create reply" });
+    }
+  });
+
+  app.get("/api/admin/users", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const usersWithStats = await Promise.all(
+        allUsers.map(async (u) => {
+          const projectCount = await storage.getUserProjectCount(u.id);
+          return {
+            id: u.id,
+            email: u.email,
+            firstName: u.firstName,
+            lastName: u.lastName,
+            profileImageUrl: u.profileImageUrl,
+            plan: u.plan || "free",
+            role: u.role,
+            createdAt: u.createdAt,
+            totalProjects: projectCount,
+          };
+        })
+      );
+      res.json(usersWithStats);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/admin/users/:id/projects", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const projects = await storage.getProjectsByUser(userId);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching user projects:", error);
+      res.status(500).json({ error: "Failed to fetch user projects" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/plan", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const { plan } = req.body;
+      const validPlans = ["free", "essay", "scenario", "all_in_one"];
+      if (!plan || !validPlans.includes(plan)) {
+        return res.status(400).json({ error: "خطة غير صالحة" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      if (plan === "free") {
+        const [updated] = await db.update(users).set({
+          plan: "free",
+          planPurchasedAt: null,
+          updatedAt: new Date(),
+        }).where(eq(users.id, userId)).returning();
+        return res.json(updated);
+      }
+
+      const updated = await storage.updateUserPlan(userId, plan);
+      const projects = await storage.getProjectsByUser(userId);
+      for (const p of projects) {
+        if (!p.paid && userPlanCoversType(plan, p.projectType || "novel")) {
+          await storage.updateProjectPayment(p.id, true);
+        }
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user plan:", error);
+      res.status(500).json({ error: "Failed to update user plan" });
+    }
+  });
+
+  app.get("/api/chapters/:id/versions", isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project || project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      const versions = await storage.getChapterVersions(chapterId);
+      res.json(versions);
+    } catch (error) {
+      console.error("Error fetching chapter versions:", error);
+      res.status(500).json({ error: "Failed to fetch versions" });
+    }
+  });
+
+  app.post("/api/chapters/:id/versions/:versionId/restore", isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const versionId = parseInt(req.params.versionId);
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project || project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      const restored = await storage.restoreChapterVersion(chapterId, versionId);
+      res.json(restored);
+    } catch (error) {
+      console.error("Error restoring version:", error);
+      res.status(500).json({ error: "Failed to restore version" });
+    }
+  });
+
+  app.post("/api/projects/:id/share", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(16).toString("hex");
+      const updated = await storage.updateProject(id, { shareToken: token } as any);
+      res.json({ shareToken: updated.shareToken });
+    } catch (error) {
+      console.error("Error sharing project:", error);
+      res.status(500).json({ error: "Failed to share project" });
+    }
+  });
+
+  app.delete("/api/projects/:id/share", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      await storage.updateProject(id, { shareToken: null } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error revoking share:", error);
+      res.status(500).json({ error: "Failed to revoke share" });
+    }
+  });
+
+  app.get("/api/shared/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const project = await storage.getProjectByShareToken(token);
+      if (!project) return res.status(404).json({ error: "Not found" });
+      const details = await storage.getProjectWithDetails(project.id);
+      if (!details) return res.status(404).json({ error: "Not found" });
+      res.json({
+        title: details.title,
+        projectType: details.projectType,
+        coverImageUrl: details.coverImageUrl,
+        chapters: details.chapters
+          .filter((ch: any) => ch.content)
+          .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
+          .map((ch: any) => ({
+            chapterNumber: ch.chapterNumber,
+            title: ch.title,
+            content: ch.content,
+          })),
+      });
+    } catch (error) {
+      console.error("Error fetching shared project:", error);
+      res.status(500).json({ error: "Failed to fetch shared project" });
+    }
+  });
+
+  app.get("/api/admin/analytics", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const analytics = await storage.getAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
     }
   });
 

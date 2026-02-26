@@ -24,6 +24,7 @@ import Admin from "@/pages/admin";
 import AdminTicket from "@/pages/admin-ticket";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import SharedProject from "@/pages/shared-project";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -45,6 +46,7 @@ function AuthenticatedRouter() {
       <Route path="/contact" component={Contact} />
       <Route path="/abu-hashim" component={AbuHashim} />
       <Route path="/novel-theme" component={NovelTheme} />
+      <Route path="/shared/:token" component={SharedProject} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -62,6 +64,7 @@ function PublicRouter() {
       <Route path="/contact" component={Contact} />
       <Route path="/abu-hashim" component={AbuHashim} />
       <Route path="/novel-theme" component={NovelTheme} />
+      <Route path="/shared/:token" component={SharedProject} />
       <Route component={Landing} />
     </Switch>
   );

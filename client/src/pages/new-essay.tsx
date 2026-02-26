@@ -150,7 +150,7 @@ export default function NewEssay() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/">
               <Button variant="ghost" size="icon" data-testid="button-back">
@@ -165,7 +165,7 @@ export default function NewEssay() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex items-center justify-center gap-2 mb-10">
           {steps.map((s, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -195,9 +195,9 @@ export default function NewEssay() {
           <form onSubmit={form.handleSubmit(onSubmit)}>
             {step === 0 && (
               <Card>
-                <CardContent className="p-8 space-y-6">
+                <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="space-y-2 mb-6">
-                    <h2 className="font-serif text-2xl font-bold">تفاصيل المقال</h2>
+                    <h2 className="font-serif text-xl sm:text-2xl font-bold">تفاصيل المقال</h2>
                     <p className="text-sm text-muted-foreground">أدخل المعلومات الأساسية لمقالك المهني</p>
                   </div>
 
@@ -297,9 +297,9 @@ export default function NewEssay() {
             {step === 1 && (
               <div className="space-y-6">
                 <Card>
-                  <CardContent className="p-8 space-y-6">
+                  <CardContent className="p-5 sm:p-8 space-y-6">
                     <div className="space-y-2 mb-6">
-                      <h2 className="font-serif text-2xl font-bold">السياق والمصادر</h2>
+                      <h2 className="font-serif text-xl sm:text-2xl font-bold">السياق والمصادر</h2>
                       <p className="text-sm text-muted-foreground">أضف سياقًا إضافيًا لإثراء المقال (اختياري)</p>
                     </div>
 

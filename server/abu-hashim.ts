@@ -1132,6 +1132,42 @@ ${chapter.summary ? `ملخص هذا المشهد: ${chapter.summary}` : ""}
   return { system: SCENARIO_SYSTEM_PROMPT, user: prompt };
 }
 
+export function buildRewritePrompt(content: string, tone: string, projectType?: string): { system: string; user: string } {
+  const toneMap: Record<string, string> = {
+    formal: "أكثر رسمية وأكاديمية — استخدم لغة فصحى راقية وتراكيب بلاغية محكمة",
+    simple: "أبسط وأوضح — استخدم لغة سهلة مباشرة مع الحفاظ على الجمال الأدبي",
+    suspense: "أكثر تشويقاً وإثارة — أضف عناصر الغموض والترقب والإيقاع المتصاعد",
+    custom: "",
+  };
+
+  const toneInstruction = toneMap[tone] || tone;
+
+  const typeLabel = projectType === "essay" ? "مقال" : projectType === "scenario" ? "سيناريو" : "رواية";
+
+  const system = `أنت أبو هاشم — وكيل أدبي ذكي متخصص في إعادة كتابة النصوص العربية الأدبية.
+مهمتك إعادة صياغة النص المعطى بالنبرة المطلوبة مع الحفاظ على المعنى الأصلي والأحداث والشخصيات.
+
+القواعد:
+- حافظ على نفس الأحداث والمعلومات الموجودة في النص الأصلي
+- لا تضف أحداثاً جديدة ولا تحذف أحداثاً موجودة
+- غيّر الأسلوب والنبرة فقط
+- حافظ على أسماء الشخصيات والأماكن كما هي
+- أعد النص المعاد كتابته فقط بدون أي تعليقات أو ملاحظات
+- اكتب بنفس الطول تقريباً (± 20%)
+- اللغة: عربية فصحى حديثة`;
+
+  const user = `أعد كتابة النص التالي من ${typeLabel} بالنبرة المطلوبة.
+
+النبرة المطلوبة: ${toneInstruction}
+
+النص الأصلي:
+${content}
+
+أعد كتابة النص بالنبرة المطلوبة مع الحفاظ على المعنى والأحداث:`;
+
+  return { system, user };
+}
+
 export function buildCoverPrompt(project: NovelProject): string {
   return `Design an artistic Arabic novel book cover. The novel is titled "${project.title}". 
 

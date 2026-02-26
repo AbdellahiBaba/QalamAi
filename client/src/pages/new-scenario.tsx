@@ -176,7 +176,7 @@ export default function NewScenario() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/">
               <Button variant="ghost" size="icon" data-testid="button-back">
@@ -191,7 +191,7 @@ export default function NewScenario() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex items-center justify-center gap-2 mb-10">
           {steps.map((s, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -221,9 +221,9 @@ export default function NewScenario() {
           <form onSubmit={form.handleSubmit(onSubmit)}>
             {step === 0 && (
               <Card>
-                <CardContent className="p-8 space-y-6">
+                <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="space-y-2 mb-6">
-                    <h2 className="font-serif text-2xl font-bold">تفاصيل السيناريو</h2>
+                    <h2 className="font-serif text-xl sm:text-2xl font-bold">تفاصيل السيناريو</h2>
                     <p className="text-sm text-muted-foreground">أدخل المعلومات الأساسية لمشروعك الدرامي</p>
                   </div>
 
@@ -333,10 +333,10 @@ export default function NewScenario() {
 
             {step === 1 && (
               <Card>
-                <CardContent className="p-8 space-y-6">
+                <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
                     <div>
-                      <h2 className="font-serif text-2xl font-bold">الشخصيات</h2>
+                      <h2 className="font-serif text-xl sm:text-2xl font-bold">الشخصيات</h2>
                       <p className="text-sm text-muted-foreground">أضف شخصيات العمل الدرامي وحدد أدوارها ولهجاتها</p>
                     </div>
                     <Button
@@ -442,9 +442,9 @@ export default function NewScenario() {
 
             {step === 2 && (
               <Card>
-                <CardContent className="p-8 space-y-6">
+                <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="space-y-2 mb-6">
-                    <h2 className="font-serif text-2xl font-bold">المكان والأجواء</h2>
+                    <h2 className="font-serif text-xl sm:text-2xl font-bold">المكان والأجواء</h2>
                     <p className="text-sm text-muted-foreground">حدد إعدادات المكان والزمان والنغمة البصرية</p>
                   </div>
 

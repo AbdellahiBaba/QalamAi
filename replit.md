@@ -45,12 +45,19 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - Streaming output with multi-part generation for long chapters
 - Abu Hashim knowledge: 12 Arab novelists, Arab journalists (Heikal, Tueini), screenwriters (Wahid Hamed, Osama Anwar Okasha)
 - AI title suggestions, character suggestions, cover image generation (DALL-E 3)
-- PDF download, EPUB export (RTL Arabic), chapter preview
+- PDF download (server-side via pdfkit with Amiri Arabic font), EPUB export (RTL Arabic), chapter preview
 - Inline editing with word count recalculation
 - Dark mode toggle (ThemeProvider with localStorage)
 - User profile, dashboard statistics, project type badges
-- Email notifications (nodemailer/SMTP)
+- Email notifications (nodemailer/SMTP) — project completion emails for all types
 - Support ticket system with admin panel
+- Dashboard search/filter by title, type, status, and sort options
+- Auto-retry on AI generation failures (up to 3 attempts with 2s delay)
+- Chapter version history (auto-saves last 5 versions, restore capability)
+- "Rewrite This Section" feature with tone selection (formal, simple, suspense, custom)
+- Project sharing via read-only public links (with token generation/revocation)
+- Mobile-responsive UI across all pages
+- Admin panel with user management, plan changes, and platform analytics
 
 ## Pages
 - **Landing** (`/`) - Home page with hero, features, testimonials
@@ -61,13 +68,14 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - **Contact** (`/contact`) - Ticket submission
 - **Abu Hashim** (`/abu-hashim`) - Meet the AI agent
 - **Profile** (`/profile`) - User profile with stats
-- **Home** (`/` authenticated) - Dashboard with project cards, type badges, dropdown new project
+- **Home** (`/` authenticated) - Dashboard with project cards, search/filters, type badges
 - **New Project** (`/project/new`) - Novel creation
 - **New Essay** (`/project/new/essay`) - Essay creation
 - **New Scenario** (`/project/new/scenario`) - Scenario creation
 - **Project Detail** (`/project/:id`) - Type-aware workspace (adaptive labels for chapters/sections/scenes)
+- **Shared Project** (`/shared/:token`) - Public read-only view of shared projects
 - **Tickets** (`/tickets`) / **Ticket Detail** (`/tickets/:id`)
-- **Admin** (`/admin`) / **Admin Ticket** (`/admin/tickets/:id`)
+- **Admin** (`/admin`) - Tabs: Support Tickets, Users, Analytics / **Admin Ticket** (`/admin/tickets/:id`)
 
 ## Business Model — Plan-Based Pricing
 - **Plans** (one-time purchase, stored in `users.plan`):
@@ -87,9 +95,11 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
   - Novel: mainIdea, timeSetting, placeSetting, narrativePov, pageCount
   - Essay: subject, essayTone, targetAudience
   - Scenario: genre, episodeCount, formatType
+  - Sharing: shareToken (unique, nullable) for public read-only links
 - `characters` - Character profiles (used by novels and scenarios)
 - `character_relationships` - Relationships between characters
 - `chapters` - Stores chapters (novels), sections (essays), or scenes (scenarios)
+- `chapter_versions` - Auto-saved chapter content history (max 5 per chapter, tracks source: ai_generated/manual_edit/before_restore)
 - `support_tickets` / `ticket_replies` - Support system
 - `stripe.*` - Managed by stripe-replit-sync
 
@@ -97,11 +107,12 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - `shared/schema.ts` - Drizzle schema + pricing constants (NOVEL_PRICING, ESSAY_PRICE, SCENARIO_PRICE, ALL_IN_ONE_PRICE)
 - `server/routes.ts` - API endpoints with type-aware generation
 - `server/storage.ts` - Database storage layer
-- `server/abu-hashim.ts` - 3 AI personas: SYSTEM_PROMPT (novels), ESSAY_SYSTEM_PROMPT, SCENARIO_SYSTEM_PROMPT + builders
+- `server/abu-hashim.ts` - 3 AI personas: SYSTEM_PROMPT (novels), ESSAY_SYSTEM_PROMPT, SCENARIO_SYSTEM_PROMPT + builders + rewrite prompt
 - `server/stripeClient.ts` - Stripe client
-- `server/email.ts` - Email notifications
-- `client/src/pages/` - All React pages including new-essay, new-scenario
-- `client/src/lib/pdf-generator.ts` - PDF generation (includes cover image as first page when available)
+- `server/email.ts` - Email notifications (project completion for all types)
+- `server/fonts/` - Amiri Arabic font files (Regular + Bold) for server-side PDF
+- `client/src/pages/` - All React pages including new-essay, new-scenario, shared-project
+- `client/src/lib/pdf-generator.ts` - Client-side PDF generation (chapter preview only)
 
 ## API Routes
 - `GET /api/user/plan` - Get user's current plan and purchase date
@@ -112,8 +123,19 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - `POST /api/projects/:projectId/chapters/:chapterId/generate` - Generate content (checks plan + paid)
 - `POST /api/projects/:id/create-checkout` - Per-project Stripe checkout (for novels without All-in-One)
 - `GET /api/projects/stats` - Real word count and page count computed from chapter content for all user projects
+- `GET /api/projects/:id/export/pdf` - Server-side PDF generation (pdfkit + Amiri font, RTL, cover image, borders)
 - `GET /api/projects/:id/export/epub` - EPUB export with cover image + RTL page progression
-- `POST /api/stripe/webhook` - Stripe webhook endpoint; handles `checkout.session.completed` for both plan purchases and per-project payments as backup activation
+- `POST /api/chapters/:id/rewrite` - AI rewrite with tone selection (formal/simple/suspense/custom)
+- `GET /api/chapters/:id/versions` - Get chapter version history
+- `POST /api/chapters/:id/versions/:versionId/restore` - Restore a previous chapter version
+- `POST /api/projects/:id/share` - Generate share token for public read-only link
+- `DELETE /api/projects/:id/share` - Revoke project sharing
+- `GET /api/shared/:token` - Public endpoint for viewing shared projects (no auth)
+- `GET /api/admin/users` - List all users with stats (admin only)
+- `GET /api/admin/users/:id/projects` - Get user's projects (admin only)
+- `PATCH /api/admin/users/:id/plan` - Change user's plan (admin only)
+- `GET /api/admin/analytics` - Platform analytics (admin only)
+- `POST /api/stripe/webhook` - Stripe webhook endpoint; handles `checkout.session.completed`
 - All other routes unchanged from original
 
 ## Webhook-Based Payment Activation
@@ -123,6 +145,19 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - Idempotent: skips if plan/project is already activated. Logs all actions for debugging.
 
 ## Export Features
-- **PDF**: Includes cover image as first page (full bleed), title page, then numbered chapter pages. RTL text rendering.
+- **PDF (Server-side)**: Generated via pdfkit with Amiri Arabic font. Includes cover image, title page with decorative borders, then numbered chapter pages with RTL text rendering and page numbers.
+- **PDF (Client-side)**: Used only for individual chapter preview. Uses jsPDF with Arabic text handling.
 - **EPUB**: Includes cover image (as cover.xhtml + cover-image property), RTL page-progression-direction, dir="rtl" on all XHTML pages.
 - **Dashboard Stats**: Real word count (from chapter content) and real page count (250 words/page) shown per project card.
+
+## Recent Enhancements (9-Feature Suite)
+1. **Dashboard Search & Filters**: Search by title, filter by type/status, sort by date/title
+2. **Auto-Retry AI Failures**: Up to 3 retry attempts with 2s delay, visible retry status
+3. **Chapter Version History**: Auto-saves last 5 versions per chapter, tracks source, restore capability
+4. **Rewrite Feature**: AI-powered content rewriting with 4 tone options
+5. **Admin User Management**: View all users, manage plans, view user projects
+6. **Admin Analytics**: Platform-wide stats with visual bar charts
+7. **Mobile Experience**: Responsive layouts across all pages, touch-friendly
+8. **Email Notifications**: Completion emails for all project types
+9. **Project Sharing**: Public read-only links with token-based access
+10. **Server-Side PDF**: Reliable PDF generation with Arabic fonts and decorative styling

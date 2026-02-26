@@ -1,16 +1,17 @@
 import {
-  novelProjects, characters, characterRelationships, chapters,
+  novelProjects, characters, characterRelationships, chapters, chapterVersions,
   users, supportTickets, ticketReplies,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
   type Chapter, type InsertChapter,
+  type ChapterVersion,
   type User, type UpsertUser,
   type SupportTicket, type InsertSupportTicket,
   type TicketReply, type InsertTicketReply,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -42,6 +43,8 @@ export interface IStorage {
   createTicketReply(reply: InsertTicketReply): Promise<TicketReply>;
   getTicketReplies(ticketId: number): Promise<TicketReply[]>;
   getTicketStats(): Promise<{ status: string; count: number }[]>;
+  getAllUsers(): Promise<User[]>;
+  getUserProjectCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -221,6 +224,74 @@ export class DatabaseStorage implements IStorage {
       sql`SELECT status, COUNT(*)::int as count FROM support_tickets GROUP BY status`
     );
     return result.rows as { status: string; count: number }[];
+  }
+
+  async saveChapterVersion(chapterId: number, content: string, source: string): Promise<ChapterVersion> {
+    const [created] = await db.insert(chapterVersions).values({ chapterId, content, source }).returning();
+    const existing = await db.select().from(chapterVersions)
+      .where(eq(chapterVersions.chapterId, chapterId))
+      .orderBy(desc(chapterVersions.savedAt));
+    if (existing.length > 5) {
+      const toDelete = existing.slice(5);
+      for (const v of toDelete) {
+        await db.delete(chapterVersions).where(eq(chapterVersions.id, v.id));
+      }
+    }
+    return created;
+  }
+
+  async getChapterVersions(chapterId: number): Promise<ChapterVersion[]> {
+    return db.select().from(chapterVersions)
+      .where(eq(chapterVersions.chapterId, chapterId))
+      .orderBy(desc(chapterVersions.savedAt));
+  }
+
+  async restoreChapterVersion(chapterId: number, versionId: number): Promise<Chapter> {
+    const [version] = await db.select().from(chapterVersions).where(eq(chapterVersions.id, versionId));
+    if (!version || version.chapterId !== chapterId) throw new Error("Version not found");
+    const chapter = await this.getChapter(chapterId);
+    if (!chapter) throw new Error("Chapter not found");
+    if (chapter.content) {
+      await this.saveChapterVersion(chapterId, chapter.content, "before_restore");
+    }
+    const [updated] = await db.update(chapters).set({ content: version.content }).where(eq(chapters.id, chapterId)).returning();
+    return updated;
+  }
+
+  async getProjectByShareToken(token: string): Promise<NovelProject | undefined> {
+    const [project] = await db.select().from(novelProjects).where(eq(novelProjects.shareToken, token));
+    return project;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getUserProjectCount(userId: string): Promise<number> {
+    const result = await db.select({ value: count() }).from(novelProjects).where(eq(novelProjects.userId, userId));
+    return result[0]?.value || 0;
+  }
+
+  async getAnalytics(): Promise<{
+    totalUsers: number;
+    totalProjects: number;
+    projectsByType: { type: string; count: number }[];
+    planBreakdown: { plan: string; count: number }[];
+  }> {
+    const totalUsersResult = await db.select({ value: count() }).from(users);
+    const totalProjectsResult = await db.select({ value: count() }).from(novelProjects);
+    const projectsByType = await db.execute(
+      sql`SELECT COALESCE(project_type, 'novel') as type, COUNT(*)::int as count FROM novel_projects GROUP BY COALESCE(project_type, 'novel')`
+    );
+    const planBreakdown = await db.execute(
+      sql`SELECT COALESCE(plan, 'free') as plan, COUNT(*)::int as count FROM users GROUP BY COALESCE(plan, 'free')`
+    );
+    return {
+      totalUsers: totalUsersResult[0]?.value || 0,
+      totalProjects: totalProjectsResult[0]?.value || 0,
+      projectsByType: projectsByType.rows as { type: string; count: number }[],
+      planBreakdown: planBreakdown.rows as { plan: string; count: number }[],
+    };
   }
 }
 

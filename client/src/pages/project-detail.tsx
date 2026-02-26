@@ -10,14 +10,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
-  RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus
+  RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
+  Share2, Copy, LinkIcon
 } from "lucide-react";
-import { generateNovelPDF, generateChapterPreviewPDF } from "@/lib/pdf-generator";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { generateChapterPreviewPDF } from "@/lib/pdf-generator";
 import { useAuth } from "@/hooks/use-auth";
-import type { NovelProject, Character, Chapter, CharacterRelationship } from "@shared/schema";
+import type { NovelProject, Character, Chapter, CharacterRelationship, ChapterVersion } from "@shared/schema";
 import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 
 interface ProjectData extends NovelProject {
@@ -96,7 +100,6 @@ export default function ProjectDetail() {
   const [generatingChapter, setGeneratingChapter] = useState<number | null>(null);
   const [streamedContent, setStreamedContent] = useState("");
   const [generationProgress, setGenerationProgress] = useState<{ currentPart: number; totalParts: number } | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [confirmRegenerate, setConfirmRegenerate] = useState<number | null>(null);
   const [editingChapter, setEditingChapter] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
@@ -104,6 +107,13 @@ export default function ProjectDetail() {
   const [suggestedChars, setSuggestedChars] = useState<Array<{ name: string; role: string; background: string; traits: string }>>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+  const [rewriteChapterId, setRewriteChapterId] = useState<number | null>(null);
+  const [rewriteContent, setRewriteContent] = useState("");
+  const [rewriteTone, setRewriteTone] = useState("formal");
+  const [customTone, setCustomTone] = useState("");
+  const [rewrittenResult, setRewrittenResult] = useState<string | null>(null);
+  const [versionHistoryChapterId, setVersionHistoryChapterId] = useState<number | null>(null);
+  const [confirmRestoreVersion, setConfirmRestoreVersion] = useState<{ chapterId: number; versionId: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -177,6 +187,41 @@ export default function ProjectDetail() {
     },
   });
 
+  const rewriteMutation = useMutation({
+    mutationFn: async ({ chapterId, content, tone }: { chapterId: number; content: string; tone: string }) => {
+      const res = await apiRequest("POST", `/api/chapters/${chapterId}/rewrite`, { content, tone });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setRewrittenResult(data.rewrittenContent);
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "فشل في إعادة كتابة النص", variant: "destructive" });
+    },
+  });
+
+  const { data: chapterVersions, isLoading: isLoadingVersions } = useQuery<ChapterVersion[]>({
+    queryKey: ["/api/chapters", versionHistoryChapterId, "versions"],
+    enabled: !!versionHistoryChapterId,
+  });
+
+  const restoreVersionMutation = useMutation({
+    mutationFn: async ({ chapterId, versionId }: { chapterId: number; versionId: number }) => {
+      const res = await apiRequest("POST", `/api/chapters/${chapterId}/versions/${versionId}/restore`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/chapters", versionHistoryChapterId, "versions"] });
+      toast({ title: "تم استعادة النسخة بنجاح" });
+      setConfirmRestoreVersion(null);
+    },
+    onError: () => {
+      toast({ title: "فشل في استعادة النسخة", variant: "destructive" });
+      setConfirmRestoreVersion(null);
+    },
+  });
+
   const [autoWriteAll, setAutoWriteAll] = useState(false);
 
   useEffect(() => {
@@ -236,70 +281,101 @@ export default function ProjectDetail() {
     },
   });
 
-  const generateChapter = async (chapterId: number): Promise<boolean> => {
-    setGeneratingChapter(chapterId);
+  const attemptGenerateChapter = async (chapterId: number): Promise<boolean> => {
     setStreamedContent("");
     setGenerationProgress(null);
+
+    const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}/generate`, {
+      method: "POST",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.error || "Failed to generate chapter");
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No reader");
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullContent = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.content) {
+            fullContent += event.content;
+            setStreamedContent(fullContent);
+          }
+          if (event.totalParts && event.currentPart) {
+            setGenerationProgress({ currentPart: event.currentPart, totalParts: event.totalParts });
+          }
+          if (event.done) {
+            queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+            setGenerationProgress(null);
+          }
+          if (event.error) {
+            throw new Error(event.error);
+          }
+        } catch (e) {
+          if (e instanceof Error && e.message !== "Failed to generate chapter") throw e;
+        }
+      }
+    }
+    return true;
+  };
+
+  const generateChapter = async (chapterId: number): Promise<boolean> => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 2000;
+
+    setGeneratingChapter(chapterId);
     setExpandedChapter(chapterId);
     setActiveTab("chapters");
 
-    try {
-      const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}/generate`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.error || "Failed to generate chapter");
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No reader");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let fullContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const event = JSON.parse(line.slice(6));
-            if (event.content) {
-              fullContent += event.content;
-              setStreamedContent(fullContent);
-            }
-            if (event.totalParts && event.currentPart) {
-              setGenerationProgress({ currentPart: event.currentPart, totalParts: event.totalParts });
-            }
-            if (event.done) {
-              queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-              setGenerationProgress(null);
-            }
-            if (event.error) {
-              throw new Error(event.error);
-            }
-          } catch (e) {
-            if (e instanceof Error && e.message !== "Failed to generate chapter") throw e;
-          }
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const success = await attemptGenerateChapter(chapterId);
+        if (success) {
+          setGeneratingChapter(null);
+          setGenerationProgress(null);
+          return true;
+        }
+      } catch (err: any) {
+        if (attempt < MAX_RETRIES) {
+          toast({
+            title: `إعادة المحاولة... (${attempt + 1}/${MAX_RETRIES})`,
+            description: err?.message || "حدث خطأ، جاري إعادة المحاولة",
+          });
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        } else {
+          toast({
+            title: "فشلت جميع المحاولات",
+            description: err?.message || "حدث خطأ في كتابة الفصل بعد عدة محاولات",
+            variant: "destructive",
+          });
+          setAutoWriteAll(false);
+          setGeneratingChapter(null);
+          setGenerationProgress(null);
+          return false;
         }
       }
-      return true;
-    } catch (err: any) {
-      toast({ title: err?.message || "حدث خطأ في كتابة الفصل", variant: "destructive" });
-      return false;
-    } finally {
-      setGeneratingChapter(null);
-      setGenerationProgress(null);
     }
+
+    setGeneratingChapter(null);
+    setGenerationProgress(null);
+    return false;
   };
 
   useEffect(() => {
@@ -333,12 +409,12 @@ export default function ProjectDetail() {
     return (
       <div className="min-h-screen bg-background" dir="rtl">
         <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
-          <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-3">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-3">
             <Skeleton className="w-9 h-9" />
             <Skeleton className="w-48 h-6" />
           </div>
         </header>
-        <main className="max-w-6xl mx-auto px-6 py-10">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
           <div className="space-y-6">
             <Skeleton className="h-8 w-64" />
             <Skeleton className="h-48 w-full" />
@@ -447,53 +523,30 @@ export default function ProjectDetail() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link href="/">
               <Button variant="ghost" size="icon" data-testid="button-back-home">
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
-            <div className="flex items-center gap-2">
-              <Feather className="w-5 h-5 text-primary" />
-              <span className="font-serif text-lg font-bold line-clamp-1" data-testid="text-project-name">
+            <div className="flex items-center gap-2 min-w-0">
+              <Feather className="w-5 h-5 text-primary shrink-0" />
+              <span className="font-serif text-base sm:text-lg font-bold line-clamp-1" data-testid="text-project-name">
                 {project.title}
               </span>
             </div>
           </div>
           {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
-            <>
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 size="sm"
-                onClick={async () => {
-                  setIsDownloading(true);
-                  try {
-                    await generateNovelPDF({
-                      title: project.title,
-                      coverImageUrl: project.coverImageUrl,
-                      chapters: project.chapters
-                        .sort((a, b) => a.chapterNumber - b.chapterNumber)
-                        .map(c => ({
-                          chapterNumber: c.chapterNumber,
-                          title: c.title,
-                          content: c.content,
-                        })),
-                    });
-                    toast({ title: "تم تحميل الرواية بنجاح" });
-                  } catch {
-                    toast({ title: "حدث خطأ في إنشاء ملف PDF", variant: "destructive" });
-                  } finally {
-                    setIsDownloading(false);
-                  }
+                onClick={() => {
+                  window.open(`/api/projects/${projectId}/export/pdf`, "_blank");
                 }}
-                disabled={isDownloading}
                 data-testid="button-download-pdf"
               >
-                {isDownloading ? (
-                  <><Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> جارٍ التحميل...</>
-                ) : (
-                  <><Download className="w-4 h-4 ml-1.5" /> تحميل PDF</>
-                )}
+                <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل PDF</span>
               </Button>
               <Button
                 size="sm"
@@ -503,14 +556,53 @@ export default function ProjectDetail() {
                 }}
                 data-testid="button-download-epub"
               >
-                <Download className="w-4 h-4 ml-1.5" /> تحميل EPUB
+                <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل EPUB</span>
               </Button>
-            </>
+              {project.shareToken ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const url = `${window.location.origin}/shared/${project.shareToken}`;
+                    navigator.clipboard.writeText(url);
+                    toast({ title: "تم نسخ رابط المشاركة" });
+                  }}
+                  data-testid="button-copy-share-link"
+                >
+                  <Copy className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">نسخ الرابط</span>
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant={project.shareToken ? "destructive" : "secondary"}
+                onClick={async () => {
+                  try {
+                    if (project.shareToken) {
+                      await apiRequest("DELETE", `/api/projects/${projectId}/share`);
+                      toast({ title: "تم إلغاء المشاركة" });
+                    } else {
+                      await apiRequest("POST", `/api/projects/${projectId}/share`);
+                      toast({ title: "تم إنشاء رابط المشاركة" });
+                    }
+                    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                  } catch {
+                    toast({ title: "حدث خطأ", variant: "destructive" });
+                  }
+                }}
+                data-testid="button-toggle-share"
+              >
+                {project.shareToken ? (
+                  <><X className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">إلغاء المشاركة</span></>
+                ) : (
+                  <><Share2 className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">مشاركة</span></>
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {!hasAccess && (
           <Card className="mb-6 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
             <CardContent className="p-6">
@@ -588,7 +680,7 @@ export default function ProjectDetail() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full max-w-md ${project.projectType === "essay" ? "grid-cols-2" : "grid-cols-3"}`}>
+          <TabsList className={`grid w-full max-w-full sm:max-w-md ${project.projectType === "essay" ? "grid-cols-2" : "grid-cols-3"}`}>
             <TabsTrigger value="overview" data-testid="tab-overview">
               <BookOpen className="w-4 h-4 ml-1.5" />
               نظرة عامة
@@ -620,9 +712,9 @@ export default function ProjectDetail() {
                 </CardContent>
               </Card>
             )}
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="p-4 sm:p-6 space-y-4">
                   <h3 className="font-serif text-lg font-semibold">تفاصيل الرواية</h3>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between gap-2">
@@ -654,7 +746,7 @@ export default function ProjectDetail() {
               </Card>
 
               <Card>
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="p-4 sm:p-6 space-y-4">
                   <h3 className="font-serif text-lg font-semibold">الفكرة الرئيسية</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{project.mainIdea}</p>
                   {!project.coverImageUrl && (
@@ -833,7 +925,7 @@ export default function ProjectDetail() {
               </Card>
             )}
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {project.characters?.map((char) => (
                 <Card key={char.id}>
                   <CardContent className="p-6 space-y-3">
@@ -889,12 +981,12 @@ export default function ProjectDetail() {
                   const totalCount = project.chapters.length;
                   const hasRemaining = completedCount < totalCount;
                   return (
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-muted-foreground">
                           {completedCount}/{totalCount} {labels.chapterSingular} مكتمل
                         </span>
-                        <div className="w-32 h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="w-24 sm:w-32 h-2 rounded-full bg-muted overflow-hidden">
                           <div
                             className="h-full rounded-full bg-primary transition-all"
                             style={{ width: `${(completedCount / totalCount) * 100}%` }}
@@ -938,7 +1030,7 @@ export default function ProjectDetail() {
                     <CardContent className="p-0">
                       <button
                         type="button"
-                        className="w-full p-6 flex items-center justify-between gap-4 text-right"
+                        className="w-full p-4 sm:p-6 flex items-center justify-between gap-2 sm:gap-4 text-right"
                         onClick={() => setExpandedChapter(isExpanded ? null : chapter.id)}
                         data-testid={`button-chapter-${chapter.id}`}
                       >
@@ -1080,13 +1172,13 @@ export default function ProjectDetail() {
                             </div>
                           ) : (
                             <>
-                              <ScrollArea className="max-h-[600px]" ref={contentRef}>
-                                <div className="p-8 font-serif text-base leading-[2.2] whitespace-pre-wrap">
+                              <ScrollArea className="max-h-[60vh] sm:max-h-[600px]" ref={contentRef}>
+                                <div className="p-4 sm:p-8 font-serif text-sm sm:text-base leading-[2] sm:leading-[2.2] whitespace-pre-wrap">
                                   {displayContent}
                                 </div>
                               </ScrollArea>
                               {chapter.status === "completed" && !isGenerating && (
-                                <div className="border-t p-3 flex items-center justify-end gap-2">
+                                <div className="border-t p-3 flex items-center justify-end gap-2 flex-wrap">
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -1107,6 +1199,34 @@ export default function ProjectDetail() {
                                   >
                                     <Eye className="w-3.5 h-3.5 ml-1" />
                                     معاينة PDF
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setVersionHistoryChapterId(chapter.id);
+                                    }}
+                                    data-testid={`button-version-history-${chapter.id}`}
+                                  >
+                                    <History className="w-3.5 h-3.5 ml-1" />
+                                    سجل النسخ
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRewriteContent(chapter.content || "");
+                                      setRewriteChapterId(chapter.id);
+                                      setRewriteTone("formal");
+                                      setCustomTone("");
+                                      setRewrittenResult(null);
+                                    }}
+                                    data-testid={`button-rewrite-chapter-${chapter.id}`}
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5 ml-1" />
+                                    أعد كتابة
                                   </Button>
                                   <Button
                                     size="sm"
@@ -1163,6 +1283,217 @@ export default function ProjectDetail() {
             )}
           </DialogContent>
         </Dialog>
+
+        <Dialog open={rewriteChapterId !== null} onOpenChange={(open) => { if (!open) { setRewriteChapterId(null); setRewrittenResult(null); } }}>
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>أعد كتابة {labels.chapterSingular}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label data-testid="label-rewrite-tone">النبرة المطلوبة</Label>
+                <Select value={rewriteTone} onValueChange={(v) => { setRewriteTone(v); setRewrittenResult(null); }}>
+                  <SelectTrigger data-testid="select-rewrite-tone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="formal" data-testid="option-tone-formal">أكثر رسمية</SelectItem>
+                    <SelectItem value="simple" data-testid="option-tone-simple">أبسط</SelectItem>
+                    <SelectItem value="suspense" data-testid="option-tone-suspense">أكثر تشويقاً</SelectItem>
+                    <SelectItem value="custom" data-testid="option-tone-custom">مخصص</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {rewriteTone === "custom" && (
+                <div className="space-y-2">
+                  <Label data-testid="label-custom-tone">وصف النبرة المخصصة</Label>
+                  <Textarea
+                    value={customTone}
+                    onChange={(e) => setCustomTone(e.target.value)}
+                    placeholder="مثال: أكثر شاعرية مع لمسة حزن..."
+                    className="min-h-[60px]"
+                    dir="rtl"
+                    data-testid="textarea-custom-tone"
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label data-testid="label-rewrite-content">النص الأصلي</Label>
+                <Textarea
+                  value={rewriteContent}
+                  onChange={(e) => setRewriteContent(e.target.value)}
+                  className="min-h-[200px] font-serif text-sm leading-[2] resize-y"
+                  dir="rtl"
+                  data-testid="textarea-rewrite-content"
+                />
+              </div>
+              {!rewrittenResult && (
+                <Button
+                  onClick={() => {
+                    if (!rewriteChapterId) return;
+                    const effectiveTone = rewriteTone === "custom" ? customTone : rewriteTone;
+                    if (rewriteTone === "custom" && !customTone.trim()) {
+                      toast({ title: "يرجى وصف النبرة المخصصة", variant: "destructive" });
+                      return;
+                    }
+                    rewriteMutation.mutate({ chapterId: rewriteChapterId, content: rewriteContent, tone: effectiveTone });
+                  }}
+                  disabled={rewriteMutation.isPending || !rewriteContent.trim()}
+                  data-testid="button-submit-rewrite"
+                >
+                  {rewriteMutation.isPending ? (
+                    <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ إعادة الكتابة...</>
+                  ) : (
+                    <><RotateCcw className="w-4 h-4 ml-2" /> أعد الكتابة</>
+                  )}
+                </Button>
+              )}
+              {rewrittenResult && (
+                <div className="space-y-3">
+                  <Label data-testid="label-rewritten-result">النص المعاد كتابته</Label>
+                  <ScrollArea className="max-h-[300px] border rounded-md">
+                    <div className="p-4 font-serif text-sm leading-[2] whitespace-pre-wrap" data-testid="text-rewritten-content">
+                      {rewrittenResult}
+                    </div>
+                  </ScrollArea>
+                  <div className="flex items-center gap-2 justify-end flex-wrap">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRewrittenResult(null)}
+                      data-testid="button-reject-rewrite"
+                    >
+                      <X className="w-3.5 h-3.5 ml-1" />
+                      رفض
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setRewrittenResult(null);
+                        const effectiveTone = rewriteTone === "custom" ? customTone : rewriteTone;
+                        rewriteMutation.mutate({ chapterId: rewriteChapterId!, content: rewriteContent, tone: effectiveTone });
+                      }}
+                      disabled={rewriteMutation.isPending}
+                      data-testid="button-retry-rewrite"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 ml-1" />
+                      أعد المحاولة
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (rewriteChapterId && rewrittenResult) {
+                          saveChapterMutation.mutate({ chapterId: rewriteChapterId, content: rewrittenResult });
+                          setRewriteChapterId(null);
+                          setRewrittenResult(null);
+                        }
+                      }}
+                      disabled={saveChapterMutation.isPending}
+                      data-testid="button-accept-rewrite"
+                    >
+                      {saveChapterMutation.isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-3.5 h-3.5 ml-1" />
+                      )}
+                      قبول واستبدال
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={versionHistoryChapterId !== null} onOpenChange={(open) => { if (!open) setVersionHistoryChapterId(null); }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
+            <DialogHeader>
+              <DialogTitle data-testid="text-version-history-title">سجل النسخ</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              {isLoadingVersions ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : chapterVersions && chapterVersions.length > 0 ? (
+                chapterVersions.map((version) => (
+                  <Card key={version.id}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground" data-testid={`badge-version-source-${version.id}`}>
+                            {version.source === "ai_generated" ? "توليد ذكاء اصطناعي" : "تعديل يدوي"}
+                          </span>
+                          <span className="text-xs text-muted-foreground" data-testid={`text-version-date-${version.id}`}>
+                            {new Date(version.savedAt).toLocaleString("ar-EG", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            if (versionHistoryChapterId) {
+                              setConfirmRestoreVersion({ chapterId: versionHistoryChapterId, versionId: version.id });
+                            }
+                          }}
+                          data-testid={`button-restore-version-${version.id}`}
+                        >
+                          <RotateCcw className="w-3 h-3 ml-1" />
+                          استعادة
+                        </Button>
+                      </div>
+                      <ScrollArea className="max-h-[150px]">
+                        <p className="text-sm font-serif leading-[2] whitespace-pre-wrap text-muted-foreground" data-testid={`text-version-content-${version.id}`}>
+                          {version.content.length > 500 ? version.content.slice(0, 500) + "..." : version.content}
+                        </p>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p data-testid="text-no-versions">لا توجد نسخ محفوظة لهذا الفصل</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={confirmRestoreVersion !== null} onOpenChange={(open) => { if (!open) setConfirmRestoreVersion(null); }}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle data-testid="text-confirm-restore-title">تأكيد الاستعادة</AlertDialogTitle>
+              <AlertDialogDescription data-testid="text-confirm-restore-desc">
+                هل أنت متأكد من استعادة هذه النسخة؟ سيتم استبدال المحتوى الحالي بمحتوى النسخة المحددة.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel data-testid="button-cancel-restore">إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (confirmRestoreVersion) {
+                    restoreVersionMutation.mutate(confirmRestoreVersion);
+                  }
+                }}
+                disabled={restoreVersionMutation.isPending}
+                data-testid="button-confirm-restore"
+              >
+                {restoreVersionMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 ml-1 animate-spin" /> جارٍ الاستعادة...</>
+                ) : (
+                  "نعم، استعد النسخة"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

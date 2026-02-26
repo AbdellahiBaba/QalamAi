@@ -89,6 +89,7 @@ export const novelProjects = pgTable("novel_projects", {
   usedWords: integer("used_words").notNull().default(0),
   price: integer("price").notNull().default(0),
   coverImageUrl: text("cover_image_url"),
+  shareToken: varchar("share_token"),
   subject: text("subject"),
   essayTone: text("essay_tone"),
   targetAudience: text("target_audience"),
@@ -126,6 +127,14 @@ export const chapters = pgTable("chapters", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const chapterVersions = pgTable("chapter_versions", {
+  id: serial("id").primaryKey(),
+  chapterId: integer("chapter_id").notNull().references(() => chapters.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  source: text("source").notNull().default("ai_generated"),
+  savedAt: timestamp("saved_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const novelProjectsRelations = relations(novelProjects, ({ many }) => ({
   characters: many(characters),
   chapters: many(chapters),
@@ -139,10 +148,18 @@ export const charactersRelations = relations(characters, ({ one }) => ({
   }),
 }));
 
-export const chaptersRelations = relations(chapters, ({ one }) => ({
+export const chaptersRelations = relations(chapters, ({ one, many }) => ({
   project: one(novelProjects, {
     fields: [chapters.projectId],
     references: [novelProjects.id],
+  }),
+  versions: many(chapterVersions),
+}));
+
+export const chapterVersionsRelations = relations(chapterVersions, ({ one }) => ({
+  chapter: one(chapters, {
+    fields: [chapterVersions.chapterId],
+    references: [chapters.id],
   }),
 }));
 
@@ -244,3 +261,4 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
 export type TicketReply = typeof ticketReplies.$inferSelect;
 export type InsertTicketReply = z.infer<typeof insertTicketReplySchema>;
+export type ChapterVersion = typeof chapterVersions.$inferSelect;
