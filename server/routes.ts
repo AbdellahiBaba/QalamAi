@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, VALID_PAGE_COUNTS, WORDS_PER_PAGE } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, calculateNovelStructure } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, calculateNovelStructure } from "./abu-hashim";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 
@@ -123,6 +123,63 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error processing payment:", error);
       res.status(500).json({ error: "Failed to process payment" });
+    }
+  });
+
+  app.post("/api/projects/suggest-titles", isAuthenticated, async (req: any, res) => {
+    try {
+      const { mainIdea, timeSetting, placeSetting, narrativePov, characters } = req.body;
+      if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
+        return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
+      }
+
+      const safeChars = Array.isArray(characters)
+        ? characters.filter((c: any) => c && typeof c.name === "string" && typeof c.role === "string").slice(0, 20).map((c: any) => ({ name: String(c.name).slice(0, 100), role: String(c.role).slice(0, 50) }))
+        : undefined;
+
+      const { system, user } = buildTitleSuggestionPrompt({
+        mainIdea: mainIdea.slice(0, 2000),
+        timeSetting: typeof timeSetting === "string" ? timeSetting.slice(0, 200) : undefined,
+        placeSetting: typeof placeSetting === "string" ? placeSetting.slice(0, 200) : undefined,
+        narrativePov: typeof narrativePov === "string" ? narrativePov.slice(0, 50) : undefined,
+        characters: safeChars,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 2048,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "فشل في توليد العناوين" });
+      }
+
+      let suggestions: Array<{ title: string; reason: string }>;
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!Array.isArray(parsed)) throw new Error("Not an array");
+        suggestions = parsed
+          .filter((s: any) => s && typeof s.title === "string" && typeof s.reason === "string")
+          .slice(0, 5)
+          .map((s: any) => ({ title: String(s.title), reason: String(s.reason) }));
+      } catch {
+        return res.status(500).json({ error: "فشل في توليد العناوين" });
+      }
+
+      if (suggestions.length === 0) {
+        return res.status(500).json({ error: "فشل في توليد العناوين" });
+      }
+
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error suggesting titles:", error);
+      res.status(500).json({ error: "فشل في اقتراح العناوين" });
     }
   });
 

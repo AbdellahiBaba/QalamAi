@@ -481,3 +481,57 @@ ${chapter.summary ? `ملخص هذا الفصل: ${chapter.summary}` : ""}
 
   return { system: SYSTEM_PROMPT, user: prompt };
 }
+
+export function buildTitleSuggestionPrompt(data: {
+  mainIdea: string;
+  timeSetting?: string;
+  placeSetting?: string;
+  narrativePov?: string;
+  characters?: Array<{ name: string; role: string }>;
+}) {
+  const povMap: Record<string, string> = {
+    first_person: "ضمير المتكلم",
+    third_person: "ضمير الغائب",
+    omniscient: "الراوي العليم",
+    multi_pov: "تعدد الأصوات",
+  };
+
+  let prompt = `بصفتك أبو هاشم — الوكيل الأدبي المتخصص في الرواية العربية — اقترح 5 عناوين إبداعية لرواية عربية بناءً على المعطيات التالية:
+
+الفكرة الرئيسية: ${data.mainIdea}`;
+
+  if (data.timeSetting) prompt += `\nالزمان: ${data.timeSetting}`;
+  if (data.placeSetting) prompt += `\nالمكان: ${data.placeSetting}`;
+  if (data.narrativePov) prompt += `\nنوع السرد: ${povMap[data.narrativePov] || data.narrativePov}`;
+
+  if (data.characters && data.characters.length > 0) {
+    prompt += `\nالشخصيات:`;
+    for (const char of data.characters) {
+      prompt += `\n- ${char.name} (${char.role})`;
+    }
+  }
+
+  prompt += `
+
+═══ تعليمات اقتراح العناوين ═══
+
+اقترح 5 عناوين مختلفة ومتنوعة في أسلوبها، مستلهماً من تقاليد تسمية الروايات العربية الكبرى:
+
+1. عنوان شعري/مجازي — يحمل صورة بلاغية أو استعارة (مثل: "ذاكرة الجسد"، "موسم الهجرة إلى الشمال")
+2. عنوان رمزي — يستخدم رمزاً من الطبيعة أو الحياة العربية (مثل: "مدن الملح"، "رجال في الشمس")
+3. عنوان درامي/مثير — يوحي بالصراع أو التشويق (مثل: "الحرام"، "عمارة يعقوبيان")
+4. عنوان فلسفي/تأملي — يطرح سؤالاً أو يفتح أفقاً (مثل: "أولاد حارتنا"، "البحث عن وليد مسعود")
+5. عنوان حر — أي أسلوب تراه الأنسب للفكرة
+
+لكل عنوان:
+- اجعله قصيراً وموسيقياً (2-5 كلمات)
+- اجعله يثير فضول القارئ العربي
+- اربطه بجوهر الفكرة والشخصيات والمكان
+
+أجب بصيغة JSON فقط — مصفوفة من 5 عناصر بالشكل التالي:
+[{"title": "العنوان", "reason": "سبب اختيار هذا العنوان وعلاقته بالرواية"}]
+
+لا تضف أي نص خارج JSON.`;
+
+  return { system: SYSTEM_PROMPT, user: prompt };
+}
