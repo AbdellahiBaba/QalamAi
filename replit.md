@@ -20,9 +20,11 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 ## Key Features
 - Multi-step project creation (novel details, characters with 70+ roles, relationships)
 - Configurable novel length (20-200 pages) with automatic chapter/structure calculation
-- AI-generated novel outlines with chapter breakdown scaled to page count
+- AI-generated novel outlines with chapter breakdown, thematic depth, symbolic motifs, emotional arc mapping, and cultural anchoring
 - Auto-write: chapters generated sequentially after outline approval
 - Chapter-by-chapter writing with streaming output and multi-part generation
+- Abu Hashim literary knowledge: 12 Arab master novelists (Mahfouz, Mosteghanemi, Kanafani, Salih, al-Shaykh, Hamdi, Nasrallah, Munif, Ashour, Jabra, S. Ibrahim, Idris)
+- Advanced narrative techniques: time refraction, polyphony, sensory immersion, interior monologue, Arabic symbolism, oral storytelling, layered dialogue, intertextuality
 - Incremental save during generation (every 50 chunks)
 - Chapter status tracking (pending, generating, incomplete, completed)
 - PDF download of completed novels
