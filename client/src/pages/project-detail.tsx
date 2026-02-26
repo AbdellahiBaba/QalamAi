@@ -470,6 +470,7 @@ export default function ProjectDetail() {
                   try {
                     await generateNovelPDF({
                       title: project.title,
+                      coverImageUrl: project.coverImageUrl,
                       chapters: project.chapters
                         .sort((a, b) => a.chapterNumber - b.chapterNumber)
                         .map(c => ({

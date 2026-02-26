@@ -9,10 +9,7 @@ interface Chapter {
 interface NovelData {
   title: string;
   chapters: Chapter[];
-}
-
-function reverseArabicLine(text: string): string {
-  return text.split("").reverse().join("");
+  coverImageUrl?: string | null;
 }
 
 function splitTextIntoLines(text: string, maxCharsPerLine: number): string[] {
@@ -34,6 +31,16 @@ function splitTextIntoLines(text: string, maxCharsPerLine: number): string[] {
   return lines;
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 export async function generateNovelPDF(novel: NovelData): Promise<void> {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
@@ -44,7 +51,6 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
   const MARGIN_BOTTOM = 70;
   const MARGIN_RIGHT = 60;
   const MARGIN_LEFT = 60;
-  const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_RIGHT - MARGIN_LEFT;
   const LINE_HEIGHT = 28;
   const TITLE_LINE_HEIGHT = 40;
   const CHARS_PER_LINE = 55;
@@ -81,6 +87,35 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
     ctx.textAlign = "right";
     ctx.direction = "rtl";
     ctx.fillText(text, x, y);
+  }
+
+  if (novel.coverImageUrl) {
+    try {
+      const coverImg = await loadImage(novel.coverImageUrl);
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
+
+      const imgRatio = coverImg.width / coverImg.height;
+      const pageRatio = PAGE_WIDTH / PAGE_HEIGHT;
+      let drawW: number, drawH: number, drawX: number, drawY: number;
+
+      if (imgRatio > pageRatio) {
+        drawH = PAGE_HEIGHT;
+        drawW = drawH * imgRatio;
+        drawX = (PAGE_WIDTH - drawW) / 2;
+        drawY = 0;
+      } else {
+        drawW = PAGE_WIDTH;
+        drawH = drawW / imgRatio;
+        drawX = 0;
+        drawY = (PAGE_HEIGHT - drawH) / 2;
+      }
+
+      ctx.drawImage(coverImg, drawX, drawY, drawW, drawH);
+      savePage();
+    } catch {
+      // skip cover if image fails to load
+    }
   }
 
   clearPage();
