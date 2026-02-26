@@ -634,18 +634,17 @@ export async function registerRoutes(
       const prompt = buildCoverPrompt(project);
 
       const response = await openai.images.generate({
-        model: "dall-e-3",
+        model: "gpt-image-1",
         prompt,
-        n: 1,
-        size: "1024x1792",
-        quality: "standard",
+        size: "1024x1024",
       });
 
-      const imageUrl = response.data[0]?.url;
-      if (!imageUrl) return res.status(500).json({ error: "فشل في إنشاء الغلاف" });
+      const base64 = response.data[0]?.b64_json;
+      if (!base64) return res.status(500).json({ error: "فشل في إنشاء الغلاف" });
 
-      await storage.updateProject(id, { coverImageUrl: imageUrl });
-      res.json({ coverImageUrl: imageUrl });
+      const coverImageUrl = `data:image/png;base64,${base64}`;
+      await storage.updateProject(id, { coverImageUrl });
+      res.json({ coverImageUrl });
     } catch (error) {
       console.error("Error generating cover:", error);
       res.status(500).json({ error: "فشل في إنشاء الغلاف" });
