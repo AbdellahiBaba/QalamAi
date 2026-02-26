@@ -21,6 +21,33 @@ function getTransporter(): nodemailer.Transporter | null {
   return transporter;
 }
 
+export function checkSmtpStatus(): void {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const port = process.env.SMTP_PORT || "587";
+
+  if (host && user && pass) {
+    console.log(`[Email] SMTP configured: host=${host}, port=${port}, user=${user}`);
+  } else {
+    const missing = [];
+    if (!host) missing.push("SMTP_HOST");
+    if (!user) missing.push("SMTP_USER");
+    if (!pass) missing.push("SMTP_PASS");
+    console.warn(`[Email] SMTP NOT configured — missing: ${missing.join(", ")}. Email notifications will be disabled.`);
+  }
+}
+
+function getBaseUrl(): string {
+  if (process.env.REPLIT_DEPLOYMENT_URL) {
+    return `https://${process.env.REPLIT_DEPLOYMENT_URL}`;
+  }
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  }
+  return "";
+}
+
 function wrapInTemplate(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -65,7 +92,7 @@ export async function sendNovelCompletionEmail(email: string, novelTitle: string
   };
   const actionText = typeActions[projectType || "novel"] || typeActions.novel;
 
-  const projectUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""}/project/${projectId}`;
+  const projectUrl = `${getBaseUrl()}/project/${projectId}`;
 
   const body = `
 <p style="color:#333;line-height:1.8;font-size:15px;">تهانينا! ${typeLabel === "رواية" ? "روايتك" : typeLabel === "مقال" ? "مقالك" : "السيناريو الخاص بك"} <strong style="color:${BRAND_GOLD};">"${novelTitle}"</strong> مكتمل${typeLabel === "رواية" ? "ة" : ""} الآن.</p>
@@ -98,8 +125,9 @@ export async function sendNovelCompletionEmail(email: string, novelTitle: string
       subject,
       html: wrapInTemplate(headerLabel, body),
     });
+    console.log(`[Email] Sent project completion email to ${email} — subject: "${subject}"`);
   } catch (err) {
-    console.error("Failed to send project completion email:", err);
+    console.error("[Email] Failed to send project completion email:", err);
   }
 }
 
@@ -107,26 +135,114 @@ export async function sendTicketReplyEmail(email: string, ticketSubject: string,
   const t = getTransporter();
   if (!t) return;
 
+  const ticketUrl = `${getBaseUrl()}/tickets/${ticketId}`;
+
   const body = `
 <p style="color:#333;line-height:1.8;font-size:15px;">تم الرد على تذكرتك: <strong>"${ticketSubject}"</strong></p>
 <div style="background:#f5f3ef;border-right:3px solid ${BRAND_GOLD};padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;">
 <p style="color:#555;margin:0;font-size:14px;line-height:1.7;">${replyPreview.slice(0, 500)}</p>
 </div>
 <div style="text-align:center;margin:24px 0;">
-<a href="${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""}/tickets/${ticketId}" 
+<a href="${ticketUrl}" 
    style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
 عرض التذكرة
 </a>
 </div>`;
 
+  const subject = `رد جديد على تذكرتك: "${ticketSubject}"`;
+
   try {
     await t.sendMail({
       from: `"QalamAI" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: `رد جديد على تذكرتك: "${ticketSubject}"`,
+      subject,
       html: wrapInTemplate("رد جديد على تذكرتك", body),
     });
+    console.log(`[Email] Sent ticket reply email to ${email} — subject: "${subject}"`);
   } catch (err) {
-    console.error("Failed to send ticket reply email:", err);
+    console.error("[Email] Failed to send ticket reply email:", err);
+  }
+}
+
+export async function sendPlanActivationEmail(email: string, planType: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const planLabels: Record<string, string> = {
+    essay: "خطة المقالات",
+    scenario: "خطة السيناريو",
+    all_in_one: "الخطة الشاملة",
+  };
+  const planLabel = planLabels[planType] || planType;
+
+  const planDescriptions: Record<string, string> = {
+    essay: "يمكنك الآن إنشاء مقالات غير محدودة.",
+    scenario: "يمكنك الآن إنشاء سيناريوهات غير محدودة.",
+    all_in_one: "يمكنك الآن إنشاء روايات ومقالات وسيناريوهات غير محدودة.",
+  };
+  const description = planDescriptions[planType] || "";
+
+  const dashboardUrl = `${getBaseUrl()}/`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">تم تفعيل <strong style="color:${BRAND_GOLD};">${planLabel}</strong> بنجاح على حسابك.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">${description}</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${dashboardUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+الذهاب إلى لوحة التحكم
+</a>
+</div>`;
+
+  const subject = `تم تفعيل ${planLabel} — QalamAI`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject,
+      html: wrapInTemplate("تم تفعيل خطتك!", body),
+    });
+    console.log(`[Email] Sent plan activation email to ${email} — plan: ${planType}`);
+  } catch (err) {
+    console.error("[Email] Failed to send plan activation email:", err);
+  }
+}
+
+export async function sendProjectPaymentEmail(email: string, projectTitle: string, projectId: number, projectType?: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const typeLabels: Record<string, string> = {
+    novel: "رواية",
+    essay: "مقال",
+    scenario: "سيناريو",
+  };
+  const typeLabel = typeLabels[projectType || "novel"] || "رواية";
+
+  const projectUrl = `${getBaseUrl()}/project/${projectId}`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">تم تأكيد الدفع لمشروعك (${typeLabel}): <strong style="color:${BRAND_GOLD};">"${projectTitle}"</strong></p>
+<p style="color:#333;line-height:1.8;font-size:15px;">يمكنك الآن البدء في إنشاء المحتوى والكتابة.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${projectUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+فتح المشروع
+</a>
+</div>`;
+
+  const subject = `تأكيد الدفع — "${projectTitle}"`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject,
+      html: wrapInTemplate("تم تأكيد الدفع!", body),
+    });
+    console.log(`[Email] Sent project payment email to ${email} — project: "${projectTitle}"`);
+  } catch (err) {
+    console.error("[Email] Failed to send project payment email:", err);
   }
 }

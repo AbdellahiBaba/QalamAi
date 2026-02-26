@@ -49,7 +49,7 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - Inline editing with word count recalculation
 - Dark mode toggle (ThemeProvider with localStorage)
 - User profile, dashboard statistics, project type badges
-- Email notifications (nodemailer/SMTP) — project completion emails for all types
+- Email notifications (nodemailer/SMTP) — project completion, plan activation, project payment confirmation, ticket reply emails
 - Support ticket system with admin panel
 - Dashboard search/filter by title, type, status, and sort options
 - Auto-retry on AI generation failures (up to 3 attempts with 2s delay)
@@ -109,7 +109,8 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - `server/storage.ts` - Database storage layer
 - `server/abu-hashim.ts` - 3 AI personas: SYSTEM_PROMPT (novels), ESSAY_SYSTEM_PROMPT, SCENARIO_SYSTEM_PROMPT + builders + rewrite prompt
 - `server/stripeClient.ts` - Stripe client
-- `server/email.ts` - Email notifications (project completion for all types)
+- `server/email.ts` - Email notifications (project completion, plan activation, project payment, ticket reply) + SMTP startup diagnostics
+- `server/webhookHandlers.ts` - Stripe webhook event processing (checkout.session.completed → plan activation + project payments + email notifications)
 - `server/fonts/` - Amiri Arabic font files (Regular + Bold) for server-side PDF
 - `client/src/pages/` - All React pages including new-essay, new-scenario, shared-project
 - `client/src/lib/pdf-generator.ts` - Client-side PDF generation (chapter preview only)
