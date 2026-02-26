@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { NovelProject } from "@shared/schema";
@@ -24,18 +24,29 @@ export default function Home() {
     queryKey: ["/api/user/plan"],
   });
 
+  const { data: projectStats } = useQuery<Record<number, { realWordCount: number; realPageCount: number }>>({
+    queryKey: ["/api/projects/stats"],
+    enabled: !!projects && projects.length > 0,
+  });
+
   const userPlan = planData?.plan || "free";
   const planLabel = userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : null;
 
   const stats = useMemo(() => {
     if (!projects) return { total: 0, totalWords: 0, completed: 0, active: 0 };
+    let totalWords = 0;
+    if (projectStats) {
+      totalWords = Object.values(projectStats).reduce((sum, s) => sum + s.realWordCount, 0);
+    } else {
+      totalWords = projects.reduce((sum, p) => sum + (p.usedWords || 0), 0);
+    }
     return {
       total: projects.length,
-      totalWords: projects.reduce((sum, p) => sum + (p.usedWords || 0), 0),
+      totalWords,
       completed: projects.filter((p) => p.status === "completed").length,
       active: projects.filter((p) => p.status !== "completed" && p.status !== "locked").length,
     };
-  }, [projects]);
+  }, [projects, projectStats]);
 
   const statusLabel = (status: string, paid: boolean) => {
     if (!paid && status === "locked") return "مشروع مقفل";
@@ -269,19 +280,24 @@ export default function Home() {
                         </span>
                       </div>
                     )}
-                    {project.usedWords > 0 && (
-                      <div className="text-xs text-muted-foreground" data-testid={`text-words-written-${project.id}`}>
-                        الكلمات المكتوبة: {project.usedWords.toLocaleString()}
-                      </div>
-                    )}
                     <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">
+                      <span className="flex items-center gap-1" data-testid={`text-words-written-${project.id}`}>
+                        <PenTool className="w-3.5 h-3.5" />
+                        {(projectStats?.[project.id]?.realWordCount ?? project.usedWords).toLocaleString()} كلمة
+                      </span>
+                      <span className="flex items-center gap-1" data-testid={`text-pages-${project.id}`}>
+                        <FileText className="w-3.5 h-3.5" />
+                        {projectStats?.[project.id] !== undefined
+                          ? projectStats[project.id].realPageCount > 0
+                            ? `${projectStats[project.id].realPageCount} صفحة فعلية`
+                            : "٠ صفحة"
+                          : `${project.pageCount} صفحة`}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
                         {new Date(project.createdAt).toLocaleDateString("ar-EG")}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <FileText className="w-3.5 h-3.5" />
-                        {project.pageCount} صفحة
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground pt-1 border-t" data-testid={`text-progress-${project.id}`}>

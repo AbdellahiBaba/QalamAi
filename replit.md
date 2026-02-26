@@ -101,7 +101,7 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - `server/stripeClient.ts` - Stripe client
 - `server/email.ts` - Email notifications
 - `client/src/pages/` - All React pages including new-essay, new-scenario
-- `client/src/lib/pdf-generator.ts` - PDF generation
+- `client/src/lib/pdf-generator.ts` - PDF generation (includes cover image as first page when available)
 
 ## API Routes
 - `GET /api/user/plan` - Get user's current plan and purchase date
@@ -111,4 +111,11 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - `POST /api/projects/:id/outline` - Generate outline (checks plan coverage + paid status)
 - `POST /api/projects/:projectId/chapters/:chapterId/generate` - Generate content (checks plan + paid)
 - `POST /api/projects/:id/create-checkout` - Per-project Stripe checkout (for novels without All-in-One)
+- `GET /api/projects/stats` - Real word count and page count computed from chapter content for all user projects
+- `GET /api/projects/:id/export/epub` - EPUB export with cover image + RTL page progression
 - All other routes unchanged from original
+
+## Export Features
+- **PDF**: Includes cover image as first page (full bleed), title page, then numbered chapter pages. RTL text rendering.
+- **EPUB**: Includes cover image (as cover.xhtml + cover-image property), RTL page-progression-direction, dir="rtl" on all XHTML pages.
+- **Dashboard Stats**: Real word count (from chapter content) and real page count (250 words/page) shown per project card.

@@ -134,7 +134,7 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
 
   savePage();
 
-  let pageNum = 2;
+  let pageNum = 1;
 
   for (const chapter of novel.chapters) {
     if (!chapter.content) continue;

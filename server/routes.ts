@@ -169,6 +169,35 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/projects/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projects = await storage.getProjectsByUser(userId);
+      const statsMap: Record<number, { realWordCount: number; realPageCount: number }> = {};
+
+      for (const project of projects) {
+        const full = await storage.getProjectWithDetails(project.id);
+        if (!full) continue;
+        let totalWords = 0;
+        for (const ch of full.chapters) {
+          if (ch.content) {
+            totalWords += ch.content.split(/\s+/).filter((w: string) => w.trim()).length;
+          }
+        }
+        const wordsPerPage = 250;
+        const realPages = Math.max(1, Math.ceil(totalWords / wordsPerPage));
+        statsMap[project.id] = {
+          realWordCount: totalWords,
+          realPageCount: totalWords > 0 ? realPages : 0,
+        };
+      }
+      res.json(statsMap);
+    } catch (error) {
+      console.error("Error fetching project stats:", error);
+      res.status(500).json({ error: "Failed to fetch project stats" });
+    }
+  });
+
   app.get("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -811,6 +840,34 @@ export async function registerRoutes(
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
       if (completedChapters.length === 0) return res.status(400).json({ error: "لا توجد فصول مكتملة" });
 
+      const hasCover = !!project.coverImageUrl;
+      let coverImageBuffer: Buffer | null = null;
+      let coverMediaType = "image/png";
+
+      if (hasCover) {
+        try {
+          if (project.coverImageUrl!.startsWith("data:")) {
+            const match = project.coverImageUrl!.match(/^data:(image\/\w+);base64,(.+)$/);
+            if (match) {
+              coverMediaType = match[1];
+              coverImageBuffer = Buffer.from(match[2], "base64");
+            }
+          } else {
+            const response = await fetch(project.coverImageUrl!);
+            if (response.ok) {
+              const arrayBuf = await response.arrayBuffer();
+              coverImageBuffer = Buffer.from(arrayBuf);
+              const ct = response.headers.get("content-type");
+              if (ct) coverMediaType = ct.split(";")[0];
+            }
+          }
+        } catch {
+          // skip cover if it fails to load
+        }
+      }
+
+      const coverExt = coverMediaType === "image/jpeg" ? "jpg" : "png";
+
       res.setHeader("Content-Type", "application/epub+zip");
       res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(project.title)}.epub"`);
 
@@ -833,8 +890,15 @@ export async function registerRoutes(
         .map((_: any, i: number) => `    <itemref idref="chapter${i + 1}"/>`)
         .join("\n");
 
+      const coverManifestItems = coverImageBuffer
+        ? `    <item id="cover-image" href="cover.${coverExt}" media-type="${coverMediaType}" properties="cover-image"/>\n    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>\n`
+        : "";
+      const coverSpineItem = coverImageBuffer
+        ? `    <itemref idref="cover"/>\n`
+        : "";
+
       archive.append(`<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" dir="rtl">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">qalamai-${id}</dc:identifier>
     <dc:title>${project.title}</dc:title>
@@ -845,14 +909,28 @@ export async function registerRoutes(
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
-${chapterItems}
+${coverManifestItems}${chapterItems}
   </manifest>
-  <spine>
-${chapterSpine}
+  <spine page-progression-direction="rtl">
+${coverSpineItem}${chapterSpine}
   </spine>
 </package>`, { name: "OEBPS/content.opf" });
 
+      if (coverImageBuffer) {
+        archive.append(coverImageBuffer, { name: `OEBPS/cover.${coverExt}` });
+
+        archive.append(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
+<head><title>غلاف</title><style>body { margin: 0; padding: 0; text-align: center; } img { max-width: 100%; max-height: 100%; }</style></head>
+<body>
+  <img src="cover.${coverExt}" alt="${project.title.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}" />
+</body>
+</html>`, { name: "OEBPS/cover.xhtml" });
+      }
+
       archive.append(`body { direction: rtl; unicode-bidi: embed; font-family: serif; line-height: 2; padding: 1em; color: #2C1810; background: #FFFDF5; }
+html { writing-mode: horizontal-tb; }
 h1 { text-align: center; color: #8B4513; font-size: 1.5em; margin-bottom: 0.5em; }
 h2 { color: #8B7355; font-size: 0.9em; text-align: center; margin-bottom: 1em; }
 p { text-indent: 2em; margin: 0.5em 0; text-align: justify; }
