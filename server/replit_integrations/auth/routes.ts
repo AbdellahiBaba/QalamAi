@@ -60,6 +60,8 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  const ADMIN_USER_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+
   app.post("/api/auth/login", async (req: any, res) => {
     try {
       const { email, password } = req.body;
@@ -75,6 +77,11 @@ export function registerAuthRoutes(app: Express): void {
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) {
         return res.status(401).json({ message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
+      }
+
+      if (ADMIN_USER_IDS.includes(user.id) && user.role !== "admin") {
+        await db.update(users).set({ role: "admin" }).where(eq(users.id, user.id));
+        user.role = "admin";
       }
 
       req.login({ claims: { sub: user.id } }, (err: any) => {
