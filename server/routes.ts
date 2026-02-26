@@ -888,14 +888,14 @@ export async function registerRoutes(
         .map((_: any, i: number) => `    <item id="chapter${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
         .join("\n");
       const chapterSpine = completedChapters
-        .map((_: any, i: number) => `    <itemref idref="chapter${i + 1}"/>`)
+        .map((_: any, i: number) => `    <itemref idref="chapter${i + 1}" properties="page-spread-right"/>`)
         .join("\n");
 
       const coverManifestItems = coverImageBuffer
         ? `    <item id="cover-image" href="cover.${coverExt}" media-type="${coverMediaType}" properties="cover-image"/>\n    <item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>\n`
         : "";
       const coverSpineItem = coverImageBuffer
-        ? `    <itemref idref="cover"/>\n`
+        ? `    <itemref idref="cover" linear="no"/>\n`
         : "";
 
       archive.append(`<?xml version="1.0" encoding="UTF-8"?>
