@@ -3,9 +3,9 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, VALID_PAGE_COUNTS } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure } from "./abu-hashim";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -86,8 +86,8 @@ export async function registerRoutes(
               currency: "usd",
               unit_amount: project.price,
               product_data: {
-                name: `رواية: ${project.title}`,
-                description: `رواية ${project.pageCount} صفحة`,
+                name: project.projectType === "essay" ? `مقال: ${project.title}` : project.projectType === "scenario" ? `سيناريو: ${project.title}` : `رواية: ${project.title}`,
+                description: project.projectType === "essay" ? `مقال احترافي` : project.projectType === "scenario" ? `سيناريو ${project.formatType === "series" ? "مسلسل" : "فيلم"}` : `رواية ${project.pageCount} صفحة`,
               },
             },
             quantity: 1,
@@ -195,43 +195,53 @@ export async function registerRoutes(
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships } = req.body;
+      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType } = req.body;
 
-      const validPageCount = VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150;
-      const price = getProjectPrice(validPageCount);
+      const type = (projectType === "essay" || projectType === "scenario") ? projectType : "novel";
+      const validPageCount = type === "novel" ? (VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150) : (pageCount || 10);
+      const price = getProjectPriceByType(type, validPageCount);
 
       const project = await storage.createProject({
         userId,
         title,
-        mainIdea,
-        timeSetting,
-        placeSetting,
-        narrativePov,
+        mainIdea: mainIdea || title,
+        timeSetting: timeSetting || "",
+        placeSetting: placeSetting || "",
+        narrativePov: narrativePov || "third_person",
         pageCount: validPageCount,
         allowedWords: 0,
         price,
+        projectType: type,
+        subject: type === "essay" ? (subject || null) : null,
+        essayTone: type === "essay" ? (essayTone || null) : null,
+        targetAudience: type === "essay" ? (targetAudience || null) : null,
+        genre: type === "scenario" ? (genre || null) : null,
+        episodeCount: type === "scenario" ? (episodeCount || 1) : null,
+        formatType: type === "scenario" ? (formatType || "film") : null,
       });
 
-      const createdChars = [];
-      for (const char of chars) {
-        const created = await storage.createCharacter({
-          projectId: project.id,
-          name: char.name,
-          background: char.background,
-          role: char.role,
-        });
-        createdChars.push(created);
-      }
+      if (chars && Array.isArray(chars) && chars.length > 0) {
+        const createdChars = [];
+        for (const char of chars) {
+          const created = await storage.createCharacter({
+            projectId: project.id,
+            name: char.name,
+            background: char.background,
+            role: char.role,
+          });
+          createdChars.push(created);
+        }
 
-      if (relationships && relationships.length > 0) {
-        for (const rel of relationships) {
-          if (createdChars[rel.char1Index] && createdChars[rel.char2Index]) {
-            await storage.createRelationship({
-              projectId: project.id,
-              character1Id: createdChars[rel.char1Index].id,
-              character2Id: createdChars[rel.char2Index].id,
-              relationship: rel.relationship,
-            });
+        if (relationships && relationships.length > 0) {
+          for (const rel of relationships) {
+            if (createdChars[rel.char1Index] && createdChars[rel.char2Index]) {
+              await storage.createRelationship({
+                projectId: project.id,
+                character1Id: createdChars[rel.char1Index].id,
+                character2Id: createdChars[rel.char2Index].id,
+                relationship: rel.relationship,
+              });
+            }
           }
         }
       }
@@ -269,13 +279,22 @@ export async function registerRoutes(
       const chars = await storage.getCharactersByProject(id);
       const rels = await db.select().from(characterRelationships).where(eq(characterRelationships.projectId, id));
 
-      const { system, user } = buildOutlinePrompt(project, chars, rels, chars);
+      let promptResult: { system: string; user: string };
+      const pType = project.projectType || "novel";
+
+      if (pType === "essay") {
+        promptResult = buildEssayOutlinePrompt(project);
+      } else if (pType === "scenario") {
+        promptResult = buildScenarioOutlinePrompt(project, chars, rels, chars);
+      } else {
+        promptResult = buildOutlinePrompt(project, chars, rels, chars);
+      }
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
+          { role: "system", content: promptResult.system },
+          { role: "user", content: promptResult.user },
         ],
         max_completion_tokens: 8192,
       });
@@ -284,31 +303,87 @@ export async function registerRoutes(
 
       const updated = await storage.updateProject(id, { outline, status: "outline" });
 
-      const chapterRegex = /الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر|السادس عشر|السابع عشر|الثامن عشر|التاسع عشر|العشرون|الحادي والعشرون|الثاني والعشرون|الثالث والعشرون|الرابع والعشرون|الخامس والعشرون|الثلاثون|\d+)\s*[:\-—–]\s*(.+)/g;
-      const chapterMatches = outline.match(chapterRegex);
-
-      if (chapterMatches) {
-        let chapterNum = 1;
-        for (const match of chapterMatches) {
-          const titleMatch = match.match(/الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر|السادس عشر|السابع عشر|الثامن عشر|التاسع عشر|العشرون|الحادي والعشرون|الثاني والعشرون|الثالث والعشرون|الرابع والعشرون|الخامس والعشرون|الثلاثون|\d+)\s*[:\-—–]\s*(.+)/);
-          const chapterTitle = titleMatch?.[1]?.trim() || `الفصل ${chapterNum}`;
-          await storage.createChapter({
-            projectId: id,
-            chapterNumber: chapterNum,
-            title: chapterTitle,
-            summary: null,
-          });
-          chapterNum++;
+      if (pType === "essay") {
+        const sectionRegex = /القسم\s+(\d+)\s*[:\-—–]\s*(.+)/g;
+        const sectionMatches = outline.match(sectionRegex);
+        if (sectionMatches) {
+          let num = 1;
+          for (const match of sectionMatches) {
+            const titleMatch = match.match(/القسم\s+\d+\s*[:\-—–]\s*(.+)/);
+            const sTitle = titleMatch?.[1]?.trim() || `القسم ${num}`;
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: num,
+              title: sTitle,
+              summary: null,
+            });
+            num++;
+          }
+        } else {
+          const structure = calculateEssayStructure(project.pageCount);
+          for (let i = 1; i <= structure.sectionCount; i++) {
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: i,
+              title: `القسم ${i}`,
+              summary: null,
+            });
+          }
+        }
+      } else if (pType === "scenario") {
+        const sceneRegex = /المشهد\s+(\d+)\s*[:\-—–]\s*(.+)/g;
+        const sceneMatches = outline.match(sceneRegex);
+        if (sceneMatches) {
+          let num = 1;
+          for (const match of sceneMatches) {
+            const titleMatch = match.match(/المشهد\s+\d+\s*[:\-—–]\s*(.+)/);
+            const sTitle = titleMatch?.[1]?.trim() || `المشهد ${num}`;
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: num,
+              title: sTitle,
+              summary: null,
+            });
+            num++;
+          }
+        } else {
+          const structure = calculateScenarioStructure(project.formatType || "film", project.episodeCount || 1);
+          for (let i = 1; i <= structure.totalScenes; i++) {
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: i,
+              title: `المشهد ${i}`,
+              summary: null,
+            });
+          }
         }
       } else {
-        const structure = calculateNovelStructure(project.pageCount);
-        for (let i = 1; i <= structure.chapterCount; i++) {
-          await storage.createChapter({
-            projectId: id,
-            chapterNumber: i,
-            title: `الفصل ${i}`,
-            summary: null,
-          });
+        const chapterRegex = /الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر|السادس عشر|السابع عشر|الثامن عشر|التاسع عشر|العشرون|الحادي والعشرون|الثاني والعشرون|الثالث والعشرون|الرابع والعشرون|الخامس والعشرون|الثلاثون|\d+)\s*[:\-—–]\s*(.+)/g;
+        const chapterMatches = outline.match(chapterRegex);
+
+        if (chapterMatches) {
+          let chapterNum = 1;
+          for (const match of chapterMatches) {
+            const titleMatch = match.match(/الفصل\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر|السادس عشر|السابع عشر|الثامن عشر|التاسع عشر|العشرون|الحادي والعشرون|الثاني والعشرون|الثالث والعشرون|الرابع والعشرون|الخامس والعشرون|الثلاثون|\d+)\s*[:\-—–]\s*(.+)/);
+            const chapterTitle = titleMatch?.[1]?.trim() || `الفصل ${chapterNum}`;
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: chapterNum,
+              title: chapterTitle,
+              summary: null,
+            });
+            chapterNum++;
+          }
+        } else {
+          const structure = calculateNovelStructure(project.pageCount);
+          for (let i = 1; i <= structure.chapterCount; i++) {
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: i,
+              title: `الفصل ${i}`,
+              summary: null,
+            });
+          }
         }
       }
 
@@ -360,8 +435,12 @@ export async function registerRoutes(
       const allChapters = await storage.getChaptersByProject(projectId);
       const previousChapters = allChapters.filter(c => c.chapterNumber < chapter.chapterNumber);
 
-      const structure = calculateNovelStructure(project.pageCount);
-      const totalParts = structure.partsPerChapter;
+      const pType = project.projectType || "novel";
+      let totalParts = 1;
+      if (pType === "novel") {
+        const structure = calculateNovelStructure(project.pageCount);
+        totalParts = structure.partsPerChapter;
+      }
 
       await storage.updateChapter(chapterId, { status: "generating", content: "" });
 
@@ -384,16 +463,20 @@ export async function registerRoutes(
           ? await storage.getChapter(chapterId)
           : chapter;
 
-        const { system, user } = buildChapterPrompt(
-          project, chars, updatedChapter!, previousChapters, project.outline || "",
-          part, totalParts
-        );
+        let promptResult: { system: string; user: string };
+        if (pType === "essay") {
+          promptResult = buildEssaySectionPrompt(project, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
+        } else if (pType === "scenario") {
+          promptResult = buildScenePrompt(project, chars, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
+        } else {
+          promptResult = buildChapterPrompt(project, chars, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
+        }
 
         const stream = await openai.chat.completions.create({
           model: "gpt-5.2",
           messages: [
-            { role: "system", content: system },
-            { role: "user", content: user },
+            { role: "system", content: promptResult.system },
+            { role: "user", content: promptResult.user },
           ],
           stream: true,
           max_completion_tokens: 8192,

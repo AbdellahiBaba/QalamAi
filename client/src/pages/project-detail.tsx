@@ -26,6 +26,64 @@ interface ProjectData extends NovelProject {
   relationships: CharacterRelationship[];
 }
 
+function getTypeLabels(projectType?: string) {
+  if (projectType === "essay") {
+    return {
+      chaptersLabel: "الأقسام",
+      chapterSingular: "القسم",
+      outlineLabel: "الهيكل",
+      typeLabel: "مقال",
+      writeAll: "اكتب جميع الأقسام",
+      writeOne: "اكتب هذا القسم",
+      createOutline: "إنشاء الهيكل",
+      outlineCreating: "جاري إنشاء الهيكل...",
+      approveOutline: "الموافقة على الهيكل",
+      noOutline: "لم يتم إنشاء الهيكل بعد. اضغط على \"إنشاء الهيكل\" للبدء",
+      mustApprove: "يجب الموافقة على الهيكل أولاً",
+      mustApproveDesc: "قم بإنشاء الهيكل والموافقة عليه من تبويب \"نظرة عامة\" قبل البدء بكتابة الأقسام",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء الهيكل وكتابة الأقسام.",
+      paymentDesc: "إتمام الدفع للبدء بكتابة المقال",
+      allDone: "تم الانتهاء من كتابة جميع الأقسام!",
+    };
+  }
+  if (projectType === "scenario") {
+    return {
+      chaptersLabel: "المشاهد",
+      chapterSingular: "المشهد",
+      outlineLabel: "المخطط الدرامي",
+      typeLabel: "سيناريو",
+      writeAll: "اكتب جميع المشاهد",
+      writeOne: "اكتب هذا المشهد",
+      createOutline: "إنشاء المخطط الدرامي",
+      outlineCreating: "جاري إنشاء المخطط الدرامي...",
+      approveOutline: "الموافقة على المخطط الدرامي",
+      noOutline: "لم يتم إنشاء المخطط الدرامي بعد. اضغط على \"إنشاء المخطط الدرامي\" للبدء",
+      mustApprove: "يجب الموافقة على المخطط الدرامي أولاً",
+      mustApproveDesc: "قم بإنشاء المخطط الدرامي والموافقة عليه من تبويب \"نظرة عامة\" قبل البدء بكتابة المشاهد",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المخطط وكتابة المشاهد.",
+      paymentDesc: "إتمام الدفع للبدء بكتابة السيناريو",
+      allDone: "تم الانتهاء من كتابة جميع المشاهد!",
+    };
+  }
+  return {
+    chaptersLabel: "الفصول",
+    chapterSingular: "الفصل",
+    outlineLabel: "المخطط التفصيلي",
+    typeLabel: "رواية",
+    writeAll: "اكتب جميع الفصول",
+    writeOne: "اكتب هذا الفصل",
+    createOutline: "إنشاء المخطط",
+    outlineCreating: "جاري إنشاء المخطط...",
+    approveOutline: "الموافقة على المخطط",
+    noOutline: "لم يتم إنشاء المخطط بعد. اضغط على \"إنشاء المخطط\" للبدء",
+    mustApprove: "يجب الموافقة على المخطط أولاً",
+    mustApproveDesc: "قم بإنشاء المخطط والموافقة عليه من تبويب \"نظرة عامة\" قبل البدء بكتابة الفصول",
+    lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المخطط وكتابة الفصول.",
+    paymentDesc: "إتمام الدفع للبدء بكتابة الرواية",
+    allDone: "تم الانتهاء من كتابة جميع الفصول!",
+  };
+}
+
 export default function ProjectDetail() {
   const [, params] = useRoute("/project/:id");
   const projectId = params?.id;
@@ -53,6 +111,8 @@ export default function ProjectDetail() {
     enabled: !!projectId,
   });
 
+  const labels = getTypeLabels(project?.projectType);
+
   const generateOutlineMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/projects/${projectId}/outline`);
@@ -60,10 +120,10 @@ export default function ProjectDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-      toast({ title: "تم إنشاء المخطط بنجاح" });
+      toast({ title: `تم إنشاء ${labels.outlineLabel} بنجاح` });
     },
     onError: (err: any) => {
-      toast({ title: "حدث خطأ", description: err?.message || "فشل في إنشاء المخطط", variant: "destructive" });
+      toast({ title: "حدث خطأ", description: err?.message || `فشل في إنشاء ${labels.outlineLabel}`, variant: "destructive" });
     },
   });
 
@@ -243,7 +303,7 @@ export default function ProjectDetail() {
 
     if (pendingChapters.length === 0) {
       setAutoWriteAll(false);
-      toast({ title: "تم الانتهاء من كتابة جميع الفصول!" });
+      toast({ title: labels.allDone });
       return;
     }
 
@@ -454,7 +514,7 @@ export default function ProjectDetail() {
                     الرجاء إتمام الدفع لبدء كتابة الرواية
                   </h3>
                   <p className="text-sm text-red-700 dark:text-red-400">
-                    هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المخطط وكتابة الفصول.
+                    {labels.lockedMsg}
                   </p>
                   <div className="flex items-center gap-4 flex-wrap">
                     <div className="text-2xl font-bold text-red-800 dark:text-red-300" data-testid="text-project-price">
@@ -496,18 +556,20 @@ export default function ProjectDetail() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsList className={`grid w-full max-w-md ${project.projectType === "essay" ? "grid-cols-2" : "grid-cols-3"}`}>
             <TabsTrigger value="overview" data-testid="tab-overview">
               <BookOpen className="w-4 h-4 ml-1.5" />
               نظرة عامة
             </TabsTrigger>
-            <TabsTrigger value="characters" data-testid="tab-characters">
-              <Users className="w-4 h-4 ml-1.5" />
-              الشخصيات
-            </TabsTrigger>
+            {project.projectType !== "essay" && (
+              <TabsTrigger value="characters" data-testid="tab-characters">
+                <Users className="w-4 h-4 ml-1.5" />
+                الشخصيات
+              </TabsTrigger>
+            )}
             <TabsTrigger value="chapters" data-testid="tab-chapters">
               <FileText className="w-4 h-4 ml-1.5" />
-              الفصول
+              {labels.chaptersLabel}
             </TabsTrigger>
           </TabsList>
 
@@ -552,7 +614,7 @@ export default function ProjectDetail() {
                       <span className="font-medium">{project.characters?.length || 0}</span>
                     </div>
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">عدد الفصول:</span>
+                      <span className="text-muted-foreground">عدد {labels.chaptersLabel}:</span>
                       <span className="font-medium">{project.chapters?.length || 0}</span>
                     </div>
                   </div>
@@ -597,7 +659,7 @@ export default function ProjectDetail() {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                  <h3 className="font-serif text-lg font-semibold">المخطط التفصيلي</h3>
+                  <h3 className="font-serif text-lg font-semibold">{labels.outlineLabel}</h3>
                   {!project.outline && (
                     <Button
                       onClick={() => generateOutlineMutation.mutate()}
@@ -607,17 +669,17 @@ export default function ProjectDetail() {
                       {generateOutlineMutation.isPending ? (
                         <>
                           <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                          جاري إنشاء المخطط...
+                          {labels.outlineCreating}
                         </>
                       ) : (!project.paid && !hasFreeAccess) ? (
                         <>
                           <Lock className="w-4 h-4 ml-2" />
-                          إنشاء المخطط (يتطلب الدفع)
+                          {labels.createOutline} (يتطلب الدفع)
                         </>
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4 ml-2" />
-                          إنشاء المخطط
+                          {labels.createOutline}
                         </>
                       )}
                     </Button>
@@ -656,7 +718,7 @@ export default function ProjectDetail() {
                         ) : (
                           <CheckCircle className="w-4 h-4 ml-2" />
                         )}
-                        الموافقة على المخطط
+                        {labels.approveOutline}
                       </Button>
                     </div>
                   )}
@@ -674,7 +736,7 @@ export default function ProjectDetail() {
                 ) : (
                   <div className="text-center py-10 text-muted-foreground">
                     <PenTool className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p>لم يتم إنشاء المخطط بعد. اضغط على "إنشاء المخطط" للبدء</p>
+                    <p>{labels.noOutline}</p>
                   </div>
                 )}
               </CardContent>
@@ -785,8 +847,8 @@ export default function ProjectDetail() {
             {!project.outlineApproved ? (
               <div className="text-center py-16 text-muted-foreground">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <h3 className="font-serif text-xl font-semibold mb-2 text-foreground">يجب الموافقة على المخطط أولاً</h3>
-                <p>قم بإنشاء المخطط والموافقة عليه من تبويب "نظرة عامة" قبل البدء بكتابة الفصول</p>
+                <h3 className="font-serif text-xl font-semibold mb-2 text-foreground">{labels.mustApprove}</h3>
+                <p>{labels.mustApproveDesc}</p>
               </div>
             ) : project.chapters && project.chapters.length > 0 ? (
               <>
@@ -798,7 +860,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-muted-foreground">
-                          {completedCount}/{totalCount} فصل مكتمل
+                          {completedCount}/{totalCount} {labels.chapterSingular} مكتمل
                         </span>
                         <div className="w-32 h-2 rounded-full bg-muted overflow-hidden">
                           <div
@@ -817,7 +879,7 @@ export default function ProjectDetail() {
                           {autoWriteAll ? (
                             <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ الكتابة...</>
                           ) : (
-                            <><Sparkles className="w-3.5 h-3.5 ml-1" /> اكتب جميع الفصول</>
+                            <><Sparkles className="w-3.5 h-3.5 ml-1" /> {labels.writeAll}</>
                           )}
                         </Button>
                       )}

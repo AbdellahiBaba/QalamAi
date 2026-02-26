@@ -1,75 +1,144 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Feather, Check, Crown, BookOpen, FileText, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers } from "lucide-react";
 import { Link } from "wouter";
 
-const tiers = [
+const mainPlans = [
+  {
+    id: "essay",
+    name: "خطة المقالات",
+    subtitle: "كتابة احترافية للمقالات والأخبار",
+    price: "٥٠ دولار",
+    priceNote: "لكل مشروع",
+    icon: PenTool,
+    highlighted: false,
+    features: [
+      "مقالات غير محدودة الكلمات",
+      "جميع التخصصات: أخبار، سياسة، علوم، تكنولوجيا",
+      "أنماط متعددة: تحليلي، تحقيقي، افتتاحي",
+      "تنسيق احترافي جاهز للنشر",
+      "معايير وكالات الأنباء العالمية",
+      "تحسين محركات البحث (SEO)",
+      "تصدير بصيغة PDF",
+    ],
+    cta: "ابدأ مقالك",
+    href: "/project/new/essay",
+  },
+  {
+    id: "all-in-one",
+    name: "الخطة الشاملة",
+    subtitle: "وصول كامل لجميع أنواع الكتابة",
+    price: "٥٠٠ دولار",
+    priceNote: "وصول شامل",
+    icon: Layers,
+    highlighted: true,
+    features: [
+      "كتابة الروايات — جميع الأحجام",
+      "كتابة المقالات والأخبار — جميع التخصصات",
+      "كتابة السيناريوهات — أفلام ومسلسلات",
+      "شخصيات وأقواس سردية غير محدودة",
+      "تصدير بجميع الصيغ: PDF و EPUB",
+      "دعم سريع على مدار الساعة",
+      "أفضل قيمة — وفّر أكثر من ٤٠٪",
+    ],
+    cta: "احصل على الشاملة",
+    href: "/project/new",
+  },
+  {
+    id: "scenario",
+    name: "خطة السيناريوهات",
+    subtitle: "كتابة سيناريوهات أفلام ومسلسلات",
+    price: "٢٠٠ دولار",
+    priceNote: "لكل مشروع",
+    icon: Film,
+    highlighted: false,
+    features: [
+      "سيناريوهات أفلام (٩٠-١٢٠ دقيقة)",
+      "مسلسلات درامية (حتى ٣٠ حلقة)",
+      "بنية درامية كاملة (٣ فصول / ٥ فصول)",
+      "حوارات بلهجات متعددة",
+      "وصف مشاهد وإرشادات كاميرا",
+      "تطوير شخصيات وأقواس درامية",
+      "تصدير بتنسيق السيناريو الاحترافي",
+    ],
+    cta: "ابدأ سيناريوك",
+    href: "/project/new/scenario",
+  },
+];
+
+const novelTiers = [
   {
     pages: 150,
     name: "رواية ١٥٠ صفحة",
     price: "٣٠٠ دولار",
-    priceNote: "دفعة واحدة",
-    highlighted: false,
     features: [
       "١٥٠ صفحة من الكتابة الروائية",
-      "كتابة غير محدودة الكلمات",
       "تطوير شخصيات كامل",
       "مخطط رواية تفصيلي",
-      "كتابة تلقائية بالذكاء الاصطناعي",
       "تصدير بصيغة PDF و EPUB",
     ],
-    cta: "ابدأ الآن",
   },
   {
     pages: 200,
     name: "رواية ٢٠٠ صفحة",
     price: "٣٥٠ دولار",
-    priceNote: "دفعة واحدة",
-    highlighted: false,
     features: [
       "٢٠٠ صفحة من الكتابة الروائية",
-      "كتابة غير محدودة الكلمات",
       "تطوير شخصيات كامل",
       "مخطط رواية تفصيلي",
-      "كتابة تلقائية بالذكاء الاصطناعي",
       "تصدير بصيغة PDF و EPUB",
     ],
-    cta: "ابدأ الآن",
   },
   {
     pages: 250,
     name: "رواية ٢٥٠ صفحة",
     price: "٤٥٠ دولار",
-    priceNote: "دفعة واحدة",
     highlighted: true,
     features: [
       "٢٥٠ صفحة من الكتابة الروائية",
-      "كتابة غير محدودة الكلمات",
-      "تطوير شخصيات كامل",
-      "مخطط رواية تفصيلي وأقواس سردية",
-      "كتابة تلقائية بالذكاء الاصطناعي",
+      "مخطط تفصيلي وأقواس سردية",
       "تصدير بصيغة PDF و EPUB",
       "دعم ذو أولوية",
     ],
-    cta: "ابدأ الآن",
   },
   {
     pages: 300,
     name: "رواية ٣٠٠ صفحة",
     price: "٦٠٠ دولار",
-    priceNote: "دفعة واحدة",
-    highlighted: false,
     features: [
       "٣٠٠ صفحة من الكتابة الروائية",
-      "كتابة غير محدودة الكلمات",
       "تطوير شخصيات غير محدود",
-      "مخطط رواية تفصيلي وأقواس سردية",
-      "كتابة تلقائية بالذكاء الاصطناعي",
       "تحليل أسلوبي متعمّق",
-      "تصدير بصيغة PDF و EPUB",
       "دعم سريع على مدار الساعة",
     ],
-    cta: "ابدأ الآن",
+  },
+];
+
+const faqItems = [
+  {
+    q: "ما الفرق بين الخطط الثلاث؟",
+    a: "خطة المقالات مخصصة لكتابة المقالات والتقارير الصحفية. خطة السيناريوهات لكتابة سيناريوهات الأفلام والمسلسلات. الخطة الشاملة تمنحك وصولاً كاملاً لجميع أنواع الكتابة بما فيها الروايات.",
+  },
+  {
+    q: "كيف يعمل نظام الأسعار؟",
+    a: "للمقالات والسيناريوهات تدفع لكل مشروع. للروايات تختار حجم روايتك (عدد الصفحات). الخطة الشاملة تمنحك وصولاً لجميع الأنواع بسعر موحّد.",
+  },
+  {
+    q: "ماذا يحدث بعد الدفع؟",
+    a: "بعد إتمام الدفع، يتم تفعيل مشروعك فوراً ويمكنك البدء بالكتابة باستخدام الذكاء الاصطناعي — سواء كان مقالاً أو سيناريو أو رواية.",
+  },
+  {
+    q: "هل يمكنني الكتابة بلهجات مختلفة في السيناريوهات؟",
+    a: "نعم! يدعم نظام كتابة السيناريوهات الحوار بالفصحى وبلهجات متعددة (مصرية، خليجية، شامية) حسب اختيارك.",
+  },
+  {
+    q: "ما التخصصات المتاحة في كتابة المقالات؟",
+    a: "يدعم النظام أكثر من ١٥ تخصصاً تشمل: الأخبار، السياسة، العلوم، التكنولوجيا، الاقتصاد، الرياضة، الثقافة، الصحة، التعليم، البيئة، الرأي، وغيرها.",
+  },
+  {
+    q: "هل تُحفظ مشاريعي بأمان؟",
+    a: "بالتأكيد، جميع مشاريعك محفوظة بأمان ويمكنك الوصول إليها في أي وقت من لوحة التحكم.",
   },
 ];
 
@@ -115,69 +184,126 @@ export default function Pricing() {
       <section className="pt-32 pb-16 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="font-serif text-4xl lg:text-5xl font-bold mb-4 text-foreground" data-testid="text-pricing-title">
-            أسعار كتابة الرواية
+            خطط الأسعار
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            اختر حجم روايتك وابدأ الكتابة فوراً — أسعار ثابتة بالدولار الأمريكي
+            اختر الخطة المناسبة لاحتياجاتك — مقالات احترافية، سيناريوهات درامية، أو وصول شامل لكل شيء
           </p>
         </div>
       </section>
 
-      <section className="pb-24 px-6">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
-          {tiers.map((tier, index) => (
+      <section className="pb-16 px-6">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
+          {mainPlans.map((plan) => (
             <Card
-              key={index}
-              className={`relative flex flex-col ${tier.highlighted ? "border-primary border-2 shadow-lg" : ""}`}
-              data-testid={`card-tier-${tier.pages}`}
+              key={plan.id}
+              className={`relative flex flex-col ${plan.highlighted ? "border-primary border-2 shadow-lg" : ""}`}
+              data-testid={`card-plan-${plan.id}`}
             >
-              {tier.highlighted && (
+              {plan.highlighted && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                   <div className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-1.5 rounded-full text-sm font-medium">
                     <Crown className="w-4 h-4" />
-                    <span>الأكثر طلباً</span>
+                    <span>أفضل قيمة</span>
                   </div>
                 </div>
               )}
               <CardContent className="p-6 flex flex-col flex-1">
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                    <h3 className="font-serif text-lg font-bold text-foreground" data-testid={`text-tier-name-${tier.pages}`}>
-                      {tier.name}
+                    <plan.icon className="w-5 h-5 text-primary" />
+                    <h3 className="font-serif text-lg font-bold text-foreground" data-testid={`text-plan-name-${plan.id}`}>
+                      {plan.name}
                     </h3>
                   </div>
-                  <div data-testid={`text-tier-price-${tier.pages}`}>
-                    <span className="font-serif text-3xl font-bold text-primary">{tier.price}</span>
-                    <span className="text-sm text-muted-foreground mr-2">{tier.priceNote}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileText className="w-4 h-4" />
-                    <span data-testid={`text-tier-pages-${tier.pages}`}>{tier.pages} صفحة — كتابة غير محدودة</span>
+                  <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
+                  <div data-testid={`text-plan-price-${plan.id}`}>
+                    <span className="font-serif text-3xl font-bold text-primary">{plan.price}</span>
+                    <span className="text-sm text-muted-foreground mr-2">{plan.priceNote}</span>
                   </div>
                 </div>
                 <ul className="space-y-3 mb-8 flex-1">
-                  {tier.features.map((feature, fIndex) => (
+                  {plan.features.map((feature, fIndex) => (
                     <li key={fIndex} className="flex items-start gap-2 text-sm text-foreground">
                       <Check className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Link href="/new-project">
+                <Link href={plan.href}>
                   <Button
                     className="w-full"
-                    variant={tier.highlighted ? "default" : "outline"}
+                    variant={plan.highlighted ? "default" : "outline"}
                     size="lg"
-                    data-testid={`button-tier-cta-${tier.pages}`}
+                    data-testid={`button-plan-cta-${plan.id}`}
                   >
                     <Sparkles className="w-4 h-4 ml-2" />
-                    {tier.cta}
+                    {plan.cta}
                   </Button>
                 </Link>
               </CardContent>
             </Card>
           ))}
+        </div>
+      </section>
+
+      <section className="py-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <BookOpen className="w-6 h-6 text-primary" />
+              <h2 className="font-serif text-2xl font-bold text-foreground" data-testid="text-novel-tiers-title">
+                خطط كتابة الروايات
+              </h2>
+            </div>
+            <p className="text-muted-foreground">اختر حجم روايتك وابدأ الكتابة فوراً — أسعار ثابتة بالدولار الأمريكي</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
+            {novelTiers.map((tier) => (
+              <Card
+                key={tier.pages}
+                className={`relative flex flex-col ${tier.highlighted ? "border-primary border-2" : ""}`}
+                data-testid={`card-tier-${tier.pages}`}
+              >
+                {tier.highlighted && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge variant="default" className="text-xs">الأكثر طلباً</Badge>
+                  </div>
+                )}
+                <CardContent className="p-5 flex flex-col flex-1">
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <h3 className="font-serif font-bold text-foreground" data-testid={`text-tier-name-${tier.pages}`}>
+                        {tier.name}
+                      </h3>
+                    </div>
+                    <div data-testid={`text-tier-price-${tier.pages}`}>
+                      <span className="font-serif text-2xl font-bold text-primary">{tier.price}</span>
+                      <span className="text-xs text-muted-foreground mr-1">دفعة واحدة</span>
+                    </div>
+                  </div>
+                  <ul className="space-y-2 mb-6 flex-1">
+                    {tier.features.map((feature, fIndex) => (
+                      <li key={fIndex} className="flex items-start gap-2 text-sm text-foreground">
+                        <Check className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/project/new">
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      data-testid={`button-tier-cta-${tier.pages}`}
+                    >
+                      ابدأ الآن
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -187,22 +313,12 @@ export default function Pricing() {
             أسئلة شائعة
           </h2>
           <div className="max-w-3xl mx-auto grid gap-6 text-right mt-8">
-            <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">كيف يعمل نظام الأسعار؟</h3>
-              <p className="text-sm text-muted-foreground">تختار حجم روايتك (عدد الصفحات) وتدفع مرة واحدة. عدد الصفحات يحدد هيكل الرواية وعدد الفصول.</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">ماذا يحدث بعد الدفع؟</h3>
-              <p className="text-sm text-muted-foreground">بعد إتمام الدفع، يتم تفعيل مشروعك فوراً ويمكنك البدء بكتابة المخطط والفصول باستخدام الذكاء الاصطناعي.</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">هل تُحفظ مشاريعي بأمان؟</h3>
-              <p className="text-sm text-muted-foreground">بالتأكيد، جميع مشاريعك وفصولك محفوظة بأمان ويمكنك الوصول إليها في أي وقت.</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">هل هناك حد للكلمات؟</h3>
-              <p className="text-sm text-muted-foreground">لا! الكتابة غير محدودة الكلمات في جميع الباقات. عدد الصفحات يحدد هيكل الرواية وعدد الفصول فقط.</p>
-            </div>
+            {faqItems.map((item, index) => (
+              <div key={index} className="space-y-2" data-testid={`faq-item-${index}`}>
+                <h3 className="font-serif font-semibold text-foreground">{item.q}</h3>
+                <p className="text-sm text-muted-foreground">{item.a}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -211,7 +327,7 @@ export default function Pricing() {
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Feather className="w-4 h-4" />
-            <span>QalamAI — منصة كتابة الرواية العربية بالذكاء الاصطناعي</span>
+            <span>QalamAI — منصة الكتابة العربية بالذكاء الاصطناعي</span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             {navLinks.map((link) => (

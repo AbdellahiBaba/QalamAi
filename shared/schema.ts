@@ -13,7 +13,24 @@ export const NOVEL_PRICING: Record<number, number> = {
   300: 60000,
 };
 
+export const ESSAY_PRICE = 5000;
+export const SCENARIO_PRICE = 20000;
+export const ALL_IN_ONE_PRICE = 50000;
+
 export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
+export const PROJECT_TYPES = ["novel", "essay", "scenario"] as const;
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+
+export const ESSAY_SUBJECTS = [
+  "news", "politics", "science", "technology", "economics", "sports",
+  "weather", "culture", "health", "education", "environment", "opinion",
+  "travel", "food", "fashion", "entertainment", "history", "philosophy",
+] as const;
+
+export const SCENARIO_GENRES = [
+  "drama", "thriller", "comedy", "romance", "historical", "action",
+  "sci-fi", "horror", "family", "social", "crime", "war",
+] as const;
 
 export function getProjectPrice(pageCount: number): number {
   return NOVEL_PRICING[pageCount] || 0;
@@ -23,9 +40,16 @@ export function getProjectPriceUSD(pageCount: number): number {
   return getProjectPrice(pageCount) / 100;
 }
 
+export function getProjectPriceByType(projectType: string, pageCount?: number): number {
+  if (projectType === "essay") return ESSAY_PRICE;
+  if (projectType === "scenario") return SCENARIO_PRICE;
+  return getProjectPrice(pageCount || 150);
+}
+
 export const novelProjects = pgTable("novel_projects", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
+  projectType: text("project_type").notNull().default("novel"),
   title: text("title").notNull(),
   mainIdea: text("main_idea").notNull(),
   timeSetting: text("time_setting").notNull(),
@@ -40,6 +64,12 @@ export const novelProjects = pgTable("novel_projects", {
   usedWords: integer("used_words").notNull().default(0),
   price: integer("price").notNull().default(0),
   coverImageUrl: text("cover_image_url"),
+  subject: text("subject"),
+  essayTone: text("essay_tone"),
+  targetAudience: text("target_audience"),
+  genre: text("genre"),
+  episodeCount: integer("episode_count"),
+  formatType: text("format_type"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

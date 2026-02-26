@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -145,12 +146,35 @@ export default function Home() {
             </h1>
             <p className="text-muted-foreground">مشاريعك الروائية</p>
           </div>
-          <Link href="/project/new">
-            <Button data-testid="button-new-project">
-              <Plus className="w-4 h-4 ml-2" />
-              مشروع جديد
-            </Button>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button data-testid="button-new-project">
+                <Plus className="w-4 h-4 ml-2" />
+                مشروع جديد
+                <ChevronDown className="w-3 h-3 mr-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" dir="rtl">
+              <Link href="/project/new">
+                <DropdownMenuItem data-testid="menu-new-novel">
+                  <BookOpen className="w-4 h-4 ml-2" />
+                  رواية جديدة
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/project/new/essay">
+                <DropdownMenuItem data-testid="menu-new-essay">
+                  <Newspaper className="w-4 h-4 ml-2" />
+                  مقال جديد
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/project/new/scenario">
+                <DropdownMenuItem data-testid="menu-new-scenario">
+                  <Film className="w-4 h-4 ml-2" />
+                  سيناريو جديد
+                </DropdownMenuItem>
+              </Link>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
@@ -192,13 +216,21 @@ export default function Home() {
                 <Card className="cursor-pointer hover-elevate h-full">
                   <CardContent className="p-6 space-y-4">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-serif text-lg font-semibold line-clamp-2" data-testid={`text-project-title-${project.id}`}>
-                        {project.title}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        {(project.projectType === "essay") && <Newspaper className="w-4 h-4 text-blue-500 shrink-0" />}
+                        {(project.projectType === "scenario") && <Film className="w-4 h-4 text-purple-500 shrink-0" />}
+                        {(!project.projectType || project.projectType === "novel") && <BookOpen className="w-4 h-4 text-primary shrink-0" />}
+                        <h3 className="font-serif text-lg font-semibold line-clamp-2" data-testid={`text-project-title-${project.id}`}>
+                          {project.title}
+                        </h3>
+                      </div>
                       <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${statusColor(project.status, project.paid)}`} data-testid={`badge-status-${project.id}`}>
                         {!project.paid && <Lock className="w-3 h-3 inline ml-1" />}
                         {statusLabel(project.status, project.paid)}
                       </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : "رواية"}
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {project.mainIdea}
@@ -252,14 +284,28 @@ export default function Home() {
             </div>
             <h2 className="font-serif text-2xl font-semibold mb-3">لا توجد مشاريع بعد</h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              ابدأ بإنشاء مشروعك الروائي الأول. حدد شخصياتك وفكرتك وسيساعدك أبو هاشم في كتابة رواية عربية بأسلوب أدبي رفيع
+              ابدأ بإنشاء مشروعك الأول — رواية، مقال، أو سيناريو. وسيساعدك أبو هاشم في الكتابة بأسلوب احترافي
             </p>
-            <Link href="/project/new">
-              <Button size="lg" data-testid="button-empty-new-project">
-                <Plus className="w-4 h-4 ml-2" />
-                أنشئ مشروعك الأول
-              </Button>
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link href="/project/new">
+                <Button size="lg" data-testid="button-empty-new-novel">
+                  <BookOpen className="w-4 h-4 ml-2" />
+                  رواية جديدة
+                </Button>
+              </Link>
+              <Link href="/project/new/essay">
+                <Button size="lg" variant="outline" data-testid="button-empty-new-essay">
+                  <Newspaper className="w-4 h-4 ml-2" />
+                  مقال جديد
+                </Button>
+              </Link>
+              <Link href="/project/new/scenario">
+                <Button size="lg" variant="outline" data-testid="button-empty-new-scenario">
+                  <Film className="w-4 h-4 ml-2" />
+                  سيناريو جديد
+                </Button>
+              </Link>
+            </div>
           </div>
         )}
       </main>
