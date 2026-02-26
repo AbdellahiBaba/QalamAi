@@ -98,6 +98,28 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.patch("/api/auth/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { firstName, lastName } = req.body;
+      const updateData: any = {};
+      if (typeof firstName === "string" && firstName.trim()) updateData.firstName = firstName.trim();
+      if (typeof lastName === "string") updateData.lastName = lastName.trim() || null;
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "لا توجد بيانات لتحديثها" });
+      }
+
+      const [updated] = await db.update(users).set({ ...updateData, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+      if (!updated) return res.status(404).json({ message: "User not found" });
+      const { password: _, ...safeUser } = updated;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "فشل في تحديث الملف الشخصي" });
+    }
+  });
+
   app.post("/api/auth/logout", (req: any, res) => {
     const isOidcUser = !!(req.user?.access_token || req.user?.refresh_token);
     req.logout(() => {

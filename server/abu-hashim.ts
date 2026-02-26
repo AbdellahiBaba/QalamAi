@@ -535,3 +535,52 @@ export function buildTitleSuggestionPrompt(data: {
 
   return { system: SYSTEM_PROMPT, user: prompt };
 }
+
+export function buildCharacterSuggestionPrompt(
+  project: NovelProject,
+  existingChars: Character[]
+): { system: string; user: string } {
+  const existingNames = existingChars.map(c => `${c.name} (${c.role})`).join("، ");
+
+  const prompt = `اقترح شخصيات جديدة لرواية بالمعلومات التالية:
+
+العنوان: ${project.title}
+الفكرة الرئيسية: ${project.mainIdea}
+الزمان: ${project.timeSetting}
+المكان: ${project.placeSetting}
+منظور السرد: ${project.narrativePov}
+${existingNames ? `الشخصيات الموجودة حالياً: ${existingNames}` : "لا توجد شخصيات بعد"}
+
+اقترح 4 شخصيات جديدة تتناسب مع عالم الرواية وتضيف عمقاً درامياً. لكل شخصية:
+- اسم عربي أصيل يناسب الزمان والمكان
+- دور واضح في الرواية (بطل، خصم، شخصية ثانوية، مساعد، حبيب/ة، إلخ)
+- خلفية مفصلة تشمل: العمر التقريبي، الطبقة الاجتماعية، المهنة، الأحداث المؤثرة في حياته/ها
+- سمات شخصية مميزة
+
+${existingNames ? "تجنب تكرار الشخصيات الموجودة واقترح شخصيات تكمل المشهد الدرامي." : ""}
+
+أجب بصيغة JSON فقط — مصفوفة من 4 عناصر:
+[{"name": "اسم الشخصية", "role": "دورها في الرواية", "background": "خلفيتها المفصلة", "traits": "سماتها الشخصية"}]
+
+لا تضف أي نص خارج JSON.`;
+
+  return { system: SYSTEM_PROMPT, user: prompt };
+}
+
+export function buildCoverPrompt(project: NovelProject): string {
+  return `Design an artistic Arabic novel book cover. The novel is titled "${project.title}". 
+
+Story concept: ${project.mainIdea.slice(0, 300)}
+Time setting: ${project.timeSetting}
+Place setting: ${project.placeSetting}
+
+Style guidelines:
+- Elegant, literary book cover suitable for an Arabic novel
+- Rich warm colors with gold accents and deep blues
+- Artistic and atmospheric, not photographic
+- Include subtle Arabic calligraphic elements or patterns
+- Evocative mood that reflects the story's themes
+- Professional publisher-quality design
+- Do NOT include any text or letters on the cover
+- Portrait orientation suitable for a book cover`;
+}

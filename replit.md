@@ -31,6 +31,16 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - Chapter status tracking (pending, generating, incomplete, completed)
 - Free access for admin users: bypasses payment for outline/chapter generation (FREE_ACCESS_USER_IDS)
 - PDF download of completed novels
+- EPUB export with RTL Arabic formatting (server-side via archiver)
+- Chapter-by-chapter PDF preview in modal dialog
+- Inline chapter editing with word count recalculation
+- Outline regeneration before approval (deletes existing chapters)
+- AI character profile suggestions (Abu Hashim generates contextual characters)
+- AI novel cover image generation (DALL-E 3, 1024x1792, stored as coverImageUrl)
+- Dark mode toggle (ThemeProvider with localStorage persistence)
+- User profile page with spending stats and project history
+- Dashboard statistics cards (total projects, words, completed novels, active projects)
+- Email notifications (novel completion, admin ticket replies) via nodemailer/SMTP
 - RTL Arabic UI with Cairo/Amiri/Noto Naskh Arabic fonts
 
 ## Pages
@@ -43,7 +53,8 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - **Contact** (`/contact`) - Contact form submitting real tickets to DB
 - **Abu Hashim** (`/abu-hashim`) - Meet the AI literary agent
 - **Novel Theme** (`/novel-theme`) - Sample novel concept
-- **Home** (`/` authenticated) - User dashboard with projects + ticket/admin nav links
+- **Profile** (`/profile`) - User profile with editable name, spending stats, project history
+- **Home** (`/` authenticated) - User dashboard with stats cards, projects + ticket/admin nav links
 - **New Project** (`/project/new`) - Multi-step project creation
 - **Project Detail** (`/project/:id`) - Project workspace (overview, characters, chapters)
 - **Tickets** (`/tickets`) - User's support ticket list
@@ -80,8 +91,10 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - `server/abu-hashim.ts` - AI prompt engineering for novel writing
 - `server/stripeClient.ts` - Stripe SDK client via Replit connector
 - `server/webhookHandlers.ts` - Stripe webhook processing
-- `client/src/pages/` - React pages (landing, home, about, features, pricing, contact, abu-hashim, novel-theme, new-project, project-detail, tickets, ticket-detail, admin, admin-ticket)
-- `client/src/lib/pdf-generator.ts` - Client-side PDF generation for novels
+- `server/email.ts` - Email notifications (nodemailer SMTP)
+- `client/src/components/theme-provider.tsx` - Dark mode ThemeProvider
+- `client/src/pages/` - React pages (landing, home, about, features, pricing, contact, abu-hashim, novel-theme, new-project, project-detail, profile, tickets, ticket-detail, admin, admin-ticket)
+- `client/src/lib/pdf-generator.ts` - Client-side PDF/chapter preview generation
 
 ## API Routes
 - `GET /api/projects` - List user's projects
@@ -106,3 +119,9 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - `GET /api/admin/tickets/:id` - Get any ticket with replies (admin only)
 - `PATCH /api/admin/tickets/:id` - Update ticket status/priority (admin only)
 - `POST /api/admin/tickets/:id/reply` - Admin reply to any ticket (admin only)
+- `PATCH /api/projects/:projectId/chapters/:chapterId` - Inline edit chapter content
+- `POST /api/projects/:id/suggest-characters` - AI character suggestions
+- `POST /api/projects/:id/characters` - Add individual character
+- `POST /api/projects/:id/generate-cover` - Generate AI cover image (DALL-E 3)
+- `GET /api/projects/:id/export/epub` - Download novel as EPUB
+- `PATCH /api/auth/profile` - Update user profile (firstName, lastName)

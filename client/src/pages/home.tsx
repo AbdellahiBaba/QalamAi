@@ -5,15 +5,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD, WORDS_PER_PAGE } from "@shared/schema";
+import { useMemo } from "react";
 
 export default function Home() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { data: projects, isLoading } = useQuery<NovelProject[]>({
     queryKey: ["/api/projects"],
   });
+
+  const stats = useMemo(() => {
+    if (!projects) return { total: 0, totalWords: 0, completed: 0, active: 0 };
+    return {
+      total: projects.length,
+      totalWords: projects.reduce((sum, p) => sum + (p.usedWords || 0), 0),
+      completed: projects.filter((p) => p.status === "completed").length,
+      active: projects.filter((p) => p.status !== "completed" && p.status !== "locked").length,
+    };
+  }, [projects]);
 
   const statusLabel = (status: string, paid: boolean) => {
     if (!paid && status === "locked") return "مشروع مقفل";
@@ -41,6 +54,41 @@ export default function Home() {
     }
   };
 
+  const statCards = [
+    {
+      id: "total-projects",
+      label: "إجمالي المشاريع",
+      value: stats.total,
+      icon: BookOpen,
+      color: "text-primary",
+      bg: "bg-primary/10",
+    },
+    {
+      id: "total-words",
+      label: "إجمالي الكلمات",
+      value: stats.totalWords.toLocaleString("ar-EG"),
+      icon: PenTool,
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-100 dark:bg-amber-900/30",
+    },
+    {
+      id: "completed-novels",
+      label: "روايات مكتملة",
+      value: stats.completed,
+      icon: CheckCircle,
+      color: "text-green-600 dark:text-green-400",
+      bg: "bg-green-100 dark:bg-green-900/30",
+    },
+    {
+      id: "active-projects",
+      label: "مشاريع نشطة",
+      value: stats.active,
+      icon: Activity,
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-100 dark:bg-blue-900/30",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
@@ -52,6 +100,9 @@ export default function Home() {
             <span className="font-serif text-xl font-bold">QalamAI</span>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
             <Link href="/tickets">
               <Button variant="ghost" size="sm" data-testid="link-tickets">
                 <TicketCheck className="w-4 h-4 ml-1" />
@@ -66,17 +117,19 @@ export default function Home() {
                 </Button>
               </Link>
             )}
-            <div className="flex items-center gap-2">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={user?.profileImageUrl || undefined} />
-                <AvatarFallback className="text-xs">
-                  {user?.firstName?.[0] || user?.email?.[0] || "م"}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium hidden sm:inline" data-testid="text-username">
-                {user?.firstName || user?.email || "مستخدم"}
-              </span>
-            </div>
+            <Link href="/profile">
+              <div className="flex items-center gap-2 cursor-pointer" data-testid="link-profile">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user?.profileImageUrl || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {user?.firstName?.[0] || user?.email?.[0] || "م"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium hidden sm:inline" data-testid="text-username">
+                  {user?.firstName || user?.email || "مستخدم"}
+                </span>
+              </div>
+            </Link>
             <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
               <LogOut className="w-4 h-4" />
             </Button>
@@ -98,6 +151,26 @@ export default function Home() {
               مشروع جديد
             </Button>
           </Link>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          {statCards.map((stat) => (
+            <Card key={stat.id}>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-md ${stat.bg} flex items-center justify-center shrink-0`}>
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold" data-testid={`stat-value-${stat.id}`}>
+                    {stat.value}
+                  </div>
+                  <div className="text-xs text-muted-foreground" data-testid={`stat-label-${stat.id}`}>
+                    {stat.label}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {isLoading ? (
@@ -155,6 +228,17 @@ export default function Home() {
                         <FileText className="w-3.5 h-3.5" />
                         {project.pageCount} صفحة
                       </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground pt-1 border-t" data-testid={`text-progress-${project.id}`}>
+                      {project.status === "completed" || project.status === "finished"
+                        ? "جميع الفصول مكتملة"
+                        : project.status === "writing"
+                          ? "الكتابة جارية"
+                          : project.status === "outline"
+                            ? "مرحلة التخطيط"
+                            : project.status === "draft"
+                              ? "مرحلة المسودة"
+                              : "في الانتظار"}
                     </div>
                   </CardContent>
                 </Card>

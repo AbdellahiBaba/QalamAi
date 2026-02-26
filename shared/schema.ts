@@ -40,6 +40,7 @@ export const novelProjects = pgTable("novel_projects", {
   allowedWords: integer("allowed_words").notNull().default(0),
   usedWords: integer("used_words").notNull().default(0),
   price: integer("price").notNull().default(0),
+  coverImageUrl: text("cover_image_url"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

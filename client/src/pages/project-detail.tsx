@@ -8,11 +8,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
-  Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard, AlertTriangle, RefreshCw
+  Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard, AlertTriangle,
+  RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus
 } from "lucide-react";
-import { generateNovelPDF } from "@/lib/pdf-generator";
+import { generateNovelPDF, generateChapterPreviewPDF } from "@/lib/pdf-generator";
 import { useAuth } from "@/hooks/use-auth";
 import type { NovelProject, Character, Chapter, CharacterRelationship } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
@@ -37,6 +40,12 @@ export default function ProjectDetail() {
   const [generationProgress, setGenerationProgress] = useState<{ currentPart: number; totalParts: number } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [confirmRegenerate, setConfirmRegenerate] = useState<number | null>(null);
+  const [editingChapter, setEditingChapter] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [confirmOutlineRegen, setConfirmOutlineRegen] = useState(false);
+  const [suggestedChars, setSuggestedChars] = useState<Array<{ name: string; role: string; background: string; traits: string }>>([]);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -55,6 +64,48 @@ export default function ProjectDetail() {
     },
     onError: (err: any) => {
       toast({ title: "حدث خطأ", description: err?.message || "فشل في إنشاء المخطط", variant: "destructive" });
+    },
+  });
+
+  const saveChapterMutation = useMutation({
+    mutationFn: async ({ chapterId, content }: { chapterId: number; content: string }) => {
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${chapterId}`, { content });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تم حفظ التعديلات" });
+      setEditingChapter(null);
+    },
+    onError: () => {
+      toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
+    },
+  });
+
+  const suggestCharsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/suggest-characters`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setSuggestedChars(data);
+    },
+    onError: () => {
+      toast({ title: "فشل في اقتراح الشخصيات", variant: "destructive" });
+    },
+  });
+
+  const addCharacterMutation = useMutation({
+    mutationFn: async (char: { name: string; role: string; background: string }) => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/characters`, char);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تمت إضافة الشخصية" });
+    },
+    onError: () => {
+      toast({ title: "فشل في إضافة الشخصية", variant: "destructive" });
     },
   });
 
@@ -343,37 +394,49 @@ export default function ProjectDetail() {
             </div>
           </div>
           {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
-            <Button
-              size="sm"
-              onClick={async () => {
-                setIsDownloading(true);
-                try {
-                  await generateNovelPDF({
-                    title: project.title,
-                    chapters: project.chapters
-                      .sort((a, b) => a.chapterNumber - b.chapterNumber)
-                      .map(c => ({
-                        chapterNumber: c.chapterNumber,
-                        title: c.title,
-                        content: c.content,
-                      })),
-                  });
-                  toast({ title: "تم تحميل الرواية بنجاح" });
-                } catch {
-                  toast({ title: "حدث خطأ في إنشاء ملف PDF", variant: "destructive" });
-                } finally {
-                  setIsDownloading(false);
-                }
-              }}
-              disabled={isDownloading}
-              data-testid="button-download-pdf"
-            >
-              {isDownloading ? (
-                <><Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> جارٍ التحميل...</>
-              ) : (
-                <><Download className="w-4 h-4 ml-1.5" /> تحميل PDF</>
-              )}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  setIsDownloading(true);
+                  try {
+                    await generateNovelPDF({
+                      title: project.title,
+                      chapters: project.chapters
+                        .sort((a, b) => a.chapterNumber - b.chapterNumber)
+                        .map(c => ({
+                          chapterNumber: c.chapterNumber,
+                          title: c.title,
+                          content: c.content,
+                        })),
+                    });
+                    toast({ title: "تم تحميل الرواية بنجاح" });
+                  } catch {
+                    toast({ title: "حدث خطأ في إنشاء ملف PDF", variant: "destructive" });
+                  } finally {
+                    setIsDownloading(false);
+                  }
+                }}
+                disabled={isDownloading}
+                data-testid="button-download-pdf"
+              >
+                {isDownloading ? (
+                  <><Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> جارٍ التحميل...</>
+                ) : (
+                  <><Download className="w-4 h-4 ml-1.5" /> تحميل PDF</>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  window.open(`/api/projects/${projectId}/export/epub`, "_blank");
+                }}
+                data-testid="button-download-epub"
+              >
+                <Download className="w-4 h-4 ml-1.5" /> تحميل EPUB
+              </Button>
+            </>
           )}
         </div>
       </header>
@@ -464,6 +527,20 @@ export default function ProjectDetail() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            {project.coverImageUrl && (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex justify-center">
+                    <img
+                      src={project.coverImageUrl}
+                      alt={`غلاف ${project.title}`}
+                      className="max-h-96 rounded-lg shadow-lg"
+                      data-testid="img-cover"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <div className="grid md:grid-cols-2 gap-6">
               <Card>
                 <CardContent className="p-6 space-y-4">
@@ -501,6 +578,33 @@ export default function ProjectDetail() {
                 <CardContent className="p-6 space-y-4">
                   <h3 className="font-serif text-lg font-semibold">الفكرة الرئيسية</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{project.mainIdea}</p>
+                  {!project.coverImageUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isGeneratingCover}
+                      onClick={async () => {
+                        setIsGeneratingCover(true);
+                        try {
+                          const res = await apiRequest("POST", `/api/projects/${projectId}/generate-cover`);
+                          await res.json();
+                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                          toast({ title: "تم إنشاء غلاف الرواية" });
+                        } catch {
+                          toast({ title: "فشل في إنشاء الغلاف", variant: "destructive" });
+                        } finally {
+                          setIsGeneratingCover(false);
+                        }
+                      }}
+                      data-testid="button-generate-cover"
+                    >
+                      {isGeneratingCover ? (
+                        <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ إنشاء الغلاف...</>
+                      ) : (
+                        <><ImagePlus className="w-3.5 h-3.5 ml-1" /> إنشاء غلاف الرواية</>
+                      )}
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -534,18 +638,42 @@ export default function ProjectDetail() {
                     </Button>
                   )}
                   {project.outline && !project.outlineApproved && (
-                    <Button
-                      onClick={() => approveOutlineMutation.mutate()}
-                      disabled={approveOutlineMutation.isPending || (!project.paid && !hasFreeAccess)}
-                      data-testid="button-approve-outline"
-                    >
-                      {approveOutlineMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {!confirmOutlineRegen ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfirmOutlineRegen(true)}
+                          disabled={generateOutlineMutation.isPending}
+                          data-testid="button-regenerate-outline"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 ml-1" />
+                          إعادة إنشاء
+                        </Button>
                       ) : (
-                        <CheckCircle className="w-4 h-4 ml-2" />
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">متأكد؟</span>
+                          <Button size="sm" variant="destructive" onClick={() => { setConfirmOutlineRegen(false); generateOutlineMutation.mutate(); }} data-testid="button-confirm-regen-outline">
+                            نعم
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setConfirmOutlineRegen(false)} data-testid="button-cancel-regen-outline">
+                            لا
+                          </Button>
+                        </div>
                       )}
-                      الموافقة على المخطط
-                    </Button>
+                      <Button
+                        onClick={() => approveOutlineMutation.mutate()}
+                        disabled={approveOutlineMutation.isPending || (!project.paid && !hasFreeAccess)}
+                        data-testid="button-approve-outline"
+                      >
+                        {approveOutlineMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 ml-2" />
+                        )}
+                        الموافقة على المخطط
+                      </Button>
+                    </div>
                   )}
                   {project.outlineApproved === 1 && (
                     <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
@@ -569,6 +697,63 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="characters" className="space-y-6">
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <h3 className="font-serif text-lg font-semibold">الشخصيات ({project.characters?.length || 0})</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => suggestCharsMutation.mutate()}
+                disabled={suggestCharsMutation.isPending}
+                data-testid="button-suggest-characters"
+              >
+                {suggestCharsMutation.isPending ? (
+                  <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ الاقتراح...</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5 ml-1" /> اقتراح شخصيات</>
+                )}
+              </Button>
+            </div>
+
+            {suggestedChars.length > 0 && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-serif font-semibold flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      اقتراحات أبو هاشم
+                    </h4>
+                    <Button variant="ghost" size="sm" onClick={() => setSuggestedChars([])} data-testid="button-dismiss-suggestions">
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {suggestedChars.map((char, i) => (
+                      <div key={i} className="p-4 rounded-lg bg-background space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-serif font-semibold">{char.name}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{char.role}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{char.background}</p>
+                        {char.traits && <p className="text-xs text-primary/80">{char.traits}</p>}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            addCharacterMutation.mutate({ name: char.name, role: char.role, background: char.background });
+                            setSuggestedChars(prev => prev.filter((_, idx) => idx !== i));
+                          }}
+                          data-testid={`button-add-suggested-char-${i}`}
+                        >
+                          <Plus className="w-3 h-3 ml-1" />
+                          إضافة
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid md:grid-cols-2 gap-6">
               {project.characters?.map((char) => (
                 <Card key={char.id}>
@@ -780,11 +965,87 @@ export default function ProjectDetail() {
                       </button>
                       {isExpanded && displayContent && (
                         <div className="border-t">
-                          <ScrollArea className="max-h-[600px]" ref={contentRef}>
-                            <div className="p-8 font-serif text-base leading-[2.2] whitespace-pre-wrap">
-                              {displayContent}
+                          {editingChapter === chapter.id ? (
+                            <div className="p-4 space-y-3">
+                              <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[400px] font-serif text-base leading-[2.2] resize-y"
+                                dir="rtl"
+                                data-testid={`textarea-edit-chapter-${chapter.id}`}
+                              />
+                              <div className="flex items-center gap-2 justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditingChapter(null)}
+                                  data-testid={`button-cancel-edit-${chapter.id}`}
+                                >
+                                  <X className="w-3.5 h-3.5 ml-1" />
+                                  إلغاء
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => saveChapterMutation.mutate({ chapterId: chapter.id, content: editContent })}
+                                  disabled={saveChapterMutation.isPending}
+                                  data-testid={`button-save-edit-${chapter.id}`}
+                                >
+                                  {saveChapterMutation.isPending ? (
+                                    <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                                  ) : (
+                                    <Save className="w-3.5 h-3.5 ml-1" />
+                                  )}
+                                  حفظ
+                                </Button>
+                              </div>
                             </div>
-                          </ScrollArea>
+                          ) : (
+                            <>
+                              <ScrollArea className="max-h-[600px]" ref={contentRef}>
+                                <div className="p-8 font-serif text-base leading-[2.2] whitespace-pre-wrap">
+                                  {displayContent}
+                                </div>
+                              </ScrollArea>
+                              {chapter.status === "completed" && !isGenerating && (
+                                <div className="border-t p-3 flex items-center justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        const url = await generateChapterPreviewPDF({
+                                          chapterNumber: chapter.chapterNumber,
+                                          title: chapter.title,
+                                          content: chapter.content,
+                                        });
+                                        setPreviewPdfUrl(url);
+                                      } catch {
+                                        toast({ title: "فشل في إنشاء معاينة PDF", variant: "destructive" });
+                                      }
+                                    }}
+                                    data-testid={`button-preview-pdf-${chapter.id}`}
+                                  >
+                                    <Eye className="w-3.5 h-3.5 ml-1" />
+                                    معاينة PDF
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditContent(chapter.content || "");
+                                      setEditingChapter(chapter.id);
+                                    }}
+                                    data-testid={`button-edit-chapter-${chapter.id}`}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 ml-1" />
+                                    تحرير
+                                  </Button>
+                                </div>
+                              )}
+                            </>
+                          )}
                           {chapter.status === "incomplete" && !isGenerating && (
                             <div className="border-t p-4 bg-yellow-50 dark:bg-yellow-900/10 text-center">
                               <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">
@@ -807,6 +1068,22 @@ export default function ProjectDetail() {
             )}
           </TabsContent>
         </Tabs>
+
+        <Dialog open={!!previewPdfUrl} onOpenChange={(open) => { if (!open) { if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); } }}>
+          <DialogContent className="max-w-4xl h-[85vh]">
+            <DialogHeader>
+              <DialogTitle>معاينة الفصل</DialogTitle>
+            </DialogHeader>
+            {previewPdfUrl && (
+              <iframe
+                src={previewPdfUrl}
+                className="w-full h-full rounded-lg border"
+                title="معاينة PDF"
+                data-testid="iframe-pdf-preview"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
