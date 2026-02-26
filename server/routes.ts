@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, VALID_PAGE_COUNTS, WORDS_PER_PAGE } from "@shared/schema";
+import { characterRelationships, getProjectPrice, VALID_PAGE_COUNTS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure } from "./abu-hashim";
 import OpenAI from "openai";
@@ -87,7 +87,7 @@ export async function registerRoutes(
               unit_amount: project.price,
               product_data: {
                 name: `رواية: ${project.title}`,
-                description: `${project.pageCount} صفحة — ${project.allowedWords.toLocaleString()} كلمة`,
+                description: `رواية ${project.pageCount} صفحة`,
               },
             },
             quantity: 1,
@@ -198,7 +198,6 @@ export async function registerRoutes(
       const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships } = req.body;
 
       const validPageCount = VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150;
-      const allowedWords = validPageCount * WORDS_PER_PAGE;
       const price = getProjectPrice(validPageCount);
 
       const project = await storage.createProject({
@@ -209,7 +208,7 @@ export async function registerRoutes(
         placeSetting,
         narrativePov,
         pageCount: validPageCount,
-        allowedWords,
+        allowedWords: 0,
         price,
       });
 
@@ -347,11 +346,6 @@ export async function registerRoutes(
       const isFreeUser = FREE_ACCESS_USER_IDS.includes(req.user.claims.sub);
       if (!project.paid && !isFreeUser) {
         return res.status(402).json({ error: "الرجاء إتمام الدفع لبدء كتابة الرواية." });
-      }
-
-      if (!isFreeUser && project.usedWords >= project.allowedWords) {
-        await storage.updateProject(projectId, { status: "finished" });
-        return res.status(403).json({ error: "تم الوصول إلى الحد الأقصى للكلمات لهذه الرواية." });
       }
 
       const chapter = await storage.getChapter(chapterId);

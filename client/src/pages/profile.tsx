@@ -83,7 +83,7 @@ export default function Profile() {
       case "outline": return "المخطط";
       case "writing": return "قيد الكتابة";
       case "completed": return "مكتمل";
-      case "finished": return "مكتمل (حد الكلمات)";
+      case "finished": return "مكتمل";
       case "locked": return "مشروع مقفل";
       default: return status;
     }
@@ -294,9 +294,9 @@ export default function Profile() {
                                 <FileText className="w-3.5 h-3.5" />
                                 {project.pageCount} صفحة
                               </span>
-                              {project.paid && project.allowedWords > 0 && (
+                              {project.usedWords > 0 && (
                                 <span data-testid={`text-words-${project.id}`}>
-                                  {project.usedWords.toLocaleString()} / {project.allowedWords.toLocaleString()} كلمة
+                                  {project.usedWords.toLocaleString()} كلمة
                                 </span>
                               )}
                             </div>

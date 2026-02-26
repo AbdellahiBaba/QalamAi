@@ -328,7 +328,7 @@ export default function NewProject() {
                   </div>
 
                   <div className="rounded-md bg-primary/5 border border-primary/10 p-4 text-sm text-muted-foreground">
-                    <p className="font-medium text-foreground mb-1">رواية {form.watch("pageCount")} صفحة — {form.watch("pageCount") * 250} كلمة</p>
+                    <p className="font-medium text-foreground mb-1">رواية {form.watch("pageCount")} صفحة</p>
                     <p>سيتم تقسيم الرواية إلى فصول متعددة، وقد يتم كتابة كل فصل على أجزاء لضمان الجودة والتفصيل.</p>
                   </div>
                 </CardContent>

@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
-  Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard, AlertTriangle,
+  Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus
 } from "lucide-react";
 import { generateNovelPDF, generateChapterPreviewPDF } from "@/lib/pdf-generator";
@@ -461,7 +461,7 @@ export default function ProjectDetail() {
                       {getProjectPriceUSD(project.pageCount)} دولار
                     </div>
                     <span className="text-sm text-red-600 dark:text-red-400">
-                      ({project.pageCount} صفحة — {project.allowedWords.toLocaleString()} كلمة)
+                      ({project.pageCount} صفحة)
                     </span>
                   </div>
                   <Button
@@ -482,30 +482,15 @@ export default function ProjectDetail() {
           </Card>
         )}
 
-        {project.paid && project.allowedWords > 0 && (
+        {project.paid && project.usedWords > 0 && (
           <Card className="mb-6">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-4 mb-2">
+              <div className="flex items-center gap-2">
+                <PenTool className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium" data-testid="text-words-counter">
-                  عدد الكلمات المتبقية: {(project.allowedWords - project.usedWords).toLocaleString()} من {project.allowedWords.toLocaleString()}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {Math.round((project.usedWords / project.allowedWords) * 100)}%
+                  عدد الكلمات المكتوبة: {project.usedWords.toLocaleString()} كلمة
                 </span>
               </div>
-              <div className="w-full h-2.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${Math.min(100, (project.usedWords / project.allowedWords) * 100)}%` }}
-                  data-testid="progress-words"
-                />
-              </div>
-              {project.usedWords >= project.allowedWords && (
-                <div className="flex items-center gap-2 mt-3 text-sm text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span data-testid="text-word-limit-reached">تم الوصول إلى الحد الأقصى للكلمات لهذه الرواية.</span>
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
@@ -826,7 +811,7 @@ export default function ProjectDetail() {
                         <Button
                           size="sm"
                           onClick={() => setAutoWriteAll(true)}
-                          disabled={autoWriteAll || (!project.paid && !hasFreeAccess) || (!hasFreeAccess && project.usedWords >= project.allowedWords)}
+                          disabled={autoWriteAll || (!project.paid && !hasFreeAccess)}
                           data-testid="button-write-all-chapters"
                         >
                           {autoWriteAll ? (
@@ -939,7 +924,7 @@ export default function ProjectDetail() {
                             <Button
                               size="sm"
                               variant="secondary"
-                              disabled={(!project.paid && !hasFreeAccess) || (!hasFreeAccess && project.usedWords >= project.allowedWords)}
+                              disabled={(!project.paid && !hasFreeAccess)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 generateChapter(chapter.id);

@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import type { NovelProject } from "@shared/schema";
-import { getProjectPriceUSD, WORDS_PER_PAGE } from "@shared/schema";
+import { getProjectPriceUSD } from "@shared/schema";
 import { useMemo } from "react";
 
 export default function Home() {
@@ -35,7 +35,7 @@ export default function Home() {
       case "outline": return "المخطط";
       case "writing": return "قيد الكتابة";
       case "completed": return "مكتمل";
-      case "finished": return "مكتمل (حد الكلمات)";
+      case "finished": return "مكتمل";
       case "locked": return "مشروع مقفل";
       default: return status;
     }
@@ -214,9 +214,9 @@ export default function Home() {
                         </span>
                       </div>
                     )}
-                    {project.paid && project.allowedWords > 0 && (
-                      <div className="text-xs text-muted-foreground" data-testid={`text-words-remaining-${project.id}`}>
-                        عدد الكلمات المتبقية: {(project.allowedWords - project.usedWords).toLocaleString()}
+                    {project.usedWords > 0 && (
+                      <div className="text-xs text-muted-foreground" data-testid={`text-words-written-${project.id}`}>
+                        الكلمات المكتوبة: {project.usedWords.toLocaleString()}
                       </div>
                     )}
                     <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">

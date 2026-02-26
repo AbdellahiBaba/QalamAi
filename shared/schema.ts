@@ -14,7 +14,6 @@ export const NOVEL_PRICING: Record<number, number> = {
 };
 
 export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
-export const WORDS_PER_PAGE = 250;
 
 export function getProjectPrice(pageCount: number): number {
   return NOVEL_PRICING[pageCount] || 0;

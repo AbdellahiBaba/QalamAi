@@ -64,10 +64,10 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 
 ## Business Model
 - Fixed per-project pricing: 150pg→$300, 200pg→$350, 250pg→$450, 300pg→$600 (stored in cents)
-- 250 words per page; allowedWords = pageCount × 250
+- Page count determines novel structure (chapters/parts) — no word count limits
+- Word counts (`usedWords`) tracked for informational display only, never enforced
 - Projects start "locked" (unpaid) → "draft" (paid) → "outline" → "writing" → "completed"/"finished"
 - Payment required before outline/chapter generation (402 error if unpaid)
-- Word limit enforced server-side (403 error when exceeded)
 - Stripe Checkout for one-time payments with session verification on success callback
 
 ## Database Schema

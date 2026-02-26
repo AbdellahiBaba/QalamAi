@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Feather, Check, Crown, BookOpen, FileText, Sparkles } from "lucide-react";
 import { Link } from "wouter";
-import { WORDS_PER_PAGE } from "@shared/schema";
 
 const tiers = [
   {
@@ -10,15 +9,14 @@ const tiers = [
     name: "رواية ١٥٠ صفحة",
     price: "٣٠٠ دولار",
     priceNote: "دفعة واحدة",
-    wordCount: (150 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
     highlighted: false,
     features: [
       "١٥٠ صفحة من الكتابة الروائية",
-      `${(150 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
+      "كتابة غير محدودة الكلمات",
       "تطوير شخصيات كامل",
       "مخطط رواية تفصيلي",
       "كتابة تلقائية بالذكاء الاصطناعي",
-      "تصدير بصيغة PDF",
+      "تصدير بصيغة PDF و EPUB",
     ],
     cta: "ابدأ الآن",
   },
@@ -27,15 +25,14 @@ const tiers = [
     name: "رواية ٢٠٠ صفحة",
     price: "٣٥٠ دولار",
     priceNote: "دفعة واحدة",
-    wordCount: (200 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
     highlighted: false,
     features: [
       "٢٠٠ صفحة من الكتابة الروائية",
-      `${(200 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
+      "كتابة غير محدودة الكلمات",
       "تطوير شخصيات كامل",
       "مخطط رواية تفصيلي",
       "كتابة تلقائية بالذكاء الاصطناعي",
-      "تصدير بصيغة PDF",
+      "تصدير بصيغة PDF و EPUB",
     ],
     cta: "ابدأ الآن",
   },
@@ -44,15 +41,14 @@ const tiers = [
     name: "رواية ٢٥٠ صفحة",
     price: "٤٥٠ دولار",
     priceNote: "دفعة واحدة",
-    wordCount: (250 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
     highlighted: true,
     features: [
       "٢٥٠ صفحة من الكتابة الروائية",
-      `${(250 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
+      "كتابة غير محدودة الكلمات",
       "تطوير شخصيات كامل",
       "مخطط رواية تفصيلي وأقواس سردية",
       "كتابة تلقائية بالذكاء الاصطناعي",
-      "تصدير بصيغة PDF",
+      "تصدير بصيغة PDF و EPUB",
       "دعم ذو أولوية",
     ],
     cta: "ابدأ الآن",
@@ -62,16 +58,15 @@ const tiers = [
     name: "رواية ٣٠٠ صفحة",
     price: "٦٠٠ دولار",
     priceNote: "دفعة واحدة",
-    wordCount: (300 * WORDS_PER_PAGE).toLocaleString("ar-EG"),
     highlighted: false,
     features: [
       "٣٠٠ صفحة من الكتابة الروائية",
-      `${(300 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة`,
+      "كتابة غير محدودة الكلمات",
       "تطوير شخصيات غير محدود",
       "مخطط رواية تفصيلي وأقواس سردية",
       "كتابة تلقائية بالذكاء الاصطناعي",
       "تحليل أسلوبي متعمّق",
-      "تصدير بصيغة PDF",
+      "تصدير بصيغة PDF و EPUB",
       "دعم سريع على مدار الساعة",
     ],
     cta: "ابدأ الآن",
@@ -158,7 +153,7 @@ export default function Pricing() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <FileText className="w-4 h-4" />
-                    <span data-testid={`text-tier-pages-${tier.pages}`}>{tier.pages} صفحة — {tier.wordCount} كلمة</span>
+                    <span data-testid={`text-tier-pages-${tier.pages}`}>{tier.pages} صفحة — كتابة غير محدودة</span>
                   </div>
                 </div>
                 <ul className="space-y-3 mb-8 flex-1">
@@ -194,7 +189,7 @@ export default function Pricing() {
           <div className="max-w-3xl mx-auto grid gap-6 text-right mt-8">
             <div className="space-y-2">
               <h3 className="font-serif font-semibold text-foreground">كيف يعمل نظام الأسعار؟</h3>
-              <p className="text-sm text-muted-foreground">تختار حجم روايتك (عدد الصفحات) وتدفع مرة واحدة. يتم تحديد عدد الكلمات المسموح بها بناءً على عدد الصفحات المختار.</p>
+              <p className="text-sm text-muted-foreground">تختار حجم روايتك (عدد الصفحات) وتدفع مرة واحدة. عدد الصفحات يحدد هيكل الرواية وعدد الفصول.</p>
             </div>
             <div className="space-y-2">
               <h3 className="font-serif font-semibold text-foreground">ماذا يحدث بعد الدفع؟</h3>
@@ -205,8 +200,8 @@ export default function Pricing() {
               <p className="text-sm text-muted-foreground">بالتأكيد، جميع مشاريعك وفصولك محفوظة بأمان ويمكنك الوصول إليها في أي وقت.</p>
             </div>
             <div className="space-y-2">
-              <h3 className="font-serif font-semibold text-foreground">ما هو الحد الأقصى للكلمات؟</h3>
-              <p className="text-sm text-muted-foreground">كل صفحة تعادل {WORDS_PER_PAGE} كلمة. على سبيل المثال، رواية ٢٠٠ صفحة تتيح لك كتابة حتى {(200 * WORDS_PER_PAGE).toLocaleString("ar-EG")} كلمة.</p>
+              <h3 className="font-serif font-semibold text-foreground">هل هناك حد للكلمات؟</h3>
+              <p className="text-sm text-muted-foreground">لا! الكتابة غير محدودة الكلمات في جميع الباقات. عدد الصفحات يحدد هيكل الرواية وعدد الفصول فقط.</p>
             </div>
           </div>
         </div>
