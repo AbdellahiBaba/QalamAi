@@ -15,6 +15,8 @@ export const sessions = pgTable(
 
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+import { boolean } from "drizzle-orm/pg-core";
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -26,6 +28,10 @@ export const users = pgTable("users", {
   planPurchasedAt: timestamp("plan_purchased_at"),
   role: varchar("role").default("user"),
   stripeCustomerId: varchar("stripe_customer_id"),
+  bio: text("bio"),
+  displayName: varchar("display_name"),
+  publicProfile: boolean("public_profile").default(false),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

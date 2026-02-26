@@ -1168,6 +1168,60 @@ ${content}
   return { system, user };
 }
 
+export function buildOriginalityCheckPrompt(content: string): { system: string; user: string } {
+  const system = `أنت أبو هاشم — خبير في تحليل أصالة النصوص الأدبية العربية.
+مهمتك فحص النص المعطى وتقييم أصالته.
+
+أجب بصيغة JSON بالضبط كالتالي:
+{
+  "score": <رقم من 1 إلى 100 يمثل درجة الأصالة>,
+  "analysis": "<تحليل مختصر باللغة العربية>",
+  "flaggedPhrases": ["<عبارة 1>", "<عبارة 2>"],
+  "strengths": ["<نقطة قوة 1>", "<نقطة قوة 2>"],
+  "suggestions": ["<اقتراح 1>", "<اقتراح 2>"]
+}
+
+معايير التقييم:
+- 90-100: أصيل بالكامل، أسلوب فريد ومميز
+- 70-89: أصيل مع بعض العبارات الشائعة
+- 50-69: يحتاج تحسين، عبارات مكررة كثيرة
+- أقل من 50: مشاكل أصالة جدية
+
+فحص: العبارات المبتذلة، التراكيب المكررة، الأنماط الجاهزة، الكليشيهات الأدبية.
+أجب فقط بـ JSON بدون أي نص إضافي.`;
+
+  const user = `افحص أصالة النص التالي وقدم تقييمك:\n\n${content.slice(0, 8000)}`;
+
+  return { system, user };
+}
+
+export function buildGlossaryPrompt(allContent: string, title: string, projectType: string): { system: string; user: string } {
+  const typeLabel = projectType === "essay" ? "المقال" : projectType === "scenario" ? "السيناريو" : "الرواية";
+
+  const system = `أنت أبو هاشم — متخصص في إنشاء فهارس ومسارد للأعمال الأدبية العربية.
+مهمتك إنشاء فهرس شامل لـ${typeLabel} المعطى.
+
+أنشئ الفهرس بالتنسيق التالي (بدون JSON، نص عربي مباشر):
+
+═══ فهرس الشخصيات ═══
+- اسم الشخصية: وصف مختصر ودورها في العمل
+
+═══ فهرس الأماكن ═══
+- اسم المكان: وصف مختصر وأهميته
+
+═══ المصطلحات والمفاهيم ═══
+- المصطلح: شرح مختصر
+
+═══ الموضوعات الرئيسية ═══
+- الموضوع: شرح مختصر لكيفية معالجته في العمل
+
+اكتب بلغة عربية فصحى أنيقة ومختصرة.`;
+
+  const user = `أنشئ فهرساً شاملاً لـ${typeLabel} "${title}":\n\n${allContent.slice(0, 15000)}`;
+
+  return { system, user };
+}
+
 export function buildCoverPrompt(project: NovelProject): string {
   return `Design an artistic Arabic novel book cover. The novel is titled "${project.title}". 
 

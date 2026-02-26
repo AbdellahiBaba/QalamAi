@@ -9,17 +9,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { SupportTicket, NovelProject } from "@shared/schema";
+import type { SupportTicket, NovelProject, PromoCode } from "@shared/schema";
+
+interface RevenueData {
+  totalRevenue: number;
+  monthlyRevenue: number;
+  revenueByType: { type: string; amount: number }[];
+  paidPlans: { plan: string; count: number; revenue: number }[];
+}
 
 interface AnalyticsData {
   totalUsers: number;
   totalProjects: number;
   projectsByType: { type: string; count: number }[];
   planBreakdown: { plan: string; count: number }[];
+  revenueData?: RevenueData;
 }
 
 interface AdminUser {
@@ -86,7 +97,7 @@ const projectStatusLabels: Record<string, string> = {
 export default function Admin() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos">("tickets");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -94,6 +105,11 @@ export default function Admin() {
   const [showProjectsDialog, setShowProjectsDialog] = useState(false);
   const [showPlanDialog, setShowPlanDialog] = useState(false);
   const [planChangeUser, setPlanChangeUser] = useState<AdminUser | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [showBulkPlanDialog, setShowBulkPlanDialog] = useState(false);
+  const [showContentDialog, setShowContentDialog] = useState(false);
+  const [contentProjectId, setContentProjectId] = useState<number | null>(null);
+  const [newPromo, setNewPromo] = useState({ code: "", discountPercent: "", maxUses: "", validUntil: "", applicableTo: "all" });
   const { toast } = useToast();
 
   const { data: stats, isLoading: statsLoading } = useQuery<{ status: string; count: number }[]>({
@@ -116,6 +132,62 @@ export default function Admin() {
   const { data: analytics, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
     queryKey: ["/api/admin/analytics"],
     enabled: activeTab === "analytics",
+  });
+
+  const { data: promos, isLoading: promosLoading } = useQuery<PromoCode[]>({
+    queryKey: ["/api/admin/promos"],
+    enabled: activeTab === "promos",
+  });
+
+  const { data: projectContent, isLoading: contentLoading } = useQuery<{ project: NovelProject; chapters: any[] }>({
+    queryKey: ["/api/admin/projects", contentProjectId, "content"],
+    enabled: !!contentProjectId && showContentDialog,
+  });
+
+  const createPromoMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/admin/promos", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promos"] });
+      setNewPromo({ code: "", discountPercent: "", maxUses: "", validUntil: "", applicableTo: "all" });
+      toast({ title: "تم إنشاء كود الخصم بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في إنشاء كود الخصم", variant: "destructive" });
+    },
+  });
+
+  const flagProjectMutation = useMutation({
+    mutationFn: async ({ projectId, flagged, reason }: { projectId: number; flagged: boolean; reason?: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/projects/${projectId}/flag`, { flagged, reason });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/projects", contentProjectId, "content"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "تم تحديث حالة المشروع" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث حالة المشروع", variant: "destructive" });
+    },
+  });
+
+  const bulkPlanMutation = useMutation({
+    mutationFn: async ({ userIds, plan }: { userIds: string[]; plan: string }) => {
+      const res = await apiRequest("PATCH", "/api/admin/users/bulk-plan", { userIds, plan });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setShowBulkPlanDialog(false);
+      setSelectedUsers(new Set());
+      toast({ title: "تم تحديث خطط المستخدمين بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث الخطط", variant: "destructive" });
+    },
   });
 
   const updatePlanMutation = useMutation({
@@ -263,6 +335,14 @@ export default function Admin() {
             <BarChart3 className="w-4 h-4 ml-2" />
             إحصائيات
           </Button>
+          <Button
+            variant={activeTab === "promos" ? "default" : "outline"}
+            onClick={() => setActiveTab("promos")}
+            data-testid="button-tab-promos"
+          >
+            <Tag className="w-4 h-4 ml-2" />
+            رموز الخصم
+          </Button>
         </div>
 
         {activeTab === "tickets" && (
@@ -397,6 +477,28 @@ export default function Admin() {
               <div className="text-sm text-muted-foreground">
                 {adminUsers ? `${adminUsers.length} مستخدم` : ""}
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  window.open("/api/admin/users/export", "_blank");
+                }}
+                data-testid="button-export-csv"
+              >
+                <Download className="w-4 h-4 ml-1" />
+                تصدير CSV
+              </Button>
+              {selectedUsers.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBulkPlanDialog(true)}
+                  data-testid="button-bulk-plan"
+                >
+                  <Crown className="w-4 h-4 ml-1" />
+                  تغيير خطة المحددين ({selectedUsers.size})
+                </Button>
+              )}
             </div>
 
             {usersLoading ? (
@@ -415,6 +517,19 @@ export default function Admin() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
+                        <th className="p-3 w-10">
+                          <Checkbox
+                            checked={filteredUsers.length > 0 && filteredUsers.every(u => selectedUsers.has(u.id))}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
+                              } else {
+                                setSelectedUsers(new Set());
+                              }
+                            }}
+                            data-testid="checkbox-select-all-users"
+                          />
+                        </th>
                         <th className="text-right p-3 font-medium text-muted-foreground">المستخدم</th>
                         <th className="text-right p-3 font-medium text-muted-foreground">البريد الإلكتروني</th>
                         <th className="text-right p-3 font-medium text-muted-foreground">الخطة</th>
@@ -430,6 +545,17 @@ export default function Admin() {
                           className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                           data-testid={`row-user-${u.id}`}
                         >
+                          <td className="p-3">
+                            <Checkbox
+                              checked={selectedUsers.has(u.id)}
+                              onCheckedChange={(checked) => {
+                                const next = new Set(selectedUsers);
+                                if (checked) { next.add(u.id); } else { next.delete(u.id); }
+                                setSelectedUsers(next);
+                              }}
+                              data-testid={`checkbox-user-${u.id}`}
+                            />
+                          </td>
                           <td className="p-3">
                             <div className="flex items-center gap-2">
                               <Avatar className="w-7 h-7">
@@ -552,6 +678,55 @@ export default function Admin() {
                   </Card>
                 </div>
 
+                {analytics.revenueData && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <Card data-testid="card-revenue-total">
+                      <CardContent className="p-5 text-center">
+                        <DollarSign className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                        <div className="text-3xl font-bold mb-1" data-testid="text-revenue-total">
+                          ${(analytics.revenueData.totalRevenue / 100).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">إجمالي الإيرادات</div>
+                      </CardContent>
+                    </Card>
+                    <Card data-testid="card-revenue-monthly">
+                      <CardContent className="p-5 text-center">
+                        <DollarSign className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                        <div className="text-3xl font-bold mb-1" data-testid="text-revenue-monthly">
+                          ${(analytics.revenueData.monthlyRevenue / 100).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">إيرادات الشهر</div>
+                      </CardContent>
+                    </Card>
+                    <Card data-testid="card-revenue-by-type">
+                      <CardContent className="p-5">
+                        <h4 className="text-xs text-muted-foreground mb-2">الإيرادات حسب النوع</h4>
+                        <div className="space-y-1">
+                          {analytics.revenueData.revenueByType.map((item) => (
+                            <div key={item.type} className="flex items-center justify-between gap-2 text-sm" data-testid={`text-revenue-type-${item.type}`}>
+                              <span>{projectTypeLabels[item.type] || item.type}</span>
+                              <span className="font-medium">${(item.amount / 100).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card data-testid="card-revenue-paid-plans">
+                      <CardContent className="p-5">
+                        <h4 className="text-xs text-muted-foreground mb-2">الخطط المدفوعة</h4>
+                        <div className="space-y-1">
+                          {analytics.revenueData.paidPlans.map((item) => (
+                            <div key={item.plan} className="flex items-center justify-between gap-2 text-sm" data-testid={`text-paid-plan-${item.plan}`}>
+                              <span>{planLabels[item.plan] || item.plan} ({item.count})</span>
+                              <span className="font-medium">${(item.revenue / 100).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card data-testid="card-analytics-projects-chart">
                     <CardContent className="p-5">
@@ -651,6 +826,152 @@ export default function Admin() {
             )}
           </>
         )}
+
+        {activeTab === "promos" && (
+          <>
+            <Card className="mb-6">
+              <CardContent className="p-5 space-y-4">
+                <h3 className="font-medium flex items-center gap-2 flex-wrap">
+                  <Tag className="w-4 h-4" />
+                  إنشاء كود خصم جديد
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label data-testid="label-promo-code">الكود</Label>
+                    <Input
+                      value={newPromo.code}
+                      onChange={(e) => setNewPromo(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                      placeholder="مثال: SAVE20"
+                      data-testid="input-new-promo-code"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label data-testid="label-promo-discount">نسبة الخصم (%)</Label>
+                    <Input
+                      type="number"
+                      value={newPromo.discountPercent}
+                      onChange={(e) => setNewPromo(p => ({ ...p, discountPercent: e.target.value }))}
+                      placeholder="مثال: 20"
+                      data-testid="input-new-promo-discount"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label data-testid="label-promo-max-uses">الحد الأقصى للاستخدام (اختياري)</Label>
+                    <Input
+                      type="number"
+                      value={newPromo.maxUses}
+                      onChange={(e) => setNewPromo(p => ({ ...p, maxUses: e.target.value }))}
+                      placeholder="غير محدود"
+                      data-testid="input-new-promo-max-uses"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label data-testid="label-promo-valid-until">تاريخ الانتهاء (اختياري)</Label>
+                    <Input
+                      type="date"
+                      value={newPromo.validUntil}
+                      onChange={(e) => setNewPromo(p => ({ ...p, validUntil: e.target.value }))}
+                      data-testid="input-new-promo-valid-until"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label data-testid="label-promo-applicable">ينطبق على</Label>
+                    <Select value={newPromo.applicableTo} onValueChange={(v) => setNewPromo(p => ({ ...p, applicableTo: v }))}>
+                      <SelectTrigger data-testid="select-promo-applicable">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">الكل</SelectItem>
+                        <SelectItem value="essay">المقالات</SelectItem>
+                        <SelectItem value="scenario">السيناريوهات</SelectItem>
+                        <SelectItem value="all_in_one">الخطة الشاملة</SelectItem>
+                        <SelectItem value="novel">الروايات</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => {
+                    if (!newPromo.code.trim() || !newPromo.discountPercent) {
+                      toast({ title: "يرجى ملء الكود ونسبة الخصم", variant: "destructive" });
+                      return;
+                    }
+                    const body: any = {
+                      code: newPromo.code.trim(),
+                      discountPercent: parseInt(newPromo.discountPercent),
+                      applicableTo: newPromo.applicableTo,
+                    };
+                    if (newPromo.maxUses) body.maxUses = parseInt(newPromo.maxUses);
+                    if (newPromo.validUntil) body.validUntil = newPromo.validUntil;
+                    createPromoMutation.mutate(body);
+                  }}
+                  disabled={createPromoMutation.isPending}
+                  data-testid="button-create-promo"
+                >
+                  {createPromoMutation.isPending ? (
+                    <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ الإنشاء...</>
+                  ) : (
+                    <><Tag className="w-4 h-4 ml-2" /> إنشاء كود الخصم</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {promosLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}><CardContent className="p-4"><Skeleton className="h-5 w-full" /></CardContent></Card>
+                ))}
+              </div>
+            ) : promos && promos.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-right p-3 font-medium text-muted-foreground">الكود</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">نسبة الخصم</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">الحد الأقصى</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">الاستخدام</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">تاريخ الانتهاء</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">ينطبق على</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {promos.map((promo) => (
+                        <tr key={promo.id} className="border-b last:border-0" data-testid={`row-promo-${promo.id}`}>
+                          <td className="p-3 font-mono font-medium" data-testid={`text-promo-code-${promo.id}`}>{promo.code}</td>
+                          <td className="p-3" data-testid={`text-promo-discount-${promo.id}`}>
+                            <Badge variant="secondary">{promo.discountPercent}%</Badge>
+                          </td>
+                          <td className="p-3 text-muted-foreground" data-testid={`text-promo-max-uses-${promo.id}`}>{promo.maxUses ?? "غير محدود"}</td>
+                          <td className="p-3 text-muted-foreground" data-testid={`text-promo-used-${promo.id}`}>{promo.usedCount}</td>
+                          <td className="p-3 text-xs text-muted-foreground" data-testid={`text-promo-valid-${promo.id}`}>
+                            {promo.validUntil ? new Date(promo.validUntil).toLocaleDateString("ar-EG") : "غير محدد"}
+                          </td>
+                          <td className="p-3 text-xs" data-testid={`text-promo-applicable-${promo.id}`}>
+                            {promo.applicableTo === "all" ? "الكل" : planLabels[promo.applicableTo] || projectTypeLabels[promo.applicableTo] || promo.applicableTo}
+                          </td>
+                          <td className="p-3" data-testid={`text-promo-status-${promo.id}`}>
+                            <Badge variant={promo.active ? "default" : "outline"}>
+                              {promo.active ? "نشط" : "معطل"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <Tag className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">لا توجد رموز خصم بعد</p>
+              </div>
+            )}
+          </>
+        )}
       </main>
 
       <Dialog open={showProjectsDialog} onOpenChange={setShowProjectsDialog}>
@@ -683,10 +1004,30 @@ export default function Admin() {
                             مدفوع
                           </Badge>
                         )}
+                        {p.flagged && (
+                          <Badge variant="destructive" className="text-[10px]">
+                            <Flag className="w-3 h-3 ml-0.5" />
+                            مُبلّغ
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">
-                      {p.createdAt ? new Date(p.createdAt).toLocaleDateString("ar-EG") : ""}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setContentProjectId(p.id);
+                          setShowContentDialog(true);
+                        }}
+                        data-testid={`button-view-content-${p.id}`}
+                      >
+                        <Eye className="w-4 h-4 ml-1" />
+                        عرض المحتوى
+                      </Button>
+                      <div className="text-xs text-muted-foreground whitespace-nowrap">
+                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString("ar-EG") : ""}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -731,6 +1072,116 @@ export default function Admin() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showContentDialog} onOpenChange={(open) => { if (!open) { setShowContentDialog(false); setContentProjectId(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle data-testid="text-content-dialog-title">محتوى المشروع</DialogTitle>
+          </DialogHeader>
+          {contentLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : projectContent ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <h3 className="font-serif font-semibold" data-testid="text-content-project-title">{projectContent.project.title}</h3>
+                <div className="flex items-center gap-2">
+                  {projectContent.project.flagged ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => contentProjectId && flagProjectMutation.mutate({ projectId: contentProjectId, flagged: false })}
+                      disabled={flagProjectMutation.isPending}
+                      data-testid="button-unflag-project"
+                    >
+                      <FlagOff className="w-4 h-4 ml-1" />
+                      إلغاء التبليغ
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => contentProjectId && flagProjectMutation.mutate({ projectId: contentProjectId, flagged: true, reason: "محتوى مخالف" })}
+                      disabled={flagProjectMutation.isPending}
+                      data-testid="button-flag-project"
+                    >
+                      <Flag className="w-4 h-4 ml-1" />
+                      تبليغ عن المحتوى
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {projectContent.project.flagged && (
+                <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/20 text-sm text-red-700 dark:text-red-400" data-testid="text-flag-reason">
+                  <Flag className="w-4 h-4 inline ml-1" />
+                  مُبلّغ: {projectContent.project.flagReason || "بدون سبب"}
+                </div>
+              )}
+              <div className="space-y-3">
+                {projectContent.chapters && projectContent.chapters.length > 0 ? (
+                  projectContent.chapters
+                    .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
+                    .map((ch: any) => (
+                      <Card key={ch.id} data-testid={`card-content-chapter-${ch.id}`}>
+                        <CardContent className="p-4 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-primary">{ch.chapterNumber}.</span>
+                            <span className="font-serif font-medium">{ch.title}</span>
+                            <Badge variant="secondary" className="text-[10px]">{ch.status}</Badge>
+                          </div>
+                          {ch.content && (
+                            <ScrollArea className="max-h-[200px]">
+                              <p className="text-sm font-serif leading-[2] whitespace-pre-wrap text-muted-foreground" data-testid={`text-content-chapter-text-${ch.id}`}>
+                                {ch.content}
+                              </p>
+                            </ScrollArea>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">لا توجد فصول لهذا المشروع</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">فشل في تحميل المحتوى</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBulkPlanDialog} onOpenChange={setShowBulkPlanDialog}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle data-testid="text-bulk-plan-title">تغيير خطة المستخدمين المحددين</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground" data-testid="text-bulk-plan-count">
+              عدد المستخدمين المحددين: {selectedUsers.size}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {(["free", "essay", "scenario", "all_in_one"] as const).map((plan) => (
+                <Button
+                  key={plan}
+                  variant="outline"
+                  className="w-full"
+                  disabled={bulkPlanMutation.isPending}
+                  onClick={() => bulkPlanMutation.mutate({ userIds: Array.from(selectedUsers), plan })}
+                  data-testid={`button-bulk-set-plan-${plan}`}
+                >
+                  {bulkPlanMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 ml-1 animate-spin" />
+                  ) : plan === "all_in_one" ? (
+                    <Crown className="w-4 h-4 ml-1" />
+                  ) : null}
+                  {planLabels[plan]}
+                </Button>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

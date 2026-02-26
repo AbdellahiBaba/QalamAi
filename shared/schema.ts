@@ -90,6 +90,9 @@ export const novelProjects = pgTable("novel_projects", {
   price: integer("price").notNull().default(0),
   coverImageUrl: text("cover_image_url"),
   shareToken: varchar("share_token"),
+  glossary: text("glossary"),
+  flagged: boolean("flagged").default(false),
+  flagReason: text("flag_reason"),
   subject: text("subject"),
   essayTone: text("essay_tone"),
   targetAudience: text("target_audience"),
@@ -213,6 +216,47 @@ export const ticketRepliesRelations = relations(ticketReplies, ({ one }) => ({
   }),
 }));
 
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  read: boolean("read").notNull().default(false),
+  link: text("link"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const promoCodes = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code").unique().notNull(),
+  discountPercent: integer("discount_percent").notNull(),
+  maxUses: integer("max_uses"),
+  usedCount: integer("used_count").notNull().default(0),
+  validUntil: timestamp("valid_until"),
+  applicableTo: text("applicable_to").notNull().default("all"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const readingProgress = pgTable("reading_progress", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  lastChapterId: integer("last_chapter_id"),
+  scrollPosition: integer("scroll_position").notNull().default(0),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const bookmarks = pgTable("bookmarks", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  chapterId: integer("chapter_id").notNull().references(() => chapters.id, { onDelete: "cascade" }),
+  note: text("note"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const insertNovelProjectSchema = createInsertSchema(novelProjects).omit({
   id: true,
   createdAt: true,
@@ -262,3 +306,7 @@ export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
 export type TicketReply = typeof ticketReplies.$inferSelect;
 export type InsertTicketReply = z.infer<typeof insertTicketReplySchema>;
 export type ChapterVersion = typeof chapterVersions.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type PromoCode = typeof promoCodes.$inferSelect;
+export type ReadingProgress = typeof readingProgress.$inferSelect;
+export type Bookmark = typeof bookmarks.$inferSelect;

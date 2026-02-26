@@ -25,6 +25,8 @@ import AdminTicket from "@/pages/admin-ticket";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import SharedProject from "@/pages/shared-project";
+import AuthorProfile from "@/pages/author-profile";
+import Gallery from "@/pages/gallery";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -47,6 +49,8 @@ function AuthenticatedRouter() {
       <Route path="/abu-hashim" component={AbuHashim} />
       <Route path="/novel-theme" component={NovelTheme} />
       <Route path="/shared/:token" component={SharedProject} />
+      <Route path="/author/:id" component={AuthorProfile} />
+      <Route path="/gallery" component={Gallery} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -65,6 +69,8 @@ function PublicRouter() {
       <Route path="/abu-hashim" component={AbuHashim} />
       <Route path="/novel-theme" component={NovelTheme} />
       <Route path="/shared/:token" component={SharedProject} />
+      <Route path="/author/:id" component={AuthorProfile} />
+      <Route path="/gallery" component={Gallery} />
       <Route component={Landing} />
     </Switch>
   );

@@ -98,6 +98,15 @@ export class WebhookHandlers {
       if (user.email) {
         sendPlanActivationEmail(user.email, planType).catch(() => {});
       }
+
+      const planLabels: Record<string, string> = { essay: "خطة المقالات", scenario: "خطة السيناريو", all_in_one: "الخطة الشاملة" };
+      storage.createNotification({
+        userId,
+        type: "plan_activated",
+        title: "تم تفعيل خطتك!",
+        message: `تم تفعيل ${planLabels[planType] || planType} بنجاح.`,
+        link: "/pricing",
+      }).catch(() => {});
     } catch (err) {
       console.error('[Webhook] Error activating plan:', err);
     }
@@ -128,6 +137,14 @@ export class WebhookHandlers {
       if (user?.email) {
         sendProjectPaymentEmail(user.email, project.title, projectId, project.projectType || 'novel').catch(() => {});
       }
+
+      storage.createNotification({
+        userId,
+        type: "payment_confirmed",
+        title: "تم تأكيد الدفع!",
+        message: `تم تأكيد الدفع لمشروعك "${project.title}".`,
+        link: `/project/${projectId}`,
+      }).catch(() => {});
     } catch (err) {
       console.error('[Webhook] Error activating project:', err);
     }

@@ -1,6 +1,6 @@
 import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
-  users, supportTickets, ticketReplies,
+  users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -9,9 +9,10 @@ import {
   type User, type UpsertUser,
   type SupportTicket, type InsertSupportTicket,
   type TicketReply, type InsertTicketReply,
+  type Notification, type PromoCode, type ReadingProgress, type Bookmark,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql, count } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -277,6 +278,7 @@ export class DatabaseStorage implements IStorage {
     totalProjects: number;
     projectsByType: { type: string; count: number }[];
     planBreakdown: { plan: string; count: number }[];
+    revenueData?: any;
   }> {
     const totalUsersResult = await db.select({ value: count() }).from(users);
     const totalProjectsResult = await db.select({ value: count() }).from(novelProjects);
@@ -286,12 +288,138 @@ export class DatabaseStorage implements IStorage {
     const planBreakdown = await db.execute(
       sql`SELECT COALESCE(plan, 'free') as plan, COUNT(*)::int as count FROM users GROUP BY COALESCE(plan, 'free')`
     );
+
+    let revenueData = null;
+    try {
+      const totalRevenue = await db.execute(
+        sql`SELECT COALESCE(SUM(price), 0)::int as total FROM novel_projects WHERE paid = true`
+      );
+      const monthlyRevenue = await db.execute(
+        sql`SELECT COALESCE(SUM(price), 0)::int as total FROM novel_projects WHERE paid = true AND updated_at >= date_trunc('month', CURRENT_DATE)`
+      );
+      const revenueByType = await db.execute(
+        sql`SELECT COALESCE(project_type, 'novel') as type, COALESCE(SUM(price), 0)::int as total, COUNT(*)::int as count FROM novel_projects WHERE paid = true GROUP BY COALESCE(project_type, 'novel')`
+      );
+      const paidPlans = await db.execute(
+        sql`SELECT COALESCE(plan, 'free') as plan, COUNT(*)::int as count FROM users WHERE plan != 'free' AND plan IS NOT NULL AND plan_purchased_at IS NOT NULL GROUP BY plan`
+      );
+      revenueData = {
+        totalRevenue: (totalRevenue.rows[0] as any)?.total || 0,
+        monthlyRevenue: (monthlyRevenue.rows[0] as any)?.total || 0,
+        revenueByType: revenueByType.rows,
+        paidPlans: paidPlans.rows,
+      };
+    } catch (e) {
+      console.error("Error fetching revenue data:", e);
+    }
+
     return {
       totalUsers: totalUsersResult[0]?.value || 0,
       totalProjects: totalProjectsResult[0]?.value || 0,
       projectsByType: projectsByType.rows as { type: string; count: number }[],
       planBreakdown: planBreakdown.rows as { plan: string; count: number }[],
+      revenueData,
     };
+  }
+
+  async createNotification(data: { userId: string; type: string; title: string; message: string; link?: string }): Promise<Notification> {
+    const [created] = await db.insert(notifications).values(data).returning();
+    return created;
+  }
+
+  async getNotificationsByUser(userId: string, limit = 50): Promise<Notification[]> {
+    return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(limit);
+  }
+
+  async markNotificationRead(id: number): Promise<Notification> {
+    const [updated] = await db.update(notifications).set({ read: true }).where(eq(notifications.id, id)).returning();
+    return updated;
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await db.select({ value: count() }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+    return result[0]?.value || 0;
+  }
+
+  async createPromoCode(data: { code: string; discountPercent: number; maxUses?: number; validUntil?: Date; applicableTo?: string }): Promise<PromoCode> {
+    const [created] = await db.insert(promoCodes).values(data).returning();
+    return created;
+  }
+
+  async getPromoCode(code: string): Promise<PromoCode | undefined> {
+    const [promo] = await db.select().from(promoCodes).where(eq(promoCodes.code, code.toUpperCase()));
+    return promo;
+  }
+
+  async incrementPromoUsage(id: number): Promise<void> {
+    await db.update(promoCodes).set({ usedCount: sql`${promoCodes.usedCount} + 1` }).where(eq(promoCodes.id, id));
+  }
+
+  async getAllPromoCodes(): Promise<PromoCode[]> {
+    return db.select().from(promoCodes).orderBy(desc(promoCodes.createdAt));
+  }
+
+  async upsertReadingProgress(userId: string, projectId: number, lastChapterId?: number, scrollPosition?: number): Promise<ReadingProgress> {
+    const [existing] = await db.select().from(readingProgress).where(and(eq(readingProgress.userId, userId), eq(readingProgress.projectId, projectId)));
+    if (existing) {
+      const updateData: any = { updatedAt: new Date() };
+      if (lastChapterId !== undefined) updateData.lastChapterId = lastChapterId;
+      if (scrollPosition !== undefined) updateData.scrollPosition = scrollPosition;
+      const [updated] = await db.update(readingProgress).set(updateData).where(eq(readingProgress.id, existing.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(readingProgress).values({ userId, projectId, lastChapterId, scrollPosition: scrollPosition || 0 }).returning();
+    return created;
+  }
+
+  async getReadingProgress(userId: string, projectId: number): Promise<ReadingProgress | undefined> {
+    const [progress] = await db.select().from(readingProgress).where(and(eq(readingProgress.userId, userId), eq(readingProgress.projectId, projectId)));
+    return progress;
+  }
+
+  async createBookmark(data: { userId: string; projectId: number; chapterId: number; note?: string }): Promise<Bookmark> {
+    const [created] = await db.insert(bookmarks).values(data).returning();
+    return created;
+  }
+
+  async getBookmarksByProject(userId: string, projectId: number): Promise<Bookmark[]> {
+    return db.select().from(bookmarks).where(and(eq(bookmarks.userId, userId), eq(bookmarks.projectId, projectId))).orderBy(desc(bookmarks.createdAt));
+  }
+
+  async deleteBookmark(id: number): Promise<void> {
+    await db.delete(bookmarks).where(eq(bookmarks.id, id));
+  }
+
+  async getPublicAuthor(userId: string): Promise<{ user: User; projects: NovelProject[] } | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user || !user.publicProfile) return undefined;
+    const sharedProjects = await db.select().from(novelProjects).where(and(eq(novelProjects.userId, userId), isNotNull(novelProjects.shareToken)));
+    return { user, projects: sharedProjects };
+  }
+
+  async getGalleryProjects(): Promise<(NovelProject & { authorName: string; authorId: string })[]> {
+    const projects = await db.select().from(novelProjects).where(isNotNull(novelProjects.shareToken)).orderBy(desc(novelProjects.updatedAt));
+    const result: (NovelProject & { authorName: string; authorId: string })[] = [];
+    for (const p of projects) {
+      const [user] = await db.select().from(users).where(eq(users.id, p.userId));
+      if (user) {
+        result.push({
+          ...p,
+          authorName: user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'كاتب مجهول',
+          authorId: user.id,
+        });
+      }
+    }
+    return result;
+  }
+
+  async updateUserProfileExtended(userId: string, data: { firstName?: string; lastName?: string; bio?: string; displayName?: string; publicProfile?: boolean; onboardingCompleted?: boolean }): Promise<User> {
+    const [updated] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+    return updated;
   }
 }
 

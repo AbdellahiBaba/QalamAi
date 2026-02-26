@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Feather,
   LogOut,
@@ -27,6 +29,8 @@ import {
   Crown,
   CalendarDays,
   Lock,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
@@ -40,11 +44,17 @@ export default function Profile() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [publicProfile, setPublicProfile] = useState(false);
 
   useEffect(() => {
     if (user) {
       setFirstName(user.firstName || "");
       setLastName(user.lastName || "");
+      setDisplayName((user as any).displayName || "");
+      setBio((user as any).bio || "");
+      setPublicProfile((user as any).publicProfile || false);
     }
   }, [user]);
 
@@ -53,8 +63,8 @@ export default function Profile() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { firstName: string; lastName: string }) => {
-      const res = await apiRequest("PATCH", "/api/auth/profile", data);
+    mutationFn: async (data: { firstName: string; lastName: string; displayName?: string; bio?: string; publicProfile?: boolean }) => {
+      const res = await apiRequest("PATCH", "/api/profile", data);
       return res.json();
     },
     onSuccess: () => {
@@ -67,7 +77,7 @@ export default function Profile() {
   });
 
   const handleSaveProfile = () => {
-    updateProfileMutation.mutate({ firstName, lastName });
+    updateProfileMutation.mutate({ firstName, lastName, displayName, bio, publicProfile });
   };
 
   const totalSpending = projects
@@ -213,7 +223,7 @@ export default function Profile() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                <h3 className="font-semibold">تعديل الاسم</h3>
+                <h3 className="font-semibold">تعديل الملف الشخصي</h3>
               </CardHeader>
               <CardContent className="p-6 pt-0 space-y-4">
                 <div className="space-y-2">
@@ -234,6 +244,42 @@ export default function Profile() {
                     data-testid="input-last-name"
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">اسم العرض العام</label>
+                  <Input
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="الاسم الذي يظهر للزوار"
+                    data-testid="input-display-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">نبذة عنك</label>
+                  <Textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="اكتب نبذة مختصرة عن نفسك..."
+                    className="min-h-[80px]"
+                    data-testid="input-bio"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-muted-foreground" />
+                    <label className="text-sm">ملف شخصي عام</label>
+                  </div>
+                  <Switch
+                    checked={publicProfile}
+                    onCheckedChange={setPublicProfile}
+                    data-testid="switch-public-profile"
+                  />
+                </div>
+                {publicProfile && user && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <ExternalLink className="w-3 h-3" />
+                    <span>صفحتك العامة: /author/{user.id}</span>
+                  </div>
+                )}
                 <Button
                   onClick={handleSaveProfile}
                   disabled={updateProfileMutation.isPending}

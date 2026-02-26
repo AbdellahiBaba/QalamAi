@@ -5,15 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/components/theme-provider";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { NovelProject } from "@shared/schema";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import type { NovelProject, Notification } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Crown } from "lucide-react";
+import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -29,6 +34,39 @@ export default function Home() {
   const { data: projectStats } = useQuery<Record<number, { realWordCount: number; realPageCount: number }>>({
     queryKey: ["/api/projects/stats"],
     enabled: !!projects && projects.length > 0,
+  });
+
+  const { data: notifications } = useQuery<Notification[]>({
+    queryKey: ["/api/notifications"],
+  });
+
+  const { data: unreadCountData } = useQuery<{ count: number }>({
+    queryKey: ["/api/notifications/unread-count"],
+    refetchInterval: 30000,
+  });
+
+  const unreadCount = unreadCountData?.count ?? 0;
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/notifications/read-all"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+    },
+  });
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [, navigate] = useLocation();
+
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [selectedProjectType, setSelectedProjectType] = useState<string | null>(null);
+  const showOnboarding = user && !user.onboardingCompleted;
+
+  const onboardingMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/user/onboarding-complete"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    },
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -166,6 +204,62 @@ export default function Home() {
             <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
+            <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -left-0.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1" data-testid="badge-unread-count">
+                      {unreadCount > 99 ? "٩٩+" : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" dir="rtl" className="w-80 p-0" data-testid="dropdown-notifications">
+                <div className="flex items-center justify-between gap-2 p-3 border-b">
+                  <span className="font-semibold text-sm">الإشعارات</span>
+                  {unreadCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => markAllReadMutation.mutate()}
+                      disabled={markAllReadMutation.isPending}
+                      data-testid="button-mark-all-read"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5 ml-1" />
+                      تعيين الكل كمقروء
+                    </Button>
+                  )}
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications && notifications.length > 0 ? (
+                    notifications.map((notif) => (
+                      <a
+                        key={notif.id}
+                        href={notif.link || "#"}
+                        className={`block p-3 border-b last:border-b-0 hover-elevate ${!notif.read ? "bg-primary/5" : ""}`}
+                        data-testid={`notification-item-${notif.id}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-medium text-sm" data-testid={`notification-title-${notif.id}`}>{notif.title}</span>
+                          {!notif.read && (
+                            <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2" data-testid={`notification-message-${notif.id}`}>{notif.message}</p>
+                        <span className="text-[10px] text-muted-foreground mt-1 block" data-testid={`notification-time-${notif.id}`}>
+                          {new Date(notif.createdAt).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </a>
+                    ))
+                  ) : (
+                    <div className="p-6 text-center text-sm text-muted-foreground" data-testid="text-no-notifications">
+                      لا توجد إشعارات
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
             <Link href="/tickets">
               <Button variant="ghost" size="sm" data-testid="link-tickets">
                 <TicketCheck className="w-4 h-4 ml-1" />
@@ -490,6 +584,191 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      <Dialog open={!!showOnboarding} onOpenChange={(open) => { if (!open) onboardingMutation.mutate(); }}>
+        <DialogContent dir="rtl" className="max-w-xl" data-testid="dialog-onboarding">
+          <DialogHeader className="text-center sm:text-center">
+            <DialogTitle className="font-serif text-2xl" data-testid="text-onboarding-title">
+              {onboardingStep === 1 && "مرحباً بك في QalamAI"}
+              {onboardingStep === 2 && "اختر نوع مشروعك"}
+              {onboardingStep === 3 && "جولة سريعة"}
+              {onboardingStep === 4 && "أنت جاهز!"}
+            </DialogTitle>
+            <DialogDescription data-testid="text-onboarding-description">
+              {onboardingStep === 1 && "منصة الكتابة الإبداعية بالذكاء الاصطناعي"}
+              {onboardingStep === 2 && "حدد نوع المشروع الذي تريد البدء به"}
+              {onboardingStep === 3 && "تعرّف على أهم مزايا لوحة التحكم"}
+              {onboardingStep === 4 && "ابدأ رحلتك الإبداعية الآن"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4" data-testid={`onboarding-step-${onboardingStep}`}>
+            {onboardingStep === 1 && (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                  <Sparkles className="w-8 h-8 text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                  QalamAI هي منصتك الذكية للكتابة الإبداعية باللغة العربية.
+                  يساعدك أبو هاشم — مساعد الكتابة بالذكاء الاصطناعي — في تأليف الروايات والمقالات والسيناريوهات بأسلوب احترافي وسلس.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-sm font-medium text-primary">
+                  <PenTool className="w-4 h-4" />
+                  <span>أبو هاشم — رفيقك في الكتابة</span>
+                </div>
+              </div>
+            )}
+
+            {onboardingStep === 2 && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Card
+                  className={`cursor-pointer hover-elevate ${selectedProjectType === "novel" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("novel")}
+                  data-testid="card-project-type-novel"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center mx-auto">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                    </div>
+                    <h4 className="font-semibold text-sm">رواية</h4>
+                    <p className="text-xs text-muted-foreground">أنشئ رواية كاملة بفصول مترابطة</p>
+                  </CardContent>
+                </Card>
+                <Card
+                  className={`cursor-pointer hover-elevate ${selectedProjectType === "essay" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("essay")}
+                  data-testid="card-project-type-essay"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto">
+                      <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h4 className="font-semibold text-sm">مقال</h4>
+                    <p className="text-xs text-muted-foreground">اكتب مقالات احترافية ومنظمة</p>
+                  </CardContent>
+                </Card>
+                <Card
+                  className={`cursor-pointer hover-elevate ${selectedProjectType === "scenario" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("scenario")}
+                  data-testid="card-project-type-scenario"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto">
+                      <Film className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <h4 className="font-semibold text-sm">سيناريو</h4>
+                    <p className="text-xs text-muted-foreground">صمم سيناريو درامي أو سينمائي</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {onboardingStep === 3 && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                    <List className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-1">قائمة المشاريع</h4>
+                    <p className="text-xs text-muted-foreground">تابع جميع مشاريعك الإبداعية من مكان واحد مع إحصائيات تفصيلية</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-md bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                    <PenTool className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-1">أدوات الكتابة</h4>
+                    <p className="text-xs text-muted-foreground">استخدم أبو هاشم لتوليد المخططات والفصول والتحرير بمساعدة الذكاء الاصطناعي</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-md bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+                    <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-1">التصدير والنشر</h4>
+                    <p className="text-xs text-muted-foreground">صدّر مشاريعك بصيغة PDF جاهزة للطباعة أو النشر الرقمي</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {onboardingStep === 4 && (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
+                  <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                  أنت الآن مستعد لبدء الكتابة! يمكنك إنشاء مشروعك الأول أو استكشاف لوحة التحكم.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-1.5">
+              {[1, 2, 3, 4].map((s) => (
+                <div
+                  key={s}
+                  className={`w-2 h-2 rounded-full transition-colors ${s === onboardingStep ? "bg-primary" : "bg-muted"}`}
+                  data-testid={`onboarding-dot-${s}`}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="link"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => onboardingMutation.mutate()}
+                data-testid="button-onboarding-skip"
+              >
+                تخطي
+              </Button>
+              {onboardingStep > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOnboardingStep((s) => s - 1)}
+                  data-testid="button-onboarding-back"
+                >
+                  السابق
+                </Button>
+              )}
+              {onboardingStep < 4 ? (
+                <Button
+                  size="sm"
+                  onClick={() => setOnboardingStep((s) => s + 1)}
+                  data-testid="button-onboarding-next"
+                >
+                  التالي
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    onboardingMutation.mutate();
+                    if (selectedProjectType) {
+                      const routes: Record<string, string> = {
+                        novel: "/project/new",
+                        essay: "/project/new/essay",
+                        scenario: "/project/new/scenario",
+                      };
+                      navigate(routes[selectedProjectType]);
+                    }
+                  }}
+                  disabled={onboardingMutation.isPending}
+                  data-testid="button-onboarding-start"
+                >
+                  <Sparkles className="w-4 h-4 ml-2" />
+                  ابدأ الآن
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

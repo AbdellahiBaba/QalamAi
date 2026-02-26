@@ -20,6 +20,7 @@ import { useState } from "react";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
+  { label: "المعرض", href: "/gallery" },
   { label: "من نحن", href: "/about" },
   { label: "المميزات", href: "/features" },
   { label: "الأسعار", href: "/pricing" },

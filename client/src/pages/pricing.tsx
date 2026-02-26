@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers, Loader2, CheckCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers, Loader2, CheckCircle, Tag, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -168,6 +169,8 @@ export default function Pricing() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [validatedPromo, setValidatedPromo] = useState<{ code: string; discountPercent: number; applicableTo: string } | null>(null);
 
   const { data: authUser } = useQuery<any>({
     queryKey: ["/api/auth/user"],
@@ -181,9 +184,33 @@ export default function Pricing() {
   const userPlan = planData?.plan || "free";
   const isLoggedIn = !!authUser;
 
+  const validatePromoMutation = useMutation({
+    mutationFn: async ({ code, planType }: { code: string; planType: string }) => {
+      const res = await apiRequest("POST", "/api/promo/validate", { code, planType });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      if (data.valid) {
+        setValidatedPromo({ code: data.code, discountPercent: data.discountPercent, applicableTo: data.applicableTo });
+        toast({ title: `تم تطبيق كود الخصم: ${data.discountPercent}%` });
+      } else {
+        setValidatedPromo(null);
+        toast({ title: data.message || "كود الخصم غير صالح", variant: "destructive" });
+      }
+    },
+    onError: () => {
+      setValidatedPromo(null);
+      toast({ title: "كود الخصم غير صالح أو منتهي الصلاحية", variant: "destructive" });
+    },
+  });
+
   const purchaseMutation = useMutation({
     mutationFn: async (plan: string) => {
-      const res = await apiRequest("POST", "/api/plans/purchase", { plan });
+      const body: any = { plan };
+      if (validatedPromo) {
+        body.promoCode = validatedPromo.code;
+      }
+      const res = await apiRequest("POST", "/api/plans/purchase", body);
       return res.json();
     },
     onSuccess: (data) => {
@@ -282,6 +309,59 @@ export default function Pricing() {
               <span>خطتك الحالية: {userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : userPlan}</span>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="pb-8 px-6">
+        <div className="max-w-md mx-auto">
+          <Card data-testid="card-promo-code">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">كود خصم</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder="أدخل كود الخصم"
+                  className="flex-1"
+                  data-testid="input-promo-code"
+                />
+                <Button
+                  size="default"
+                  onClick={() => {
+                    if (!promoCode.trim()) return;
+                    validatePromoMutation.mutate({ code: promoCode.trim(), planType: "" });
+                  }}
+                  disabled={!promoCode.trim() || validatePromoMutation.isPending}
+                  data-testid="button-apply-promo"
+                >
+                  {validatePromoMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "تطبيق"
+                  )}
+                </Button>
+              </div>
+              {validatedPromo && (
+                <div className="flex items-center gap-2" data-testid="text-promo-applied">
+                  <Badge variant="default" className="bg-green-600" data-testid="badge-promo-discount">
+                    خصم {validatedPromo.discountPercent}%
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">تم تطبيق الكود بنجاح</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setValidatedPromo(null); setPromoCode(""); }}
+                    data-testid="button-remove-promo"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </section>
 

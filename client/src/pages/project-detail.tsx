@@ -16,12 +16,14 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { generateChapterPreviewPDF } from "@/lib/pdf-generator";
 import { useAuth } from "@/hooks/use-auth";
-import type { NovelProject, Character, Chapter, CharacterRelationship, ChapterVersion } from "@shared/schema";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import type { NovelProject, Character, Chapter, CharacterRelationship, ChapterVersion, Bookmark as BookmarkType } from "@shared/schema";
 import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 
 interface ProjectData extends NovelProject {
@@ -114,6 +116,11 @@ export default function ProjectDetail() {
   const [rewrittenResult, setRewrittenResult] = useState<string | null>(null);
   const [versionHistoryChapterId, setVersionHistoryChapterId] = useState<number | null>(null);
   const [confirmRestoreVersion, setConfirmRestoreVersion] = useState<{ chapterId: number; versionId: number } | null>(null);
+  const [originalityChapterId, setOriginalityChapterId] = useState<number | null>(null);
+  const [originalityResult, setOriginalityResult] = useState<any>(null);
+  const [bookmarkNote, setBookmarkNote] = useState("");
+  const [bookmarkChapterId, setBookmarkChapterId] = useState<number | null>(null);
+  const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -197,6 +204,55 @@ export default function ProjectDetail() {
     },
     onError: (err: any) => {
       toast({ title: err?.message || "فشل في إعادة كتابة النص", variant: "destructive" });
+    },
+  });
+
+  const { data: readingProgressData } = useQuery<{ lastChapterId: number | null; scrollPosition: number }>({
+    queryKey: ["/api/projects", projectId, "progress"],
+    enabled: !!projectId && !!authUser,
+  });
+
+  const { data: bookmarksData, isLoading: bookmarksLoading } = useQuery<BookmarkType[]>({
+    queryKey: ["/api/projects", projectId, "bookmarks"],
+    enabled: !!projectId && !!authUser,
+  });
+
+  const saveProgressMutation = useMutation({
+    mutationFn: async (lastChapterId: number) => {
+      const res = await apiRequest("PUT", `/api/projects/${projectId}/progress`, { lastChapterId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "progress"] });
+    },
+  });
+
+  const addBookmarkMutation = useMutation({
+    mutationFn: async ({ chapterId, note }: { chapterId: number; note?: string }) => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/bookmarks`, { chapterId, note });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "bookmarks"] });
+      setBookmarkChapterId(null);
+      setBookmarkNote("");
+      toast({ title: "تمت إضافة الإشارة المرجعية" });
+    },
+    onError: () => {
+      toast({ title: "فشل في إضافة الإشارة المرجعية", variant: "destructive" });
+    },
+  });
+
+  const originalityCheckMutation = useMutation({
+    mutationFn: async (chapterId: number) => {
+      const res = await apiRequest("POST", `/api/chapters/${chapterId}/originality-check`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setOriginalityResult(data);
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "فشل في فحص الأصالة", variant: "destructive" });
     },
   });
 
@@ -679,8 +735,56 @@ export default function ProjectDetail() {
           </Card>
         )}
 
+        {readingProgressData?.lastChapterId && (
+          <div className="mb-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setActiveTab("chapters");
+                setExpandedChapter(readingProgressData.lastChapterId!);
+              }}
+              data-testid="button-continue-reading"
+            >
+              <BookOpen className="w-4 h-4 ml-2" />
+              متابعة القراءة
+            </Button>
+          </div>
+        )}
+
+        {bookmarksData && bookmarksData.length > 0 && (
+          <Card className="mb-4">
+            <CardContent className="p-4 space-y-2">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <BookmarkCheck className="w-4 h-4 text-primary" />
+                الإشارات المرجعية ({bookmarksData.length})
+              </h4>
+              <div className="flex flex-wrap items-center gap-2">
+                {bookmarksData.map((bm) => {
+                  const ch = project.chapters?.find(c => c.id === bm.chapterId);
+                  return (
+                    <Button
+                      key={bm.id}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setActiveTab("chapters");
+                        setExpandedChapter(bm.chapterId);
+                      }}
+                      data-testid={`button-bookmark-${bm.id}`}
+                    >
+                      <Bookmark className="w-3.5 h-3.5 ml-1 text-primary" />
+                      {ch ? `${labels.chapterSingular} ${ch.chapterNumber}` : `#${bm.chapterId}`}
+                      {bm.note && <span className="text-xs text-muted-foreground mr-1">({bm.note})</span>}
+                    </Button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full max-w-full sm:max-w-md ${project.projectType === "essay" ? "grid-cols-2" : "grid-cols-3"}`}>
+          <TabsList className={`grid w-full max-w-full sm:max-w-md ${project.projectType === "essay" ? "grid-cols-3" : "grid-cols-4"}`}>
             <TabsTrigger value="overview" data-testid="tab-overview">
               <BookOpen className="w-4 h-4 ml-1.5" />
               نظرة عامة
@@ -694,6 +798,10 @@ export default function ProjectDetail() {
             <TabsTrigger value="chapters" data-testid="tab-chapters">
               <FileText className="w-4 h-4 ml-1.5" />
               {labels.chaptersLabel}
+            </TabsTrigger>
+            <TabsTrigger value="glossary" data-testid="tab-glossary">
+              <List className="w-4 h-4 ml-1.5" />
+              الفهرس
             </TabsTrigger>
           </TabsList>
 
@@ -1031,7 +1139,12 @@ export default function ProjectDetail() {
                       <button
                         type="button"
                         className="w-full p-4 sm:p-6 flex items-center justify-between gap-2 sm:gap-4 text-right"
-                        onClick={() => setExpandedChapter(isExpanded ? null : chapter.id)}
+                        onClick={() => {
+                          setExpandedChapter(isExpanded ? null : chapter.id);
+                          if (!isExpanded && chapter.status === "completed") {
+                            saveProgressMutation.mutate(chapter.id);
+                          }
+                        }}
                         data-testid={`button-chapter-${chapter.id}`}
                       >
                         <div className="flex items-center gap-3">
@@ -1182,6 +1295,38 @@ export default function ProjectDetail() {
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setBookmarkChapterId(chapter.id);
+                                      setBookmarkNote("");
+                                    }}
+                                    data-testid={`button-bookmark-chapter-${chapter.id}`}
+                                  >
+                                    <Bookmark className="w-3.5 h-3.5 ml-1" />
+                                    إشارة مرجعية
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOriginalityChapterId(chapter.id);
+                                      setOriginalityResult(null);
+                                      originalityCheckMutation.mutate(chapter.id);
+                                    }}
+                                    disabled={originalityCheckMutation.isPending && originalityChapterId === chapter.id}
+                                    data-testid={`button-originality-check-${chapter.id}`}
+                                  >
+                                    {originalityCheckMutation.isPending && originalityChapterId === chapter.id ? (
+                                      <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                                    ) : (
+                                      <Shield className="w-3.5 h-3.5 ml-1" />
+                                    )}
+                                    فحص الأصالة
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
                                     onClick={async (e) => {
                                       e.stopPropagation();
                                       try {
@@ -1266,7 +1411,167 @@ export default function ProjectDetail() {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="glossary" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
+                <List className="w-5 h-5 text-primary" />
+                الفهرس
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isGeneratingGlossary}
+                onClick={async () => {
+                  setIsGeneratingGlossary(true);
+                  try {
+                    const res = await apiRequest("POST", `/api/projects/${projectId}/generate-glossary`);
+                    await res.json();
+                    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                    toast({ title: "تم إنشاء الفهرس بنجاح" });
+                  } catch {
+                    toast({ title: "فشل في إنشاء الفهرس", variant: "destructive" });
+                  } finally {
+                    setIsGeneratingGlossary(false);
+                  }
+                }}
+                data-testid="button-generate-glossary"
+              >
+                {isGeneratingGlossary ? (
+                  <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ إنشاء الفهرس...</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5 ml-1" /> {project.glossary ? "إعادة إنشاء الفهرس" : "إنشاء فهرس"}</>
+                )}
+              </Button>
+            </div>
+            {project.glossary ? (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="font-serif text-sm leading-loose whitespace-pre-wrap" data-testid="text-glossary-content">
+                    {project.glossary}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <List className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p data-testid="text-no-glossary">لا يوجد فهرس بعد. اضغط على "إنشاء فهرس" لإنشائه تلقائياً.</p>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
+
+        <Dialog open={bookmarkChapterId !== null} onOpenChange={(open) => { if (!open) setBookmarkChapterId(null); }}>
+          <DialogContent dir="rtl">
+            <DialogHeader>
+              <DialogTitle data-testid="text-bookmark-dialog-title">إضافة إشارة مرجعية</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label data-testid="label-bookmark-note">ملاحظة (اختياري)</Label>
+                <Input
+                  value={bookmarkNote}
+                  onChange={(e) => setBookmarkNote(e.target.value)}
+                  placeholder="أضف ملاحظة..."
+                  data-testid="input-bookmark-note"
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  if (bookmarkChapterId) {
+                    addBookmarkMutation.mutate({ chapterId: bookmarkChapterId, note: bookmarkNote || undefined });
+                  }
+                }}
+                disabled={addBookmarkMutation.isPending}
+                data-testid="button-save-bookmark"
+              >
+                {addBookmarkMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ الحفظ...</>
+                ) : (
+                  <><Bookmark className="w-4 h-4 ml-2" /> حفظ الإشارة المرجعية</>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={originalityChapterId !== null && (!!originalityResult || originalityCheckMutation.isPending)} onOpenChange={(open) => { if (!open) { setOriginalityChapterId(null); setOriginalityResult(null); } }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
+            <DialogHeader>
+              <DialogTitle data-testid="text-originality-dialog-title">فحص الأصالة</DialogTitle>
+            </DialogHeader>
+            {originalityCheckMutation.isPending ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="mr-2 text-sm text-muted-foreground">جارٍ فحص الأصالة...</span>
+              </div>
+            ) : originalityResult ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3" data-testid="text-originality-score">
+                  <span className="text-sm font-medium">درجة الأصالة:</span>
+                  <Badge
+                    variant="default"
+                    className={
+                      originalityResult.score >= 80
+                        ? "bg-green-600"
+                        : originalityResult.score >= 50
+                        ? "bg-yellow-500"
+                        : "bg-red-600"
+                    }
+                    data-testid="badge-originality-score"
+                  >
+                    {originalityResult.score}%
+                  </Badge>
+                </div>
+                {originalityResult.analysis && (
+                  <div data-testid="text-originality-analysis">
+                    <h4 className="text-sm font-medium mb-1">التحليل</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{originalityResult.analysis}</p>
+                  </div>
+                )}
+                {originalityResult.flaggedPhrases && originalityResult.flaggedPhrases.length > 0 && (
+                  <div data-testid="text-originality-flagged">
+                    <h4 className="text-sm font-medium mb-1">عبارات مشبوهة</h4>
+                    <ul className="space-y-1">
+                      {originalityResult.flaggedPhrases.map((phrase: string, i: number) => (
+                        <li key={i} className="text-sm text-red-600 dark:text-red-400 flex items-start gap-1">
+                          <span className="shrink-0 mt-1 w-1.5 h-1.5 rounded-full bg-red-500" />
+                          {phrase}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {originalityResult.strengths && originalityResult.strengths.length > 0 && (
+                  <div data-testid="text-originality-strengths">
+                    <h4 className="text-sm font-medium mb-1">نقاط القوة</h4>
+                    <ul className="space-y-1">
+                      {originalityResult.strengths.map((s: string, i: number) => (
+                        <li key={i} className="text-sm text-green-600 dark:text-green-400 flex items-start gap-1">
+                          <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {originalityResult.suggestions && originalityResult.suggestions.length > 0 && (
+                  <div data-testid="text-originality-suggestions">
+                    <h4 className="text-sm font-medium mb-1">اقتراحات التحسين</h4>
+                    <ul className="space-y-1">
+                      {originalityResult.suggestions.map((s: string, i: number) => (
+                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-1">
+                          <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary" />
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={!!previewPdfUrl} onOpenChange={(open) => { if (!open) { if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl); setPreviewPdfUrl(null); } }}>
           <DialogContent className="max-w-4xl h-[85vh]">

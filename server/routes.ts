@@ -3,9 +3,9 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildRewritePrompt } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt } from "./abu-hashim";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -694,6 +694,13 @@ export async function registerRoutes(
         if (projectOwner?.email) {
           sendNovelCompletionEmail(projectOwner.email, project.title, projectId, project.projectType || "novel").catch(() => {});
         }
+        storage.createNotification({
+          userId: project.userId,
+          type: "project_completed",
+          title: "مشروعك مكتمل!",
+          message: `مشروعك "${project.title}" مكتمل الآن. يمكنك تحميله.`,
+          link: `/project/${projectId}`,
+        }).catch(() => {});
       }
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
@@ -1303,6 +1310,15 @@ ${paragraphs}
       if (ticket.email) {
         sendTicketReplyEmail(ticket.email, ticket.subject, message, id).catch(() => {});
       }
+      if (ticket.userId) {
+        storage.createNotification({
+          userId: ticket.userId,
+          type: "ticket_reply",
+          title: "رد جديد على تذكرتك",
+          message: `تم الرد على تذكرتك "${ticket.subject}".`,
+          link: `/tickets/${id}`,
+        }).catch(() => {});
+      }
       res.status(201).json(reply);
     } catch (error) {
       console.error("Error creating reply:", error);
@@ -1475,6 +1491,360 @@ ${paragraphs}
     } catch (error) {
       console.error("Error fetching analytics:", error);
       res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // ===== Notification Routes =====
+  app.get("/api/notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const notifs = await storage.getNotificationsByUser(userId);
+      res.json(notifs);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch count" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const notifs = await storage.getNotificationsByUser(req.user.claims.sub, 1000);
+      const owned = notifs.find(n => n.id === id);
+      if (!owned) return res.status(403).json({ error: "Forbidden" });
+      const updated = await storage.markNotificationRead(id);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark as read" });
+    }
+  });
+
+  app.patch("/api/notifications/read-all", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.markAllNotificationsRead(userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to mark all as read" });
+    }
+  });
+
+  // ===== Promo Code Routes =====
+  app.post("/api/promo/validate", async (req: any, res) => {
+    try {
+      const { code, planType } = req.body;
+      if (!code) return res.status(400).json({ error: "الرمز مطلوب" });
+      const promo = await storage.getPromoCode(code.toUpperCase());
+      if (!promo || !promo.active) return res.status(404).json({ error: "رمز غير صالح" });
+      if (promo.validUntil && new Date(promo.validUntil) < new Date()) return res.status(400).json({ error: "انتهت صلاحية الرمز" });
+      if (promo.maxUses && promo.usedCount >= promo.maxUses) return res.status(400).json({ error: "تم استخدام الرمز بالكامل" });
+      if (promo.applicableTo !== "all" && planType && planType !== "" && promo.applicableTo !== planType) return res.status(400).json({ error: "الرمز غير قابل للتطبيق على هذه الخطة" });
+      res.json({ valid: true, discountPercent: promo.discountPercent, code: promo.code, applicableTo: promo.applicableTo });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to validate promo" });
+    }
+  });
+
+  app.get("/api/admin/promos", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const promos = await storage.getAllPromoCodes();
+      res.json(promos);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch promos" });
+    }
+  });
+
+  app.post("/api/admin/promos", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { code, discountPercent, maxUses, validUntil, applicableTo } = req.body;
+      if (!code || !discountPercent) return res.status(400).json({ error: "الرمز والنسبة مطلوبان" });
+      const promo = await storage.createPromoCode({
+        code: code.toUpperCase(),
+        discountPercent: parseInt(discountPercent),
+        maxUses: maxUses ? parseInt(maxUses) : undefined,
+        validUntil: validUntil ? new Date(validUntil) : undefined,
+        applicableTo: applicableTo || "all",
+      });
+      res.status(201).json(promo);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create promo" });
+    }
+  });
+
+  // ===== Reading Progress & Bookmarks =====
+  app.put("/api/projects/:id/progress", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const { lastChapterId, scrollPosition } = req.body;
+      const progress = await storage.upsertReadingProgress(userId, projectId, lastChapterId, scrollPosition);
+      res.json(progress);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save progress" });
+    }
+  });
+
+  app.get("/api/projects/:id/progress", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const progress = await storage.getReadingProgress(userId, projectId);
+      res.json(progress || null);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch progress" });
+    }
+  });
+
+  app.post("/api/projects/:id/bookmarks", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const { chapterId, note } = req.body;
+      if (!chapterId) return res.status(400).json({ error: "chapterId required" });
+      const bookmark = await storage.createBookmark({ userId, projectId, chapterId, note });
+      res.status(201).json(bookmark);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create bookmark" });
+    }
+  });
+
+  app.get("/api/projects/:id/bookmarks", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const bmarks = await storage.getBookmarksByProject(userId, projectId);
+      res.json(bmarks);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch bookmarks" });
+    }
+  });
+
+  app.delete("/api/bookmarks/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const allBookmarks = await db.select().from(bookmarks).where(eq(bookmarks.id, id));
+      if (!allBookmarks.length || allBookmarks[0].userId !== userId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      await storage.deleteBookmark(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete bookmark" });
+    }
+  });
+
+  // ===== Author Profiles & Gallery =====
+  app.get("/api/authors/:id", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const data = await storage.getPublicAuthor(userId);
+      if (!data) return res.status(404).json({ error: "Author not found" });
+      res.json({
+        id: data.user.id,
+        displayName: data.user.displayName || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim(),
+        bio: data.user.bio,
+        profileImageUrl: data.user.profileImageUrl,
+        projects: data.projects.map(p => ({
+          id: p.id,
+          title: p.title,
+          projectType: p.projectType,
+          coverImageUrl: p.coverImageUrl,
+          shareToken: p.shareToken,
+          mainIdea: p.mainIdea?.slice(0, 200),
+        })),
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch author" });
+    }
+  });
+
+  app.get("/api/gallery", async (_req, res) => {
+    try {
+      const projects = await storage.getGalleryProjects();
+      res.json(projects.map(p => ({
+        id: p.id,
+        title: p.title,
+        projectType: p.projectType,
+        coverImageUrl: p.coverImageUrl,
+        shareToken: p.shareToken,
+        mainIdea: p.mainIdea?.slice(0, 200),
+        authorName: p.authorName,
+        authorId: p.authorId,
+      })));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch gallery" });
+    }
+  });
+
+  // ===== Profile Extended Update =====
+  app.patch("/api/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted } = req.body;
+      const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  // ===== Content Moderation (Admin) =====
+  app.get("/api/admin/projects/:id/content", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const details = await storage.getProjectWithDetails(id);
+      if (!details) return res.status(404).json({ error: "Project not found" });
+      const { chapters: chaps, characters: chars, relationships: rels, ...projectData } = details;
+      res.json({ project: projectData, chapters: chaps, characters: chars, relationships: rels });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch project content" });
+    }
+  });
+
+  app.patch("/api/admin/projects/:id/flag", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { flagged, flagReason } = req.body;
+      const updated = await storage.updateProject(id, { flagged: !!flagged, flagReason: flagReason || null } as any);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to flag project" });
+    }
+  });
+
+  // ===== Bulk User Management (Admin) =====
+  app.get("/api/admin/users/export", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const rows = [["ID", "الاسم", "البريد", "الخطة", "الدور", "تاريخ التسجيل"].join(",")];
+      for (const u of allUsers) {
+        const name = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        const projectCount = await storage.getUserProjectCount(u.id);
+        rows.push([u.id, `"${name}"`, u.email || '', u.plan || 'free', u.role || 'user', u.createdAt?.toISOString() || ''].join(","));
+      }
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=users.csv");
+      res.send("\uFEFF" + rows.join("\n"));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to export users" });
+    }
+  });
+
+  app.patch("/api/admin/users/bulk-plan", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userIds, plan } = req.body;
+      const validPlans = ["free", "essay", "scenario", "all_in_one"];
+      if (!Array.isArray(userIds) || !plan || !validPlans.includes(plan)) {
+        return res.status(400).json({ error: "بيانات غير صالحة" });
+      }
+      for (const userId of userIds) {
+        await storage.updateUserPlan(userId, plan);
+        if (plan !== "free") {
+          const projects = await storage.getProjectsByUser(userId);
+          for (const p of projects) {
+            if (!p.paid && userPlanCoversType(plan, p.projectType || "novel")) {
+              await storage.updateProjectPayment(p.id, true);
+            }
+          }
+        }
+      }
+      res.json({ success: true, updated: userIds.length });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update plans" });
+    }
+  });
+
+  // ===== Originality Check =====
+  app.post("/api/chapters/:id/originality-check", isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!chapter.content) return res.status(400).json({ error: "لا يوجد محتوى للفحص" });
+
+      const { system, user } = buildOriginalityCheckPrompt(chapter.content);
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 4096,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const result = JSON.parse(jsonMatch[0]);
+          return res.json(result);
+        } catch {}
+      }
+      res.json({ score: 0, analysis: content, flaggedPhrases: [] });
+    } catch (error) {
+      console.error("Error checking originality:", error);
+      res.status(500).json({ error: "فشل في فحص الأصالة" });
+    }
+  });
+
+  // ===== Glossary Generation =====
+  app.post("/api/projects/:id/generate-glossary", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const project = await storage.getProjectWithDetails(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      const allContent = project.chapters
+        .filter((ch: any) => ch.content)
+        .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
+        .map((ch: any) => `الفصل ${ch.chapterNumber}: ${ch.title}\n${ch.content}`)
+        .join("\n\n---\n\n");
+
+      if (!allContent) return res.status(400).json({ error: "لا يوجد محتوى لإنشاء الفهرس" });
+
+      const { system, user } = buildGlossaryPrompt(allContent, project.title, project.projectType || "novel");
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 8192,
+      });
+
+      const glossaryContent = response.choices[0]?.message?.content || "";
+      await storage.updateProject(id, { glossary: glossaryContent } as any);
+      res.json({ glossary: glossaryContent });
+    } catch (error) {
+      console.error("Error generating glossary:", error);
+      res.status(500).json({ error: "فشل في إنشاء الفهرس" });
+    }
+  });
+
+  // ===== Onboarding =====
+  app.patch("/api/user/onboarding-complete", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const updated = await storage.updateUserProfileExtended(userId, { onboardingCompleted: true });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update onboarding" });
     }
   });
 
