@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
-  Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard, AlertTriangle
+  Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard, AlertTriangle, RefreshCw
 } from "lucide-react";
 import { generateNovelPDF } from "@/lib/pdf-generator";
+import { useAuth } from "@/hooks/use-auth";
 import type { NovelProject, Character, Chapter, CharacterRelationship } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 
@@ -26,12 +27,16 @@ export default function ProjectDetail() {
   const [, params] = useRoute("/project/:id");
   const projectId = params?.id;
   const { toast } = useToast();
+  const { user: authUser } = useAuth();
+  const FREE_ACCESS_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+  const hasFreeAccess = !!(authUser && FREE_ACCESS_IDS.includes(authUser.id));
   const [activeTab, setActiveTab] = useState("overview");
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
   const [generatingChapter, setGeneratingChapter] = useState<number | null>(null);
   const [streamedContent, setStreamedContent] = useState("");
   const [generationProgress, setGenerationProgress] = useState<{ currentPart: number; totalParts: number } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -374,7 +379,7 @@ export default function ProjectDetail() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {!project.paid && (
+        {!project.paid && !hasFreeAccess && (
           <Card className="mb-6 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
@@ -507,7 +512,7 @@ export default function ProjectDetail() {
                   {!project.outline && (
                     <Button
                       onClick={() => generateOutlineMutation.mutate()}
-                      disabled={generateOutlineMutation.isPending || !project.paid}
+                      disabled={generateOutlineMutation.isPending || (!project.paid && !hasFreeAccess)}
                       data-testid="button-generate-outline"
                     >
                       {generateOutlineMutation.isPending ? (
@@ -515,7 +520,7 @@ export default function ProjectDetail() {
                           <Loader2 className="w-4 h-4 ml-2 animate-spin" />
                           جاري إنشاء المخطط...
                         </>
-                      ) : !project.paid ? (
+                      ) : (!project.paid && !hasFreeAccess) ? (
                         <>
                           <Lock className="w-4 h-4 ml-2" />
                           إنشاء المخطط (يتطلب الدفع)
@@ -531,7 +536,7 @@ export default function ProjectDetail() {
                   {project.outline && !project.outlineApproved && (
                     <Button
                       onClick={() => approveOutlineMutation.mutate()}
-                      disabled={approveOutlineMutation.isPending || !project.paid}
+                      disabled={approveOutlineMutation.isPending || (!project.paid && !hasFreeAccess)}
                       data-testid="button-approve-outline"
                     >
                       {approveOutlineMutation.isPending ? (
@@ -636,7 +641,7 @@ export default function ProjectDetail() {
                         <Button
                           size="sm"
                           onClick={() => setAutoWriteAll(true)}
-                          disabled={autoWriteAll || !project.paid || project.usedWords >= project.allowedWords}
+                          disabled={autoWriteAll || (!project.paid && !hasFreeAccess) || (!hasFreeAccess && project.usedWords >= project.allowedWords)}
                           data-testid="button-write-all-chapters"
                         >
                           {autoWriteAll ? (
@@ -686,7 +691,54 @@ export default function ProjectDetail() {
                         </div>
                         <div className="flex items-center gap-2">
                           {chapter.status === "completed" && (
-                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <>
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                              {!isGenerating && confirmRegenerate !== chapter.id && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmRegenerate(chapter.id);
+                                  }}
+                                  data-testid={`button-regenerate-chapter-${chapter.id}`}
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  إعادة كتابة
+                                </Button>
+                              )}
+                              {confirmRegenerate === chapter.id && !isGenerating && (
+                                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <span className="text-xs text-muted-foreground">متأكد؟</span>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="text-xs h-7 px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmRegenerate(null);
+                                      generateChapter(chapter.id);
+                                    }}
+                                    data-testid={`button-confirm-regenerate-${chapter.id}`}
+                                  >
+                                    نعم
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-xs h-7 px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmRegenerate(null);
+                                    }}
+                                    data-testid={`button-cancel-regenerate-${chapter.id}`}
+                                  >
+                                    لا
+                                  </Button>
+                                </div>
+                              )}
+                            </>
                           )}
                           {chapter.status === "incomplete" && !isGenerating && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
@@ -702,7 +754,7 @@ export default function ProjectDetail() {
                             <Button
                               size="sm"
                               variant="secondary"
-                              disabled={!project.paid || project.usedWords >= project.allowedWords}
+                              disabled={(!project.paid && !hasFreeAccess) || (!hasFreeAccess && project.usedWords >= project.allowedWords)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 generateChapter(chapter.id);

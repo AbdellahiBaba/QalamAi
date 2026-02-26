@@ -27,7 +27,9 @@ QalamAI is an AI-powered Arabic novel writing platform powered by the virtual li
 - Advanced narrative techniques: time refraction, polyphony, sensory immersion, interior monologue, Arabic symbolism, oral storytelling, layered dialogue, intertextuality
 - AI title suggestions: Abu Hashim suggests 5 creative Arabic novel titles based on novel context (POST /api/projects/suggest-titles)
 - Incremental save during generation (every 50 chunks)
+- Chapter regeneration: completed chapters can be rewritten with confirmation step
 - Chapter status tracking (pending, generating, incomplete, completed)
+- Free access for admin users: bypasses payment for outline/chapter generation (FREE_ACCESS_USER_IDS)
 - PDF download of completed novels
 - RTL Arabic UI with Cairo/Amiri/Noto Naskh Arabic fonts
 

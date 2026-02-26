@@ -14,6 +14,8 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+const FREE_ACCESS_USER_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -53,6 +55,11 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
       if (project.paid) return res.json({ message: "المشروع مدفوع بالفعل", alreadyPaid: true });
+
+      if (FREE_ACCESS_USER_IDS.includes(userId)) {
+        await storage.updateProjectPayment(id, true);
+        return res.json({ message: "تم تفعيل المشروع مجاناً", alreadyPaid: true });
+      }
 
       const stripe = await getUncachableStripeClient();
 
@@ -242,7 +249,8 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
-      if (!project.paid) {
+      const isFreeUser = FREE_ACCESS_USER_IDS.includes(req.user.claims.sub);
+      if (!project.paid && !isFreeUser) {
         return res.status(402).json({ error: "الرجاء إتمام الدفع لبدء كتابة الرواية." });
       }
 
@@ -323,17 +331,23 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
-      if (!project.paid) {
+      const isFreeUser = FREE_ACCESS_USER_IDS.includes(req.user.claims.sub);
+      if (!project.paid && !isFreeUser) {
         return res.status(402).json({ error: "الرجاء إتمام الدفع لبدء كتابة الرواية." });
       }
 
-      if (project.usedWords >= project.allowedWords) {
+      if (!isFreeUser && project.usedWords >= project.allowedWords) {
         await storage.updateProject(projectId, { status: "finished" });
         return res.status(403).json({ error: "تم الوصول إلى الحد الأقصى للكلمات لهذه الرواية." });
       }
 
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+
+      let oldWordCount = 0;
+      if (chapter.status === "completed" && chapter.content) {
+        oldWordCount = chapter.content.split(/\s+/).filter(w => w.length > 0).length;
+      }
 
       const chars = await storage.getCharactersByProject(projectId);
       const allChapters = await storage.getChaptersByProject(projectId);
@@ -342,7 +356,7 @@ export async function registerRoutes(
       const structure = calculateNovelStructure(project.pageCount);
       const totalParts = structure.partsPerChapter;
 
-      await storage.updateChapter(chapterId, { status: "generating" });
+      await storage.updateChapter(chapterId, { status: "generating", content: "" });
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -395,7 +409,10 @@ export async function registerRoutes(
       await storage.updateChapter(chapterId, { content: fullContent, status: "completed" });
 
       const wordCount = fullContent.split(/\s+/).filter(w => w.length > 0).length;
-      await storage.incrementUsedWords(projectId, wordCount);
+      const netWords = wordCount - oldWordCount;
+      if (netWords !== 0) {
+        await storage.incrementUsedWords(projectId, netWords);
+      }
 
       const completedCount = allChapters.filter(c => c.status === "completed" || c.id === chapterId).length;
       if (completedCount === allChapters.length) {
