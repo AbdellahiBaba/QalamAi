@@ -113,7 +113,14 @@ QalamAI is an AI-powered Arabic writing platform powered by the virtual literary
 - `POST /api/projects/:id/create-checkout` - Per-project Stripe checkout (for novels without All-in-One)
 - `GET /api/projects/stats` - Real word count and page count computed from chapter content for all user projects
 - `GET /api/projects/:id/export/epub` - EPUB export with cover image + RTL page progression
+- `POST /api/stripe/webhook` - Stripe webhook endpoint; handles `checkout.session.completed` for both plan purchases and per-project payments as backup activation
 - All other routes unchanged from original
+
+## Webhook-Based Payment Activation
+- **Backup mechanism**: If a user completes Stripe checkout but doesn't return to the app (where client-side verification runs), the Stripe webhook at `/api/stripe/webhook` automatically activates the plan or unlocks the project.
+- **Plan purchases** (`type: "plan_purchase"` in session metadata): Webhook calls `storage.updateUserPlan()` and auto-unlocks matching projects.
+- **Per-project payments** (`type: "project_payment"` in session metadata): Webhook calls `storage.updateProjectPayment()` to mark the project as paid.
+- Idempotent: skips if plan/project is already activated. Logs all actions for debugging.
 
 ## Export Features
 - **PDF**: Includes cover image as first page (full bleed), title page, then numbered chapter pages. RTL text rendering.

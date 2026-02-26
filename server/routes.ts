@@ -267,6 +267,7 @@ export async function registerRoutes(
         metadata: {
           projectId: id.toString(),
           userId,
+          type: "project_payment",
         },
       });
 
