@@ -10,6 +10,8 @@ import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
 import archiver from "archiver";
+import { createCanvas, loadImage, registerFont } from "canvas";
+import path from "path";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -17,6 +19,107 @@ const openai = new OpenAI({
 });
 
 const FREE_ACCESS_USER_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+
+try {
+  registerFont(path.join(process.cwd(), "server/fonts/Amiri-Bold.ttf"), { family: "Amiri", weight: "bold" });
+  registerFont(path.join(process.cwd(), "server/fonts/Amiri-Regular.ttf"), { family: "Amiri", weight: "normal" });
+} catch (e) {
+  console.warn("Could not register Amiri fonts for cover generation:", e);
+}
+
+async function overlayTitleOnCover(base64Image: string, title: string): Promise<string> {
+  if (!title || !title.trim()) return base64Image;
+
+  const cleanBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, "");
+  const imgBuffer = Buffer.from(cleanBase64, "base64");
+  const img = await loadImage(imgBuffer);
+
+  const canvas = createCanvas(img.width, img.height);
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(img, 0, 0);
+
+  const maxWidth = img.width * 0.85;
+  let fontSize = Math.floor(img.width * 0.08);
+  ctx.font = `bold ${fontSize}px "Amiri"`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.direction = "rtl";
+
+  const words = title.trim().split(/\s+/);
+  let lines: string[] = [];
+
+  let textWidth = ctx.measureText(title).width;
+  if (textWidth <= maxWidth) {
+    lines = [title];
+  } else {
+    let currentLine = "";
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    if (lines.length > 3) {
+      lines = lines.slice(0, 3);
+      lines[2] = lines[2] + "...";
+    }
+  }
+
+  while (lines.length > 1 && fontSize > 24) {
+    const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+    if (widest <= maxWidth) break;
+    fontSize -= 4;
+    ctx.font = `bold ${fontSize}px "Amiri"`;
+  }
+
+  const lineHeight = fontSize * 1.5;
+  const totalTextHeight = lines.length * lineHeight;
+  const bandPadding = fontSize * 0.8;
+  const bandHeight = totalTextHeight + bandPadding * 2;
+  const bandY = Math.floor(img.height * 0.06);
+
+  const gradient = ctx.createLinearGradient(0, bandY, 0, bandY + bandHeight);
+  gradient.addColorStop(0, "rgba(0, 0, 0, 0.0)");
+  gradient.addColorStop(0.2, "rgba(0, 0, 0, 0.55)");
+  gradient.addColorStop(0.8, "rgba(0, 0, 0, 0.55)");
+  gradient.addColorStop(1, "rgba(0, 0, 0, 0.0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, bandY, img.width, bandHeight);
+
+  ctx.font = `bold ${fontSize}px "Amiri"`;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "#F5E6C8";
+
+  const firstLineY = bandY + bandPadding + lineHeight / 2;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], img.width / 2, firstLineY + i * lineHeight);
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+
+  const lastLineY = firstLineY + (lines.length - 1) * lineHeight;
+  const lastLineWidth = ctx.measureText(lines[lines.length - 1]).width;
+  const decoY = lastLineY + fontSize * 0.7;
+  const decoWidth = Math.min(lastLineWidth * 0.6, img.width * 0.4);
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.6)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(img.width / 2 - decoWidth / 2, decoY);
+  ctx.lineTo(img.width / 2 + decoWidth / 2, decoY);
+  ctx.stroke();
+
+  return canvas.toBuffer("image/png").toString("base64");
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -836,7 +939,8 @@ export async function registerRoutes(
       const base64 = response.data[0]?.b64_json;
       if (!base64) return res.status(500).json({ error: "فشل في إنشاء الغلاف" });
 
-      const coverImageUrl = `data:image/png;base64,${base64}`;
+      const compositedBase64 = await overlayTitleOnCover(base64, project.title);
+      const coverImageUrl = `data:image/png;base64,${compositedBase64}`;
       await storage.updateProject(id, { coverImageUrl });
       res.json({ coverImageUrl });
     } catch (error) {
