@@ -546,7 +546,9 @@ export async function registerRoutes(
         return res.status(402).json({ error: "الرجاء إتمام الدفع أو تفعيل خطة مناسبة." });
       }
 
-      if (project.outline && project.outlineApproved === 1) {
+      const forceRegenerate = req.body?.forceRegenerate === true;
+
+      if (project.outline && project.outlineApproved === 1 && !forceRegenerate) {
         return res.status(400).json({ error: "لا يمكن إعادة إنشاء المخطط بعد اعتماده" });
       }
 
@@ -554,6 +556,9 @@ export async function registerRoutes(
         const existingChapters = await storage.getChaptersByProject(id);
         for (const ch of existingChapters) {
           await storage.deleteChapter(ch.id);
+        }
+        if (forceRegenerate && project.outlineApproved === 1) {
+          await storage.updateProject(id, { outlineApproved: 0 } as any);
         }
       }
 

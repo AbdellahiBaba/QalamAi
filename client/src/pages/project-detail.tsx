@@ -106,6 +106,7 @@ export default function ProjectDetail() {
   const [editingChapter, setEditingChapter] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [confirmOutlineRegen, setConfirmOutlineRegen] = useState(false);
+  const [showFullRegenDialog, setShowFullRegenDialog] = useState(false);
   const [suggestedChars, setSuggestedChars] = useState<Array<{ name: string; role: string; background: string; traits: string }>>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
@@ -150,6 +151,27 @@ export default function ProjectDetail() {
     },
     onError: (err: any) => {
       toast({ title: "حدث خطأ", description: err?.message || `فشل في إنشاء ${labels.outlineLabel}`, variant: "destructive" });
+    },
+  });
+
+  const fullRegenerateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/outline`, { forceRegenerate: true });
+      return res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: `تم إعادة إنشاء ${labels.outlineLabel} — جارٍ اعتماده وبدء الكتابة...` });
+      try {
+        await apiRequest("POST", `/api/projects/${projectId}/outline/approve`);
+        await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+        setAutoWriteAll(true);
+      } catch {
+        toast({ title: `تم إنشاء ${labels.outlineLabel} الجديد — يمكنك مراجعته واعتماده يدوياً`, variant: "default" });
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: "حدث خطأ في إعادة إنشاء المشروع", description: err?.message, variant: "destructive" });
     },
   });
 
@@ -1063,10 +1085,28 @@ export default function ProjectDetail() {
                     </div>
                   )}
                   {project.outlineApproved === 1 && (
-                    <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
-                      <CheckCircle className="w-4 h-4" />
-                      تمت الموافقة
-                    </span>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                        <CheckCircle className="w-4 h-4" />
+                        تمت الموافقة
+                      </span>
+                      {project.projectType !== "essay" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowFullRegenDialog(true)}
+                          disabled={fullRegenerateMutation.isPending}
+                          data-testid="button-full-regenerate"
+                        >
+                          {fullRegenerateMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3.5 h-3.5 ml-1" />
+                          )}
+                          إعادة إنشاء {labels.typeLabel} بالكامل
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
                 {project.outline ? (
@@ -1943,6 +1983,31 @@ export default function ProjectDetail() {
                 ) : (
                   "نعم، استعد النسخة"
                 )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showFullRegenDialog} onOpenChange={setShowFullRegenDialog}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle data-testid="text-full-regen-title">إعادة إنشاء {labels.typeLabel} بالكامل</AlertDialogTitle>
+              <AlertDialogDescription data-testid="text-full-regen-desc" className="space-y-2">
+                <span className="block">سيتم حذف جميع {labels.chaptersLabel} الحالية وإعادة إنشاء {labels.outlineLabel} من الصفر مع قائمة الشخصيات المحدّثة، ثم كتابة جميع {labels.chaptersLabel} تلقائياً.</span>
+                <span className="block text-destructive font-medium">تحذير: هذا الإجراء لا يمكن التراجع عنه. جميع المحتوى الحالي سيُستبدل بالكامل.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel data-testid="button-cancel-full-regen">إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowFullRegenDialog(false);
+                  fullRegenerateMutation.mutate();
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                data-testid="button-confirm-full-regen"
+              >
+                نعم، أعد إنشاء {labels.typeLabel} بالكامل
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
