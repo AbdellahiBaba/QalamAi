@@ -931,37 +931,39 @@ export default function ProjectDetail() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full max-w-full sm:max-w-lg ${project.projectType === "essay" ? "grid-cols-4" : "grid-cols-5"} sm:${project.projectType === "essay" ? "grid-cols-4" : "grid-cols-6"}`}>
-            <TabsTrigger value="overview" data-testid="tab-overview">
-              <BookOpen className="w-4 h-4 ml-1.5" />
-              <span className="hidden sm:inline">نظرة عامة</span>
-              <span className="sm:hidden">عام</span>
-            </TabsTrigger>
-            {project.projectType !== "essay" && (
-              <TabsTrigger value="characters" data-testid="tab-characters">
-                <Users className="w-4 h-4 ml-1.5" />
-                <span className="hidden sm:inline">الشخصيات</span>
-                <span className="sm:hidden">شخصيات</span>
+          <div className="overflow-x-auto -mx-1 px-1 pb-1">
+            <TabsList className="inline-flex w-auto min-w-full sm:w-full gap-1">
+              <TabsTrigger value="overview" data-testid="tab-overview" className="flex-shrink-0">
+                <BookOpen className="w-4 h-4 ml-1.5" />
+                <span className="hidden sm:inline">نظرة عامة</span>
+                <span className="sm:hidden">عام</span>
               </TabsTrigger>
-            )}
-            <TabsTrigger value="chapters" data-testid="tab-chapters">
-              <FileText className="w-4 h-4 ml-1.5" />
-              {labels.chaptersLabel}
-            </TabsTrigger>
-            <TabsTrigger value="glossary" data-testid="tab-glossary">
-              <List className="w-4 h-4 ml-1.5" />
-              الفهرس
-            </TabsTrigger>
-            <TabsTrigger value="continuity" data-testid="tab-continuity">
-              <Shield className="w-4 h-4 ml-1.5" />
-              <span className="hidden sm:inline">الاستمرارية</span>
-              <span className="sm:hidden">اتساق</span>
-            </TabsTrigger>
-            <TabsTrigger value="style" data-testid="tab-style">
-              <PenTool className="w-4 h-4 ml-1.5" />
-              الأسلوب
-            </TabsTrigger>
-          </TabsList>
+              {project.projectType !== "essay" && (
+                <TabsTrigger value="characters" data-testid="tab-characters" className="flex-shrink-0">
+                  <Users className="w-4 h-4 ml-1.5" />
+                  <span className="hidden sm:inline">الشخصيات</span>
+                  <span className="sm:hidden">شخصيات</span>
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="chapters" data-testid="tab-chapters" className="flex-shrink-0">
+                <FileText className="w-4 h-4 ml-1.5" />
+                {labels.chaptersLabel}
+              </TabsTrigger>
+              <TabsTrigger value="glossary" data-testid="tab-glossary" className="flex-shrink-0">
+                <List className="w-4 h-4 ml-1.5" />
+                الفهرس
+              </TabsTrigger>
+              <TabsTrigger value="continuity" data-testid="tab-continuity" className="flex-shrink-0">
+                <Shield className="w-4 h-4 ml-1.5" />
+                <span className="hidden sm:inline">الاستمرارية</span>
+                <span className="sm:hidden">اتساق</span>
+              </TabsTrigger>
+              <TabsTrigger value="style" data-testid="tab-style" className="flex-shrink-0">
+                <PenTool className="w-4 h-4 ml-1.5" />
+                الأسلوب
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             {project.coverImageUrl && (
@@ -1938,8 +1940,16 @@ export default function ProjectDetail() {
                     setContinuityResult(data);
                     toast({ title: "تم فحص الاستمرارية بنجاح" });
                   } catch (err: any) {
-                    const errData = await err?.json?.().catch(() => null);
-                    toast({ title: errData?.error || "فشل في فحص الاستمرارية", variant: "destructive" });
+                    let errorMsg = "فشل في فحص الاستمرارية";
+                    try {
+                      const msgParts = err?.message?.split(": ");
+                      if (msgParts && msgParts.length > 1) {
+                        const jsonStr = msgParts.slice(1).join(": ");
+                        const parsed = JSON.parse(jsonStr);
+                        if (parsed.error) errorMsg = parsed.error;
+                      }
+                    } catch {}
+                    toast({ title: errorMsg, variant: "destructive" });
                   } finally {
                     setIsCheckingContinuity(false);
                   }
@@ -2056,8 +2066,16 @@ export default function ProjectDetail() {
                     setStyleResult(data);
                     toast({ title: "تم تحليل الأسلوب بنجاح" });
                   } catch (err: any) {
-                    const errData = await err?.json?.().catch(() => null);
-                    toast({ title: errData?.error || "فشل في تحليل الأسلوب", variant: "destructive" });
+                    let errorMsg = "فشل في تحليل الأسلوب";
+                    try {
+                      const msgParts = err?.message?.split(": ");
+                      if (msgParts && msgParts.length > 1) {
+                        const jsonStr = msgParts.slice(1).join(": ");
+                        const parsed = JSON.parse(jsonStr);
+                        if (parsed.error) errorMsg = parsed.error;
+                      }
+                    } catch {}
+                    toast({ title: errorMsg, variant: "destructive" });
                   } finally {
                     setIsAnalyzingStyle(false);
                   }

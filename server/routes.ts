@@ -1332,36 +1332,40 @@ export async function registerRoutes(
       const contentStartY = 90;
 
       doc.addPage();
-      drawBorder();
 
+      let coverRendered = false;
       if (project.coverImageUrl) {
         try {
           const response = await fetch(project.coverImageUrl);
           if (response.ok) {
             const buffer = Buffer.from(await response.arrayBuffer());
-            doc.image(buffer, 147, 100, { width: 300, height: 400, fit: [300, 400], align: "center" });
+            doc.image(buffer, 0, 0, { width: fullPageWidth, height: pageHeight });
+            coverRendered = true;
           }
         } catch (e) {
           console.error("Failed to load cover image for PDF:", e);
         }
       }
 
-      if (!project.coverImageUrl) {
+      if (!coverRendered) {
+        drawBorder();
         doc.font("ArabicBold")
           .fontSize(28)
           .fillColor("#2C1810");
         const titleWidth = doc.widthOfString(project.title);
         doc.text(project.title, (fullPageWidth - titleWidth) / 2, 350, {
           features: ["rtla"],
+          lineBreak: false,
         });
 
         doc.font("Arabic")
           .fontSize(14)
           .fillColor("#6B5B4F");
-        const subtitle = "بقلم أبو هاشم — QalamAI";
+        const subtitle = "\u200Fبقلم أبو هاشم — \u200EQalamAI\u200F";
         const subWidth = doc.widthOfString(subtitle);
         doc.text(subtitle, (fullPageWidth - subWidth) / 2, 400, {
           features: ["rtla"],
+          lineBreak: false,
         });
       }
 
@@ -1370,21 +1374,21 @@ export async function registerRoutes(
 
       doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
       const cpTitleW = doc.widthOfString(project.title);
-      doc.text(project.title, (fullPageWidth - cpTitleW) / 2, 280, { features: ["rtla"] });
+      doc.text(project.title, (fullPageWidth - cpTitleW) / 2, 280, { features: ["rtla"], lineBreak: false });
 
       doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
-      const authorLine = "كُتب بمساعدة أبو هاشم — QalamAI";
+      const authorLine = "\u200Fكُتب بمساعدة أبو هاشم — \u200EQalamAI\u200F";
       const authorW = doc.widthOfString(authorLine);
-      doc.text(authorLine, (fullPageWidth - authorW) / 2, 330, { features: ["rtla"] });
+      doc.text(authorLine, (fullPageWidth - authorW) / 2, 330, { features: ["rtla"], lineBreak: false });
 
       const dateLine = new Date().toLocaleDateString("ar-SA");
       const dateW = doc.widthOfString(dateLine);
-      doc.text(dateLine, (fullPageWidth - dateW) / 2, 370, { features: ["rtla"] });
+      doc.text(dateLine, (fullPageWidth - dateW) / 2, 370, { features: ["rtla"], lineBreak: false });
 
       doc.font("Arabic").fontSize(13).fillColor("#8B7355");
-      const rightsLine = "جميع الحقوق محفوظة \u00A9 2026";
+      const rightsLine = "\u200Fجميع الحقوق محفوظة \u200E\u00A9 2026\u200F";
       const rightsW = doc.widthOfString(rightsLine);
-      doc.text(rightsLine, (fullPageWidth - rightsW) / 2, 410, { features: ["rtla"] });
+      doc.text(rightsLine, (fullPageWidth - rightsW) / 2, 410, { features: ["rtla"], lineBreak: false });
 
       const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
 
@@ -1436,12 +1440,14 @@ export async function registerRoutes(
           width: pageWidth - 60,
           align: "right",
           features: ["rtla"],
+          lineBreak: false,
         });
 
         doc.font("Arabic").fontSize(13).fillColor("#8B7355");
         doc.text(String(pageNum), 72, tocY, {
           width: 50,
           align: "left",
+          lineBreak: false,
         });
 
         tocY += 28;
@@ -1460,6 +1466,7 @@ export async function registerRoutes(
           width: pageWidth,
           align: "right",
           features: ["rtla"],
+          lineBreak: false,
         });
       };
 
@@ -1483,6 +1490,7 @@ export async function registerRoutes(
         doc.text("\u2726 \u2726 \u2726", centerX - 25, y - 6, {
           width: 50,
           align: "center",
+          lineBreak: false,
         });
       };
 
@@ -1515,7 +1523,7 @@ export async function registerRoutes(
           const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8, indent: 25 });
           if (yPos + textHeight > pageHeight - 100) {
             doc.font("Arabic").fontSize(9).fillColor("#999");
-            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
+            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
             doc.addPage();
             pageNumber++;
             drawBorder();
@@ -1534,7 +1542,7 @@ export async function registerRoutes(
         }
 
         doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
+        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
       }
 
       if (project.glossary) {
@@ -1555,7 +1563,7 @@ export async function registerRoutes(
           const textHeight = doc.heightOfString(line.trim(), { width: pageWidth, align: "right", lineGap: 6 });
           if (yPos + textHeight > pageHeight - 100) {
             doc.font("Arabic").fontSize(9).fillColor("#999");
-            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
+            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
             doc.addPage();
             pageNumber++;
             drawBorder();
@@ -1567,7 +1575,7 @@ export async function registerRoutes(
           yPos += textHeight + 8;
         }
         doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
+        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
       }
 
       doc.end();
