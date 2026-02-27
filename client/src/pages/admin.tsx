@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { SupportTicket, NovelProject, PromoCode } from "@shared/schema";
+import LtrNum from "@/components/ui/ltr-num";
 
 interface RevenueData {
   totalRevenue: number;
@@ -520,7 +521,7 @@ export default function Admin() {
                 />
               </div>
               <div className="text-sm text-muted-foreground">
-                {adminUsers ? `${adminUsers.length} مستخدم` : ""}
+                {adminUsers ? <><LtrNum>{adminUsers.length}</LtrNum> مستخدم</> : ""}
               </div>
               <Button
                 variant="outline"
@@ -979,7 +980,7 @@ export default function Admin() {
                                 <span className="text-sm font-bold text-primary w-6 text-center">{index + 1}</span>
                                 <span className="text-sm">{writer.name}</span>
                               </div>
-                              <Badge variant="secondary">{writer.words.toLocaleString("ar-EG")} كلمة</Badge>
+                              <Badge variant="secondary"><LtrNum>{writer.words.toLocaleString("ar-EG")}</LtrNum> كلمة</Badge>
                             </div>
                           ))}
                         </div>
@@ -1113,7 +1114,7 @@ export default function Admin() {
                         <tr key={promo.id} className="border-b last:border-0" data-testid={`row-promo-${promo.id}`}>
                           <td className="p-3 font-mono font-medium" data-testid={`text-promo-code-${promo.id}`}>{promo.code}</td>
                           <td className="p-3" data-testid={`text-promo-discount-${promo.id}`}>
-                            <Badge variant="secondary">{promo.discountPercent}%</Badge>
+                            <Badge variant="secondary"><LtrNum>{promo.discountPercent}%</LtrNum></Badge>
                           </td>
                           <td className="p-3 text-muted-foreground" data-testid={`text-promo-max-uses-${promo.id}`}>{promo.maxUses ?? "غير محدود"}</td>
                           <td className="p-3 text-muted-foreground" data-testid={`text-promo-used-${promo.id}`}>{promo.usedCount}</td>

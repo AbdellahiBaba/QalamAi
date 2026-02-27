@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import LtrNum from "@/components/ui/ltr-num";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -306,7 +307,7 @@ export default function NewScenario() {
                           <SelectContent>
                             {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
                               <SelectItem key={n} value={String(n)}>
-                                {n === 1 ? "حلقة واحدة" : n === 2 ? "حلقتان" : `${n} حلقات`}
+                                {n === 1 ? "حلقة واحدة" : n === 2 ? "حلقتان" : <><LtrNum>{n}</LtrNum> حلقات</>}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -319,7 +320,7 @@ export default function NewScenario() {
                   <div className="rounded-md bg-primary/5 border border-primary/10 p-4 text-sm text-muted-foreground">
                     <p className="font-medium text-foreground mb-1">
                       {formatType === "series"
-                        ? `مسلسل — ${form.watch("episodeCount") || 1} حلقة`
+                        ? <>مسلسل — <LtrNum>{form.watch("episodeCount") || 1}</LtrNum> حلقة</>
                         : "فيلم سينمائي"}
                     </p>
                     <p>
@@ -513,7 +514,7 @@ export default function NewScenario() {
                       <span>الصيغة:</span>
                       <span className="text-foreground">
                         {form.watch("formatType") === "series"
-                          ? `مسلسل — ${form.watch("episodeCount") || 1} حلقة`
+                          ? <>مسلسل — <LtrNum>{form.watch("episodeCount") || 1}</LtrNum> حلقة</>
                           : form.watch("formatType") === "film"
                           ? "فيلم سينمائي"
                           : "—"}

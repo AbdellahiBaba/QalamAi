@@ -35,6 +35,7 @@ import {
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import LtrNum from "@/components/ui/ltr-num";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -358,7 +359,7 @@ export default function Profile() {
                           <div className="flex items-center gap-3 flex-wrap">
                             {project.paid && (
                               <span className="text-sm font-medium text-muted-foreground" data-testid={`text-price-${project.id}`}>
-                                {getProjectPriceUSD(project.pageCount)} دولار
+                                <LtrNum>{getProjectPriceUSD(project.pageCount)}</LtrNum> دولار
                               </span>
                             )}
                             <span

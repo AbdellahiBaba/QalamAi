@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import LtrNum from "@/components/ui/ltr-num";
 import { ESSAY_SUBJECTS } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -470,7 +471,8 @@ export default function NewEssay() {
                           <span className="text-muted-foreground shrink-0">الحجم:</span>
                           <span className="font-medium" data-testid="text-summary-word-count">
                             {watchedWordCount === "custom"
-                              ? `${parseInt(watchedCustomWordCount || "0").toLocaleString("ar-EG")} كلمة`
+                              ? <><LtrNum>{parseInt(watchedCustomWordCount || "0").toLocaleString("ar-EG")}</LtrNum> كلمة</>
+
                               : WORD_COUNT_OPTIONS.find(o => o.value === watchedWordCount)?.label || watchedWordCount}
                           </span>
                         </div>

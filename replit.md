@@ -44,6 +44,9 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - **jsPDF (client-side PDF)**: Canvas-based preview/download PDF generator. Uses drawWrappedRTLText for title wrapping — measures text width and word-wraps if it exceeds available page width. Applied to both generateNovelPDF and generateChapterPreviewPDF.
 - **archiver**: Used for EPUB generation with type-aware labels and glossary support.
 
+## RTL Number Display
+All numeric values displayed alongside Arabic text are wrapped with the `LtrNum` component (`client/src/components/ui/ltr-num.tsx`) which renders `<span dir="ltr" style={{unicodeBidi: "isolate"}}>` to prevent BiDi reordering. This applies to scores (X/10, X/100), ratios (X/Y), percentages (X%), word counts, page counts, prices, and chapter numbers. For toast strings (non-JSX), use the Unicode LTR mark `\u200e` before numbers. Important: only wrap the numeric value, never Arabic text labels.
+
 ## Mobile Responsiveness
 All pages are fully mobile-responsive using Tailwind CSS responsive breakpoints (sm:, md:, lg:):
 - **Landing page**: Responsive hero text (text-2xl→4xl→5xl), stacked feature cards, full-width CTAs, hidden nav links on mobile with hamburger-style compact layout

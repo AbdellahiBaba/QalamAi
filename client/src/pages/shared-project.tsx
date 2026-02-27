@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookOpen, FileText } from "lucide-react";
+import LtrNum from "@/components/ui/ltr-num";
 
 interface SharedChapter {
   chapterNumber: number;
@@ -86,7 +87,7 @@ export default function SharedProject() {
                 <CardContent className="p-6">
                   <div className="flex items-center gap-2 mb-4 pb-3 border-b">
                     <FileText className="w-4 h-4 text-primary" />
-                    <span className="text-sm text-muted-foreground">{chapterLabel} {ch.chapterNumber}</span>
+                    <span className="text-sm text-muted-foreground">{chapterLabel} <LtrNum>{ch.chapterNumber}</LtrNum></span>
                     <span className="mx-1">—</span>
                     <h2 className="font-serif text-lg font-semibold">{ch.title}</h2>
                   </div>

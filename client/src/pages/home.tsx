@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import type { NovelProject, Notification } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useMemo, useState, useEffect, useRef } from "react";
+import LtrNum from "@/components/ui/ltr-num";
 import { Crown } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -492,7 +493,7 @@ export default function Home() {
                         <div key={i} className="flex-1 flex flex-col items-center gap-1 group" data-testid={`bar-day-${i}`}>
                           <div className="relative w-full flex justify-center">
                             <div className="absolute -top-6 bg-popover border rounded px-1.5 py-0.5 text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">
-                              {day.words.toLocaleString("ar-EG")} كلمة
+                              <LtrNum>{day.words.toLocaleString("ar-EG")}</LtrNum> كلمة
                             </div>
                           </div>
                           <div
@@ -525,7 +526,7 @@ export default function Home() {
                                 <span className="truncate">{proj.title}</span>
                                 <span className="text-[10px] text-muted-foreground shrink-0">({typeLabel})</span>
                               </div>
-                              <span className="text-xs font-medium shrink-0">{proj.words.toLocaleString("ar-EG")} كلمة</span>
+                              <span className="text-xs font-medium shrink-0"><LtrNum>{proj.words.toLocaleString("ar-EG")}</LtrNum> كلمة</span>
                             </div>
                             <div className="h-2 rounded-full bg-muted overflow-hidden">
                               <div
@@ -698,7 +699,7 @@ export default function Home() {
                     {!project.paid && (
                       <div className="flex items-center justify-between gap-2 pt-1">
                         <span className="text-sm font-semibold text-primary" data-testid={`text-price-${project.id}`}>
-                          {getProjectPriceUSD(project.pageCount)} دولار
+                          <LtrNum>{getProjectPriceUSD(project.pageCount)}</LtrNum> دولار
                         </span>
                         <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                           <CreditCard className="w-3.5 h-3.5" />
@@ -709,15 +710,15 @@ export default function Home() {
                     <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1" data-testid={`text-words-written-${project.id}`}>
                         <PenTool className="w-3.5 h-3.5" />
-                        {(projectStats?.[project.id]?.realWordCount ?? project.usedWords).toLocaleString()} كلمة
+                        <LtrNum>{(projectStats?.[project.id]?.realWordCount ?? project.usedWords).toLocaleString()}</LtrNum> كلمة
                       </span>
                       <span className="flex items-center gap-1" data-testid={`text-pages-${project.id}`}>
                         <FileText className="w-3.5 h-3.5" />
                         {projectStats?.[project.id] !== undefined
                           ? projectStats[project.id].realPageCount > 0
-                            ? `${projectStats[project.id].realPageCount} صفحة فعلية`
+                            ? <><LtrNum>{projectStats[project.id].realPageCount}</LtrNum> صفحة فعلية</>
                             : "٠ صفحة"
-                          : `${project.pageCount} صفحة`}
+                          : <><LtrNum>{project.pageCount}</LtrNum> صفحة</>}
                       </span>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">

@@ -8,6 +8,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import LtrNum from "@/components/ui/ltr-num";
 
 const mainPlans = [
   {
@@ -193,7 +194,7 @@ export default function Pricing() {
     onSuccess: (data: any) => {
       if (data.valid) {
         setValidatedPromo({ code: data.code, discountPercent: data.discountPercent, applicableTo: data.applicableTo });
-        toast({ title: `تم تطبيق كود الخصم: ${data.discountPercent}%` });
+        toast({ title: `تم تطبيق كود الخصم: \u200e${data.discountPercent}%` });
       } else {
         setValidatedPromo(null);
         toast({ title: data.message || "كود الخصم غير صالح", variant: "destructive" });
@@ -348,7 +349,7 @@ export default function Pricing() {
               {validatedPromo && (
                 <div className="flex items-center gap-2" data-testid="text-promo-applied">
                   <Badge variant="default" className="bg-green-600" data-testid="badge-promo-discount">
-                    خصم {validatedPromo.discountPercent}%
+                    خصم <LtrNum>{validatedPromo.discountPercent}%</LtrNum>
                   </Badge>
                   <span className="text-xs text-muted-foreground">تم تطبيق الكود بنجاح</span>
                   <Button

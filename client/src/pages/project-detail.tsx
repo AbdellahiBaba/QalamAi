@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { NovelProject, Character, Chapter, CharacterRelationship, ChapterVersion, Bookmark as BookmarkType } from "@shared/schema";
 import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
+import LtrNum from "@/components/ui/ltr-num";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -550,7 +551,7 @@ export default function ProjectDetail() {
       } catch (err: any) {
         if (attempt < MAX_RETRIES) {
           toast({
-            title: `إعادة المحاولة... (${attempt + 1}/${MAX_RETRIES})`,
+            title: `إعادة المحاولة... (\u200e${attempt + 1}/${MAX_RETRIES})`,
             description: err?.message || "حدث خطأ، جاري إعادة المحاولة",
           });
           await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
@@ -847,10 +848,10 @@ export default function ProjectDetail() {
                     <>
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="text-2xl font-bold text-red-800 dark:text-red-300" data-testid="text-project-price">
-                          {getProjectPriceUSD(project.pageCount)} دولار
+                          <LtrNum>{getProjectPriceUSD(project.pageCount)}</LtrNum> دولار
                         </div>
                         <span className="text-sm text-red-600 dark:text-red-400">
-                          ({project.pageCount} صفحة)
+                          (<LtrNum>{project.pageCount}</LtrNum> صفحة)
                         </span>
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
@@ -898,7 +899,7 @@ export default function ProjectDetail() {
               <div className="flex items-center gap-2">
                 <PenTool className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium" data-testid="text-words-counter">
-                  عدد الكلمات المكتوبة: {project.usedWords.toLocaleString()} كلمة
+                  عدد الكلمات المكتوبة: <LtrNum>{project.usedWords.toLocaleString()}</LtrNum> كلمة
                 </span>
               </div>
             </CardContent>
@@ -943,7 +944,7 @@ export default function ProjectDetail() {
                       data-testid={`button-bookmark-${bm.id}`}
                     >
                       <Bookmark className="w-3.5 h-3.5 ml-1 text-primary" />
-                      {ch ? `${labels.chapterSingular} ${ch.chapterNumber}` : `#${bm.chapterId}`}
+                      {ch ? <>{labels.chapterSingular} <LtrNum>{ch.chapterNumber}</LtrNum></> : <>#<LtrNum>{bm.chapterId}</LtrNum></>}
                       {bm.note && <span className="text-xs text-muted-foreground mr-1">({bm.note})</span>}
                     </Button>
                   );
@@ -1103,15 +1104,15 @@ export default function ProjectDetail() {
                         )}
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">الحجم:</span>
-                          <span className="font-medium">{project.pageCount} صفحة</span>
+                          <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة</span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">عدد الشخصيات:</span>
-                          <span className="font-medium">{project.characters?.length || 0}</span>
+                          <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">عدد المقاطع:</span>
-                          <span className="font-medium">{project.chapters?.length || 0}</span>
+                          <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
                         </div>
                       </>
                     ) : project.projectType === "scenario" ? (
@@ -1133,7 +1134,7 @@ export default function ProjectDetail() {
                         {project.formatType === "series" && project.episodeCount && (
                           <div className="flex justify-between gap-2">
                             <span className="text-muted-foreground">عدد الحلقات:</span>
-                            <span className="font-medium">{project.episodeCount}</span>
+                            <span className="font-medium"><LtrNum>{project.episodeCount}</LtrNum></span>
                           </div>
                         )}
                         {project.timeSetting && (
@@ -1150,11 +1151,11 @@ export default function ProjectDetail() {
                         )}
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">عدد الشخصيات:</span>
-                          <span className="font-medium">{project.characters?.length || 0}</span>
+                          <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">عدد المشاهد:</span>
-                          <span className="font-medium">{project.chapters?.length || 0}</span>
+                          <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
                         </div>
                       </>
                     ) : editingSettings ? (
@@ -1186,7 +1187,7 @@ export default function ProjectDetail() {
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">حجم الرواية:</span>
-                          <span className="font-medium">{project.pageCount} صفحة (~{(project.pageCount * 250).toLocaleString()} كلمة)</span>
+                          <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة (<LtrNum>~{(project.pageCount * 250).toLocaleString()}</LtrNum> كلمة)</span>
                         </div>
                       </>
                     ) : (
@@ -1211,15 +1212,15 @@ export default function ProjectDetail() {
                         )}
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">حجم الرواية:</span>
-                          <span className="font-medium">{project.pageCount} صفحة (~{(project.pageCount * 250).toLocaleString()} كلمة)</span>
+                          <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة (<LtrNum>~{(project.pageCount * 250).toLocaleString()}</LtrNum> كلمة)</span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">عدد الشخصيات:</span>
-                          <span className="font-medium">{project.characters?.length || 0}</span>
+                          <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
                         </div>
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">عدد الفصول:</span>
-                          <span className="font-medium">{project.chapters?.length || 0}</span>
+                          <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
                         </div>
                       </>
                     )}
@@ -1994,7 +1995,7 @@ export default function ProjectDetail() {
                       <span className="font-serif font-semibold text-lg">التقييم العام</span>
                       <div className="flex items-center gap-2">
                         <span className={`text-2xl font-bold ${(continuityResult.overallScore || 0) >= 7 ? "text-green-600 dark:text-green-400" : (continuityResult.overallScore || 0) >= 4 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid="text-continuity-score">
-                          {continuityResult.overallScore}/10
+                          <LtrNum>{continuityResult.overallScore}/10</LtrNum>
                         </span>
                       </div>
                     </div>
@@ -2028,7 +2029,7 @@ export default function ProjectDetail() {
                     <CardContent className="p-6">
                       <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
                         <Info className="w-4 h-4 text-yellow-600" />
-                        المشاكل المكتشفة ({continuityResult.issues.filter((is: any) => !is.resolved).length}/{continuityResult.issues.length})
+                        المشاكل المكتشفة (<LtrNum>{continuityResult.issues.filter((is: any) => !is.resolved).length}/{continuityResult.issues.length}</LtrNum>)
                       </h4>
                       <div className="space-y-4">
                         {continuityResult.issues.map((issue: any, i: number) => (
@@ -2046,7 +2047,7 @@ export default function ProjectDetail() {
                               <Badge variant="outline" data-testid={`badge-type-${i}`}>
                                 {issue.type === "character" ? "شخصية" : issue.type === "timeline" ? "خط زمني" : issue.type === "setting" ? "مكان" : issue.type === "plot" ? "حبكة" : "نبرة"}
                               </Badge>
-                              {issue.chapter && <span className="text-xs text-muted-foreground">الفصل {issue.chapter}</span>}
+                              {issue.chapter && <span className="text-xs text-muted-foreground">الفصل <LtrNum>{issue.chapter}</LtrNum></span>}
                             </div>
                             <p className={`text-sm mb-2 ${issue.resolved ? "line-through opacity-60" : ""}`} data-testid={`text-issue-desc-${i}`}>{issue.description}</p>
                             {issue.suggestion && (
@@ -2213,7 +2214,7 @@ export default function ProjectDetail() {
                       <span className="font-serif font-semibold text-lg">التقييم العام</span>
                       <div className="flex items-center gap-2">
                         <span className={`text-2xl font-bold ${(styleResult.overallScore || 0) >= 75 ? "text-green-600 dark:text-green-400" : (styleResult.overallScore || 0) >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid="text-style-score">
-                          {styleResult.overallScore}/100
+                          <LtrNum>{styleResult.overallScore}/100</LtrNum>
                         </span>
                       </div>
                     </div>
@@ -2294,7 +2295,7 @@ export default function ProjectDetail() {
                             <div className="flex items-center justify-between mb-2">
                               <span className="font-semibold text-sm">{dim.name}</span>
                               <span className={`text-lg font-bold ${(dim.score || 0) >= 7 ? "text-green-600 dark:text-green-400" : (dim.score || 0) >= 5 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid={`text-dimension-score-${i}`}>
-                                {dim.score}/10
+                                <LtrNum>{dim.score}/10</LtrNum>
                               </span>
                             </div>
                             <div className="w-full bg-muted rounded-full h-1.5 mb-2">
