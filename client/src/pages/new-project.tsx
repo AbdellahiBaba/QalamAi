@@ -74,6 +74,8 @@ export default function NewProject() {
   const [suggestingTechnique, setSuggestingTechnique] = useState(false);
   const [techniqueSuggestion, setTechniqueSuggestion] = useState<{ primary: string; secondary: string; explanation: string; examples: string } | null>(null);
   const [expandedChars, setExpandedChars] = useState<Set<number>>(new Set());
+  const [suggestingFormat, setSuggestingFormat] = useState(false);
+  const [formatSuggestion, setFormatSuggestion] = useState<{ recommendation: string; confidence: string; reasoning: string; shortStoryAdvantages: string; novelAdvantages: string } | null>(null);
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
@@ -125,6 +127,34 @@ export default function NewProject() {
 
   const onSubmit = (data: ProjectFormData) => {
     createMutation.mutate(data);
+  };
+
+  const handleSuggestFormat = async () => {
+    const mainIdea = form.getValues("mainIdea");
+    if (!mainIdea || mainIdea.length < 10) {
+      toast({ title: "أدخل الفكرة الرئيسية أولاً", description: "يجب أن تكون الفكرة 10 أحرف على الأقل", variant: "destructive" });
+      return;
+    }
+    setSuggestingFormat(true);
+    setFormatSuggestion(null);
+    try {
+      const res = await apiRequest("POST", "/api/projects/suggest-format", {
+        title: form.getValues("title"),
+        mainIdea,
+        timeSetting: form.getValues("timeSetting"),
+        placeSetting: form.getValues("placeSetting"),
+      });
+      const data = await res.json();
+      if (data.recommendation) {
+        setFormatSuggestion(data);
+      } else {
+        toast({ title: "فشل في تحليل الفكرة", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "فشل في تحليل الشكل الأدبي", variant: "destructive" });
+    } finally {
+      setSuggestingFormat(false);
+    }
   };
 
   const handleSuggestTitles = async () => {
@@ -341,6 +371,56 @@ export default function NewProject() {
                       <FormMessage />
                     </FormItem>
                   )} />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSuggestFormat}
+                    disabled={suggestingFormat}
+                    className="gap-1.5 border-[hsl(43,76%,52%)] text-[hsl(43,76%,52%)] hover:bg-[hsl(43,76%,52%)]/10"
+                    data-testid="button-suggest-format"
+                  >
+                    {suggestingFormat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {suggestingFormat ? "أبو هاشم يحلّل فكرتك..." : "هل فكرتك رواية أم قصة قصيرة؟"}
+                  </Button>
+
+                  {formatSuggestion && (
+                    <div className="rounded-lg border border-[hsl(43,76%,52%)]/30 bg-[hsl(43,76%,92%)] dark:bg-[hsl(213,66%,11%)]/50 p-4 space-y-3" data-testid="panel-format-suggestion">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-[hsl(43,76%,52%)]" />
+                          <span className="text-sm font-semibold">
+                            {formatSuggestion.recommendation === "novel" ? "أبو هاشم يرى أن فكرتك تصلح رواية ✓" : "أبو هاشم يقترح: قصة قصيرة"}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${formatSuggestion.confidence === "high" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : formatSuggestion.confidence === "medium" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"}`}>
+                            {formatSuggestion.confidence === "high" ? "ثقة عالية" : formatSuggestion.confidence === "medium" ? "ثقة متوسطة" : "ثقة منخفضة"}
+                          </span>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setFormatSuggestion(null)} className="h-6 w-6 p-0" data-testid="button-close-format">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-amber-900 dark:text-amber-200">{formatSuggestion.reasoning}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white/50 dark:bg-white/5 rounded p-2">
+                          <span className="font-medium">مزايا الرواية: </span>
+                          <span className="text-muted-foreground">{formatSuggestion.novelAdvantages}</span>
+                        </div>
+                        <div className="bg-white/50 dark:bg-white/5 rounded p-2">
+                          <span className="font-medium">مزايا القصة القصيرة: </span>
+                          <span className="text-muted-foreground">{formatSuggestion.shortStoryAdvantages}</span>
+                        </div>
+                      </div>
+                      {formatSuggestion.recommendation === "short_story" && (
+                        <Link href="/project/new/short-story">
+                          <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs" data-testid="button-switch-to-short-story">
+                            انتقل إلى إنشاء قصة قصيرة
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <FormField control={form.control} name="narrativePov" render={({ field }) => (

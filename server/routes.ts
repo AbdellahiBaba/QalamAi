@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -461,6 +461,57 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error suggesting titles:", error);
       res.status(500).json({ error: "فشل في اقتراح العناوين" });
+    }
+  });
+
+  app.post("/api/projects/suggest-format", isAuthenticated, async (req: any, res) => {
+    try {
+      const { title, mainIdea, timeSetting, placeSetting } = req.body;
+      if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
+        return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
+      }
+
+      const { system, user } = buildFormatSuggestionPrompt({
+        title: typeof title === "string" ? title.slice(0, 200) : undefined,
+        mainIdea: mainIdea.slice(0, 2000),
+        timeSetting: typeof timeSetting === "string" ? timeSetting.slice(0, 200) : undefined,
+        placeSetting: typeof placeSetting === "string" ? placeSetting.slice(0, 200) : undefined,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 1024,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "فشل في تحليل الفكرة" });
+      }
+
+      let suggestion: { recommendation: string; confidence: string; reasoning: string; shortStoryAdvantages: string; novelAdvantages: string };
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!parsed.recommendation || !parsed.reasoning) throw new Error("Invalid format");
+        suggestion = {
+          recommendation: parsed.recommendation === "short_story" ? "short_story" : "novel",
+          confidence: ["high", "medium", "low"].includes(parsed.confidence) ? parsed.confidence : "medium",
+          reasoning: String(parsed.reasoning),
+          shortStoryAdvantages: String(parsed.shortStoryAdvantages || ""),
+          novelAdvantages: String(parsed.novelAdvantages || ""),
+        };
+      } catch {
+        return res.status(500).json({ error: "فشل في تحليل الفكرة" });
+      }
+
+      res.json(suggestion);
+    } catch (error) {
+      console.error("Error suggesting format:", error);
+      res.status(500).json({ error: "فشل في تحليل الشكل الأدبي" });
     }
   });
 
