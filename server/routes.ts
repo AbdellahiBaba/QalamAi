@@ -1298,7 +1298,7 @@ export async function registerRoutes(
 
       const doc = new PDFDocument({
         size: "A4",
-        margins: { top: 72, bottom: 72, left: 72, right: 72 },
+        margins: { top: 72, bottom: 0, left: 72, right: 72 },
         info: {
           Title: project.title,
           Author: "QalamAI - أبو هاشم",
@@ -1361,12 +1361,14 @@ export async function registerRoutes(
         doc.font("Arabic")
           .fontSize(14)
           .fillColor("#6B5B4F");
-        const subtitle = "\u200Fبقلم أبو هاشم — \u200EQalamAI\u200F";
-        const subWidth = doc.widthOfString(subtitle);
-        doc.text(subtitle, (fullPageWidth - subWidth) / 2, 400, {
-          features: ["rtla"],
-          lineBreak: false,
-        });
+        const subAr = "بقلم أبو هاشم — ";
+        const subEn = "QalamAI";
+        const subArW = doc.widthOfString(subAr, { features: ["rtla"] });
+        const subEnW = doc.widthOfString(subEn);
+        const subTotalW = subArW + subEnW;
+        const subStartX = (fullPageWidth - subTotalW) / 2;
+        doc.text(subEn, subStartX, 400, { width: subEnW + 2, lineBreak: false });
+        doc.text(subAr, subStartX + subEnW, 400, { width: subArW + 2, align: "right", features: ["rtla"], lineBreak: false });
       }
 
       doc.addPage();
@@ -1377,18 +1379,28 @@ export async function registerRoutes(
       doc.text(project.title, (fullPageWidth - cpTitleW) / 2, 280, { features: ["rtla"], lineBreak: false });
 
       doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
-      const authorLine = "\u200Fكُتب بمساعدة أبو هاشم — \u200EQalamAI\u200F";
-      const authorW = doc.widthOfString(authorLine);
-      doc.text(authorLine, (fullPageWidth - authorW) / 2, 330, { features: ["rtla"], lineBreak: false });
+      const authAr = "كُتب بمساعدة أبو هاشم — ";
+      const authEn = "QalamAI";
+      const authArW = doc.widthOfString(authAr, { features: ["rtla"] });
+      const authEnW = doc.widthOfString(authEn);
+      const authTotalW = authArW + authEnW;
+      const authStartX = (fullPageWidth - authTotalW) / 2;
+      doc.text(authEn, authStartX, 330, { width: authEnW + 2, lineBreak: false });
+      doc.text(authAr, authStartX + authEnW, 330, { width: authArW + 2, align: "right", features: ["rtla"], lineBreak: false });
 
-      const dateLine = new Date().toLocaleDateString("ar-SA");
+      const dateLine = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
       const dateW = doc.widthOfString(dateLine);
-      doc.text(dateLine, (fullPageWidth - dateW) / 2, 370, { features: ["rtla"], lineBreak: false });
+      doc.text(dateLine, (fullPageWidth - dateW) / 2, 370, { lineBreak: false });
 
       doc.font("Arabic").fontSize(13).fillColor("#8B7355");
-      const rightsLine = "\u200Fجميع الحقوق محفوظة \u200E\u00A9 2026\u200F";
-      const rightsW = doc.widthOfString(rightsLine);
-      doc.text(rightsLine, (fullPageWidth - rightsW) / 2, 410, { features: ["rtla"], lineBreak: false });
+      const rightsAr = "جميع الحقوق محفوظة ";
+      const rightsEn = "\u00A9 2026";
+      const rightsArW = doc.widthOfString(rightsAr, { features: ["rtla"] });
+      const rightsEnW = doc.widthOfString(rightsEn);
+      const rightsTotalW = rightsArW + rightsEnW;
+      const rightsStartX = (fullPageWidth - rightsTotalW) / 2;
+      doc.text(rightsEn, rightsStartX, 410, { width: rightsEnW + 2, lineBreak: false });
+      doc.text(rightsAr, rightsStartX + rightsEnW, 410, { width: rightsArW + 2, align: "right", features: ["rtla"], lineBreak: false });
 
       const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
 
@@ -1396,15 +1408,18 @@ export async function registerRoutes(
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
 
-      const chapterContentStartY = 155;
       const continuationStartY = 90;
       let estimatedPage = 4;
       const chapterStartPages: number[] = [];
 
       for (const chapter of chapters) {
         chapterStartPages.push(estimatedPage);
+        const chTitleEst = chapter.title || `${chapterLabel} ${chapter.chapterNumber}`;
+        doc.font("ArabicBold").fontSize(22);
+        const estTitleH = doc.heightOfString(chTitleEst, { width: pageWidth, align: "right" });
+        const estContentStartY = contentStartY + estTitleH + 40;
         const paragraphs = (chapter.content || "").split(/\n+/).filter((p: string) => p.trim());
-        let estY = chapterContentStartY;
+        let estY = estContentStartY;
         doc.font("Arabic").fontSize(13);
         for (const para of paragraphs) {
           const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8, indent: 25 });
@@ -1504,13 +1519,16 @@ export async function registerRoutes(
         doc.font("ArabicBold")
           .fontSize(22)
           .fillColor("#2C1810");
+        const titleHeight = doc.heightOfString(chTitle, { width: pageWidth, align: "right" });
         doc.text(chTitle, 72, contentStartY, {
           width: pageWidth,
           align: "right",
           features: ["rtla"],
         });
 
-        drawOrnamentalDivider(130);
+        const dividerY = contentStartY + titleHeight + 15;
+        drawOrnamentalDivider(dividerY);
+        const chapterContentStartY = dividerY + 25;
 
         doc.font("Arabic")
           .fontSize(13)
