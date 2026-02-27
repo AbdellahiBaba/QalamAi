@@ -2776,9 +2776,13 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_completion_tokens: 8192,
+        max_completion_tokens: 16384,
         response_format: { type: "json_object" },
       });
+
+      if (response.choices[0]?.finish_reason === "length") {
+        return res.status(400).json({ error: "النص طويل جدًا لإصلاحه دفعة واحدة. حاول تقسيم الفصل أو اختيار مشكلة أبسط." });
+      }
 
       const resultText = response.choices[0]?.message?.content || "{}";
       let result: any;
@@ -2878,34 +2882,70 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
 
       const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
 
-      const chaptersContent = completedChapters
-        .map((ch: any) => `[${chapterLabel} ${ch.chapterNumber} — ${ch.title} — ID:${ch.id}]\n${ch.content}`)
+      const chapterSummaries = completedChapters
+        .map((ch: any) => `[${chapterLabel} ${ch.chapterNumber} — ${ch.title} — ID:${ch.id}]\n${(ch.content || "").substring(0, 1500)}`)
         .join("\n\n===\n\n");
 
-      const systemPrompt = `أنت أبو هاشم — محرر أدبي متخصص في تحسين الأسلوب الأدبي في النصوص العربية.
-مهمتك: تطبيق اقتراح تحسين أسلوبي محدد على النص، مع الحفاظ على بقية النص كما هو تمامًا.
+      const identifyResponse = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: `أنت أبو هاشم — محرر أدبي. مهمتك تحديد أي الفصول تحتاج تعديلًا لتطبيق اقتراح أسلوبي معين.
+أجب بصيغة JSON فقط: { "chapterIds": [<أرقام ID الفصول التي تحتاج تعديلًا>] }
+إذا لم تجد فصولًا تحتاج تعديلًا، أعد مصفوفة فارغة.` },
+          { role: "user", content: `مجال التحسين: ${improvement.area || "غير محدد"}
+الوضع الحالي: ${improvement.current || "غير محدد"}
+الاقتراح: ${improvement.suggestion}
+
+ملخص الفصول:
+${chapterSummaries}
+
+حدد أرقام ID الفصول التي تحتاج تعديلًا.` },
+        ],
+        max_completion_tokens: 1024,
+        response_format: { type: "json_object" },
+      });
+
+      if (identifyResponse.choices[0]?.finish_reason === "length") {
+        return res.status(400).json({ error: "المشروع يحتوي على فصول كثيرة. حاول مرة أخرى." });
+      }
+
+      const identifyText = identifyResponse.choices[0]?.message?.content || "{}";
+      let identifyResult: any;
+      try {
+        identifyResult = JSON.parse(identifyText);
+      } catch {
+        identifyResult = { chapterIds: completedChapters.slice(0, 3).map((ch: any) => ch.id) };
+      }
+
+      const targetIds: number[] = Array.isArray(identifyResult.chapterIds) ? identifyResult.chapterIds : [];
+      if (targetIds.length === 0) {
+        return res.json({ fixedChapters: [] });
+      }
+
+      const validChapterIds = new Set(completedChapters.map((ch: any) => ch.id));
+      const chaptersToFix = completedChapters.filter((ch: any) => targetIds.includes(ch.id) && validChapterIds.has(ch.id));
+
+      if (chaptersToFix.length === 0) {
+        return res.json({ fixedChapters: [] });
+      }
+
+      const fixedChapters: any[] = [];
+      for (const ch of chaptersToFix) {
+        const fixSystemPrompt = `أنت أبو هاشم — محرر أدبي متخصص في تحسين الأسلوب الأدبي في النصوص العربية.
+مهمتك: تطبيق اقتراح تحسين أسلوبي محدد على نص ${chapterLabel} واحد.
 
 قواعد صارمة:
-1. ابحث في جميع الفصول عن الأجزاء المتعلقة بالمجال الأسلوبي المحدد
-2. عدّل فقط الأجزاء التي تحتاج تحسينًا وفق الاقتراح المقدم
-3. أعد النص الكامل لكل فصل تم تعديله — لا تحذف أي جزء غير متعلق
-4. حافظ على المعنى والسياق العام
-5. حافظ على طول النص تقريبًا
-6. أجب بصيغة JSON فقط بالشكل التالي:
+1. عدّل فقط الأجزاء المتعلقة بالاقتراح المحدد
+2. أعد النص الكامل بعد التحسين — لا تحذف أي جزء غير متعلق
+3. حافظ على المعنى والسياق العام
+4. حافظ على طول النص تقريبًا
+5. أجب بصيغة JSON فقط:
 {
-  "fixedChapters": [
-    {
-      "chapterId": <رقم ID الفصل>,
-      "chapterNumber": <رقم الفصل>,
-      "title": "<عنوان الفصل>",
-      "fixedContent": "<النص الكامل بعد التحسين>",
-      "changes": "<ملخص موجز بالعربية للتغييرات في هذا الفصل>"
-    }
-  ]
-}
-إذا لم تجد ما يحتاج تعديلًا، أعد مصفوفة فارغة.`;
+  "fixedContent": "النص الكامل بعد التحسين",
+  "changes": "ملخص موجز بالعربية للتغييرات"
+}`;
 
-      const userPrompt = `مجال التحسين: ${improvement.area || "غير محدد"}
+        const fixUserPrompt = `مجال التحسين: ${improvement.area || "غير محدد"}
 التأثير: ${improvement.impact === "high" ? "عالٍ" : improvement.impact === "medium" ? "متوسط" : "طفيف"}
 
 الوضع الحالي:
@@ -2914,39 +2954,44 @@ ${improvement.current || "غير محدد"}
 الاقتراح:
 ${improvement.suggestion}
 
-محتوى الفصول:
-${chaptersContent}
+محتوى ${chapterLabel} ${ch.chapterNumber} — ${ch.title}:
+${ch.content}
 
-طبّق الاقتراح على الفصول المناسبة وأعد النتيجة بصيغة JSON.`;
+طبّق الاقتراح وأعد النص الكامل بصيغة JSON.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-5.2",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_completion_tokens: 8192,
-        response_format: { type: "json_object" },
-      });
+        try {
+          const fixResponse = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [
+              { role: "system", content: fixSystemPrompt },
+              { role: "user", content: fixUserPrompt },
+            ],
+            max_completion_tokens: 16384,
+            response_format: { type: "json_object" },
+          });
 
-      const resultText = response.choices[0]?.message?.content || "{}";
-      let result: any;
-      try {
-        result = JSON.parse(resultText);
-      } catch {
-        return res.status(500).json({ error: "فشل في تحليل استجابة الذكاء الاصطناعي" });
+          if (fixResponse.choices[0]?.finish_reason === "length") {
+            console.warn(`Style fix truncated for chapter ${ch.id}, skipping`);
+            continue;
+          }
+
+          const fixText = fixResponse.choices[0]?.message?.content || "{}";
+          const fixResult = JSON.parse(fixText);
+          if (fixResult.fixedContent) {
+            fixedChapters.push({
+              chapterId: ch.id,
+              chapterNumber: ch.chapterNumber,
+              title: ch.title,
+              fixedContent: fixResult.fixedContent,
+              changes: fixResult.changes || "تم التحسين",
+            });
+          }
+        } catch (chErr) {
+          console.error(`Error fixing style for chapter ${ch.id}:`, chErr);
+        }
       }
 
-      if (!result.fixedChapters || !Array.isArray(result.fixedChapters)) {
-        return res.status(500).json({ error: "فشل في إنتاج النص المحسّن" });
-      }
-
-      const validChapterIds = new Set(completedChapters.map((ch: any) => ch.id));
-      const validFixed = result.fixedChapters.filter((fc: any) =>
-        fc.chapterId && fc.fixedContent && validChapterIds.has(fc.chapterId)
-      );
-
-      res.json({ fixedChapters: validFixed });
+      res.json({ fixedChapters });
     } catch (error) {
       console.error("Error fixing style improvement:", error);
       res.status(500).json({ error: "فشل في تطبيق تحسين الأسلوب" });
