@@ -2849,6 +2849,135 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
     }
   });
 
+  // ===== Fix Style Improvement =====
+  app.post("/api/projects/:id/fix-style-improvement", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { improvement } = req.body;
+
+      if (!improvement || !improvement.suggestion || typeof improvement.suggestion !== "string") {
+        return res.status(400).json({ error: "بيانات الاقتراح مطلوبة" });
+      }
+
+      const project = await storage.getProjectWithDetails(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      const completedChapters = project.chapters
+        .filter((ch: any) => ch.content && ch.status === "completed")
+        .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
+
+      if (completedChapters.length < 1) {
+        return res.status(400).json({ error: "لا توجد فصول مكتملة" });
+      }
+
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+
+      const chaptersContent = completedChapters
+        .map((ch: any) => `[${chapterLabel} ${ch.chapterNumber} — ${ch.title} — ID:${ch.id}]\n${ch.content}`)
+        .join("\n\n===\n\n");
+
+      const systemPrompt = `أنت أبو هاشم — محرر أدبي متخصص في تحسين الأسلوب الأدبي في النصوص العربية.
+مهمتك: تطبيق اقتراح تحسين أسلوبي محدد على النص، مع الحفاظ على بقية النص كما هو تمامًا.
+
+قواعد صارمة:
+1. ابحث في جميع الفصول عن الأجزاء المتعلقة بالمجال الأسلوبي المحدد
+2. عدّل فقط الأجزاء التي تحتاج تحسينًا وفق الاقتراح المقدم
+3. أعد النص الكامل لكل فصل تم تعديله — لا تحذف أي جزء غير متعلق
+4. حافظ على المعنى والسياق العام
+5. حافظ على طول النص تقريبًا
+6. أجب بصيغة JSON فقط بالشكل التالي:
+{
+  "fixedChapters": [
+    {
+      "chapterId": <رقم ID الفصل>,
+      "chapterNumber": <رقم الفصل>,
+      "title": "<عنوان الفصل>",
+      "fixedContent": "<النص الكامل بعد التحسين>",
+      "changes": "<ملخص موجز بالعربية للتغييرات في هذا الفصل>"
+    }
+  ]
+}
+إذا لم تجد ما يحتاج تعديلًا، أعد مصفوفة فارغة.`;
+
+      const userPrompt = `مجال التحسين: ${improvement.area || "غير محدد"}
+التأثير: ${improvement.impact === "high" ? "عالٍ" : improvement.impact === "medium" ? "متوسط" : "طفيف"}
+
+الوضع الحالي:
+${improvement.current || "غير محدد"}
+
+الاقتراح:
+${improvement.suggestion}
+
+محتوى الفصول:
+${chaptersContent}
+
+طبّق الاقتراح على الفصول المناسبة وأعد النتيجة بصيغة JSON.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 8192,
+        response_format: { type: "json_object" },
+      });
+
+      const resultText = response.choices[0]?.message?.content || "{}";
+      let result: any;
+      try {
+        result = JSON.parse(resultText);
+      } catch {
+        return res.status(500).json({ error: "فشل في تحليل استجابة الذكاء الاصطناعي" });
+      }
+
+      if (!result.fixedChapters || !Array.isArray(result.fixedChapters)) {
+        return res.status(500).json({ error: "فشل في إنتاج النص المحسّن" });
+      }
+
+      const validChapterIds = new Set(completedChapters.map((ch: any) => ch.id));
+      const validFixed = result.fixedChapters.filter((fc: any) =>
+        fc.chapterId && fc.fixedContent && validChapterIds.has(fc.chapterId)
+      );
+
+      res.json({ fixedChapters: validFixed });
+    } catch (error) {
+      console.error("Error fixing style improvement:", error);
+      res.status(500).json({ error: "فشل في تطبيق تحسين الأسلوب" });
+    }
+  });
+
+  // ===== Resolve Style Improvement =====
+  app.post("/api/projects/:id/resolve-style-improvement", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { issueIndex } = req.body;
+
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      if (!project.styleAnalysisResult) {
+        return res.status(400).json({ error: "لا توجد نتائج تحليل محفوظة" });
+      }
+
+      const result = JSON.parse(project.styleAnalysisResult);
+      if (!result.improvements || typeof issueIndex !== "number" || issueIndex < 0 || issueIndex >= result.improvements.length) {
+        return res.status(400).json({ error: "رقم الاقتراح غير صالح" });
+      }
+
+      result.improvements[issueIndex].resolved = true;
+      await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(result) });
+      res.json(result);
+    } catch (error) {
+      console.error("Error resolving style improvement:", error);
+      res.status(500).json({ error: "فشل في تحديث حالة الاقتراح" });
+    }
+  });
+
   // ===== Onboarding =====
   app.patch("/api/user/onboarding-complete", isAuthenticated, async (req: any, res) => {
     try {

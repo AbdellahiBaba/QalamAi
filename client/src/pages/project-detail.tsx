@@ -149,6 +149,8 @@ export default function ProjectDetail() {
   const [continuityFixPreview, setContinuityFixPreview] = useState<{ content: string; changes: string; chapterId: number; issueIndex: number } | null>(null);
   const [isAnalyzingStyle, setIsAnalyzingStyle] = useState(false);
   const [styleResult, setStyleResult] = useState<any>(null);
+  const [fixingStyleIndex, setFixingStyleIndex] = useState<number | null>(null);
+  const [styleFixPreview, setStyleFixPreview] = useState<{ chapters: Array<{ chapterId: number; chapterNumber: number; title: string; fixedContent: string; changes: string }>; improvementIndex: number } | null>(null);
   const [editingOutline, setEditingOutline] = useState(false);
   const [editOutlineText, setEditOutlineText] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
@@ -2123,7 +2125,7 @@ export default function ProjectDetail() {
                         <AlertDialogAction
                           onClick={async () => {
                             try {
-                              await apiRequest("PATCH", `/api/chapters/${continuityFixPreview.chapterId}`, { content: continuityFixPreview.content });
+                              await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${continuityFixPreview.chapterId}`, { content: continuityFixPreview.content });
                               await apiRequest("POST", `/api/projects/${projectId}/resolve-continuity-issue`, { issueIndex: continuityFixPreview.issueIndex });
                               setContinuityResult((prev: any) => {
                                 if (!prev?.issues) return prev;
@@ -2337,21 +2339,32 @@ export default function ProjectDetail() {
                   </Card>
                 )}
 
-                {styleResult.improvements?.length > 0 && (
+                {styleResult.improvements?.length > 0 && (() => {
+                  const resolvedCount = styleResult.improvements.filter((imp: any) => imp.resolved).length;
+                  const totalCount = styleResult.improvements.length;
+                  const unresolvedCount = totalCount - resolvedCount;
+                  return (
                   <Card>
                     <CardContent className="p-6">
                       <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
                         <Wand2 className="w-4 h-4 text-amber-600" />
-                        اقتراحات التحسين ({styleResult.improvements.length})
+                        اقتراحات التحسين (<LtrNum value={`${unresolvedCount}/${totalCount}`} />)
                       </h4>
                       <div className="space-y-4">
                         {styleResult.improvements.map((imp: any, i: number) => (
-                          <div key={i} className={`border rounded-lg p-4 ${imp.impact === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : imp.impact === "medium" ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-improvement-${i}`}>
+                          <div key={i} className={`border rounded-lg p-4 ${imp.resolved ? "border-green-300 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : imp.impact === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : imp.impact === "medium" ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-improvement-${i}`}>
                             <div className="flex items-center gap-2 mb-2">
-                              <Badge variant={imp.impact === "high" ? "destructive" : imp.impact === "medium" ? "secondary" : "outline"} data-testid={`badge-impact-${i}`}>
-                                {imp.impact === "high" ? "تأثير عالٍ" : imp.impact === "medium" ? "تأثير متوسط" : "تأثير طفيف"}
-                              </Badge>
-                              <span className="text-sm font-semibold">{imp.area}</span>
+                              {imp.resolved ? (
+                                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700" data-testid={`badge-resolved-style-${i}`}>
+                                  <CheckCircle className="w-3 h-3 ml-1" />
+                                  تم التحسين
+                                </Badge>
+                              ) : (
+                                <Badge variant={imp.impact === "high" ? "destructive" : imp.impact === "medium" ? "secondary" : "outline"} data-testid={`badge-impact-${i}`}>
+                                  {imp.impact === "high" ? "تأثير عالٍ" : imp.impact === "medium" ? "تأثير متوسط" : "تأثير طفيف"}
+                                </Badge>
+                              )}
+                              <span className={`text-sm font-semibold ${imp.resolved ? "line-through opacity-60" : ""}`}>{imp.area}</span>
                             </div>
                             {imp.current && (
                               <div className="text-xs bg-muted/50 rounded p-2 mb-2 border-r-2 border-red-300 dark:border-red-700" dir="rtl">
@@ -2363,11 +2376,107 @@ export default function ProjectDetail() {
                               <span className="font-medium text-green-700 dark:text-green-400">الاقتراح: </span>
                               <span className="text-muted-foreground">{imp.suggestion}</span>
                             </div>
+                            {!imp.resolved && (
+                              <div className="mt-3 flex justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={fixingStyleIndex === i}
+                                  data-testid={`button-fix-style-${i}`}
+                                  onClick={async () => {
+                                    setFixingStyleIndex(i);
+                                    try {
+                                      const res = await apiRequest("POST", `/api/projects/${projectId}/fix-style-improvement`, {
+                                        improvement: { area: imp.area, current: imp.current, suggestion: imp.suggestion, impact: imp.impact }
+                                      });
+                                      const data = await res.json();
+                                      if (data.fixedChapters && data.fixedChapters.length > 0) {
+                                        setStyleFixPreview({ chapters: data.fixedChapters, improvementIndex: i });
+                                      } else {
+                                        toast({ title: "لم يتم العثور على تعديلات مطلوبة", description: "لم يجد أبو هاشم أجزاء تحتاج تحسينًا لهذا الاقتراح" });
+                                      }
+                                    } catch (err: any) {
+                                      const msg = err.message?.split(": ").slice(1).join(": ") || "فشل في تطبيق التحسين";
+                                      toast({ title: "خطأ", description: msg, variant: "destructive" });
+                                    } finally {
+                                      setFixingStyleIndex(null);
+                                    }
+                                  }}
+                                >
+                                  {fixingStyleIndex === i ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                                      جارٍ التحسين...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Wand2 className="w-3.5 h-3.5 ml-1" />
+                                      إصلاح بواسطة أبو هاشم
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     </CardContent>
                   </Card>
+                  );
+                })()}
+
+                {styleFixPreview && (
+                  <AlertDialog open={!!styleFixPreview} onOpenChange={(open) => { if (!open) setStyleFixPreview(null); }}>
+                    <AlertDialogContent dir="rtl" className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-right font-serif">مراجعة تحسين الأسلوب</AlertDialogTitle>
+                        <AlertDialogDescription className="text-right">
+                          قام أبو هاشم بتحسين <LtrNum value={styleFixPreview.chapters.length} /> {styleFixPreview.chapters.length === 1 ? "فصل" : "فصول"}. راجع التعديلات قبل التطبيق.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-4 my-4">
+                        {styleFixPreview.chapters.map((ch, idx) => (
+                          <div key={idx} className="border rounded-lg p-3 space-y-2">
+                            <h5 className="font-semibold text-sm flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-primary" />
+                              {ch.title || `الفصل ${ch.chapterNumber}`}
+                            </h5>
+                            <div className="text-xs font-medium text-muted-foreground">ملخص التغييرات:</div>
+                            <span className="block p-3 rounded-md bg-primary/5 border border-primary/10 text-sm text-foreground leading-relaxed" dir="rtl">{ch.changes}</span>
+                            <div className="text-xs font-medium text-muted-foreground">معاينة النص المعدّل:</div>
+                            <div className="max-h-40 overflow-y-auto bg-muted/30 rounded p-3 text-sm leading-relaxed whitespace-pre-wrap" dir="rtl">
+                              {ch.fixedContent.substring(0, 3000)}{ch.fixedContent.length > 3000 ? "..." : ""}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <AlertDialogFooter className="flex-row-reverse gap-2">
+                        <AlertDialogAction
+                          data-testid="button-apply-style-fix"
+                          onClick={async () => {
+                            try {
+                              for (const ch of styleFixPreview.chapters) {
+                                await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${ch.chapterId}`, { content: ch.fixedContent });
+                              }
+                              await apiRequest("POST", `/api/projects/${projectId}/resolve-style-improvement`, { issueIndex: styleFixPreview.improvementIndex });
+                              const updated = { ...styleResult };
+                              updated.improvements = [...updated.improvements];
+                              updated.improvements[styleFixPreview.improvementIndex] = { ...updated.improvements[styleFixPreview.improvementIndex], resolved: true };
+                              setStyleResult(updated);
+                              queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                              toast({ title: "تم تطبيق التحسين", description: `\u200eتم تحديث ${styleFixPreview.chapters.length} فصل بنجاح` });
+                            } catch (err: any) {
+                              toast({ title: "خطأ", description: "فشل في تطبيق التعديلات", variant: "destructive" });
+                            }
+                            setStyleFixPreview(null);
+                          }}
+                        >
+                          تطبيق التعديل
+                        </AlertDialogAction>
+                        <AlertDialogCancel data-testid="button-cancel-style-fix">إلغاء</AlertDialogCancel>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </div>
             ) : (
