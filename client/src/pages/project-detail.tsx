@@ -16,7 +16,7 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { generateChapterPreviewPDF } from "@/lib/pdf-generator";
@@ -254,6 +254,22 @@ export default function ProjectDetail() {
     },
     onError: (err: any) => {
       toast({ title: err?.message || "فشل في فحص الأصالة", variant: "destructive" });
+    },
+  });
+
+  const enhanceFromOriginalityMutation = useMutation({
+    mutationFn: async ({ chapterId, suggestions, flaggedPhrases }: { chapterId: number; suggestions: string[]; flaggedPhrases: string[] }) => {
+      const res = await apiRequest("POST", `/api/chapters/${chapterId}/enhance-from-originality`, { suggestions, flaggedPhrases });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      setOriginalityChapterId(null);
+      setOriginalityResult(null);
+      toast({ title: "تم تحسين النص بنجاح بناءً على ملاحظات الأصالة" });
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "فشل في تحسين النص", variant: "destructive" });
     },
   });
 
@@ -855,7 +871,7 @@ export default function ProjectDetail() {
                           <div className="flex justify-between gap-2">
                             <span className="text-muted-foreground">أسلوب الكتابة:</span>
                             <span className="font-medium">{
-                              ({ formal: "رسمي أكاديمي", analytical: "تحليلي", investigative: "استقصائي", editorial: "افتتاحي / رأي", conversational: "حواري خبير" } as Record<string, string>)[project.essayTone] || project.essayTone
+                              ({ formal: "رسمي أكاديمي", analytical: "تحليلي", investigative: "استقصائي", editorial: "افتتاحي / رأي", conversational: "حواري خبير", narrative: "سردي قصصي", persuasive: "إقناعي", satirical: "ساخر", scientific: "علمي تبسيطي", literary: "أدبي", journalistic: "صحفي إخباري" } as Record<string, string>)[project.essayTone] || project.essayTone
                             }</span>
                           </div>
                         )}
@@ -1590,7 +1606,8 @@ export default function ProjectDetail() {
         <Dialog open={originalityChapterId !== null && (!!originalityResult || originalityCheckMutation.isPending)} onOpenChange={(open) => { if (!open) { setOriginalityChapterId(null); setOriginalityResult(null); } }}>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
             <DialogHeader>
-              <DialogTitle data-testid="text-originality-dialog-title">فحص الأصالة</DialogTitle>
+              <DialogTitle data-testid="text-originality-dialog-title">فحص الأصالة الأسلوبية</DialogTitle>
+              <p className="text-xs text-muted-foreground mt-1">تقييم تفرد الأسلوب اللغوي — وليس فحص انتحال أو سرقة أدبية</p>
             </DialogHeader>
             {originalityCheckMutation.isPending ? (
               <div className="flex items-center justify-center py-8">
@@ -1599,6 +1616,15 @@ export default function ProjectDetail() {
               </div>
             ) : originalityResult ? (
               <div className="space-y-4">
+                {originalityResult.methodology && (
+                  <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-originality-methodology">
+                    <h4 className="text-sm font-medium mb-1 flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 text-blue-500" />
+                      منهجية التقييم
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{originalityResult.methodology}</p>
+                  </div>
+                )}
                 <div className="flex items-center gap-3" data-testid="text-originality-score">
                   <span className="text-sm font-medium">درجة الأصالة:</span>
                   <Badge
@@ -1623,12 +1649,17 @@ export default function ProjectDetail() {
                 )}
                 {originalityResult.flaggedPhrases && originalityResult.flaggedPhrases.length > 0 && (
                   <div data-testid="text-originality-flagged">
-                    <h4 className="text-sm font-medium mb-1">عبارات مشبوهة</h4>
-                    <ul className="space-y-1">
+                    <h4 className="text-sm font-medium mb-1">عبارات قالبية</h4>
+                    <ul className="space-y-2">
                       {originalityResult.flaggedPhrases.map((phrase: string, i: number) => (
-                        <li key={i} className="text-sm text-red-600 dark:text-red-400 flex items-start gap-1">
-                          <span className="shrink-0 mt-1 w-1.5 h-1.5 rounded-full bg-red-500" />
-                          {phrase}
+                        <li key={i} className="text-sm">
+                          <div className="flex items-start gap-1 text-red-600 dark:text-red-400">
+                            <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="font-medium">«{phrase}»</span>
+                          </div>
+                          {originalityResult.flaggedReasons?.[i] && (
+                            <p className="text-xs text-muted-foreground mr-3 mt-0.5">{originalityResult.flaggedReasons[i]}</p>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -1658,6 +1689,31 @@ export default function ProjectDetail() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+                {(originalityResult.suggestions?.length > 0 || originalityResult.flaggedPhrases?.length > 0) && (
+                  <div className="pt-3 border-t">
+                    <Button
+                      data-testid="button-enhance-from-originality"
+                      className="w-full"
+                      disabled={enhanceFromOriginalityMutation.isPending}
+                      onClick={() => {
+                        if (originalityChapterId) {
+                          enhanceFromOriginalityMutation.mutate({
+                            chapterId: originalityChapterId,
+                            suggestions: originalityResult.suggestions || [],
+                            flaggedPhrases: originalityResult.flaggedPhrases || [],
+                          });
+                        }
+                      }}
+                    >
+                      {enhanceFromOriginalityMutation.isPending ? (
+                        <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> جارٍ تحسين النص...</>
+                      ) : (
+                        <><Wand2 className="w-4 h-4 ml-2" /> تحسين النص تلقائياً بناءً على الملاحظات</>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center mt-2">سيتم حفظ نسخة من النص الحالي قبل التحسين يمكنك استعادتها من سجل النسخ</p>
                   </div>
                 )}
               </div>

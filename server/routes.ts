@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt } from "./abu-hashim";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -1960,6 +1960,58 @@ ${glossaryParagraphs}
     } catch (error) {
       console.error("Error checking originality:", error);
       res.status(500).json({ error: "فشل في فحص الأصالة" });
+    }
+  });
+
+  // ===== Enhance from Originality =====
+  app.post("/api/chapters/:id/enhance-from-originality", isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { suggestions, flaggedPhrases } = req.body;
+
+      if (!Array.isArray(suggestions) || !Array.isArray(flaggedPhrases)) {
+        return res.status(400).json({ error: "suggestions و flaggedPhrases يجب أن يكونا مصفوفات" });
+      }
+      const cleanSuggestions = suggestions.filter((s: any) => typeof s === "string").slice(0, 20);
+      const cleanFlagged = flaggedPhrases.filter((s: any) => typeof s === "string").slice(0, 20);
+
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!chapter.content) return res.status(400).json({ error: "لا يوجد محتوى للتحسين" });
+
+      await storage.saveChapterVersion(chapterId, chapter.content, "before_enhance");
+
+      const { system, user } = buildOriginalityEnhancePrompt(
+        chapter.content,
+        cleanSuggestions,
+        cleanFlagged,
+        project.projectType || "novel"
+      );
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 8192,
+      });
+
+      const enhancedContent = response.choices[0]?.message?.content || "";
+      if (!enhancedContent) {
+        return res.status(500).json({ error: "فشل في تحسين النص" });
+      }
+
+      await storage.updateChapter(chapterId, { content: enhancedContent });
+      await storage.saveChapterVersion(chapterId, enhancedContent, "originality_enhance");
+
+      res.json({ content: enhancedContent });
+    } catch (error) {
+      console.error("Error enhancing from originality:", error);
+      res.status(500).json({ error: "فشل في تحسين النص" });
     }
   });
 

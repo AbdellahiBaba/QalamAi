@@ -43,6 +43,12 @@ const TONE_OPTIONS = [
   { value: "investigative", label: "استقصائي" },
   { value: "editorial", label: "افتتاحي / رأي" },
   { value: "conversational", label: "حواري خبير" },
+  { value: "narrative", label: "سردي قصصي" },
+  { value: "persuasive", label: "إقناعي" },
+  { value: "satirical", label: "ساخر" },
+  { value: "scientific", label: "علمي تبسيطي" },
+  { value: "literary", label: "أدبي" },
+  { value: "journalistic", label: "صحفي إخباري" },
 ];
 
 const essayFormSchema = z.object({
