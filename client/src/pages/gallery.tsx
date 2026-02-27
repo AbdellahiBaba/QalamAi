@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface GalleryProject {
   id: number;
@@ -55,6 +56,14 @@ export default function Gallery() {
   return (
     <div className="min-h-screen bg-background p-4 sm:p-6" dir="rtl">
       <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex items-center justify-start">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="gap-1" data-testid="button-back-home">
+              <ArrowRight className="w-4 h-4" />
+              الرئيسية
+            </Button>
+          </Link>
+        </div>
         <div className="text-center space-y-2">
           <h1 className="text-2xl sm:text-3xl font-serif font-bold" data-testid="text-gallery-title">معرض الأعمال</h1>
           <p className="text-muted-foreground" data-testid="text-gallery-subtitle">استكشف الأعمال الأدبية المشتركة</p>

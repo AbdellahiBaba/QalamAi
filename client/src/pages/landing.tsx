@@ -15,8 +15,11 @@ import {
   ChevronLeft,
   Menu,
   X,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useState } from "react";
+import { useTheme } from "@/components/theme-provider";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
@@ -30,6 +33,7 @@ const navLinks = [
 
 export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -56,6 +60,9 @@ export default function Landing() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
             <Link href="/login">
               <Button variant="outline" size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
             </Link>
