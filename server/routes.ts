@@ -2652,13 +2652,48 @@ ${allContent}
       const resultText = response.choices[0]?.message?.content || "{}";
       try {
         const result = JSON.parse(resultText);
+        if (result.issues) {
+          result.issues = result.issues.map((issue: any) => ({ ...issue, resolved: false }));
+        }
+        await storage.updateProject(id, { continuityCheckResult: JSON.stringify(result) });
         res.json(result);
       } catch {
-        res.json({ overallScore: 0, issues: [], strengths: [], summary: resultText });
+        const fallback = { overallScore: 0, issues: [], strengths: [], summary: resultText };
+        await storage.updateProject(id, { continuityCheckResult: JSON.stringify(fallback) });
+        res.json(fallback);
       }
     } catch (error) {
       console.error("Error running continuity check:", error);
       res.status(500).json({ error: "فشل في فحص الاستمرارية" });
+    }
+  });
+
+  // ===== Resolve Continuity Issue =====
+  app.post("/api/projects/:id/resolve-continuity-issue", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { issueIndex } = req.body;
+
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      if (!project.continuityCheckResult) {
+        return res.status(400).json({ error: "لا توجد نتائج فحص محفوظة" });
+      }
+
+      const result = JSON.parse(project.continuityCheckResult);
+      if (!result.issues || typeof issueIndex !== "number" || issueIndex < 0 || issueIndex >= result.issues.length) {
+        return res.status(400).json({ error: "رقم المشكلة غير صالح" });
+      }
+
+      result.issues[issueIndex].resolved = true;
+      await storage.updateProject(id, { continuityCheckResult: JSON.stringify(result) });
+      res.json(result);
+    } catch (error) {
+      console.error("Error resolving continuity issue:", error);
+      res.status(500).json({ error: "فشل في تحديث حالة المشكلة" });
     }
   });
 
@@ -2801,9 +2836,12 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       const resultText = response.choices[0]?.message?.content || "{}";
       try {
         const result = JSON.parse(resultText);
+        await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(result) });
         res.json(result);
       } catch {
-        res.json({ overallScore: 0, summary: resultText, dimensions: [], strengths: [], improvements: [], styleProfile: {}, topPriority: "" });
+        const fallback = { overallScore: 0, summary: resultText, dimensions: [], strengths: [], improvements: [], styleProfile: {}, topPriority: "" };
+        await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(fallback) });
+        res.json(fallback);
       }
     } catch (error) {
       console.error("Error running style analysis:", error);
