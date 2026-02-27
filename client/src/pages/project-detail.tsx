@@ -123,6 +123,10 @@ export default function ProjectDetail() {
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkChapterId, setBookmarkChapterId] = useState<number | null>(null);
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
+  const [editingSettings, setEditingSettings] = useState(false);
+  const [editTimeSetting, setEditTimeSetting] = useState("");
+  const [editPlaceSetting, setEditPlaceSetting] = useState("");
+  const [editNarrativeTechnique, setEditNarrativeTechnique] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -184,6 +188,21 @@ export default function ProjectDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
       toast({ title: "تم حفظ التعديلات" });
       setEditingChapter(null);
+    },
+    onError: () => {
+      toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
+    },
+  });
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (data: { timeSetting?: string; placeSetting?: string; narrativeTechnique?: string }) => {
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}/settings`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تم حفظ التعديلات" });
+      setEditingSettings(false);
     },
     onError: () => {
       toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
@@ -615,6 +634,37 @@ export default function ProjectDetail() {
     }
   };
 
+  const TECHNIQUE_LABELS: Record<string, string> = {
+    linear: "السرد الزمني التقليدي (الخطّي)",
+    temporal_break: "الانكسار الزمني (كسر التسلسل)",
+    polyphonic: "تعدّد الأصوات (البوليفونية)",
+    omniscient_narrator: "الراوي العليم",
+    limited: "الراوي المحدود أو الداخلي",
+    first_person_narration: "السرد بضمير المتكلم",
+    second_person: "السرد بضمير المخاطب",
+    documentary: "السرد الوثائقي",
+    fragmented: "السرد المتشظّي",
+    stream_of_consciousness: "تيار الوعي",
+    symbolic: "السرد الرمزي أو الأسطوري",
+    circular: "السرد الدائري",
+  };
+
+  const startEditSettings = () => {
+    if (!project) return;
+    setEditTimeSetting(project.timeSetting || "");
+    setEditPlaceSetting(project.placeSetting || "");
+    setEditNarrativeTechnique(project.narrativeTechnique || "");
+    setEditingSettings(true);
+  };
+
+  const handleSaveSettings = () => {
+    saveSettingsMutation.mutate({
+      timeSetting: editTimeSetting,
+      placeSetting: editPlaceSetting,
+      narrativeTechnique: editNarrativeTechnique,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
@@ -877,9 +927,26 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardContent className="p-4 sm:p-6 space-y-4">
-                  <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
-                    {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : "تفاصيل الرواية"}
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
+                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : "تفاصيل الرواية"}
+                    </h3>
+                    {project.projectType === "novel" && !editingSettings && (
+                      <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs" data-testid="button-edit-settings">
+                        <Pencil className="w-3 h-3" /> تعديل
+                      </Button>
+                    )}
+                    {project.projectType === "novel" && editingSettings && (
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={handleSaveSettings} disabled={saveSettingsMutation.isPending} className="h-7 gap-1 text-xs" data-testid="button-save-settings">
+                          {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} حفظ
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditingSettings(false)} className="h-7 text-xs" data-testid="button-cancel-settings">
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                   <div className="space-y-3 text-sm">
                     {project.projectType === "essay" ? (
                       <>
@@ -951,6 +1018,38 @@ export default function ProjectDetail() {
                           <span className="font-medium">{project.chapters?.length || 0}</span>
                         </div>
                       </>
+                    ) : editingSettings ? (
+                      <>
+                        <div className="space-y-1">
+                          <Label className="text-muted-foreground text-xs">الزمان</Label>
+                          <Input value={editTimeSetting} onChange={(e) => setEditTimeSetting(e.target.value)} data-testid="input-edit-time" className="h-8 text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-muted-foreground text-xs">المكان</Label>
+                          <Input value={editPlaceSetting} onChange={(e) => setEditPlaceSetting(e.target.value)} data-testid="input-edit-place" className="h-8 text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-muted-foreground text-xs">التقنية السردية</Label>
+                          <Select value={editNarrativeTechnique} onValueChange={setEditNarrativeTechnique}>
+                            <SelectTrigger className="h-8 text-sm" data-testid="select-edit-technique">
+                              <SelectValue placeholder="اختر التقنية السردية" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(TECHNIQUE_LABELS).map(([key, label]) => (
+                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">نوع السرد:</span>
+                          <span className="font-medium">{povLabel(project.narrativePov)}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">حجم الرواية:</span>
+                          <span className="font-medium">{project.pageCount} صفحة (~{(project.pageCount * 250).toLocaleString()} كلمة)</span>
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div className="flex justify-between gap-2">
@@ -965,6 +1064,12 @@ export default function ProjectDetail() {
                           <span className="text-muted-foreground">نوع السرد:</span>
                           <span className="font-medium">{povLabel(project.narrativePov)}</span>
                         </div>
+                        {project.narrativeTechnique && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">التقنية السردية:</span>
+                            <span className="font-medium">{TECHNIQUE_LABELS[project.narrativeTechnique] || project.narrativeTechnique}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">حجم الرواية:</span>
                           <span className="font-medium">{project.pageCount} صفحة (~{(project.pageCount * 250).toLocaleString()} كلمة)</span>

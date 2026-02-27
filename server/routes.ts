@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -464,10 +464,100 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/projects/suggest-technique", isAuthenticated, async (req: any, res) => {
+    try {
+      const { mainIdea, timeSetting, placeSetting, characters } = req.body;
+      if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
+        return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
+      }
+
+      const safeChars = Array.isArray(characters)
+        ? characters.filter((c: any) => c && typeof c.name === "string" && typeof c.role === "string").slice(0, 20).map((c: any) => ({ name: String(c.name).slice(0, 100), role: String(c.role).slice(0, 50) }))
+        : undefined;
+
+      const { system, user } = buildTechniqueSuggestionPrompt({
+        mainIdea: mainIdea.slice(0, 2000),
+        timeSetting: typeof timeSetting === "string" ? timeSetting.slice(0, 200) : undefined,
+        placeSetting: typeof placeSetting === "string" ? placeSetting.slice(0, 200) : undefined,
+        characters: safeChars,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 2048,
+      });
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "فشل في تحليل التقنية السردية" });
+      }
+
+      let suggestion: { primary: string; secondary: string; explanation: string; examples: string };
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!parsed.primary || !parsed.explanation) throw new Error("Invalid format");
+        suggestion = {
+          primary: String(parsed.primary),
+          secondary: String(parsed.secondary || ""),
+          explanation: String(parsed.explanation),
+          examples: String(parsed.examples || ""),
+        };
+      } catch {
+        return res.status(500).json({ error: "فشل في تحليل التقنية السردية" });
+      }
+
+      res.json(suggestion);
+    } catch (error) {
+      console.error("Error suggesting technique:", error);
+      res.status(500).json({ error: "فشل في اقتراح التقنية السردية" });
+    }
+  });
+
+  app.patch("/api/projects/:id/settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
+
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== userId) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+
+      const updates: Partial<{ timeSetting: string; placeSetting: string; narrativeTechnique: string | null }> = {};
+      if (typeof req.body.timeSetting === "string") {
+        updates.timeSetting = req.body.timeSetting.slice(0, 500);
+      }
+      if (typeof req.body.placeSetting === "string") {
+        updates.placeSetting = req.body.placeSetting.slice(0, 500);
+      }
+      if (typeof req.body.narrativeTechnique === "string") {
+        if (req.body.narrativeTechnique === "" || NARRATIVE_TECHNIQUE_MAP[req.body.narrativeTechnique]) {
+          updates.narrativeTechnique = req.body.narrativeTechnique || null;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "لا توجد تعديلات" });
+      }
+
+      const updated = await storage.updateProject(projectId, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating project settings:", error);
+      res.status(500).json({ error: "فشل في تحديث إعدادات المشروع" });
+    }
+  });
+
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType } = req.body;
+      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique } = req.body;
 
       const type = (projectType === "essay" || projectType === "scenario") ? projectType : "novel";
       const validPageCount = type === "novel" ? (VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150) : (pageCount || 10);
@@ -495,6 +585,7 @@ export async function registerRoutes(
         genre: type === "scenario" ? (genre || null) : null,
         episodeCount: type === "scenario" ? (episodeCount || 1) : null,
         formatType: type === "scenario" ? (formatType || "film") : null,
+        narrativeTechnique: type === "novel" && narrativeTechnique && NARRATIVE_TECHNIQUE_MAP[narrativeTechnique] ? narrativeTechnique : null,
         ...(autoPaid ? { paid: true, status: "draft" } : {}),
       });
 

@@ -22,12 +22,28 @@ const PAGE_OPTIONS = [
   { value: 300, label: "٣٠٠ صفحة — ٦٠٠ دولار" },
 ];
 
+const NARRATIVE_TECHNIQUE_OPTIONS = [
+  { value: "linear", label: "السرد الزمني التقليدي (الخطّي)" },
+  { value: "temporal_break", label: "الانكسار الزمني (كسر التسلسل)" },
+  { value: "polyphonic", label: "تعدّد الأصوات (البوليفونية)" },
+  { value: "omniscient_narrator", label: "الراوي العليم" },
+  { value: "limited", label: "الراوي المحدود أو الداخلي" },
+  { value: "first_person_narration", label: "السرد بضمير المتكلم" },
+  { value: "second_person", label: "السرد بضمير المخاطب" },
+  { value: "documentary", label: "السرد الوثائقي" },
+  { value: "fragmented", label: "السرد المتشظّي" },
+  { value: "stream_of_consciousness", label: "تيار الوعي" },
+  { value: "symbolic", label: "السرد الرمزي أو الأسطوري" },
+  { value: "circular", label: "السرد الدائري" },
+];
+
 const projectFormSchema = z.object({
   title: z.string().min(1, "عنوان الرواية مطلوب"),
   mainIdea: z.string().min(10, "يجب أن تكون الفكرة الرئيسية 10 أحرف على الأقل"),
   timeSetting: z.string().min(1, "الزمن مطلوب"),
   placeSetting: z.string().min(1, "المكان مطلوب"),
   narrativePov: z.string().min(1, "نوع السرد مطلوب"),
+  narrativeTechnique: z.string().optional(),
   pageCount: z.number().min(150).max(300),
   characters: z.array(z.object({
     name: z.string().min(1, "اسم الشخصية مطلوب"),
@@ -50,6 +66,8 @@ export default function NewProject() {
   const [titleSuggestions, setTitleSuggestions] = useState<Array<{ title: string; reason: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestingTitles, setSuggestingTitles] = useState(false);
+  const [suggestingTechnique, setSuggestingTechnique] = useState(false);
+  const [techniqueSuggestion, setTechniqueSuggestion] = useState<{ primary: string; secondary: string; explanation: string; examples: string } | null>(null);
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
@@ -59,6 +77,7 @@ export default function NewProject() {
       timeSetting: "",
       placeSetting: "",
       narrativePov: "",
+      narrativeTechnique: "",
       pageCount: 150,
       characters: [{ name: "", background: "", role: "protagonist" }],
       relationships: [],
@@ -136,6 +155,37 @@ export default function NewProject() {
   const selectTitle = (title: string) => {
     form.setValue("title", title, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     setShowSuggestions(false);
+  };
+
+  const handleSuggestTechnique = async () => {
+    const mainIdea = form.getValues("mainIdea");
+    if (!mainIdea || mainIdea.length < 10) {
+      toast({ title: "أدخل الفكرة الرئيسية أولاً", description: "يجب أن تكون الفكرة 10 أحرف على الأقل", variant: "destructive" });
+      return;
+    }
+
+    setSuggestingTechnique(true);
+    setTechniqueSuggestion(null);
+    try {
+      const res = await apiRequest("POST", "/api/projects/suggest-technique", {
+        mainIdea,
+        timeSetting: form.getValues("timeSetting"),
+        placeSetting: form.getValues("placeSetting"),
+        characters: form.getValues("characters")?.filter(c => c.name).map(c => ({ name: c.name, role: c.role })),
+      });
+      const suggestion = await res.json();
+      if (suggestion && suggestion.primary) {
+        setTechniqueSuggestion(suggestion);
+        form.setValue("narrativeTechnique", suggestion.primary, { shouldValidate: true });
+        toast({ title: "اقتراح أبو هاشم", description: `التقنية المقترحة: ${NARRATIVE_TECHNIQUE_OPTIONS.find(o => o.value === suggestion.primary)?.label || suggestion.primary}` });
+      } else {
+        toast({ title: "لم يتمكن أبو هاشم من الاقتراح", description: "حاول إضافة مزيد من التفاصيل", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "فشل في اقتراح التقنية السردية", description: "حاول مرة أخرى", variant: "destructive" });
+    } finally {
+      setSuggestingTechnique(false);
+    }
   };
 
   const steps = [
@@ -325,6 +375,62 @@ export default function NewProject() {
                         <FormMessage />
                       </FormItem>
                     )} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <FormField control={form.control} name="narrativeTechnique" render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between gap-2">
+                          <FormLabel>التقنية السردية (اختياري)</FormLabel>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSuggestTechnique}
+                            disabled={suggestingTechnique}
+                            className="text-xs h-7 gap-1"
+                            data-testid="button-suggest-technique"
+                          >
+                            {suggestingTechnique ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" /> يحلّل أبو هاشم...</>
+                            ) : (
+                              <><Sparkles className="w-3 h-3" /> اقتراح أبو هاشم</>
+                            )}
+                          </Button>
+                        </div>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-technique">
+                              <SelectValue placeholder="اختر التقنية السردية أو اترك لأبو هاشم" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {NARRATIVE_TECHNIQUE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    {techniqueSuggestion && (
+                      <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 text-sm space-y-2" data-testid="technique-suggestion-card">
+                        <p className="font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4" />
+                          تحليل أبو هاشم للتقنية السردية
+                        </p>
+                        <p className="text-amber-900 dark:text-amber-200">{techniqueSuggestion.explanation}</p>
+                        {techniqueSuggestion.secondary && (
+                          <p className="text-amber-700 dark:text-amber-400 text-xs">
+                            تقنية ثانوية مقترحة: <span className="font-medium">{NARRATIVE_TECHNIQUE_OPTIONS.find(o => o.value === techniqueSuggestion.secondary)?.label || techniqueSuggestion.secondary}</span>
+                          </p>
+                        )}
+                        {techniqueSuggestion.examples && (
+                          <p className="text-amber-700 dark:text-amber-400 text-xs">أمثلة: {techniqueSuggestion.examples}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="rounded-md bg-primary/5 border border-primary/10 p-4 text-sm text-muted-foreground">

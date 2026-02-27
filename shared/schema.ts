@@ -99,6 +99,7 @@ export const novelProjects = pgTable("novel_projects", {
   genre: text("genre"),
   episodeCount: integer("episode_count"),
   formatType: text("format_type"),
+  narrativeTechnique: text("narrative_technique"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
