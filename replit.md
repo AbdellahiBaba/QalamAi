@@ -32,9 +32,10 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation and persona management.
 - **PostgreSQL**: Primary database for all application data.
 - **Stripe**: Payment gateway for plan purchases and per-project payments, integrated via Replit Stripe connector and `stripe-replit-sync`.
-- **DALL-E 3**: Used for AI-generated cover images.
+- **DALL-E 3**: Used for AI-generated cover images with type-aware prompts (novel/essay/scenario styles). Title overlay via node-canvas with Amiri font.
 - **Nodemailer/SMTP**: For sending email notifications (project completion, plan activation, payment confirmation, ticket replies).
-- **pdfkit**: Library used for server-side PDF generation, specifically configured with Amiri Arabic font for correct rendering of RTL text.
+- **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font. Type-aware chapter labels (الفصل/القسم/المشهد). Glossary section appended when available. Cover title not duplicated when image has baked-in overlay.
+- **archiver**: Used for EPUB generation with type-aware labels and glossary support.
 
 ## Mobile Responsiveness
 All pages are fully mobile-responsive using Tailwind CSS responsive breakpoints (sm:, md:, lg:):

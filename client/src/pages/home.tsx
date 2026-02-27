@@ -174,7 +174,7 @@ export default function Home() {
     },
     {
       id: "completed-novels",
-      label: "روايات مكتملة",
+      label: "مشاريع مكتملة",
       value: stats.completed,
       icon: CheckCircle,
       color: "text-green-600 dark:text-green-400",

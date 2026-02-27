@@ -1223,18 +1223,24 @@ export function buildGlossaryPrompt(allContent: string, title: string, projectTy
 }
 
 export function buildCoverPrompt(project: NovelProject): string {
-  return `Design an artistic Arabic novel book cover.
+  const typeConfig = project.projectType === "essay"
+    ? { label: "Arabic professional essay/article cover", style: "Clean, modern, professional design suitable for an Arabic essay or news article" }
+    : project.projectType === "scenario"
+    ? { label: "Arabic cinematic screenplay/film cover", style: "Cinematic, dramatic poster-style design suitable for an Arabic screenplay or film project" }
+    : { label: "Arabic novel book cover", style: "Elegant, literary book cover suitable for an Arabic novel" };
 
-Story concept: ${project.mainIdea.slice(0, 300)}
-Time setting: ${project.timeSetting}
-Place setting: ${project.placeSetting}
+  return `Design an artistic ${typeConfig.label}.
+
+Content concept: ${project.mainIdea.slice(0, 300)}
+${project.timeSetting ? `Time setting: ${project.timeSetting}` : ""}
+${project.placeSetting ? `Place setting: ${project.placeSetting}` : ""}
 
 Style guidelines:
-- Elegant, literary book cover suitable for an Arabic novel
+- ${typeConfig.style}
 - Rich warm colors with gold accents and deep blues
 - Artistic and atmospheric, not photographic
 - Include subtle Arabic calligraphic patterns or ornamental borders as decoration
-- Evocative mood that reflects the story's themes
+- Evocative mood that reflects the content's themes
 - Professional publisher-quality design
 - Portrait orientation suitable for a book cover
 - Leave a clear area in the upper portion of the cover for a title to be overlaid later

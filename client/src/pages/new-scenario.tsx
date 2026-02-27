@@ -120,6 +120,7 @@ export default function NewScenario() {
         timeSetting: data.timeSetting,
         placeSetting: data.placeSetting,
         targetAudience: data.targetAudience || "",
+        visualTone: data.visualTone || "",
         narrativePov: "third_person",
         pageCount: 150,
         characters: data.characters,

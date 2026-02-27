@@ -291,7 +291,7 @@ export default function ProjectDetail() {
         .then((res) => res.json())
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-          toast({ title: "تم الدفع بنجاح! يمكنك الآن بدء كتابة روايتك." });
+          toast({ title: "تم الدفع بنجاح! يمكنك الآن بدء الكتابة." });
         })
         .catch(() => {
           toast({ title: "حدث خطأ في تأكيد الدفع", variant: "destructive" });

@@ -1011,22 +1011,26 @@ export async function registerRoutes(
         }
       }
 
-      doc.font("ArabicBold")
-        .fontSize(28)
-        .fillColor("#2C1810");
-      const titleWidth = doc.widthOfString(project.title);
-      doc.text(project.title, (595.28 - titleWidth) / 2, project.coverImageUrl ? 530 : 350, {
-        features: ["rtla"],
-      });
+      if (!project.coverImageUrl) {
+        doc.font("ArabicBold")
+          .fontSize(28)
+          .fillColor("#2C1810");
+        const titleWidth = doc.widthOfString(project.title);
+        doc.text(project.title, (595.28 - titleWidth) / 2, 350, {
+          features: ["rtla"],
+        });
 
-      doc.font("Arabic")
-        .fontSize(14)
-        .fillColor("#6B5B4F");
-      const subtitle = "بقلم أبو هاشم — QalamAI";
-      const subWidth = doc.widthOfString(subtitle);
-      doc.text(subtitle, (595.28 - subWidth) / 2, project.coverImageUrl ? 575 : 400, {
-        features: ["rtla"],
-      });
+        doc.font("Arabic")
+          .fontSize(14)
+          .fillColor("#6B5B4F");
+        const subtitle = "بقلم أبو هاشم — QalamAI";
+        const subWidth = doc.widthOfString(subtitle);
+        doc.text(subtitle, (595.28 - subWidth) / 2, 400, {
+          features: ["rtla"],
+        });
+      }
+
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : "الفصل";
 
       const chapters = (project.chapters || [])
         .filter((ch: any) => ch.content && ch.status === "completed")
@@ -1041,7 +1045,7 @@ export async function registerRoutes(
         doc.font("ArabicBold")
           .fontSize(22)
           .fillColor("#2C1810");
-        const chTitle = chapter.title || `الفصل ${chapter.chapterNumber}`;
+        const chTitle = chapter.title || `${chapterLabel} ${chapter.chapterNumber}`;
         doc.text(chTitle, 72, 90, {
           width: pageWidth,
           align: "right",
@@ -1081,6 +1085,36 @@ export async function registerRoutes(
         doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
       }
 
+      if (project.glossary) {
+        doc.addPage();
+        pageNumber++;
+        drawBorder();
+
+        doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
+        doc.text("المسرد", 72, 90, { width: pageWidth, align: "right", features: ["rtla"] });
+        doc.moveTo(72, 125).lineTo(595.28 - 72, 125).lineWidth(0.5).strokeColor("#C4A882").stroke();
+
+        doc.font("Arabic").fontSize(12).fillColor("#333333");
+        const glossaryLines = project.glossary.split(/\n+/).filter((l: string) => l.trim());
+        let yPos = 140;
+        for (const line of glossaryLines) {
+          const textHeight = doc.heightOfString(line.trim(), { width: pageWidth, align: "right", lineGap: 6 });
+          if (yPos + textHeight > pageHeight - 100) {
+            doc.font("Arabic").fontSize(9).fillColor("#999");
+            doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+            doc.addPage();
+            pageNumber++;
+            drawBorder();
+            yPos = 72;
+          }
+          doc.font("Arabic").fontSize(12).fillColor("#333333");
+          doc.text(line.trim(), 72, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
+          yPos += textHeight + 8;
+        }
+        doc.font("Arabic").fontSize(9).fillColor("#999");
+        doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+      }
+
       doc.end();
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -1097,6 +1131,7 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
+      const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : "الفصل";
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
       if (completedChapters.length === 0) return res.status(400).json({ error: "لا توجد فصول مكتملة" });
 
@@ -1156,6 +1191,12 @@ export async function registerRoutes(
       const coverSpineItem = coverImageBuffer
         ? `    <itemref idref="cover" linear="no"/>\n`
         : "";
+      const glossaryManifestItem = project.glossary
+        ? `\n    <item id="glossary" href="glossary.xhtml" media-type="application/xhtml+xml"/>`
+        : "";
+      const glossarySpineItem = project.glossary
+        ? `\n    <itemref idref="glossary" properties="page-spread-right"/>`
+        : "";
 
       archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" dir="rtl">
@@ -1169,10 +1210,10 @@ export async function registerRoutes(
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
-${coverManifestItems}${chapterItems}
+${coverManifestItems}${chapterItems}${glossaryManifestItem}
   </manifest>
   <spine page-progression-direction="rtl">
-${coverSpineItem}${chapterSpine}
+${coverSpineItem}${chapterSpine}${glossarySpineItem}
   </spine>
 </package>`, { name: "OEBPS/content.opf" });
 
@@ -1197,7 +1238,7 @@ p { text-indent: 2em; margin: 0.5em 0; text-align: justify; }
 hr { border: none; border-top: 1px solid #D4A574; margin: 1.5em auto; width: 40%; }`, { name: "OEBPS/style.css" });
 
       const tocItems = completedChapters
-        .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">الفصل ${ch.chapterNumber}: ${ch.title}</a></li>`)
+        .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${ch.chapterNumber}: ${ch.title}</a></li>`)
         .join("\n");
 
       archive.append(`<?xml version="1.0" encoding="UTF-8"?>
@@ -1223,14 +1264,31 @@ ${tocItems}
         archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
-<head><title>الفصل ${ch.chapterNumber}: ${ch.title}</title><link rel="stylesheet" href="style.css"/></head>
+<head><title>${epubChapterLabel} ${ch.chapterNumber}: ${ch.title}</title><link rel="stylesheet" href="style.css"/></head>
 <body>
-  <h2>الفصل ${ch.chapterNumber}</h2>
+  <h2>${epubChapterLabel} ${ch.chapterNumber}</h2>
   <h1>${ch.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h1>
   <hr/>
 ${paragraphs}
 </body>
 </html>`, { name: `OEBPS/chapter${i + 1}.xhtml` });
+      }
+
+      if (project.glossary) {
+        const glossaryParagraphs = project.glossary.split("\n").filter((p: string) => p.trim())
+          .map((p: string) => `<p>${p.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
+          .join("\n");
+
+        archive.append(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
+<head><title>المسرد</title><link rel="stylesheet" href="style.css"/></head>
+<body>
+  <h1>المسرد</h1>
+  <hr/>
+${glossaryParagraphs}
+</body>
+</html>`, { name: "OEBPS/glossary.xhtml" });
       }
 
       await archive.finalize();
