@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2 } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -31,6 +31,9 @@ interface AnalyticsData {
   projectsByType: { type: string; count: number }[];
   planBreakdown: { plan: string; count: number }[];
   revenueData?: RevenueData;
+  totalWords?: number;
+  writingActivity?: { date: string; words: number; projects: number }[];
+  topWriters?: { name: string; words: number }[];
 }
 
 interface AdminUser {
@@ -912,6 +915,78 @@ export default function Admin() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {analytics.totalWords !== undefined && (
+                  <div className="mt-6">
+                    <Card data-testid="card-analytics-total-words">
+                      <CardContent className="p-5 text-center">
+                        <PenTool className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                        <div className="text-3xl font-bold mb-1" data-testid="text-analytics-total-words">
+                          {analytics.totalWords.toLocaleString("ar-EG")}
+                        </div>
+                        <div className="text-xs text-muted-foreground">إجمالي الكلمات على المنصة</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {analytics.writingActivity && analytics.writingActivity.length > 0 && (
+                  <div className="mt-6">
+                    <Card data-testid="card-analytics-writing-activity">
+                      <CardContent className="p-5">
+                        <h3 className="font-medium mb-4 flex items-center gap-2 flex-wrap">
+                          <TrendingUp className="w-4 h-4" />
+                          نشاط الكتابة (آخر 30 يوم)
+                        </h3>
+                        <div className="space-y-1">
+                          {(() => {
+                            const maxWords = Math.max(...analytics.writingActivity!.map(d => d.words), 1);
+                            return analytics.writingActivity!.map((day) => (
+                              <div key={day.date} className="flex items-center gap-2" data-testid={`bar-activity-${day.date}`}>
+                                <span className="text-[10px] text-muted-foreground w-16 shrink-0 text-left">
+                                  {new Date(day.date).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}
+                                </span>
+                                <div className="flex-1 h-4 rounded-md bg-muted overflow-hidden">
+                                  <div
+                                    className="h-full rounded-md bg-primary transition-all duration-500"
+                                    style={{ width: `${(day.words / maxWords) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-muted-foreground w-14 shrink-0">
+                                  {day.words.toLocaleString("ar-EG")}
+                                </span>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {analytics.topWriters && analytics.topWriters.length > 0 && (
+                  <div className="mt-6">
+                    <Card data-testid="card-analytics-top-writers">
+                      <CardContent className="p-5">
+                        <h3 className="font-medium mb-4 flex items-center gap-2 flex-wrap">
+                          <Crown className="w-4 h-4" />
+                          أفضل الكتّاب
+                        </h3>
+                        <div className="space-y-3">
+                          {analytics.topWriters.map((writer, index) => (
+                            <div key={index} className="flex items-center justify-between gap-2" data-testid={`row-top-writer-${index}`}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-primary w-6 text-center">{index + 1}</span>
+                                <span className="text-sm">{writer.name}</span>
+                              </div>
+                              <Badge variant="secondary">{writer.words.toLocaleString("ar-EG")} كلمة</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-center py-16">

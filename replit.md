@@ -19,9 +19,11 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - AI-powered content enhancements: title suggestions, character suggestions, cover image generation (DALL-E with Arabic title calligraphy, regeneratable), originality/plagiarism checks, and glossary auto-generation.
 - Robust export capabilities: server-side PDF generation (with Amiri Arabic font support for RTL) and EPUB export.
 - User management includes profiles, public author profiles, and an onboarding wizard.
-- Engagement features: in-app notification center, reading progress tracking, and chapter bookmarks.
+- Engagement features: in-app notification center, reading progress tracking, chapter bookmarks, and project favorites (heart icon toggle with filter).
+- Writing statistics dashboard: expandable section on home page showing daily writing activity chart (last 14 days), per-project word breakdown with progress bars, avg words/project, completion rate, avg words/active day.
 - Community and sharing: project sharing via public read-only links and a public gallery of shared works.
-- Administrative tools: comprehensive admin panel for user, content, revenue, and promo code management.
+- Administrative tools: comprehensive admin panel for user, content, revenue, promo code management, aggregate word counts, 30-day writing activity trends, and top 5 writers leaderboard.
+- Enhanced onboarding wizard: 4-step guided dialog with animated Abu Hashim avatar, project type descriptions with word limits, expanded 5-item feature tour (glossary, style analysis), and actionable writing tips with progress bar.
 
 **Content Type Specifications:**
 - **Novel Writing**: Features multi-step creation (details, characters, relationships), auto-outlining, chapter-by-chapter generation with advanced narrative techniques, and specialized AI persona with memory of 12 Arab master novelists. Supports full novel regeneration after adding new characters (outline + all chapters recreated with confirmation dialog). Includes 12 Arabic narrative technique/style selection (linear, temporal break, polyphonic, omniscient narrator, limited, first person, second person, documentary, fragmented, stream of consciousness, symbolic, circular) with Abu Hashim AI suggestion. Time, place, and technique are editable from project detail page via PATCH /api/projects/:id/settings. Abu Hashim system prompt includes comprehensive Arabic grammar rules (النحو والصرف), Arabic rhetoric (البلاغة العربية — البيان والمعاني والبديع), technique-specific writing directives per narrative style, and quality checklist (إيقاع نثري، تصوير فني، حوار أصيل، معجم متنوع، تدقيق لغوي).

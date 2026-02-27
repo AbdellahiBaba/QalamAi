@@ -271,6 +271,13 @@ export const bookmarks = pgTable("bookmarks", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const projectFavorites = pgTable("project_favorites", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const insertNovelProjectSchema = createInsertSchema(novelProjects).omit({
   id: true,
   createdAt: true,
@@ -324,3 +331,6 @@ export type Notification = typeof notifications.$inferSelect;
 export type PromoCode = typeof promoCodes.$inferSelect;
 export type ReadingProgress = typeof readingProgress.$inferSelect;
 export type Bookmark = typeof bookmarks.$inferSelect;
+export const insertProjectFavoriteSchema = createInsertSchema(projectFavorites).omit({ id: true, createdAt: true });
+export type InsertProjectFavorite = z.infer<typeof insertProjectFavoriteSchema>;
+export type ProjectFavorite = typeof projectFavorites.$inferSelect;

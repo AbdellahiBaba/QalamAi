@@ -301,6 +301,91 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/favorites", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const favoriteIds = await storage.getFavoritesByUser(userId);
+      res.json(favoriteIds);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ error: "Failed to fetch favorites" });
+    }
+  });
+
+  app.post("/api/projects/:id/favorite", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== userId) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const result = await storage.toggleFavorite(userId, projectId);
+      res.json(result);
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      res.status(500).json({ error: "Failed to toggle favorite" });
+    }
+  });
+
+  app.get("/api/projects/writing-stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projects = await storage.getProjectsByUser(userId);
+      let totalWords = 0;
+      let completedProjects = 0;
+      const projectBreakdown: { projectId: number; title: string; type: string; words: number; chapters: number; completedChapters: number }[] = [];
+      const dailyMap: Record<string, number> = {};
+
+      for (const project of projects) {
+        const full = await storage.getProjectWithDetails(project.id);
+        if (!full) continue;
+        let projectWords = 0;
+        let completedChapters = 0;
+        for (const ch of full.chapters) {
+          if (ch.content) {
+            const words = ch.content.split(/\s+/).filter((w: string) => w.trim()).length;
+            projectWords += words;
+            if (ch.status === "completed") completedChapters++;
+            const dateKey = new Date(ch.createdAt).toISOString().split("T")[0];
+            dailyMap[dateKey] = (dailyMap[dateKey] || 0) + words;
+          }
+        }
+        totalWords += projectWords;
+        if (project.status === "completed" || project.status === "finished") completedProjects++;
+        projectBreakdown.push({
+          projectId: project.id,
+          title: project.title,
+          type: project.projectType || "novel",
+          words: projectWords,
+          chapters: full.chapters.length,
+          completedChapters,
+        });
+      }
+
+      const today = new Date();
+      const dailyWordCounts: { date: string; words: number }[] = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().split("T")[0];
+        dailyWordCounts.push({ date: key, words: dailyMap[key] || 0 });
+      }
+
+      res.json({
+        totalWords,
+        totalProjects: projects.length,
+        completedProjects,
+        avgWordsPerProject: projects.length > 0 ? Math.round(totalWords / projects.length) : 0,
+        dailyWordCounts,
+        projectBreakdown: projectBreakdown.sort((a, b) => b.words - a.words),
+      });
+    } catch (error) {
+      console.error("Error fetching writing stats:", error);
+      res.status(500).json({ error: "Failed to fetch writing stats" });
+    }
+  });
+
   app.get("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);

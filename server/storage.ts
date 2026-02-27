@@ -1,6 +1,6 @@
 import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
-  users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks,
+  users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -9,7 +9,7 @@ import {
   type User, type UpsertUser,
   type SupportTicket, type InsertSupportTicket,
   type TicketReply, type InsertTicketReply,
-  type Notification, type PromoCode, type ReadingProgress, type Bookmark,
+  type Notification, type PromoCode, type ReadingProgress, type Bookmark, type ProjectFavorite,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull } from "drizzle-orm";
@@ -46,6 +46,8 @@ export interface IStorage {
   getTicketStats(): Promise<{ status: string; count: number }[]>;
   getAllUsers(): Promise<User[]>;
   getUserProjectCount(userId: string): Promise<number>;
+  toggleFavorite(userId: string, projectId: number): Promise<{ favorited: boolean }>;
+  getFavoritesByUser(userId: string): Promise<number[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -313,12 +315,62 @@ export class DatabaseStorage implements IStorage {
       console.error("Error fetching revenue data:", e);
     }
 
+    let totalWords = 0;
+    let writingActivity: { date: string; words: number; projects: number }[] = [];
+    let topWriters: { userId: string; name: string; words: number }[] = [];
+    try {
+      const userWordMap: Record<string, number> = {};
+      const dailyMap: Record<string, { words: number; projectIds: Set<string> }> = {};
+
+      const allChaptersWithProject = await db.select({
+        content: chapters.content,
+        createdAt: chapters.createdAt,
+        userId: novelProjects.userId,
+        projectId: chapters.projectId,
+      }).from(chapters).innerJoin(novelProjects, eq(chapters.projectId, novelProjects.id));
+
+      for (const ch of allChaptersWithProject) {
+        if (!ch.content) continue;
+        const words = ch.content.split(/\s+/).filter((w: string) => w.trim()).length;
+        totalWords += words;
+        userWordMap[ch.userId] = (userWordMap[ch.userId] || 0) + words;
+        const dateKey = new Date(ch.createdAt).toISOString().split("T")[0];
+        if (!dailyMap[dateKey]) dailyMap[dateKey] = { words: 0, projectIds: new Set() };
+        dailyMap[dateKey].words += words;
+        dailyMap[dateKey].projectIds.add(String(ch.projectId));
+      }
+
+      const today = new Date();
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().split("T")[0];
+        const entry = dailyMap[key];
+        writingActivity.push({ date: key, words: entry?.words || 0, projects: entry?.projectIds?.size || 0 });
+      }
+
+      const topUserIds = Object.entries(userWordMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      for (const [uid, words] of topUserIds) {
+        const [u] = await db.select().from(users).where(eq(users.id, uid));
+        topWriters.push({
+          userId: uid,
+          name: u?.displayName || `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.email || 'مجهول',
+          words,
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching extended analytics:", e);
+    }
+
     return {
       totalUsers: totalUsersResult[0]?.value || 0,
       totalProjects: totalProjectsResult[0]?.value || 0,
       projectsByType: projectsByType.rows as { type: string; count: number }[],
       planBreakdown: planBreakdown.rows as { plan: string; count: number }[],
       revenueData,
+      totalWords,
+      writingActivity,
+      topWriters,
     };
   }
 
@@ -420,6 +472,21 @@ export class DatabaseStorage implements IStorage {
   async updateUserProfileExtended(userId: string, data: { firstName?: string; lastName?: string; bio?: string; displayName?: string; publicProfile?: boolean; onboardingCompleted?: boolean }): Promise<User> {
     const [updated] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
     return updated;
+  }
+
+  async toggleFavorite(userId: string, projectId: number): Promise<{ favorited: boolean }> {
+    const [existing] = await db.select().from(projectFavorites).where(and(eq(projectFavorites.userId, userId), eq(projectFavorites.projectId, projectId)));
+    if (existing) {
+      await db.delete(projectFavorites).where(eq(projectFavorites.id, existing.id));
+      return { favorited: false };
+    }
+    await db.insert(projectFavorites).values({ userId, projectId });
+    return { favorited: true };
+  }
+
+  async getFavoritesByUser(userId: string): Promise<number[]> {
+    const favs = await db.select({ projectId: projectFavorites.projectId }).from(projectFavorites).where(eq(projectFavorites.userId, userId)).orderBy(desc(projectFavorites.createdAt));
+    return favs.map(f => f.projectId);
   }
 }
 

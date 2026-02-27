@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/components/theme-provider";
@@ -45,6 +45,39 @@ export default function Home() {
     refetchInterval: 30000,
   });
 
+  const { data: favorites } = useQuery<number[]>({
+    queryKey: ["/api/favorites"],
+  });
+
+  const favoritesSet = useMemo(() => new Set(favorites || []), [favorites]);
+
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async (projectId: number) => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/favorite`);
+      return res.json();
+    },
+    onMutate: async (projectId: number) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/favorites"] });
+      const previousFavorites = queryClient.getQueryData<number[]>(["/api/favorites"]);
+      queryClient.setQueryData<number[]>(["/api/favorites"], (old) => {
+        const current = old || [];
+        if (current.includes(projectId)) {
+          return current.filter((id) => id !== projectId);
+        }
+        return [...current, projectId];
+      });
+      return { previousFavorites };
+    },
+    onError: (_err, _projectId, context) => {
+      if (context?.previousFavorites) {
+        queryClient.setQueryData(["/api/favorites"], context.previousFavorites);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
+    },
+  });
+
   const unreadCount = unreadCountData?.count ?? 0;
 
   const markAllReadMutation = useMutation({
@@ -72,7 +105,23 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterFavorites, setFilterFavorites] = useState(false);
   const [sortBy, setSortBy] = useState("date_desc");
+  const [showWritingStats, setShowWritingStats] = useState(false);
+
+  interface WritingStats {
+    totalWords: number;
+    totalProjects: number;
+    completedProjects: number;
+    avgWordsPerProject: number;
+    dailyWordCounts: { date: string; words: number }[];
+    projectBreakdown: { projectId: number; title: string; type: string; words: number; chapters: number; completedChapters: number }[];
+  }
+
+  const { data: writingStats } = useQuery<WritingStats>({
+    queryKey: ["/api/projects/writing-stats"],
+    enabled: showWritingStats,
+  });
 
   const userPlan = planData?.plan || "free";
   const planLabel = userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : null;
@@ -136,6 +185,10 @@ export default function Home() {
       result = result.filter((p) => p.status === filterStatus);
     }
 
+    if (filterFavorites) {
+      result = result.filter((p) => favoritesSet.has(p.id));
+    }
+
     result.sort((a, b) => {
       switch (sortBy) {
         case "date_asc":
@@ -151,9 +204,9 @@ export default function Home() {
     });
 
     return result;
-  }, [projects, searchQuery, filterType, filterStatus, sortBy]);
+  }, [projects, searchQuery, filterType, filterStatus, filterFavorites, favoritesSet, sortBy]);
 
-  const hasActiveFilters = searchQuery.trim() !== "" || filterType !== "all" || filterStatus !== "all" || sortBy !== "date_desc";
+  const hasActiveFilters = searchQuery.trim() !== "" || filterType !== "all" || filterStatus !== "all" || filterFavorites || sortBy !== "date_desc";
 
   const statCards = [
     {
@@ -374,6 +427,133 @@ export default function Home() {
           ))}
         </div>
 
+        <div className="mb-8">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowWritingStats(!showWritingStats)}
+            className="gap-1.5 mb-4"
+            data-testid="button-toggle-writing-stats"
+          >
+            <BarChart3 className="w-4 h-4" />
+            {showWritingStats ? "إخفاء إحصائيات الكتابة" : "إحصائيات الكتابة التفصيلية"}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showWritingStats ? "rotate-180" : ""}`} />
+          </Button>
+
+          {showWritingStats && writingStats && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-xl font-bold text-primary" data-testid="stat-avg-words">{writingStats.avgWordsPerProject.toLocaleString("ar-EG")}</div>
+                    <div className="text-xs text-muted-foreground">متوسط الكلمات/مشروع</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-xl font-bold text-green-600 dark:text-green-400" data-testid="stat-completion-rate">
+                      {writingStats.totalProjects > 0 ? Math.round((writingStats.completedProjects / writingStats.totalProjects) * 100) : 0}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">نسبة الإنجاز</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-xl font-bold text-amber-600 dark:text-amber-400" data-testid="stat-completed-count">{writingStats.completedProjects}</div>
+                    <div className="text-xs text-muted-foreground">مشاريع مكتملة</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400" data-testid="stat-daily-avg">
+                      {(() => {
+                        const activeDays = writingStats.dailyWordCounts.filter(d => d.words > 0).length;
+                        return activeDays > 0 ? Math.round(writingStats.totalWords / activeDays).toLocaleString("ar-EG") : "٠";
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">متوسط الكلمات/يوم نشط</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardContent className="p-5">
+                  <h3 className="font-medium text-sm mb-4 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-primary" />
+                    نشاط الكتابة — آخر ١٤ يوماً
+                  </h3>
+                  <div className="flex items-end gap-1 h-24" data-testid="chart-daily-words">
+                    {writingStats.dailyWordCounts.map((day, i) => {
+                      const maxWords = Math.max(...writingStats.dailyWordCounts.map(d => d.words), 1);
+                      const height = day.words > 0 ? Math.max(4, (day.words / maxWords) * 100) : 0;
+                      const dateObj = new Date(day.date);
+                      const dayLabel = dateObj.toLocaleDateString("ar-EG", { day: "numeric" });
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 group" data-testid={`bar-day-${i}`}>
+                          <div className="relative w-full flex justify-center">
+                            <div className="absolute -top-6 bg-popover border rounded px-1.5 py-0.5 text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">
+                              {day.words.toLocaleString("ar-EG")} كلمة
+                            </div>
+                          </div>
+                          <div
+                            className={`w-full rounded-t ${day.words > 0 ? "bg-primary/70 hover:bg-primary" : "bg-muted"} transition-all duration-300`}
+                            style={{ height: `${height}%`, minHeight: day.words > 0 ? "4px" : "2px" }}
+                          />
+                          <span className="text-[9px] text-muted-foreground">{dayLabel}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {writingStats.projectBreakdown.length > 0 && (
+                <Card>
+                  <CardContent className="p-5">
+                    <h3 className="font-medium text-sm mb-4 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      توزيع الكلمات حسب المشروع
+                    </h3>
+                    <div className="space-y-3">
+                      {writingStats.projectBreakdown.slice(0, 8).map((proj) => {
+                        const maxWords = Math.max(...writingStats.projectBreakdown.map(p => p.words), 1);
+                        const typeLabel = proj.type === "essay" ? "مقال" : proj.type === "scenario" ? "سيناريو" : proj.type === "short_story" ? "قصة قصيرة" : "رواية";
+                        return (
+                          <div key={proj.projectId} data-testid={`breakdown-project-${proj.projectId}`}>
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="flex items-center gap-1.5 text-sm truncate min-w-0">
+                                <span className="truncate">{proj.title}</span>
+                                <span className="text-[10px] text-muted-foreground shrink-0">({typeLabel})</span>
+                              </div>
+                              <span className="text-xs font-medium shrink-0">{proj.words.toLocaleString("ar-EG")} كلمة</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                                style={{ width: `${(proj.words / maxWords) * 100}%` }}
+                              />
+                            </div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              {proj.completedChapters}/{proj.chapters} فصول مكتملة
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {showWritingStats && !writingStats && (
+            <div className="space-y-3">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          )}
+        </div>
+
         {projects && projects.length > 0 && (
           <Card className="mb-8">
             <CardContent className="p-4 space-y-4">
@@ -432,6 +612,16 @@ export default function Home() {
                     </SelectContent>
                   </Select>
                 </div>
+                <Button
+                  variant={filterFavorites ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterFavorites((v) => !v)}
+                  className="toggle-elevate"
+                  data-testid="button-filter-favorites"
+                >
+                  <Heart className={`w-3.5 h-3.5 ml-1 ${filterFavorites ? "fill-current" : ""}`} />
+                  المفضلة
+                </Button>
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
@@ -440,6 +630,7 @@ export default function Home() {
                       setSearchQuery("");
                       setFilterType("all");
                       setFilterStatus("all");
+                      setFilterFavorites(false);
                       setSortBy("date_desc");
                     }}
                     data-testid="button-clear-filters"
@@ -468,9 +659,22 @@ export default function Home() {
         ) : projects && projects.length > 0 && filteredProjects.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project) => (
-              <Link key={project.id} href={`/project/${project.id}`}>
-                <Card className="cursor-pointer hover-elevate h-full">
-                  <CardContent className="p-6 space-y-4">
+              <Card key={project.id} className="cursor-pointer hover-elevate h-full relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 left-2 z-10"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleFavoriteMutation.mutate(project.id);
+                  }}
+                  data-testid={`button-favorite-${project.id}`}
+                >
+                  <Heart className={`w-4 h-4 ${favoritesSet.has(project.id) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+                </Button>
+                <Link href={`/project/${project.id}`}>
+                <CardContent className="p-6 space-y-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
                         {(project.projectType === "essay") && <Newspaper className="w-4 h-4 text-blue-500 shrink-0" />}
@@ -534,8 +738,8 @@ export default function Home() {
                               : "في الانتظار"}
                     </div>
                   </CardContent>
-                </Card>
-              </Link>
+                </Link>
+              </Card>
             ))}
           </div>
         ) : projects && projects.length > 0 && filteredProjects.length === 0 ? (
@@ -551,6 +755,7 @@ export default function Home() {
                 setSearchQuery("");
                 setFilterType("all");
                 setFilterStatus("all");
+                setFilterFavorites(false);
                 setSortBy("date_desc");
               }}
               data-testid="button-clear-filters-empty"
@@ -600,6 +805,12 @@ export default function Home() {
 
       <Dialog open={!!showOnboarding} onOpenChange={(open) => { if (!open) onboardingMutation.mutate(); }}>
         <DialogContent dir="rtl" className="max-w-xl" data-testid="dialog-onboarding">
+          <div className="w-full bg-muted rounded-full h-1.5 mb-2" data-testid="onboarding-progress-bar">
+            <div
+              className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${(onboardingStep / 4) * 100}%` }}
+            />
+          </div>
           <DialogHeader className="text-center sm:text-center">
             <DialogTitle className="font-serif text-2xl" data-testid="text-onboarding-title">
               {onboardingStep === 1 && "مرحباً بك في QalamAI"}
@@ -611,23 +822,36 @@ export default function Home() {
               {onboardingStep === 1 && "منصة الكتابة الإبداعية بالذكاء الاصطناعي"}
               {onboardingStep === 2 && "حدد نوع المشروع الذي تريد البدء به"}
               {onboardingStep === 3 && "تعرّف على أهم مزايا لوحة التحكم"}
-              {onboardingStep === 4 && "ابدأ رحلتك الإبداعية الآن"}
+              {onboardingStep === 4 && "نصائح سريعة لبدء رحلتك الإبداعية"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-4" data-testid={`onboarding-step-${onboardingStep}`}>
             {onboardingStep === 1 && (
               <div className="text-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-                  <Sparkles className="w-8 h-8 text-primary" />
+                <div className="relative w-20 h-20 mx-auto">
+                  <div className="absolute inset-0 rounded-2xl bg-primary/10 animate-pulse" />
+                  <div className="relative w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Avatar className="w-14 h-14">
+                      <AvatarFallback className="bg-primary/20 text-primary text-xl font-bold font-serif">
+                        هـ
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
                   QalamAI هي منصتك الذكية للكتابة الإبداعية باللغة العربية.
                   يساعدك أبو هاشم — مساعد الكتابة بالذكاء الاصطناعي — في تأليف الروايات والمقالات والسيناريوهات بأسلوب احترافي وسلس.
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm font-medium text-primary">
-                  <PenTool className="w-4 h-4" />
+                  <MessageCircle className="w-4 h-4" />
                   <span>أبو هاشم — رفيقك في الكتابة</span>
+                </div>
+                <div className="bg-muted/50 rounded-md p-3 max-w-sm mx-auto">
+                  <p className="text-xs text-muted-foreground leading-relaxed" data-testid="text-onboarding-tip-1">
+                    <Sparkles className="w-3.5 h-3.5 inline ml-1 text-primary" />
+                    ما يميز QalamAI: ذكاء اصطناعي مُدرَّب خصيصاً على الأدب العربي، يفهم البلاغة والأساليب الأدبية العربية لمساعدتك في إنتاج نصوص عالية الجودة.
+                  </p>
                 </div>
               </div>
             )}
@@ -644,7 +868,8 @@ export default function Home() {
                       <BookOpen className="w-5 h-5 text-primary" />
                     </div>
                     <h4 className="font-semibold text-sm">رواية</h4>
-                    <p className="text-xs text-muted-foreground">أنشئ رواية كاملة بفصول مترابطة</p>
+                    <p className="text-xs text-muted-foreground">فصول مترابطة، شخصيات، حبكة كاملة</p>
+                    <p className="text-[10px] text-muted-foreground/70">حتى ١٠٠,٠٠٠ كلمة</p>
                   </CardContent>
                 </Card>
                 <Card
@@ -657,7 +882,8 @@ export default function Home() {
                       <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <h4 className="font-semibold text-sm">مقال</h4>
-                    <p className="text-xs text-muted-foreground">اكتب مقالات احترافية ومنظمة</p>
+                    <p className="text-xs text-muted-foreground">مقالات منظمة بأقسام وفقرات</p>
+                    <p className="text-[10px] text-muted-foreground/70">حتى ١٠,٠٠٠ كلمة</p>
                   </CardContent>
                 </Card>
                 <Card
@@ -670,7 +896,8 @@ export default function Home() {
                       <Film className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <h4 className="font-semibold text-sm">سيناريو</h4>
-                    <p className="text-xs text-muted-foreground">صمم سيناريو درامي أو سينمائي</p>
+                    <p className="text-xs text-muted-foreground">مشاهد، حوارات، توجيهات إخراجية</p>
+                    <p className="text-[10px] text-muted-foreground/70">تنسيق سينمائي احترافي</p>
                   </CardContent>
                 </Card>
                 <Card
@@ -683,20 +910,21 @@ export default function Home() {
                       <PenTool className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                     </div>
                     <h4 className="font-semibold text-sm">قصة قصيرة</h4>
-                    <p className="text-xs text-muted-foreground">اكتب قصة قصيرة مكثفة ومؤثرة</p>
+                    <p className="text-xs text-muted-foreground">سرد مكثف ومؤثر بحبكة محكمة</p>
+                    <p className="text-[10px] text-muted-foreground/70">حتى ١٥,٠٠٠ كلمة</p>
                   </CardContent>
                 </Card>
               </div>
             )}
 
             {onboardingStep === 3 && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                     <List className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-sm mb-1">قائمة المشاريع</h4>
+                    <h4 className="font-semibold text-sm mb-0.5">قائمة المشاريع</h4>
                     <p className="text-xs text-muted-foreground">تابع جميع مشاريعك الإبداعية من مكان واحد مع إحصائيات تفصيلية</p>
                   </div>
                 </div>
@@ -705,7 +933,7 @@ export default function Home() {
                     <PenTool className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-sm mb-1">أدوات الكتابة</h4>
+                    <h4 className="font-semibold text-sm mb-0.5">أدوات الكتابة</h4>
                     <p className="text-xs text-muted-foreground">استخدم أبو هاشم لتوليد المخططات والفصول والتحرير بمساعدة الذكاء الاصطناعي</p>
                   </div>
                 </div>
@@ -714,21 +942,64 @@ export default function Home() {
                     <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-sm mb-1">التصدير والنشر</h4>
+                    <h4 className="font-semibold text-sm mb-0.5">التصدير والنشر</h4>
                     <p className="text-xs text-muted-foreground">صدّر مشاريعك بصيغة PDF جاهزة للطباعة أو النشر الرقمي</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                    <BookMarked className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-0.5">الفهرس والمسرد</h4>
+                    <p className="text-xs text-muted-foreground">أنشئ فهارس ومسارد تلقائية لشخصياتك وأماكنك ومصطلحاتك</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-md bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                    <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-0.5">تحليل الأسلوب</h4>
+                    <p className="text-xs text-muted-foreground">احصل على تحليل لأسلوبك الأدبي مع اقتراحات لتحسين النص وتقوية السرد</p>
                   </div>
                 </div>
               </div>
             )}
 
             {onboardingStep === 4 && (
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
-                  <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+              <div className="space-y-4">
+                <div className="text-center mb-2">
+                  <div className="w-14 h-14 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle className="w-7 h-7 text-green-600 dark:text-green-400" />
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                    أنت الآن مستعد لبدء الكتابة! إليك بعض النصائح المفيدة:
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
-                  أنت الآن مستعد لبدء الكتابة! يمكنك إنشاء مشروعك الأول أو استكشاف لوحة التحكم.
-                </p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 bg-muted/50 rounded-md p-3">
+                    <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-xs mb-0.5" data-testid="text-tip-abu-hashim">استخدام أبو هاشم</h4>
+                      <p className="text-xs text-muted-foreground">افتح محادثة أبو هاشم من داخل أي فصل لطلب المساعدة في الكتابة أو التعديل أو توليد الأفكار. كلما كانت تعليماتك أوضح، كانت النتائج أفضل.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-muted/50 rounded-md p-3">
+                    <Keyboard className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-xs mb-0.5" data-testid="text-tip-workflow">سير العمل المُقترح</h4>
+                      <p className="text-xs text-muted-foreground">ابدأ بكتابة الفكرة الرئيسية، ثم اطلب من أبو هاشم توليد المخطط، وبعدها انتقل لكتابة الفصول واحداً تلو الآخر.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-muted/50 rounded-md p-3">
+                    <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-xs mb-0.5" data-testid="text-tip-export">نصيحة احترافية</h4>
+                      <p className="text-xs text-muted-foreground">استخدم ميزة تحليل الأسلوب بعد كتابة كل فصل للحصول على ملاحظات فورية لتحسين جودة النص.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
