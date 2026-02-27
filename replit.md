@@ -25,8 +25,8 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 
 **Content Type Specifications:**
 - **Novel Writing**: Features multi-step creation (details, characters, relationships), auto-outlining, chapter-by-chapter generation with advanced narrative techniques, and specialized AI persona with memory of 12 Arab master novelists.
-- **Essay/News Writing**: Offers multi-subject expertise, tone selection (formal academic, analytical, investigative, editorial, conversational expert), structure generation, and SEO awareness.
-- **Scenario/Screenplay Writing**: Supports various genres, film or series formats, 3-act dramatic structure, scene-by-scene writing, proper screenplay formatting, character voice differentiation, and dialect support.
+- **Essay/News Writing**: Offers multi-subject expertise, tone selection (formal academic, analytical, investigative, editorial, conversational expert), structure generation, and SEO awareness. Project detail page shows essay-specific fields (subject, tone, target audience, section count) instead of novel fields.
+- **Scenario/Screenplay Writing**: Supports various genres, film or series formats, 3-act dramatic structure, scene-by-scene writing, proper screenplay formatting, character voice differentiation, and dialect support. Project detail page shows scenario-specific fields (genre, format, episode count, scene count).
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation and persona management.

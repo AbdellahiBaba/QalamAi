@@ -839,32 +839,108 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardContent className="p-4 sm:p-6 space-y-4">
-                  <h3 className="font-serif text-lg font-semibold">تفاصيل الرواية</h3>
+                  <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
+                    {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : "تفاصيل الرواية"}
+                  </h3>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">الزمان:</span>
-                      <span className="font-medium">{project.timeSetting}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">المكان:</span>
-                      <span className="font-medium">{project.placeSetting}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">نوع السرد:</span>
-                      <span className="font-medium">{povLabel(project.narrativePov)}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">حجم الرواية:</span>
-                      <span className="font-medium">{project.pageCount} صفحة (~{(project.pageCount * 250).toLocaleString()} كلمة)</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">عدد الشخصيات:</span>
-                      <span className="font-medium">{project.characters?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">عدد {labels.chaptersLabel}:</span>
-                      <span className="font-medium">{project.chapters?.length || 0}</span>
-                    </div>
+                    {project.projectType === "essay" ? (
+                      <>
+                        {project.subject && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الموضوع:</span>
+                            <span className="font-medium">{project.subject}</span>
+                          </div>
+                        )}
+                        {project.essayTone && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">أسلوب الكتابة:</span>
+                            <span className="font-medium">{
+                              ({ formal: "رسمي أكاديمي", analytical: "تحليلي", investigative: "استقصائي", editorial: "افتتاحي / رأي", conversational: "حواري خبير" } as Record<string, string>)[project.essayTone] || project.essayTone
+                            }</span>
+                          </div>
+                        )}
+                        {project.targetAudience && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الجمهور المستهدف:</span>
+                            <span className="font-medium">{project.targetAudience}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">عدد الأقسام:</span>
+                          <span className="font-medium">{project.chapters?.length || 0}</span>
+                        </div>
+                      </>
+                    ) : project.projectType === "scenario" ? (
+                      <>
+                        {project.genre && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">النوع الدرامي:</span>
+                            <span className="font-medium">{
+                              ({ drama: "دراما", comedy: "كوميديا", thriller: "إثارة", romance: "رومانسي", action: "أكشن", "sci-fi": "خيال علمي", horror: "رعب", family: "عائلي", social: "اجتماعي", crime: "جريمة", war: "حربي" } as Record<string, string>)[project.genre] || project.genre
+                            }</span>
+                          </div>
+                        )}
+                        {project.formatType && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الشكل:</span>
+                            <span className="font-medium">{project.formatType === "film" ? "فيلم سينمائي" : project.formatType === "series" ? "مسلسل تلفزيوني" : project.formatType}</span>
+                          </div>
+                        )}
+                        {project.formatType === "series" && project.episodeCount && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد الحلقات:</span>
+                            <span className="font-medium">{project.episodeCount}</span>
+                          </div>
+                        )}
+                        {project.timeSetting && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الزمان:</span>
+                            <span className="font-medium">{project.timeSetting}</span>
+                          </div>
+                        )}
+                        {project.placeSetting && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">المكان:</span>
+                            <span className="font-medium">{project.placeSetting}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">عدد الشخصيات:</span>
+                          <span className="font-medium">{project.characters?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">عدد المشاهد:</span>
+                          <span className="font-medium">{project.chapters?.length || 0}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">الزمان:</span>
+                          <span className="font-medium">{project.timeSetting}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">المكان:</span>
+                          <span className="font-medium">{project.placeSetting}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">نوع السرد:</span>
+                          <span className="font-medium">{povLabel(project.narrativePov)}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">حجم الرواية:</span>
+                          <span className="font-medium">{project.pageCount} صفحة (~{(project.pageCount * 250).toLocaleString()} كلمة)</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">عدد الشخصيات:</span>
+                          <span className="font-medium">{project.characters?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">عدد الفصول:</span>
+                          <span className="font-medium">{project.chapters?.length || 0}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -884,7 +960,7 @@ export default function ProjectDetail() {
                           const res = await apiRequest("POST", `/api/projects/${projectId}/generate-cover`);
                           await res.json();
                           queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                          toast({ title: "تم إنشاء غلاف الرواية" });
+                          toast({ title: `تم إنشاء غلاف ${labels.typeLabel}` });
                         } catch {
                           toast({ title: "فشل في إنشاء الغلاف", variant: "destructive" });
                         } finally {
@@ -896,7 +972,7 @@ export default function ProjectDetail() {
                       {isGeneratingCover ? (
                         <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ إنشاء الغلاف...</>
                       ) : (
-                        <><ImagePlus className="w-3.5 h-3.5 ml-1" /> إنشاء غلاف الرواية</>
+                        <><ImagePlus className="w-3.5 h-3.5 ml-1" /> إنشاء غلاف {labels.typeLabel}</>
                       )}
                     </Button>
                   )}
@@ -1834,7 +1910,7 @@ export default function ProjectDetail() {
                     const res = await apiRequest("POST", `/api/projects/${projectId}/generate-cover`);
                     await res.json();
                     queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                    toast({ title: "تم إعادة إنشاء غلاف الرواية بنجاح" });
+                    toast({ title: `تم إعادة إنشاء غلاف ${labels.typeLabel} بنجاح` });
                   } catch {
                     toast({ title: "فشل في إعادة إنشاء الغلاف", variant: "destructive" });
                   } finally {
