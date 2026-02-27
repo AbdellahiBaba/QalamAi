@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "wouter";
 
 const PAGE_OPTIONS = [
@@ -49,6 +49,11 @@ const projectFormSchema = z.object({
     name: z.string().min(1, "اسم الشخصية مطلوب"),
     background: z.string().min(1, "خلفية الشخصية مطلوبة"),
     role: z.string().min(1, "دور الشخصية مطلوب"),
+    motivation: z.string().optional(),
+    speechStyle: z.string().optional(),
+    physicalDescription: z.string().optional(),
+    psychologicalTraits: z.string().optional(),
+    age: z.string().optional(),
   })).min(1, "يجب إضافة شخصية واحدة على الأقل"),
   relationships: z.array(z.object({
     char1Index: z.number(),
@@ -68,6 +73,7 @@ export default function NewProject() {
   const [suggestingTitles, setSuggestingTitles] = useState(false);
   const [suggestingTechnique, setSuggestingTechnique] = useState(false);
   const [techniqueSuggestion, setTechniqueSuggestion] = useState<{ primary: string; secondary: string; explanation: string; examples: string } | null>(null);
+  const [expandedChars, setExpandedChars] = useState<Set<number>>(new Set());
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
@@ -79,7 +85,7 @@ export default function NewProject() {
       narrativePov: "",
       narrativeTechnique: "",
       pageCount: 150,
-      characters: [{ name: "", background: "", role: "protagonist" }],
+      characters: [{ name: "", background: "", role: "protagonist", motivation: "", speechStyle: "", physicalDescription: "", psychologicalTraits: "", age: "" }],
       relationships: [],
     },
   });
@@ -453,7 +459,7 @@ export default function NewProject() {
                       type="button"
                       variant="secondary"
                       size="sm"
-                      onClick={() => addChar({ name: "", background: "", role: "secondary" })}
+                      onClick={() => addChar({ name: "", background: "", role: "secondary", motivation: "", speechStyle: "", physicalDescription: "", psychologicalTraits: "", age: "" })}
                       data-testid="button-add-character"
                     >
                       <Plus className="w-4 h-4 ml-1" />
@@ -590,6 +596,67 @@ export default function NewProject() {
                               <FormMessage />
                             </FormItem>
                           )} />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground text-xs"
+                            onClick={() => {
+                              const next = new Set(expandedChars);
+                              if (next.has(index)) next.delete(index); else next.add(index);
+                              setExpandedChars(next);
+                            }}
+                            data-testid={`button-toggle-details-${index}`}
+                          >
+                            {expandedChars.has(index) ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+                            {expandedChars.has(index) ? "إخفاء التفاصيل المتقدمة" : "تفاصيل متقدمة (اختياري)"}
+                          </Button>
+                          {expandedChars.has(index) && (
+                            <div className="space-y-4 border-t pt-4 mt-2">
+                              <div className="grid sm:grid-cols-2 gap-4">
+                                <FormField control={form.control} name={`characters.${index}.age`} render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>العمر</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="مثال: ٣٥ سنة" {...field} data-testid={`input-char-age-${index}`} />
+                                    </FormControl>
+                                  </FormItem>
+                                )} />
+                                <FormField control={form.control} name={`characters.${index}.motivation`} render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>الدافع</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="ما الذي يحرّك هذه الشخصية؟" {...field} data-testid={`input-char-motivation-${index}`} />
+                                    </FormControl>
+                                  </FormItem>
+                                )} />
+                              </div>
+                              <FormField control={form.control} name={`characters.${index}.physicalDescription`} render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>الوصف الجسدي</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="الملامح والبنية والمظهر الخارجي..." {...field} data-testid={`input-char-physical-${index}`} />
+                                  </FormControl>
+                                </FormItem>
+                              )} />
+                              <FormField control={form.control} name={`characters.${index}.psychologicalTraits`} render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>السمات النفسية</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="الطباع والمخاوف ونقاط الضعف والقوة..." {...field} data-testid={`input-char-psych-${index}`} />
+                                  </FormControl>
+                                </FormItem>
+                              )} />
+                              <FormField control={form.control} name={`characters.${index}.speechStyle`} render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>أسلوب الكلام</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="مثال: رسمي وهادئ، عامّي ساخر، شعري..." {...field} data-testid={`input-char-speech-${index}`} />
+                                  </FormControl>
+                                </FormItem>
+                              )} />
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}

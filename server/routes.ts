@@ -597,6 +597,11 @@ export async function registerRoutes(
             name: char.name,
             background: char.background,
             role: char.role,
+            motivation: char.motivation || null,
+            speechStyle: char.speechStyle || null,
+            physicalDescription: char.physicalDescription || null,
+            psychologicalTraits: char.psychologicalTraits || null,
+            age: char.age || null,
           });
           createdChars.push(created);
         }
@@ -786,6 +791,61 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/projects/:id/outline", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (project.outlineApproved) return res.status(400).json({ error: "لا يمكن تعديل المخطط بعد الموافقة عليه" });
+
+      const { outline } = req.body;
+      if (!outline || typeof outline !== "string") return res.status(400).json({ error: "المخطط مطلوب" });
+
+      const updated = await storage.updateProject(id, { outline: outline.slice(0, 50000) });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating outline:", error);
+      res.status(500).json({ error: "فشل في حفظ التعديلات" });
+    }
+  });
+
+  app.post("/api/projects/:id/outline/refine", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (project.outlineApproved) return res.status(400).json({ error: "لا يمكن تعديل المخطط بعد الموافقة عليه" });
+
+      const { instruction } = req.body;
+      if (!instruction || typeof instruction !== "string") return res.status(400).json({ error: "التعليمات مطلوبة" });
+
+      const systemPrompt = project.projectType === "essay"
+        ? "أنت أبو هاشم — محرر صحفي محترف. عدّل الهيكل التالي بناءً على تعليمات المستخدم. أعد الهيكل كاملاً مع التعديلات المطلوبة."
+        : project.projectType === "scenario"
+        ? "أنت أبو هاشم — كاتب سيناريو محترف. عدّل المخطط الدرامي التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات."
+        : "أنت أبو هاشم — وكيل أدبي ذكي. عدّل مخطط الرواية التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات المطلوبة.";
+
+      const userPrompt = `المخطط الحالي:\n${project.outline}\n\nالتعديل المطلوب:\n${instruction}\n\nأعد المخطط كاملاً بعد التعديل. حافظ على نفس التنسيق والبنية.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 16000,
+      });
+      const refined = response.choices[0]?.message?.content || project.outline;
+      const updated = await storage.updateProject(id, { outline: refined });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error refining outline:", error);
+      res.status(500).json({ error: "فشل في تحسين المخطط" });
+    }
+  });
+
   app.post("/api/projects/:projectId/chapters/:chapterId/generate", isAuthenticated, async (req: any, res) => {
     try {
       const projectId = parseInt(req.params.projectId);
@@ -930,10 +990,17 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
-      const { name, role, background } = req.body;
+      const { name, role, background, motivation, speechStyle, physicalDescription, psychologicalTraits, age } = req.body;
       if (!name || !role || !background) return res.status(400).json({ error: "جميع الحقول مطلوبة" });
 
-      const character = await storage.createCharacter({ projectId: id, name, role, background });
+      const character = await storage.createCharacter({
+        projectId: id, name, role, background,
+        motivation: motivation || null,
+        speechStyle: speechStyle || null,
+        physicalDescription: physicalDescription || null,
+        psychologicalTraits: psychologicalTraits || null,
+        age: age || null,
+      });
       res.status(201).json(character);
     } catch (error) {
       console.error("Error adding character:", error);
@@ -1092,6 +1159,9 @@ export async function registerRoutes(
           .stroke();
       };
 
+      const fullPageWidth = 595.28;
+      const contentStartY = 90;
+
       doc.addPage();
       drawBorder();
 
@@ -1112,7 +1182,7 @@ export async function registerRoutes(
           .fontSize(28)
           .fillColor("#2C1810");
         const titleWidth = doc.widthOfString(project.title);
-        doc.text(project.title, (595.28 - titleWidth) / 2, 350, {
+        doc.text(project.title, (fullPageWidth - titleWidth) / 2, 350, {
           features: ["rtla"],
         });
 
@@ -1121,10 +1191,31 @@ export async function registerRoutes(
           .fillColor("#6B5B4F");
         const subtitle = "بقلم أبو هاشم — QalamAI";
         const subWidth = doc.widthOfString(subtitle);
-        doc.text(subtitle, (595.28 - subWidth) / 2, 400, {
+        doc.text(subtitle, (fullPageWidth - subWidth) / 2, 400, {
           features: ["rtla"],
         });
       }
+
+      doc.addPage();
+      drawBorder();
+
+      doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
+      const cpTitleW = doc.widthOfString(project.title);
+      doc.text(project.title, (fullPageWidth - cpTitleW) / 2, 280, { features: ["rtla"] });
+
+      doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
+      const authorLine = "كُتب بمساعدة أبو هاشم — QalamAI";
+      const authorW = doc.widthOfString(authorLine);
+      doc.text(authorLine, (fullPageWidth - authorW) / 2, 330, { features: ["rtla"] });
+
+      const dateLine = new Date().toLocaleDateString("ar-SA");
+      const dateW = doc.widthOfString(dateLine);
+      doc.text(dateLine, (fullPageWidth - dateW) / 2, 370, { features: ["rtla"] });
+
+      doc.font("Arabic").fontSize(13).fillColor("#8B7355");
+      const rightsLine = "جميع الحقوق محفوظة \u00A9 2026";
+      const rightsW = doc.widthOfString(rightsLine);
+      doc.text(rightsLine, (fullPageWidth - rightsW) / 2, 410, { features: ["rtla"] });
 
       const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : "الفصل";
 
@@ -1132,53 +1223,149 @@ export async function registerRoutes(
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
 
-      let pageNumber = 1;
+      const chapterContentStartY = 155;
+      const continuationStartY = 90;
+      let estimatedPage = 4;
+      const chapterStartPages: number[] = [];
+
+      for (const chapter of chapters) {
+        chapterStartPages.push(estimatedPage);
+        const paragraphs = (chapter.content || "").split(/\n+/).filter((p: string) => p.trim());
+        let estY = chapterContentStartY;
+        doc.font("Arabic").fontSize(13);
+        for (const para of paragraphs) {
+          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8, indent: 25 });
+          if (estY + textHeight > pageHeight - 100) {
+            estimatedPage++;
+            estY = continuationStartY;
+          }
+          estY += textHeight + 12;
+        }
+        estimatedPage++;
+      }
+
+      doc.addPage();
+      drawBorder();
+
+      doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
+      doc.text("فهرس المحتويات", 72, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+
+      doc.moveTo(72, 125).lineTo(fullPageWidth - 72, 125).lineWidth(1).strokeColor("#8B7355").stroke();
+      doc.moveTo(72, 128).lineTo(fullPageWidth - 72, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
+
+      doc.font("Arabic").fontSize(13).fillColor("#333333");
+      let tocY = 145;
+
+      for (let ci = 0; ci < chapters.length; ci++) {
+        const ch = chapters[ci];
+        const chTitle = ch.title || `${chapterLabel} ${ch.chapterNumber}`;
+        const tocEntry = `${chapterLabel} ${ch.chapterNumber}: ${chTitle}`;
+        const pageNum = chapterStartPages[ci] || "";
+
+        doc.font("Arabic").fontSize(13).fillColor("#333333");
+        doc.text(tocEntry, 100, tocY, {
+          width: pageWidth - 60,
+          align: "right",
+          features: ["rtla"],
+        });
+
+        doc.font("Arabic").fontSize(13).fillColor("#8B7355");
+        doc.text(String(pageNum), 72, tocY, {
+          width: 50,
+          align: "left",
+        });
+
+        tocY += 28;
+        if (tocY > pageHeight - 120) {
+          doc.addPage();
+          drawBorder();
+          tocY = 72;
+        }
+      }
+
+      let pageNumber = 3;
+
+      const drawPageHeader = (chapterTitle: string) => {
+        doc.font("Arabic").fontSize(9).fillColor("#999");
+        doc.text(chapterTitle, 72, 50, {
+          width: pageWidth,
+          align: "right",
+          features: ["rtla"],
+        });
+      };
+
+      const drawOrnamentalDivider = (y: number) => {
+        const centerX = fullPageWidth / 2;
+        const dividerWidth = 180;
+
+        doc.moveTo(centerX - dividerWidth / 2, y)
+          .lineTo(centerX - 30, y)
+          .lineWidth(1)
+          .strokeColor("#C4A882")
+          .stroke();
+
+        doc.moveTo(centerX + 30, y)
+          .lineTo(centerX + dividerWidth / 2, y)
+          .lineWidth(1)
+          .strokeColor("#C4A882")
+          .stroke();
+
+        doc.font("Arabic").fontSize(12).fillColor("#C4A882");
+        doc.text("\u2726 \u2726 \u2726", centerX - 25, y - 6, {
+          width: 50,
+          align: "center",
+        });
+      };
+
       for (const chapter of chapters) {
         doc.addPage();
         pageNumber++;
         drawBorder();
 
+        const chTitle = chapter.title || `${chapterLabel} ${chapter.chapterNumber}`;
+
         doc.font("ArabicBold")
           .fontSize(22)
           .fillColor("#2C1810");
-        const chTitle = chapter.title || `${chapterLabel} ${chapter.chapterNumber}`;
-        doc.text(chTitle, 72, 90, {
+        doc.text(chTitle, 72, contentStartY, {
           width: pageWidth,
           align: "right",
           features: ["rtla"],
         });
 
-        doc.moveTo(72, 125).lineTo(595.28 - 72, 125).lineWidth(0.5).strokeColor("#C4A882").stroke();
+        drawOrnamentalDivider(130);
 
         doc.font("Arabic")
           .fontSize(13)
           .fillColor("#333333");
 
         const paragraphs = (chapter.content || "").split(/\n+/).filter((p: string) => p.trim());
-        let yPos = 140;
+        let yPos = chapterContentStartY;
 
         for (const para of paragraphs) {
-          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8 });
+          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8, indent: 25 });
           if (yPos + textHeight > pageHeight - 100) {
             doc.font("Arabic").fontSize(9).fillColor("#999");
-            doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
             doc.addPage();
             pageNumber++;
             drawBorder();
-            yPos = 72;
+            drawPageHeader(chTitle);
+            yPos = continuationStartY;
           }
           doc.font("Arabic").fontSize(13).fillColor("#333333");
           doc.text(para.trim(), 72, yPos, {
             width: pageWidth,
             align: "right",
             lineGap: 8,
+            indent: 25,
             features: ["rtla"],
           });
           yPos += textHeight + 12;
         }
 
         doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
       }
 
       if (project.glossary) {
@@ -1187,28 +1374,31 @@ export async function registerRoutes(
         drawBorder();
 
         doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
-        doc.text("المسرد", 72, 90, { width: pageWidth, align: "right", features: ["rtla"] });
-        doc.moveTo(72, 125).lineTo(595.28 - 72, 125).lineWidth(0.5).strokeColor("#C4A882").stroke();
+        doc.text("المسرد", 72, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+
+        doc.moveTo(72, 125).lineTo(fullPageWidth - 72, 125).lineWidth(1).strokeColor("#8B7355").stroke();
+        doc.moveTo(72, 128).lineTo(fullPageWidth - 72, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
 
         doc.font("Arabic").fontSize(12).fillColor("#333333");
         const glossaryLines = project.glossary.split(/\n+/).filter((l: string) => l.trim());
-        let yPos = 140;
+        let yPos = 145;
         for (const line of glossaryLines) {
           const textHeight = doc.heightOfString(line.trim(), { width: pageWidth, align: "right", lineGap: 6 });
           if (yPos + textHeight > pageHeight - 100) {
             doc.font("Arabic").fontSize(9).fillColor("#999");
-            doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
             doc.addPage();
             pageNumber++;
             drawBorder();
-            yPos = 72;
+            drawPageHeader("المسرد");
+            yPos = continuationStartY;
           }
           doc.font("Arabic").fontSize(12).fillColor("#333333");
           doc.text(line.trim(), 72, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
           yPos += textHeight + 8;
         }
         doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(`— ${pageNumber} —`, 0, pageHeight - 60, { width: 595.28, align: "center" });
+        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center" });
       }
 
       doc.end();
@@ -1287,6 +1477,8 @@ export async function registerRoutes(
       const coverSpineItem = coverImageBuffer
         ? `    <itemref idref="cover" linear="no"/>\n`
         : "";
+      const colophonManifestItem = `    <item id="colophon" href="colophon.xhtml" media-type="application/xhtml+xml"/>`;
+      const colophonSpineItem = `    <itemref idref="colophon"/>\n`;
       const glossaryManifestItem = project.glossary
         ? `\n    <item id="glossary" href="glossary.xhtml" media-type="application/xhtml+xml"/>`
         : "";
@@ -1306,10 +1498,11 @@ export async function registerRoutes(
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
-${coverManifestItems}${chapterItems}${glossaryManifestItem}
+${coverManifestItems}${colophonManifestItem}
+${chapterItems}${glossaryManifestItem}
   </manifest>
   <spine page-progression-direction="rtl">
-${coverSpineItem}${chapterSpine}${glossarySpineItem}
+${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
   </spine>
 </package>`, { name: "OEBPS/content.opf" });
 
@@ -1325,6 +1518,24 @@ ${coverSpineItem}${chapterSpine}${glossarySpineItem}
 </body>
 </html>`, { name: "OEBPS/cover.xhtml" });
       }
+
+      const epubDate = new Date().toLocaleDateString("ar-SA");
+      const safeTitle = project.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      archive.append(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
+<head><title>حقوق النشر</title><link rel="stylesheet" href="style.css"/></head>
+<body>
+  <div style="text-align: center; padding-top: 40%; line-height: 2.5;">
+    <h1>${safeTitle}</h1>
+    <p style="text-indent: 0; font-size: 1.1em; color: #8B7355;">\u0643\u064F\u062A\u0628 \u0628\u0645\u0633\u0627\u0639\u062F\u0629 \u0623\u0628\u0648 \u0647\u0627\u0634\u0645 \u2014 QalamAI</p>
+    <p style="text-indent: 0; color: #8B7355;">${epubDate}</p>
+    <hr/>
+    <p style="text-indent: 0; font-size: 0.9em; color: #6B5B4F;">\u062C\u0645\u064A\u0639 \u0627\u0644\u062D\u0642\u0648\u0642 \u0645\u062D\u0641\u0648\u0638\u0629 \u00A9 2026</p>
+  </div>
+</body>
+</html>`, { name: "OEBPS/colophon.xhtml" });
 
       archive.append(`body { direction: rtl; unicode-bidi: embed; font-family: serif; line-height: 2; padding: 1em; color: #2C1810; background: #FFFDF5; }
 html { writing-mode: horizontal-tb; }
@@ -2144,6 +2355,87 @@ ${glossaryParagraphs}
     } catch (error) {
       console.error("Error generating glossary:", error);
       res.status(500).json({ error: "فشل في إنشاء الفهرس" });
+    }
+  });
+
+  // ===== Continuity Check =====
+  app.post("/api/projects/:id/continuity-check", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const project = await storage.getProjectWithDetails(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      const completedChapters = project.chapters
+        .filter((ch: any) => ch.content && ch.status === "completed")
+        .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
+
+      if (completedChapters.length < 2) return res.status(400).json({ error: "يجب أن يكون هناك فصلان مكتملان على الأقل لإجراء فحص الاستمرارية" });
+
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : "الفصل";
+
+      const allContent = completedChapters
+        .map((ch: any) => `${chapterLabel} ${ch.chapterNumber}: ${ch.title}\n${ch.content?.substring(0, 3000)}`)
+        .join("\n\n---\n\n");
+
+      const chars = await storage.getCharactersByProject(id);
+      const charNames = chars.map(c => c.name).join("، ");
+
+      const systemPrompt = `أنت أبو هاشم — محرر أدبي خبير متخصص في مراجعة استمرارية النصوص العربية.
+مهمتك فحص الفصول المكتملة والبحث عن أي تناقضات أو مشاكل في الاستمرارية السردية.
+
+أجب بصيغة JSON فقط بالشكل التالي:
+{
+  "overallScore": (رقم من 1 إلى 10 — 10 = استمرارية ممتازة),
+  "issues": [
+    {
+      "type": "character|timeline|setting|plot|tone",
+      "severity": "high|medium|low",
+      "chapter": (رقم الفصل),
+      "description": "وصف المشكلة بالعربية",
+      "suggestion": "اقتراح الحل بالعربية"
+    }
+  ],
+  "strengths": ["نقطة قوة 1", "نقطة قوة 2"],
+  "summary": "ملخص شامل للتقييم بالعربية"
+}`;
+
+      const userPrompt = `الشخصيات في هذا العمل: ${charNames || "غير محددة"}
+
+محتوى الفصول:
+${allContent}
+
+افحص الاستمرارية بين الفصول وابحث عن:
+1. تناقضات في أسماء الشخصيات أو صفاتها
+2. تناقضات في الخط الزمني
+3. تناقضات في وصف الأماكن والمواقع
+4. خيوط سردية مفتوحة لم تُعالج
+5. تغييرات غير مبررة في شخصيات الأبطال
+6. تناقضات في النبرة أو الأسلوب السردي
+
+أجب بصيغة JSON فقط.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 4000,
+        response_format: { type: "json_object" },
+      });
+
+      const resultText = response.choices[0]?.message?.content || "{}";
+      try {
+        const result = JSON.parse(resultText);
+        res.json(result);
+      } catch {
+        res.json({ overallScore: 0, issues: [], strengths: [], summary: resultText });
+      }
+    } catch (error) {
+      console.error("Error running continuity check:", error);
+      res.status(500).json({ error: "فشل في فحص الاستمرارية" });
     }
   });
 

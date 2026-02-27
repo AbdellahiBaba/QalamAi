@@ -27,6 +27,7 @@ import Register from "@/pages/register";
 import SharedProject from "@/pages/shared-project";
 import AuthorProfile from "@/pages/author-profile";
 import Gallery from "@/pages/gallery";
+import Reader from "@/pages/reader";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -36,6 +37,7 @@ function AuthenticatedRouter() {
       <Route path="/project/new" component={NewProject} />
       <Route path="/project/new/essay" component={NewEssay} />
       <Route path="/project/new/scenario" component={NewScenario} />
+      <Route path="/project/:id/read/:chapterId" component={Reader} />
       <Route path="/project/:id" component={ProjectDetail} />
       <Route path="/profile" component={Profile} />
       <Route path="/tickets" component={Tickets} />

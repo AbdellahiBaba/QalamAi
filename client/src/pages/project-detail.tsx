@@ -123,6 +123,12 @@ export default function ProjectDetail() {
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkChapterId, setBookmarkChapterId] = useState<number | null>(null);
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
+  const [isCheckingContinuity, setIsCheckingContinuity] = useState(false);
+  const [continuityResult, setContinuityResult] = useState<any>(null);
+  const [editingOutline, setEditingOutline] = useState(false);
+  const [editOutlineText, setEditOutlineText] = useState("");
+  const [refineInstruction, setRefineInstruction] = useState("");
+  const [showRefineInput, setShowRefineInput] = useState(false);
   const [editingSettings, setEditingSettings] = useState(false);
   const [editTimeSetting, setEditTimeSetting] = useState("");
   const [editPlaceSetting, setEditPlaceSetting] = useState("");
@@ -392,6 +398,37 @@ export default function ProjectDetail() {
     },
     onError: () => {
       toast({ title: "حدث خطأ", variant: "destructive" });
+    },
+  });
+
+  const saveOutlineMutation = useMutation({
+    mutationFn: async (outline: string) => {
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}/outline`, { outline });
+      return res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      setEditingOutline(false);
+      toast({ title: "تم حفظ التعديلات على المخطط" });
+    },
+    onError: () => {
+      toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
+    },
+  });
+
+  const refineOutlineMutation = useMutation({
+    mutationFn: async (instruction: string) => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/outline/refine`, { instruction });
+      return res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      setShowRefineInput(false);
+      setRefineInstruction("");
+      toast({ title: "تم تحسين المخطط بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحسين المخطط", variant: "destructive" });
     },
   });
 
@@ -892,6 +929,10 @@ export default function ProjectDetail() {
               <List className="w-4 h-4 ml-1.5" />
               الفهرس
             </TabsTrigger>
+            <TabsTrigger value="continuity" data-testid="tab-continuity">
+              <Shield className="w-4 h-4 ml-1.5" />
+              الاستمرارية
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -1153,6 +1194,33 @@ export default function ProjectDetail() {
                   )}
                   {project.outline && !project.outlineApproved && (
                     <div className="flex items-center gap-2 flex-wrap">
+                      {!editingOutline && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setEditingOutline(true); setEditOutlineText(project.outline || ""); }}
+                          data-testid="button-edit-outline"
+                        >
+                          <Pencil className="w-3.5 h-3.5 ml-1" />
+                          تعديل
+                        </Button>
+                      )}
+                      {!editingOutline && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowRefineInput(!showRefineInput)}
+                          disabled={refineOutlineMutation.isPending}
+                          data-testid="button-refine-outline"
+                        >
+                          {refineOutlineMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-3.5 h-3.5 ml-1" />
+                          )}
+                          تحسين بالذكاء
+                        </Button>
+                      )}
                       {!confirmOutlineRegen ? (
                         <Button
                           variant="outline"
@@ -1214,10 +1282,64 @@ export default function ProjectDetail() {
                     </div>
                   )}
                 </div>
-                {project.outline ? (
-                  <div className="font-serif text-sm leading-loose whitespace-pre-wrap border-t pt-4">
-                    {project.outline}
+                {showRefineInput && !project.outlineApproved && (
+                  <div className="flex gap-2 items-end border-t pt-4">
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground mb-1 block">اكتب التعديل المطلوب وسيقوم أبو هاشم بتحسين المخطط</Label>
+                      <Textarea
+                        value={refineInstruction}
+                        onChange={(e) => setRefineInstruction(e.target.value)}
+                        placeholder="مثال: أضف فصلاً عن طفولة البطل... أو: اجعل الذروة في الفصل السابع..."
+                        className="min-h-[60px]"
+                        data-testid="input-refine-instruction"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        size="sm"
+                        onClick={() => refineOutlineMutation.mutate(refineInstruction)}
+                        disabled={!refineInstruction.trim() || refineOutlineMutation.isPending}
+                        data-testid="button-submit-refine"
+                      >
+                        {refineOutlineMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowRefineInput(false); setRefineInstruction(""); }}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
+                )}
+                {project.outline ? (
+                  editingOutline && !project.outlineApproved ? (
+                    <div className="border-t pt-4 space-y-3">
+                      <Textarea
+                        value={editOutlineText}
+                        onChange={(e) => setEditOutlineText(e.target.value)}
+                        className="min-h-[400px] font-serif text-sm leading-loose"
+                        dir="rtl"
+                        data-testid="textarea-edit-outline"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => saveOutlineMutation.mutate(editOutlineText)}
+                          disabled={saveOutlineMutation.isPending}
+                          data-testid="button-save-outline"
+                        >
+                          {saveOutlineMutation.isPending ? <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> : <Save className="w-3.5 h-3.5 ml-1" />}
+                          حفظ التعديلات
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingOutline(false)} data-testid="button-cancel-edit-outline">
+                          <X className="w-3.5 h-3.5 ml-1" />
+                          إلغاء
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="font-serif text-sm leading-loose whitespace-pre-wrap border-t pt-4">
+                      {project.outline}
+                    </div>
+                  )
                 ) : (
                   <div className="text-center py-10 text-muted-foreground">
                     <PenTool className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -1354,6 +1476,18 @@ export default function ProjectDetail() {
                           />
                         </div>
                       </div>
+                      {completedCount > 0 && (
+                        <Link href={`/project/${projectId}/read/${project.chapters.find(c => c.status === "completed")?.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            data-testid="button-reading-mode"
+                          >
+                            <BookOpen className="w-3.5 h-3.5 ml-1" />
+                            وضع القراءة
+                          </Button>
+                        </Link>
+                      )}
                       {hasRemaining && !generatingChapter && (
                         <Button
                           size="sm"
@@ -1709,6 +1843,124 @@ export default function ProjectDetail() {
               <div className="text-center py-16 text-muted-foreground">
                 <List className="w-12 h-12 mx-auto mb-4 opacity-30" />
                 <p data-testid="text-no-glossary">لا يوجد فهرس بعد. اضغط على "إنشاء فهرس" لإنشائه تلقائياً.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="continuity" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                فحص الاستمرارية
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isCheckingContinuity}
+                onClick={async () => {
+                  setIsCheckingContinuity(true);
+                  try {
+                    const res = await apiRequest("POST", `/api/projects/${projectId}/continuity-check`);
+                    const data = await res.json();
+                    setContinuityResult(data);
+                    toast({ title: "تم فحص الاستمرارية بنجاح" });
+                  } catch (err: any) {
+                    const errData = await err?.json?.().catch(() => null);
+                    toast({ title: errData?.error || "فشل في فحص الاستمرارية", variant: "destructive" });
+                  } finally {
+                    setIsCheckingContinuity(false);
+                  }
+                }}
+                data-testid="button-continuity-check"
+              >
+                {isCheckingContinuity ? (
+                  <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ الفحص...</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5 ml-1" /> {continuityResult ? "إعادة الفحص" : "بدء الفحص"}</>
+                )}
+              </Button>
+            </div>
+            {continuityResult ? (
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-serif font-semibold text-lg">التقييم العام</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-2xl font-bold ${(continuityResult.overallScore || 0) >= 7 ? "text-green-600 dark:text-green-400" : (continuityResult.overallScore || 0) >= 4 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid="text-continuity-score">
+                          {continuityResult.overallScore}/10
+                        </span>
+                      </div>
+                    </div>
+                    {continuityResult.summary && (
+                      <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-continuity-summary">{continuityResult.summary}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {continuityResult.strengths?.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        نقاط القوة
+                      </h4>
+                      <ul className="space-y-2">
+                        {continuityResult.strengths.map((s: string, i: number) => (
+                          <li key={i} className="text-sm flex items-start gap-2" data-testid={`text-strength-${i}`}>
+                            <span className="text-green-600 mt-0.5">●</span>
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {continuityResult.issues?.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
+                        <Info className="w-4 h-4 text-yellow-600" />
+                        المشاكل المكتشفة ({continuityResult.issues.length})
+                      </h4>
+                      <div className="space-y-4">
+                        {continuityResult.issues.map((issue: any, i: number) => (
+                          <div key={i} className={`border rounded-lg p-4 ${issue.severity === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : issue.severity === "medium" ? "border-yellow-300 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-issue-${i}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant={issue.severity === "high" ? "destructive" : issue.severity === "medium" ? "secondary" : "outline"} data-testid={`badge-severity-${i}`}>
+                                {issue.severity === "high" ? "خطير" : issue.severity === "medium" ? "متوسط" : "طفيف"}
+                              </Badge>
+                              <Badge variant="outline" data-testid={`badge-type-${i}`}>
+                                {issue.type === "character" ? "شخصية" : issue.type === "timeline" ? "خط زمني" : issue.type === "setting" ? "مكان" : issue.type === "plot" ? "حبكة" : "نبرة"}
+                              </Badge>
+                              {issue.chapter && <span className="text-xs text-muted-foreground">الفصل {issue.chapter}</span>}
+                            </div>
+                            <p className="text-sm mb-2" data-testid={`text-issue-desc-${i}`}>{issue.description}</p>
+                            {issue.suggestion && (
+                              <p className="text-xs text-muted-foreground border-t pt-2 mt-2" data-testid={`text-issue-fix-${i}`}>
+                                <span className="font-semibold">اقتراح: </span>{issue.suggestion}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {continuityResult.issues?.length === 0 && (
+                  <div className="text-center py-8 text-green-600 dark:text-green-400">
+                    <CheckCircle className="w-12 h-12 mx-auto mb-3" />
+                    <p className="font-serif text-lg">لا توجد مشاكل في الاستمرارية — عمل متسق وممتاز!</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <Shield className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p data-testid="text-no-continuity">فحص الاستمرارية يراجع جميع الفصول المكتملة بحثاً عن تناقضات في الشخصيات والأحداث والأماكن والخط الزمني.</p>
+                <p className="text-xs mt-2">يتطلب فصلين مكتملين على الأقل</p>
               </div>
             )}
           </TabsContent>

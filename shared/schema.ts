@@ -110,6 +110,11 @@ export const characters = pgTable("characters", {
   name: text("name").notNull(),
   background: text("background").notNull(),
   role: text("role").notNull(),
+  motivation: text("motivation"),
+  speechStyle: text("speech_style"),
+  physicalDescription: text("physical_description"),
+  psychologicalTraits: text("psychological_traits"),
+  age: text("age"),
 });
 
 export const characterRelationships = pgTable("character_relationships", {
