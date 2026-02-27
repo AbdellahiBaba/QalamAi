@@ -1086,9 +1086,9 @@ ${project.targetAudience ? `الجمهور المستهدف: ${project.targetAud
 ${project.timeSetting ? `السياق الزمني: ${project.timeSetting}` : ""}
 ${project.placeSetting ? `النطاق الجغرافي: ${project.placeSetting}` : ""}
 
-الحجم المطلوب: ${project.pageCount} صفحة (حوالي ${structure.totalWords.toLocaleString()} كلمة)
-عدد الأقسام المطلوب: ${structure.sectionCount} أقسام
-حجم كل قسم تقريباً: ${structure.wordsPerSection.toLocaleString()} كلمة
+⚠️ الحجم المطلوب: ${structure.totalWords.toLocaleString()} كلمة إجمالاً
+عدد الأقسام المطلوب: ${structure.sectionCount} أقسام بالضبط
+حجم كل قسم: ${structure.wordsPerSection.toLocaleString()} كلمة على الأقل — لا يجوز تقليص أي قسم عن هذا العدد
 
 يجب أن يتضمن الهيكل:
 
@@ -1178,9 +1178,12 @@ ${outline}
 - اترك القارئ مع فكرة تستحق التأمل`;
   }
 
-  prompt += `\n\nالطول المطلوب: حوالي ${wordsTarget.toLocaleString()} كلمة
+  prompt += `\n\n⚠️ تعليمات الطول — مهمة جدًا:
+- الطول المطلوب لهذا القسم: ${wordsTarget.toLocaleString()} كلمة على الأقل
+- إجمالي المقال المستهدف: ${structure.totalWords.toLocaleString()} كلمة مقسمة على ${structure.sectionCount} أقسام
+- يُمنع منعًا باتًا تسليم قسم أقل من ${Math.round(wordsTarget * 0.85).toLocaleString()} كلمة
 - لا تكتب عنوان القسم في البداية — ابدأ مباشرة بالمحتوى
-- لا تختصر — اكتب بعمق وتفصيل مناسب
+- لا تختصر أبدًا — اكتب بعمق وتفصيل كامل حتى تصل إلى العدد المطلوب
 
 ═══ قائمة مراجعة الجودة ═══
 

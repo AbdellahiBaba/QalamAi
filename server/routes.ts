@@ -2634,6 +2634,104 @@ ${allContent}
     }
   });
 
+  // ===== Fix Continuity Issue =====
+  app.post("/api/chapters/:id/fix-continuity", isAuthenticated, async (req: any, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { issue } = req.body;
+
+      if (!issue || !issue.description || typeof issue.description !== "string") {
+        return res.status(400).json({ error: "بيانات المشكلة مطلوبة" });
+      }
+      const validTypes = ["character", "timeline", "setting", "plot", "tone"];
+      const validSeverities = ["high", "medium", "low"];
+      if (issue.type && !validTypes.includes(issue.type)) issue.type = "";
+      if (issue.severity && !validSeverities.includes(issue.severity)) issue.severity = "medium";
+      if (issue.chapter && typeof issue.chapter !== "number") issue.chapter = parseInt(issue.chapter) || null;
+
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!chapter.content) return res.status(400).json({ error: "لا يوجد محتوى للإصلاح" });
+
+      const allChapters = await storage.getChaptersByProject(chapter.projectId);
+      const sortedChapters = allChapters
+        .filter((ch: any) => ch.content && ch.id !== chapterId)
+        .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
+
+      const contextChapters = sortedChapters
+        .map((ch: any) => `الفصل ${ch.chapterNumber} - ${ch.title}:\n${ch.content!.substring(0, 600)}`)
+        .join("\n---\n");
+
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+
+      const typeMap: Record<string, string> = {
+        character: "تناقض في الشخصية", timeline: "تناقض في الخط الزمني",
+        setting: "تناقض في المكان", plot: "فجوة في الحبكة", tone: "تغير في النبرة"
+      };
+      const issueTypeAr = typeMap[issue.type] || issue.type || "مشكلة";
+
+      const systemPrompt = `أنت أبو هاشم — محرر أدبي متخصص في إصلاح مشاكل الاستمرارية في النصوص العربية.
+مهمتك: إصلاح مشكلة محددة في نص ${chapterLabel} مع الحفاظ على بقية النص كما هو تمامًا.
+
+قواعد صارمة:
+1. أعد النص الكامل بعد الإصلاح — لا تحذف أي جزء لا يتعلق بالمشكلة
+2. عدّل فقط الأجزاء المرتبطة مباشرة بالمشكلة المذكورة
+3. حافظ على أسلوب الكتابة والنبرة الأصلية
+4. حافظ على طول النص تقريبًا
+5. أجب بصيغة JSON فقط بالشكل التالي:
+{
+  "fixedContent": "النص الكامل بعد الإصلاح",
+  "changes": "ملخص موجز للتغييرات التي أجريتها بالعربية"
+}`;
+
+      const userPrompt = `نوع المشكلة: ${issueTypeAr}
+الخطورة: ${issue.severity === "high" ? "خطيرة" : issue.severity === "medium" ? "متوسطة" : "طفيفة"}
+${issue.chapter ? `${chapterLabel} رقم: ${issue.chapter}` : ""}
+
+وصف المشكلة:
+${issue.description}
+
+${issue.suggestion ? `الاقتراح:\n${issue.suggestion}` : ""}
+
+محتوى ${chapterLabel} الحالي المطلوب إصلاحه (${chapterLabel} ${chapter.chapterNumber} - ${chapter.title}):
+${chapter.content}
+
+${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters}` : ""}
+
+أصلح المشكلة المحددة فقط وأعد النص الكامل بصيغة JSON.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 8192,
+        response_format: { type: "json_object" },
+      });
+
+      const resultText = response.choices[0]?.message?.content || "{}";
+      let result: any;
+      try {
+        result = JSON.parse(resultText);
+      } catch {
+        return res.status(500).json({ error: "فشل في تحليل استجابة الذكاء الاصطناعي" });
+      }
+
+      if (!result.fixedContent) {
+        return res.status(500).json({ error: "فشل في إنتاج النص المصلح" });
+      }
+
+      res.json({ content: result.fixedContent, changes: result.changes || "تم الإصلاح" });
+    } catch (error) {
+      console.error("Error fixing continuity issue:", error);
+      res.status(500).json({ error: "فشل في إصلاح المشكلة" });
+    }
+  });
+
   // ===== Style Analysis =====
   app.post("/api/projects/:id/style-analysis", isAuthenticated, async (req: any, res) => {
     try {

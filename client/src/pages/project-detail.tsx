@@ -144,6 +144,8 @@ export default function ProjectDetail() {
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
   const [isCheckingContinuity, setIsCheckingContinuity] = useState(false);
   const [continuityResult, setContinuityResult] = useState<any>(null);
+  const [fixingIssueIndex, setFixingIssueIndex] = useState<number | null>(null);
+  const [continuityFixPreview, setContinuityFixPreview] = useState<{ content: string; changes: string; chapterId: number; issueIndex: number } | null>(null);
   const [isAnalyzingStyle, setIsAnalyzingStyle] = useState(false);
   const [styleResult, setStyleResult] = useState<any>(null);
   const [editingOutline, setEditingOutline] = useState(false);
@@ -2025,11 +2027,90 @@ export default function ProjectDetail() {
                                 <span className="font-semibold">اقتراح: </span>{issue.suggestion}
                               </p>
                             )}
+                            {issue.chapter && project?.chapters && (() => {
+                              const targetChapter = project.chapters.find((ch: any) => ch.chapterNumber === issue.chapter && ch.content);
+                              if (!targetChapter) return null;
+                              return (
+                                <div className="mt-3 border-t pt-3">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={fixingIssueIndex === i}
+                                    onClick={async () => {
+                                      setFixingIssueIndex(i);
+                                      try {
+                                        const res = await apiRequest("POST", `/api/chapters/${targetChapter.id}/fix-continuity`, {
+                                          issue: { type: issue.type, severity: issue.severity, chapter: issue.chapter, description: issue.description, suggestion: issue.suggestion }
+                                        });
+                                        const data = await res.json();
+                                        setContinuityFixPreview({ content: data.content, changes: data.changes, chapterId: targetChapter.id, issueIndex: i });
+                                      } catch (err: any) {
+                                        toast({ title: "فشل في إصلاح المشكلة", variant: "destructive" });
+                                      } finally {
+                                        setFixingIssueIndex(null);
+                                      }
+                                    }}
+                                    data-testid={`button-fix-issue-${i}`}
+                                  >
+                                    {fixingIssueIndex === i ? (
+                                      <><Loader2 className="w-3.5 h-3.5 animate-spin ml-1.5" />جارٍ الإصلاح...</>
+                                    ) : (
+                                      <><Wand2 className="w-3.5 h-3.5 ml-1.5" />إصلاح بواسطة أبو هاشم</>
+                                    )}
+                                  </Button>
+                                </div>
+                              );
+                            })()}
                           </div>
                         ))}
                       </div>
                     </CardContent>
                   </Card>
+                )}
+
+                {continuityFixPreview && (
+                  <AlertDialog open={!!continuityFixPreview} onOpenChange={(open) => { if (!open) setContinuityFixPreview(null); }}>
+                    <AlertDialogContent dir="rtl" className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="font-serif flex items-center gap-2">
+                          <Wand2 className="w-5 h-5 text-primary" />
+                          مراجعة الإصلاح
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                          <div className="text-right space-y-3">
+                            <div>
+                              <span className="block mb-2 text-sm font-medium text-foreground">ملخص التغييرات:</span>
+                              <span className="block p-3 rounded-md bg-primary/5 border border-primary/10 text-sm text-foreground leading-relaxed">{continuityFixPreview.changes}</span>
+                            </div>
+                            <div>
+                              <span className="block mb-2 text-sm font-medium text-foreground">معاينة النص المعدّل:</span>
+                              <div className="max-h-[300px] overflow-y-auto p-3 rounded-md bg-muted/50 border text-sm text-foreground leading-relaxed whitespace-pre-wrap font-serif" dir="rtl">
+                                {continuityFixPreview.content.substring(0, 3000)}{continuityFixPreview.content.length > 3000 ? "..." : ""}
+                              </div>
+                            </div>
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="flex-row-reverse gap-2 sm:gap-2">
+                        <AlertDialogAction
+                          onClick={async () => {
+                            try {
+                              await apiRequest("PATCH", `/api/chapters/${continuityFixPreview.chapterId}`, { content: continuityFixPreview.content });
+                              queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                              toast({ title: "تم تطبيق الإصلاح بنجاح" });
+                            } catch {
+                              toast({ title: "فشل في حفظ الإصلاح", variant: "destructive" });
+                            }
+                            setContinuityFixPreview(null);
+                          }}
+                          data-testid="button-apply-fix"
+                        >
+                          تطبيق التعديل
+                        </AlertDialogAction>
+                        <AlertDialogCancel data-testid="button-cancel-fix">إلغاء</AlertDialogCancel>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
 
                 {continuityResult.issues?.length === 0 && (

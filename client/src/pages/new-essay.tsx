@@ -51,11 +51,25 @@ const TONE_OPTIONS = [
   { value: "journalistic", label: "صحفي إخباري" },
 ];
 
+const WORD_COUNT_OPTIONS = [
+  { value: "2000", label: "٢٬٠٠٠ كلمة (مقال قصير)" },
+  { value: "5000", label: "٥٬٠٠٠ كلمة (مقال متوسط)" },
+  { value: "10000", label: "١٠٬٠٠٠ كلمة (مقال طويل)" },
+  { value: "20000", label: "٢٠٬٠٠٠ كلمة (تقرير مفصل)" },
+  { value: "37500", label: "٣٧٬٥٠٠ كلمة (تقرير شامل)" },
+  { value: "custom", label: "عدد مخصص..." },
+];
+
 const essayFormSchema = z.object({
   title: z.string().min(1, "عنوان المقال مطلوب"),
   mainIdea: z.string().min(10, "يجب أن يكون الموضوع 10 أحرف على الأقل"),
   subject: z.string().min(1, "تصنيف الموضوع مطلوب"),
   essayTone: z.string().min(1, "نبرة الكتابة مطلوبة"),
+  wordCount: z.string().min(1, "عدد الكلمات مطلوب"),
+  customWordCount: z.string().optional().default("").refine(
+    (val) => !val || (parseInt(val) >= 500 && parseInt(val) <= 50000),
+    { message: "يجب أن يكون العدد بين 500 و 50,000" }
+  ),
   targetAudience: z.string().optional().default(""),
   keyPoints: z.string().optional().default(""),
   timeSetting: z.string().optional().default(""),
@@ -78,6 +92,8 @@ export default function NewEssay() {
       mainIdea: "",
       subject: "",
       essayTone: "",
+      wordCount: "5000",
+      customWordCount: "",
       targetAudience: "",
       keyPoints: "",
       timeSetting: "",
@@ -89,6 +105,10 @@ export default function NewEssay() {
 
   const createMutation = useMutation({
     mutationFn: async (data: EssayFormData) => {
+      const wordCount = data.wordCount === "custom"
+        ? Math.max(500, Math.min(50000, parseInt(data.customWordCount) || 5000))
+        : parseInt(data.wordCount);
+      const pageCount = Math.ceil(wordCount / 250);
       const payload = {
         projectType: "essay",
         title: data.title,
@@ -99,7 +119,7 @@ export default function NewEssay() {
         timeSetting: data.timeSetting || "",
         placeSetting: data.placeSetting || "",
         narrativePov: "",
-        pageCount: 150,
+        pageCount,
         characters: [],
         relationships: [],
         keyPoints: data.keyPoints || "",
@@ -142,7 +162,10 @@ export default function NewEssay() {
       const mainIdea = form.watch("mainIdea");
       const subject = form.watch("subject");
       const essayTone = form.watch("essayTone");
-      return title && mainIdea && mainIdea.length >= 10 && subject && essayTone;
+      const wordCount = form.watch("wordCount");
+      const customWordCount = form.watch("customWordCount");
+      const wordCountValid = wordCount && (wordCount !== "custom" || (customWordCount && parseInt(customWordCount) >= 500));
+      return title && mainIdea && mainIdea.length >= 10 && subject && essayTone && wordCountValid;
     }
     return true;
   };
@@ -152,6 +175,8 @@ export default function NewEssay() {
   const watchedTitle = form.watch("title");
   const watchedMainIdea = form.watch("mainIdea");
   const watchedTargetAudience = form.watch("targetAudience");
+  const watchedWordCount = form.watch("wordCount");
+  const watchedCustomWordCount = form.watch("customWordCount");
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -270,6 +295,46 @@ export default function NewEssay() {
                         <FormMessage />
                       </FormItem>
                     )} />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="wordCount" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>عدد الكلمات المطلوب</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-word-count">
+                              <SelectValue placeholder="اختر حجم المقال" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {WORD_COUNT_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    {watchedWordCount === "custom" && (
+                      <FormField control={form.control} name="customWordCount" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>العدد المخصص (500 - 50,000)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={500}
+                              max={50000}
+                              placeholder="مثال: 8000"
+                              {...field}
+                              data-testid="input-custom-word-count"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    )}
                   </div>
 
                   <FormField control={form.control} name="targetAudience" render={({ field }) => (
@@ -398,6 +463,16 @@ export default function NewEssay() {
                         <div className="flex gap-2">
                           <span className="text-muted-foreground shrink-0">الموضوع:</span>
                           <span className="font-medium line-clamp-2" data-testid="text-summary-idea">{watchedMainIdea}</span>
+                        </div>
+                      )}
+                      {watchedWordCount && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">الحجم:</span>
+                          <span className="font-medium" data-testid="text-summary-word-count">
+                            {watchedWordCount === "custom"
+                              ? `${parseInt(watchedCustomWordCount || "0").toLocaleString("ar-EG")} كلمة`
+                              : WORD_COUNT_OPTIONS.find(o => o.value === watchedWordCount)?.label || watchedWordCount}
+                          </span>
                         </div>
                       )}
                       <div className="mt-4 rounded-md bg-primary/5 border border-primary/10 p-4">
