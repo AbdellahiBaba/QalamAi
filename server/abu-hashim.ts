@@ -1708,8 +1708,313 @@ export function buildOriginalityEnhancePrompt(
   return { system, user };
 }
 
+const SHORT_STORY_SYSTEM_PROMPT = `أنت أبو هاشم — وكيل أدبي ذكي متخصص في كتابة القصص القصيرة العربية الأصيلة.
+مهمتك إنتاج قصص قصيرة عربية جديدة بالكامل بمستوى أدبي رفيع، مستلهماً من أعظم كتّاب القصة القصيرة العرب دون نسخ أو تقليد مباشر.
+
+═══════════════════════════════════════
+المكتبة الأدبية — أساتذة القصة القصيرة العربية
+═══════════════════════════════════════
+
+أنت تحمل في ذاكرتك الأدبية معرفة عميقة بأساليب كبار كتّاب القصة القصيرة العرب. استلهم من تقنياتهم حسب ما يناسب القصة:
+
+● يوسف إدريس (مصر) — عميد القصة القصيرة العربية:
+  - اقتصاد اللغة المذهل: كل كلمة تحمل وزناً، لا حشو ولا ترهل (أرخص ليالي، بيت من لحم، الحرام)
+  - النهايات الصاعقة التي تقلب القصة رأساً على عقب في السطر الأخير
+  - الواقعية النفسية العميقة: ما يجري داخل الشخصية أهم مما يظهر للعيان
+  - الشخصيات المهمشة التي تحمل عوالم كاملة: الفلاح، العامل، المرأة الريفية
+  - الجرأة في تناول المحرمات الاجتماعية بصدق فني خالص
+  - الحوار القصير الحاد الذي يكشف أكثر مما يقول
+
+● زكريا تامر (سوريا) — سيد الومضة السردية:
+  - القصة كومضة برق: قصيرة وصاعقة ولا تُنسى (النمور في اليوم العاشر، الرعد، دمشق الحرائق)
+  - السخرية السوداء والهجاء اللاذع المغلف بحكاية بسيطة
+  - الرمزية السياسية العميقة: الحيوانات والأطفال والحكايات الشعبية كأقنعة للنقد
+  - اللغة المكثفة المتقشفة: الجملة كالسكين — حادة وموجعة
+  - تحويل العادي إلى غرائبي والمألوف إلى مرعب
+  - الأمثولة (الفابل) الحديثة: حكايات تبدو للأطفال لكنها تفضح عالم الكبار
+
+● غسان كنفاني (فلسطين) — القصة كمقاومة:
+  - الكثافة الرمزية: الشمس والبرتقال والمفتاح — كل صورة تحمل ثقل التاريخ
+  - النثر المكثف الذي يضرب كالرصاصة — لا كلمة زائدة (أرض البرتقال الحزين، عالم ليس لنا)
+  - الصمت كأداة سردية: ما لا يُقال أبلغ مما يُقال
+  - النهايات المفتوحة التي تترك القارئ في حالة ذهول وتأمل
+  - نسج السياسي في الشخصي حتى يصبحا شيئاً واحداً
+
+● محمود تيمور (مصر) — رائد القصة القصيرة العربية:
+  - الواقعية الاجتماعية الدقيقة: رصد الحياة اليومية بعين الفنان (ما تراه العيون)
+  - رسم الشخصيات بضربات قليلة دقيقة — الملامح الجسدية تكشف الداخل
+  - البناء الكلاسيكي المحكم: بداية ووسط ونهاية واضحة
+  - الحوار الطبيعي الذي يحمل نكهة الشارع والمقهى والحارة
+
+● إميلي نصر الله (لبنان) — شاعرة القصة القروية:
+  - القرية اللبنانية كعالم أدبي كامل: أشجار التوت والزيتون والوادي والجبل (طيور أيلول)
+  - المرأة الريفية بقوتها وصبرها وأحلامها المكبوتة
+  - النثر الشعري الرقيق الذي يحوّل المشهد العادي إلى لوحة
+  - الحنين والفقدان والهجرة كمحاور وجودية
+
+● محمد المنسي قنديل (مصر) — ساحر الواقعية السحرية:
+  - مزج الواقعي بالعجائبي بسلاسة — الخرافة الشعبية تسكن الحاضر (انكسار الروح)
+  - الصور البصرية الصاعقة: كل مشهد لوحة سينمائية
+  - اللغة الحسية المكثفة: روائح وألوان وأصوات تملأ الصفحة
+
+● إبراهيم أصلان (مصر) — شاعر الصمت والهامش:
+  - الحد الأدنى من اللغة والحد الأقصى من المعنى (مالك الحزين، وردية ليل)
+  - القاهرة الشعبية بأزقتها ومقاهيها وناسها البسطاء
+  - الصمت بين السطور: ما لا تقوله الشخصيات هو جوهر القصة
+  - التفاصيل الصغيرة المضيئة: نظرة، حركة يد، فنجان قهوة — تختصر حياة كاملة
+
+═══════════════════════════════════════
+خصائص القصة القصيرة العربية الرفيعة
+═══════════════════════════════════════
+
+1. وحدة الأثر: القصة القصيرة كاملة ومكتفية بذاتها — كل عنصر يخدم الأثر الواحد
+2. الاقتصاد اللغوي: كل كلمة محسوبة — لا ترهل ولا حشو ولا استطراد
+3. اللحظة الكاشفة (الإبيفاني): لحظة واحدة تضيء حياة كاملة أو تكشف حقيقة مدفونة
+4. النهاية المدوّية: النهاية ليست مجرد خاتمة بل انفجار — مفاجأة أو صمت أو انكشاف
+5. الشخصية المكثفة: شخصية واحدة أو اثنتان بعمق بدلاً من عشرات بلا ملامح
+6. الزمن المضغوط: ساعات أو أيام قليلة، لا سنوات — التكثيف الزمني جوهر القصة القصيرة
+7. المكان كشخصية: المكان ليس خلفية بل عنصر فاعل يؤثر في الحدث والشخصية
+8. الإيحاء لا التصريح: أظهر ولا تُخبر — اترك القارئ يستنتج بنفسه
+
+═══════════════════════════════════════
+قواعد اللغة العربية — إلزامية
+═══════════════════════════════════════
+
+● الإعراب:
+  - طبّق قواعد الإعراب بدقة: الفاعل مرفوع، المفعول به منصوب، المضاف إليه مجرور
+  - انتبه للأسماء الخمسة (أبوه، أخوه)، والأفعال الخمسة، والممنوع من الصرف
+  - المثنى والجمع: راعِ علامات إعراب المثنى (الألف رفعاً، الياء نصباً وجراً) وجمع المذكر السالم
+
+● الهمزات:
+  - همزة الوصل وهمزة القطع: "استمع" (وصل) vs "أكل" (قطع)
+  - همزة متوسطة: تُكتب على الحرف المناسب لأقوى الحركتين (كسرة > ضمة > فتحة > سكون)
+  - همزة متطرفة: تتبع حركة ما قبلها
+
+● العدد والمعدود:
+  - الأعداد 3-10 تخالف المعدود في التذكير والتأنيث
+  - تمييز الأعداد 11-99 منصوب مفرد
+  - تمييز المئة والألف مجرور مفرد
+
+● علامات الترقيم العربية:
+  - استخدم الفاصلة العربية (،) لا الإنجليزية (,)
+  - الفاصلة المنقوطة (؛) للربط بين جملتين مستقلتين متصلتين في المعنى
+  - علامات التنصيص العربية «...» للحوار والاقتباس
+
+═══════════════════════════════════════
+تجنب تماماً
+═══════════════════════════════════════
+
+- الأسلوب المباشر أو السطحي أو الوعظي
+- التكرار أو الحشو أو الاستطراد الذي لا يخدم وحدة الأثر
+- الشرح الزائد — القصة القصيرة تومئ ولا تشرح
+- نسخ أي جملة أو فقرة من قصص موجودة
+- اللغة الإنشائية المدرسية — اكتب أدباً حقيقياً
+- الميلودراما والعواطف المفتعلة — الصدق الفني أولاً
+- الأخطاء النحوية والصرفية
+- الفاصلة الإنجليزية (,) بدل العربية (،)
+- النهايات التفسيرية التي تشرح "المغزى" — اترك القارئ يكتشف بنفسه
+
+أجب دائماً باللغة العربية.`;
+
+export function calculateShortStoryStructure(pageCount: number) {
+  const wordsPerPage = 250;
+  const totalWords = pageCount * wordsPerPage;
+  let sectionCount: number;
+  let wordsPerSection: number;
+
+  if (totalWords <= 3000) {
+    sectionCount = 3;
+    wordsPerSection = Math.round(totalWords / sectionCount);
+  } else if (totalWords <= 6000) {
+    sectionCount = Math.max(3, Math.min(5, Math.round(totalWords / 1200)));
+    wordsPerSection = Math.round(totalWords / sectionCount);
+  } else {
+    sectionCount = Math.max(5, Math.min(7, Math.round(totalWords / 1500)));
+    wordsPerSection = Math.round(totalWords / sectionCount);
+  }
+
+  return { sectionCount, wordsPerSection, totalWords };
+}
+
+const SHORT_STORY_GENRE_MAP: Record<string, string> = {
+  realistic: "واقعي",
+  symbolic: "رمزي / أسطوري",
+  psychological: "نفسي",
+  social: "اجتماعي",
+  fantasy: "فانتازيا",
+  horror: "رعب",
+  romantic: "رومانسي",
+  historical: "تاريخي",
+  satirical: "ساخر",
+  philosophical: "فلسفي",
+};
+
+export function buildShortStoryOutlinePrompt(project: NovelProject, chars: Character[], relationships: CharacterRelationship[], allChars: Character[]) {
+  const structure = calculateShortStoryStructure(project.pageCount);
+  const genreAr = SHORT_STORY_GENRE_MAP[project.genre || ""] || project.genre || "عام";
+
+  let prompt = `أنشئ مخططاً تفصيلياً لقصة قصيرة بعنوان "${project.title}".
+
+الفكرة الرئيسية: ${project.mainIdea}
+النوع الأدبي: ${genreAr}
+${project.timeSetting ? `الزمان: ${project.timeSetting}` : ""}
+${project.placeSetting ? `المكان: ${project.placeSetting}` : ""}
+نوع السرد: ${project.narrativePov === "first_person" ? "ضمير المتكلم" : project.narrativePov === "third_person" ? "ضمير الغائب" : project.narrativePov === "omniscient" ? "الراوي العليم" : "تعدد الأصوات"}
+${project.narrativeTechnique && NARRATIVE_TECHNIQUE_MAP[project.narrativeTechnique] ? `التقنية السردية المطلوبة: ${NARRATIVE_TECHNIQUE_MAP[project.narrativeTechnique]}` : ""}
+
+حجم القصة المطلوب: ${project.pageCount} صفحة (حوالي ${structure.totalWords.toLocaleString()} كلمة)
+عدد المقاطع المطلوب: ${structure.sectionCount} مقاطع
+حجم كل مقطع تقريباً: ${structure.wordsPerSection.toLocaleString()} كلمة
+
+الشخصيات:
+`;
+
+  const roleMap: Record<string, string> = {
+    protagonist: "بطل رئيسي", antagonist: "شخصية معارضة", secondary: "شخصية ثانوية",
+    narrator: "راوٍ", mysterious: "شخصية غامضة", tragic: "شخصية مأساوية",
+    love_interest: "الحبيب / الحبيبة", mentor: "المرشد", sidekick: "الرفيق",
+  };
+
+  for (const char of chars) {
+    const role = roleMap[char.role] || char.role;
+    prompt += `- ${char.name} (${role}): ${char.background || ""}`;
+    if (char.motivation) prompt += ` | الدافع: ${char.motivation}`;
+    if (char.speechStyle) prompt += ` | أسلوب الكلام: ${char.speechStyle}`;
+    if (char.physicalDescription) prompt += ` | المظهر: ${char.physicalDescription}`;
+    if (char.psychologicalTraits) prompt += ` | السمات النفسية: ${char.psychologicalTraits}`;
+    if (char.age) prompt += ` | العمر: ${char.age}`;
+    prompt += "\n";
+  }
+
+  if (relationships?.length > 0) {
+    prompt += `\nالعلاقات بين الشخصيات:\n`;
+    for (const rel of relationships) {
+      const c1 = allChars.find(c => c.id === rel.character1Id);
+      const c2 = allChars.find(c => c.id === rel.character2Id);
+      if (c1 && c2) prompt += `- ${c1.name} ↔ ${c2.name}: ${rel.relationshipType} (${rel.description || ""})\n`;
+    }
+  }
+
+  prompt += `
+═══ تعليمات بناء المخطط ═══
+
+تذكر أن القصة القصيرة تختلف جوهرياً عن الرواية:
+- وحدة الأثر: كل مقطع يجب أن يخدم الأثر النهائي الواحد
+- اللحظة الكاشفة: حدد أين ستكون لحظة الانكشاف أو التحول
+- الاقتصاد: لا خيوط فرعية — خط سردي واحد مكثف
+- النهاية: يجب أن تكون مفاجئة أو مؤثرة أو مفتوحة بذكاء
+
+أنشئ مخططاً يتضمن:
+1. ملخص عام للقصة في فقرة واحدة
+2. ${structure.sectionCount} مقاطع بالضبط، لكل مقطع:
+   - عنوان المقطع
+   - ملخص تفصيلي (3-4 أسطر) لما سيحدث
+   - الشخصيات المشاركة
+   - التوتر الدرامي أو التحول في هذا المقطع
+
+مهم جداً: يجب أن يكون عدد المقاطع ${structure.sectionCount} مقاطع بالضبط.
+اكتب عنوان كل مقطع بالشكل التالي:
+المقطع 1: [عنوان المقطع]
+المقطع 2: [عنوان المقطع]
+وهكذا...`;
+
+  return { system: SHORT_STORY_SYSTEM_PROMPT, user: prompt };
+}
+
+export function buildShortStorySectionPrompt(
+  project: NovelProject,
+  chapter: Chapter,
+  previousChapters: Chapter[],
+  outline: string,
+  partNumber?: number,
+  totalParts?: number,
+  chars?: Character[]
+) {
+  const structure = calculateShortStoryStructure(project.pageCount);
+  const wordsTarget = structure.wordsPerSection;
+  const genreAr = SHORT_STORY_GENRE_MAP[project.genre || ""] || project.genre || "عام";
+
+  let prompt = `اكتب المقطع رقم ${chapter.chapterNumber} بعنوان "${chapter.title}" من قصة "${project.title}".
+
+النوع الأدبي: ${genreAr}
+${project.timeSetting ? `الزمان: ${project.timeSetting}` : ""}
+${project.placeSetting ? `المكان: ${project.placeSetting}` : ""}
+
+المخطط العام للقصة:
+${outline}
+
+`;
+
+  if (chars && chars.length > 0) {
+    prompt += `الشخصيات:\n`;
+    for (const char of chars) {
+      prompt += `- ${char.name}: ${char.background || ""}`;
+      if (char.motivation) prompt += ` | الدافع: ${char.motivation}`;
+      if (char.speechStyle) prompt += ` | أسلوب الكلام: ${char.speechStyle}`;
+      prompt += "\n";
+    }
+    prompt += "\n";
+  }
+
+  if (previousChapters.length > 0) {
+    prompt += `المقاطع السابقة:\n`;
+    for (const prev of previousChapters) {
+      if (prev.content) {
+        const preview = prev.content.substring(0, 1200);
+        prompt += `\nالمقطع ${prev.chapterNumber} - ${prev.title}:\n${preview}...\n`;
+      }
+    }
+    prompt += "\n";
+  }
+
+  const isFirst = chapter.chapterNumber === 1;
+  const isLast = chapter.chapterNumber === structure.sectionCount;
+
+  prompt += `${chapter.summary ? `ملخص هذا المقطع: ${chapter.summary}` : ""}
+
+═══ تعليمات الكتابة ═══
+
+- اكتب بأسلوب أدبي رفيع يليق بالقصة القصيرة العربية
+- كل كلمة محسوبة — لا ترهل ولا حشو ولا استطراد
+- أظهر ولا تُخبر (Show, don't tell): اعتمد على المشاهد والحوار والتفاصيل الحسية
+- الحوار قصير وحاد ويكشف الشخصية — لا خطب ولا مونولوجات طويلة
+- التفاصيل الحسية المختارة بعناية: رائحة، صوت، ملمس — تفصيل واحد دقيق يغني عن فقرة وصف`;
+
+  if (isFirst) {
+    prompt += `\n\n- ابدأ بجملة افتتاحية تشد القارئ فوراً — ادخل في قلب الحدث
+- قدّم الشخصية والمكان من خلال الفعل لا الوصف المجرد
+- اخلق سؤالاً أو توتراً يدفع القارئ لإكمال القراءة`;
+  }
+
+  if (isLast) {
+    prompt += `\n\n- النهاية هي أهم جزء في القصة القصيرة — اجعلها لا تُنسى
+- النهاية المفاجئة أو المفتوحة أو الصامتة — اختر ما يناسب القصة
+- لا تشرح "المغزى" — اترك القارئ يكتشف بنفسه
+- السطر الأخير يجب أن يتردد صداه في ذهن القارئ`;
+  }
+
+  prompt += `\n\nالطول المطلوب: حوالي ${wordsTarget.toLocaleString()} كلمة
+- لا تكتب عنوان المقطع في البداية — ابدأ مباشرة بالسرد
+- لا تختصر — اكتب بعمق وتفصيل مع الحفاظ على التكثيف الأدبي
+
+═══ قائمة مراجعة الجودة ═══
+
+قبل تسليم المقطع، تحقق من استيفاء المعايير التالية:
+
+□ وحدة الأثر: كل جملة تخدم الأثر النهائي للقصة — لا استطراد
+□ الإظهار لا الإخبار: المشاعر تُعبَّر عنها بالأفعال والتفاصيل لا بالتصريح المباشر
+□ جودة الحوار: قصير وحاد ويكشف الشخصية — كل جملة حوار تحمل وظيفة
+□ التفاصيل الحسية: تفاصيل مختارة بعناية تبني المشهد — لا وصف مسهب
+□ الإيقاع: تناوب بين الجمل القصيرة والطويلة — إيقاع يناسب المزاج الدرامي
+□ سلامة النحو والصرف: إعراب صحيح، همزات دقيقة، عدد ومعدود متوافقان
+□ علامات الترقيم العربية: الفاصلة العربية (،)، الفاصلة المنقوطة (؛)، علامات التنصيص «...»
+□ التكثيف: لا كلمة زائدة — كل كلمة تستحق مكانها في النص`;
+
+  return { system: SHORT_STORY_SYSTEM_PROMPT, user: prompt };
+}
+
 export function buildGlossaryPrompt(allContent: string, title: string, projectType: string): { system: string; user: string } {
-  const typeLabel = projectType === "essay" ? "المقال" : projectType === "scenario" ? "السيناريو" : "الرواية";
+  const typeLabel = projectType === "essay" ? "المقال" : projectType === "scenario" ? "السيناريو" : projectType === "short_story" ? "القصة القصيرة" : "الرواية";
 
   const system = `أنت أبو هاشم — متخصص في إنشاء فهارس ومسارد للأعمال الأدبية العربية.
 مهمتك إنشاء فهرس شامل لـ${typeLabel} المعطى.
@@ -1740,6 +2045,8 @@ export function buildCoverPrompt(project: NovelProject): string {
     ? { label: "Arabic professional essay/article cover", style: "Clean, modern, professional design suitable for an Arabic essay or news article" }
     : project.projectType === "scenario"
     ? { label: "Arabic cinematic screenplay/film cover", style: "Cinematic, dramatic poster-style design suitable for an Arabic screenplay or film project" }
+    : project.projectType === "short_story"
+    ? { label: "Arabic short story book cover", style: "Artistic, intimate book cover suitable for an Arabic short story collection — evocative, minimalist, literary" }
     : { label: "Arabic novel book cover", style: "Elegant, literary book cover suitable for an Arabic novel" };
 
   return `Design an artistic ${typeConfig.label}.

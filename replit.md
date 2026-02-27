@@ -1,7 +1,7 @@
 # QalamAI — Arabic Writing Platform
 
 ## Overview
-QalamAI is an AI-powered Arabic writing platform featuring the virtual literary agent "Abu Hashim." It aims to transform ideas into narratives by supporting three core content types: Novel Writing, Professional Essay/News Writing, and Drama/Film Scenario Writing. The platform seeks to become the premier tool for Arabic content creation, leveraging AI to assist authors, journalists, and screenwriters in bringing their visions to life.
+QalamAI is an AI-powered Arabic writing platform featuring the virtual literary agent "Abu Hashim." It aims to transform ideas into narratives by supporting four core content types: Novel Writing, Professional Essay/News Writing, Drama/Film Scenario Writing, and Short Story (القصة القصيرة). The platform seeks to become the premier tool for Arabic content creation, leveraging AI to assist authors, journalists, and screenwriters in bringing their visions to life.
 
 ## User Preferences
 Not specified.
@@ -12,7 +12,7 @@ QalamAI is built as a React Single Page Application (SPA) with a strong emphasis
 The platform's brand identity is defined by a palette of gold, deep blue, warm sand, and off-white, complemented by Arabic-rooted fonts like Cairo and Amiri, conveying an elegant and trustworthy voice.
 
 **Core Features include:**
-- Multi-type project creation (Novel, Essay, Scenario) with dedicated workflows.
+- Multi-type project creation (Novel, Essay, Scenario, Short Story) with dedicated workflows.
 - AI-driven outline generation and sequential content generation (chapters, sections, scenes) with streaming output.
 - Specialized AI knowledge bases for each content type, drawing from renowned Arab literary figures.
 - Advanced authoring tools such as inline editing, chapter version history, and a "Rewrite This Section" feature with tone selection.
@@ -28,6 +28,7 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - **Essay/News Writing**: Offers multi-subject expertise, tone selection (11 styles: formal academic, analytical, investigative, editorial, conversational expert, narrative, persuasive, satirical, simplified scientific, literary, journalistic), structure generation, and SEO awareness. Project detail page shows essay-specific fields (subject, tone, target audience, section count) instead of novel fields.
 - **Originality Check**: AI stylistic originality analysis (not plagiarism detection) evaluating uniqueness of expression, cliché avoidance, and stylistic fingerprint. Shows methodology explanation, flagged phrases with reasons, strengths, and improvement suggestions. Includes "Enhance" button to auto-rewrite chapter based on originality feedback (saves version for rollback).
 - **Scenario/Screenplay Writing**: Supports various genres, film or series formats, 3-act dramatic structure, scene-by-scene writing, proper screenplay formatting, character voice differentiation, and dialect support. Project detail page shows scenario-specific fields (genre, format, episode count, scene count).
+- **Short Story Writing (القصة القصيرة)**: AI persona trained on 7 Arabic short story masters (يوسف إدريس, زكريا تامر, غسان كنفاني, محمود تيمور, إميلي نصر الله, محمد المنسي قنديل, إبراهيم أصلان). Supports 10-50 pages, 10 genres (realistic, symbolic, psychological, social, fantasy, horror, romantic, historical, satirical, philosophical), narrative technique selection. Structure: 3-7 sections (المقاطع) based on page count. Dedicated creation page at /project/new/short-story. Price: $80 per project (SHORT_STORY_PRICE = 8000). Covered by all_in_one plan.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation and persona management.
@@ -35,7 +36,7 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - **Stripe**: Payment gateway for plan purchases and per-project payments, integrated via Replit Stripe connector and `stripe-replit-sync`.
 - **DALL-E 3**: Used for AI-generated cover images with type-aware prompts (novel/essay/scenario styles). Title overlay via node-canvas with Amiri font.
 - **Nodemailer/SMTP**: For sending email notifications (project completion, plan activation, payment confirmation, ticket replies).
-- **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font. Type-aware chapter labels (الفصل/القسم/المشهد). Glossary section appended when available. Cover title not duplicated when image has baked-in overlay.
+- **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font. Type-aware chapter labels (الفصل/القسم/المشهد/المقطع). Glossary section appended when available. Cover title not duplicated when image has baked-in overlay.
 - **archiver**: Used for EPUB generation with type-aware labels and glossary support.
 
 ## Mobile Responsiveness

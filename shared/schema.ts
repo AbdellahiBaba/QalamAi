@@ -15,10 +15,11 @@ export const NOVEL_PRICING: Record<number, number> = {
 
 export const ESSAY_PRICE = 5000;
 export const SCENARIO_PRICE = 20000;
+export const SHORT_STORY_PRICE = 8000;
 export const ALL_IN_ONE_PRICE = 50000;
 
 export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
-export const PROJECT_TYPES = ["novel", "essay", "scenario"] as const;
+export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story"] as const;
 export type ProjectType = (typeof PROJECT_TYPES)[number];
 
 export const ESSAY_SUBJECTS = [
@@ -32,6 +33,11 @@ export const SCENARIO_GENRES = [
   "sci-fi", "horror", "family", "social", "crime", "war",
 ] as const;
 
+export const SHORT_STORY_GENRES = [
+  "realistic", "symbolic", "psychological", "social", "fantasy",
+  "horror", "romantic", "historical", "satirical", "philosophical",
+] as const;
+
 export function getProjectPrice(pageCount: number): number {
   return NOVEL_PRICING[pageCount] || 0;
 }
@@ -43,6 +49,7 @@ export function getProjectPriceUSD(pageCount: number): number {
 export function getProjectPriceByType(projectType: string, pageCount?: number): number {
   if (projectType === "essay") return ESSAY_PRICE;
   if (projectType === "scenario") return SCENARIO_PRICE;
+  if (projectType === "short_story") return SHORT_STORY_PRICE;
   return getProjectPrice(pageCount || 150);
 }
 
@@ -52,6 +59,7 @@ export type PlanType = (typeof PLAN_TYPES)[number];
 export const PLAN_PRICES: Record<string, number> = {
   essay: ESSAY_PRICE,
   scenario: SCENARIO_PRICE,
+  short_story: SHORT_STORY_PRICE,
   all_in_one: ALL_IN_ONE_PRICE,
 };
 

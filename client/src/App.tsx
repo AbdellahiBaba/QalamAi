@@ -10,6 +10,7 @@ import Home from "@/pages/home";
 import NewProject from "@/pages/new-project";
 import NewEssay from "@/pages/new-essay";
 import NewScenario from "@/pages/new-scenario";
+import NewShortStory from "@/pages/new-short-story";
 import ProjectDetail from "@/pages/project-detail";
 import Profile from "@/pages/profile";
 import About from "@/pages/about";
@@ -37,6 +38,7 @@ function AuthenticatedRouter() {
       <Route path="/project/new" component={NewProject} />
       <Route path="/project/new/essay" component={NewEssay} />
       <Route path="/project/new/scenario" component={NewScenario} />
+      <Route path="/project/new/short-story" component={NewShortStory} />
       <Route path="/project/:id/read/:chapterId" component={Reader} />
       <Route path="/project/:id" component={ProjectDetail} />
       <Route path="/profile" component={Profile} />

@@ -52,6 +52,25 @@ function getTypeLabels(projectType?: string) {
       allDone: "تم الانتهاء من كتابة جميع الأقسام!",
     };
   }
+  if (projectType === "short_story") {
+    return {
+      chaptersLabel: "المقاطع",
+      chapterSingular: "المقطع",
+      outlineLabel: "المخطط القصصي",
+      typeLabel: "قصة قصيرة",
+      writeAll: "اكتب جميع المقاطع",
+      writeOne: "اكتب هذا المقطع",
+      createOutline: "إنشاء المخطط القصصي",
+      outlineCreating: "جاري إنشاء المخطط القصصي...",
+      approveOutline: "الموافقة على المخطط القصصي",
+      noOutline: "لم يتم إنشاء المخطط القصصي بعد. اضغط على \"إنشاء المخطط القصصي\" للبدء",
+      mustApprove: "يجب الموافقة على المخطط القصصي أولاً",
+      mustApproveDesc: "قم بإنشاء المخطط القصصي والموافقة عليه من تبويب \"نظرة عامة\" قبل البدء بكتابة المقاطع",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المخطط وكتابة المقاطع.",
+      paymentDesc: "إتمام الدفع للبدء بكتابة القصة القصيرة",
+      allDone: "تم الانتهاء من كتابة جميع المقاطع!",
+    };
+  }
   if (projectType === "scenario") {
     return {
       chaptersLabel: "المشاهد",
@@ -970,7 +989,7 @@ export default function ProjectDetail() {
                 <CardContent className="p-4 sm:p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
-                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : "تفاصيل الرواية"}
+                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : "تفاصيل الرواية"}
                     </h3>
                     {project.projectType === "novel" && !editingSettings && (
                       <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs" data-testid="button-edit-settings">
@@ -1013,6 +1032,51 @@ export default function ProjectDetail() {
                         )}
                         <div className="flex justify-between gap-2">
                           <span className="text-muted-foreground">عدد الأقسام:</span>
+                          <span className="font-medium">{project.chapters?.length || 0}</span>
+                        </div>
+                      </>
+                    ) : project.projectType === "short_story" ? (
+                      <>
+                        {project.genre && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">النوع الأدبي:</span>
+                            <span className="font-medium">{
+                              ({ realistic: "واقعي", symbolic: "رمزي / أسطوري", psychological: "نفسي", social: "اجتماعي", fantasy: "فانتازيا", horror: "رعب", romantic: "رومانسي", historical: "تاريخي", satirical: "ساخر", philosophical: "فلسفي" } as Record<string, string>)[project.genre] || project.genre
+                            }</span>
+                          </div>
+                        )}
+                        {project.timeSetting && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الزمان:</span>
+                            <span className="font-medium">{project.timeSetting}</span>
+                          </div>
+                        )}
+                        {project.placeSetting && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">المكان:</span>
+                            <span className="font-medium">{project.placeSetting}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">نوع السرد:</span>
+                          <span className="font-medium">{povLabel(project.narrativePov)}</span>
+                        </div>
+                        {project.narrativeTechnique && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">التقنية السردية:</span>
+                            <span className="font-medium">{TECHNIQUE_LABELS[project.narrativeTechnique] || project.narrativeTechnique}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">الحجم:</span>
+                          <span className="font-medium">{project.pageCount} صفحة</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">عدد الشخصيات:</span>
+                          <span className="font-medium">{project.characters?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">عدد المقاطع:</span>
                           <span className="font-medium">{project.chapters?.length || 0}</span>
                         </div>
                       </>

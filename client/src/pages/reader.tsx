@@ -16,6 +16,7 @@ interface Chapter {
 interface ProjectData {
   id: number;
   title: string;
+  projectType?: string;
   chapters: Chapter[];
 }
 
@@ -39,6 +40,8 @@ export default function Reader() {
     queryKey: ["/api/projects", projectId],
     enabled: !!projectId,
   });
+
+  const sectionLabel = project?.projectType === "essay" ? "القسم" : project?.projectType === "scenario" ? "المشهد" : project?.projectType === "short_story" ? "المقطع" : "الفصل";
 
   const sortedChapters = project?.chapters
     ?.filter((c) => c.status === "completed")
@@ -206,14 +209,14 @@ export default function Reader() {
             data-testid="button-prev-chapter"
           >
             <ChevronRight className="w-4 h-4 ml-1" />
-            الفصل السابق
+            {sectionLabel} السابق
           </Button>
 
           <span
             className="text-sm text-[#2C1810]/60 dark:text-[#E8DCC8]/60 font-serif"
             data-testid="text-reading-progress"
           >
-            الفصل {currentIndex + 1} من {sortedChapters.length}
+            {sectionLabel} {currentIndex + 1} من {sortedChapters.length}
           </span>
 
           <Button
@@ -223,7 +226,7 @@ export default function Reader() {
             className="text-[#2C1810] dark:text-[#E8DCC8]"
             data-testid="button-next-chapter"
           >
-            الفصل التالي
+            {sectionLabel} التالي
             <ChevronLeft className="w-4 h-4 mr-1" />
           </Button>
         </div>

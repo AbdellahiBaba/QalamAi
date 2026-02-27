@@ -344,6 +344,12 @@ export default function Home() {
                   سيناريو جديد
                 </DropdownMenuItem>
               </Link>
+              <Link href="/project/new/short-story">
+                <DropdownMenuItem data-testid="menu-new-short-story">
+                  <PenTool className="w-4 h-4 ml-2" />
+                  قصة قصيرة جديدة
+                </DropdownMenuItem>
+              </Link>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -393,6 +399,7 @@ export default function Home() {
                       <SelectItem value="novel">رواية</SelectItem>
                       <SelectItem value="essay">مقال</SelectItem>
                       <SelectItem value="scenario">سيناريو</SelectItem>
+                      <SelectItem value="short_story">قصة قصيرة</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -479,7 +486,7 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : "رواية"}
+                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : "رواية"}
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {project.mainIdea}
@@ -580,6 +587,12 @@ export default function Home() {
                   سيناريو جديد
                 </Button>
               </Link>
+              <Link href="/project/new/short-story">
+                <Button size="lg" variant="outline" data-testid="button-empty-new-short-story">
+                  <PenTool className="w-4 h-4 ml-2" />
+                  قصة قصيرة جديدة
+                </Button>
+              </Link>
             </div>
           </div>
         )}
@@ -620,7 +633,7 @@ export default function Home() {
             )}
 
             {onboardingStep === 2 && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Card
                   className={`cursor-pointer hover-elevate ${selectedProjectType === "novel" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => setSelectedProjectType("novel")}
@@ -658,6 +671,19 @@ export default function Home() {
                     </div>
                     <h4 className="font-semibold text-sm">سيناريو</h4>
                     <p className="text-xs text-muted-foreground">صمم سيناريو درامي أو سينمائي</p>
+                  </CardContent>
+                </Card>
+                <Card
+                  className={`cursor-pointer hover-elevate ${selectedProjectType === "short_story" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("short_story")}
+                  data-testid="card-project-type-short-story"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
+                      <PenTool className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <h4 className="font-semibold text-sm">قصة قصيرة</h4>
+                    <p className="text-xs text-muted-foreground">اكتب قصة قصيرة مكثفة ومؤثرة</p>
                   </CardContent>
                 </Card>
               </div>
@@ -754,6 +780,7 @@ export default function Home() {
                         novel: "/project/new",
                         essay: "/project/new/essay",
                         scenario: "/project/new/scenario",
+                        short_story: "/project/new/short-story",
                       };
                       navigate(routes[selectedProjectType]);
                     }

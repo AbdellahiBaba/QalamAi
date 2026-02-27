@@ -23,6 +23,7 @@ const typeLabels: Record<string, string> = {
   novel: "رواية",
   essay: "مقال",
   scenario: "سيناريو",
+  short_story: "قصة قصيرة",
 };
 
 const filterOptions = [
@@ -30,6 +31,7 @@ const filterOptions = [
   { value: "novel", label: "رواية" },
   { value: "essay", label: "مقال" },
   { value: "scenario", label: "سيناريو" },
+  { value: "short_story", label: "قصة قصيرة" },
 ];
 
 export default function Gallery() {

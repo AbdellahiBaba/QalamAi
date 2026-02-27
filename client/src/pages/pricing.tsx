@@ -42,6 +42,7 @@ const mainPlans = [
     highlighted: true,
     features: [
       "كتابة الروايات — جميع الأحجام",
+      "كتابة القصص القصيرة — جميع الأنواع الأدبية",
       "كتابة المقالات والأخبار — جميع التخصصات",
       "كتابة السيناريوهات — أفلام ومسلسلات",
       "شخصيات وأقواس سردية غير محدودة",
@@ -126,11 +127,11 @@ const novelTiers = [
 const faqItems = [
   {
     q: "ما الفرق بين الخطط الثلاث؟",
-    a: "خطة المقالات مخصصة لكتابة المقالات والتقارير الصحفية. خطة السيناريوهات لكتابة سيناريوهات الأفلام والمسلسلات. الخطة الشاملة تمنحك وصولاً كاملاً لجميع أنواع الكتابة بما فيها الروايات.",
+    a: "خطة المقالات مخصصة لكتابة المقالات والتقارير الصحفية. خطة السيناريوهات لكتابة سيناريوهات الأفلام والمسلسلات. الخطة الشاملة تمنحك وصولاً كاملاً لجميع أنواع الكتابة بما فيها الروايات والقصص القصيرة.",
   },
   {
     q: "كيف يعمل نظام الأسعار؟",
-    a: "خطط المقالات والسيناريوهات والشاملة تُشترى مرة واحدة وتتيح لك إنشاء مشاريع غير محدودة من النوع المشمول. للروايات بدون الخطة الشاملة، تدفع لكل مشروع حسب عدد الصفحات.",
+    a: "خطط المقالات والسيناريوهات والشاملة تُشترى مرة واحدة وتتيح لك إنشاء مشاريع غير محدودة من النوع المشمول. للروايات والقصص القصيرة بدون الخطة الشاملة، تدفع لكل مشروع حسب عدد الصفحات.",
   },
   {
     q: "ماذا يحدث بعد شراء الخطة؟",
@@ -521,6 +522,39 @@ export default function Pricing() {
               </Card>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="py-12 sm:py-16 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <div className="space-y-2">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground" data-testid="text-short-story-title">
+              القصة القصيرة
+            </h2>
+            <p className="text-muted-foreground">
+              {isPlanActive(userPlan, "all_in_one")
+                ? "خطتك الشاملة تغطي جميع القصص القصيرة — ابدأ الكتابة الآن!"
+                : "اكتب قصة قصيرة مكثفة ومؤثرة بأسلوب أمهر كتّاب القصة العربية"}
+            </p>
+          </div>
+          <Card data-testid="card-short-story-pricing">
+            <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-right space-y-1">
+                <h3 className="font-serif font-bold text-lg">قصة قصيرة (١٠-٥٠ صفحة)</h3>
+                <p className="text-sm text-muted-foreground">مقاطع مترابطة، شخصيات عميقة، نهايات مؤثرة — بأسلوب يوسف إدريس وزكريا تامر وغسان كنفاني</p>
+              </div>
+              <div className="flex flex-col items-center gap-2 shrink-0">
+                {isPlanActive(userPlan, "all_in_one") ? (
+                  <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
+                ) : (
+                  <span className="font-serif text-2xl font-bold text-primary">٨٠ دولار</span>
+                )}
+                <Link href="/project/new/short-story">
+                  <Button variant="outline" data-testid="button-short-story-cta">ابدأ الآن</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
