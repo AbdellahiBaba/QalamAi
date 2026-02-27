@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { toArabicOrdinal } from "@shared/utils";
 
 interface Chapter {
   chapterNumber: number;
@@ -174,7 +175,7 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
     clearPage();
     let y = MARGIN_TOP + 20;
 
-    drawRTLText(`الفصل ${chapter.chapterNumber}`, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 14px 'Cairo', sans-serif", "#8B7355");
+    drawRTLText(`الفصل ${toArabicOrdinal(chapter.chapterNumber)}`, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 14px 'Cairo', sans-serif", "#8B7355");
     y += TITLE_LINE_HEIGHT;
 
     y = drawWrappedRTLText(chapter.title, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 24px 'Amiri', serif", availableWidth, 36, "#8B4513");
@@ -315,7 +316,7 @@ export async function generateChapterPreviewPDF(chapter: Chapter): Promise<strin
   clearPage();
   let y = MARGIN_TOP + 20;
 
-  drawRTLText(`الفصل ${chapter.chapterNumber}`, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 14px 'Cairo', sans-serif", "#8B7355");
+  drawRTLText(`الفصل ${toArabicOrdinal(chapter.chapterNumber)}`, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 14px 'Cairo', sans-serif", "#8B7355");
   y += TITLE_LINE_HEIGHT;
   y = drawWrappedRTLText(chapter.title, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 24px 'Amiri', serif", previewAvailableWidth, 36, "#8B4513");
   y += 5;

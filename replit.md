@@ -44,6 +44,9 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - **jsPDF (client-side PDF)**: Canvas-based preview/download PDF generator. Uses drawWrappedRTLText for title wrapping — measures text width and word-wraps if it exceeds available page width. Applied to both generateNovelPDF and generateChapterPreviewPDF.
 - **archiver**: Used for EPUB generation with type-aware labels and glossary support.
 
+## Arabic Ordinal Chapter Numbers
+Chapter/section numbers are displayed as Arabic ordinal words (الأول, الثاني, الثالث, etc.) instead of digits across all TOC/glossary/export surfaces. The shared utility `toArabicOrdinal(n)` in `shared/utils.ts` maps 1–30 to ordinal words and falls back to digits for >30. Applied in: server-side PDF TOC and chapter headings, EPUB TOC and chapter titles, glossary AI input, client-side PDF chapter headings, project detail bookmarks, and style fix preview dialog.
+
 ## RTL Number Display
 All numeric values displayed alongside Arabic text are wrapped with the `LtrNum` component (`client/src/components/ui/ltr-num.tsx`) which renders `<span dir="ltr" style={{unicodeBidi: "isolate"}}>` to prevent BiDi reordering. This applies to scores (X/10, X/100), ratios (X/Y), percentages (X%), word counts, page counts, prices, and chapter numbers. For toast strings (non-JSX), use the Unicode LTR mark `\u200e` before numbers. Important: only wrap the numeric value, never Arabic text labels.
 

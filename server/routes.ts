@@ -6,6 +6,7 @@ import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildStyleAnalysisPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { toArabicOrdinal } from "@shared/utils";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -1424,8 +1425,8 @@ export async function registerRoutes(
       let simTocY = tocFirstPageStartY;
       doc.font("Arabic").fontSize(13);
       for (const ch of chapters) {
-        const chTitle = ch.title || `${chapterLabel} ${ch.chapterNumber}`;
-        const tocEntry = `${chapterLabel} ${ch.chapterNumber}: ${chTitle}`;
+        const chTitle = ch.title || `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`;
+        const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
         const entryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
         const totalH = Math.max(entryH, tocMinEntryHeight) + tocEntrySpacing;
         if (simTocY + totalH > tocBottomLimit) {
@@ -1441,7 +1442,7 @@ export async function registerRoutes(
 
       for (const chapter of chapters) {
         chapterStartPages.push(estimatedPage);
-        const chTitleEst = chapter.title || `${chapterLabel} ${chapter.chapterNumber}`;
+        const chTitleEst = chapter.title || `${chapterLabel} ${toArabicOrdinal(chapter.chapterNumber)}`;
         doc.font("ArabicBold").fontSize(22);
         const estTitleH = doc.heightOfString(chTitleEst, { width: pageWidth, align: "right" });
         const estContentStartY = contentStartY + estTitleH + 40;
@@ -1473,8 +1474,8 @@ export async function registerRoutes(
 
       for (let ci = 0; ci < chapters.length; ci++) {
         const ch = chapters[ci];
-        const chTitle = ch.title || `${chapterLabel} ${ch.chapterNumber}`;
-        const tocEntry = `${chapterLabel} ${ch.chapterNumber}: ${chTitle}`;
+        const chTitle = ch.title || `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`;
+        const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
         const pageNum = chapterStartPages[ci] || "";
 
         doc.font("Arabic").fontSize(13).fillColor("#333333");
@@ -1542,7 +1543,7 @@ export async function registerRoutes(
         pageNumber++;
         drawBorder();
 
-        const chTitle = chapter.title || `${chapterLabel} ${chapter.chapterNumber}`;
+        const chTitle = chapter.title || `${chapterLabel} ${toArabicOrdinal(chapter.chapterNumber)}`;
 
         doc.font("ArabicBold")
           .fontSize(22)
@@ -1768,7 +1769,7 @@ p { text-indent: 2em; margin: 0.5em 0; text-align: justify; }
 hr { border: none; border-top: 1px solid #D4A574; margin: 1.5em auto; width: 40%; }`, { name: "OEBPS/style.css" });
 
       const tocItems = completedChapters
-        .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${ch.chapterNumber}: ${ch.title}</a></li>`)
+        .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}</a></li>`)
         .join("\n");
 
       archive.append(`<?xml version="1.0" encoding="UTF-8"?>
@@ -1794,9 +1795,9 @@ ${tocItems}
         archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
-<head><title>${epubChapterLabel} ${ch.chapterNumber}: ${ch.title}</title><link rel="stylesheet" href="style.css"/></head>
+<head><title>${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}</title><link rel="stylesheet" href="style.css"/></head>
 <body>
-  <h2>${epubChapterLabel} ${ch.chapterNumber}</h2>
+  <h2>${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}</h2>
   <h1>${ch.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h1>
   <hr/>
 ${paragraphs}
@@ -2557,7 +2558,10 @@ ${glossaryParagraphs}
       const allContent = project.chapters
         .filter((ch: any) => ch.content)
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
-        .map((ch: any) => `الفصل ${ch.chapterNumber}: ${ch.title}\n${ch.content}`)
+        .map((ch: any) => {
+          const glossaryLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+          return `${glossaryLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}\n${ch.content}`;
+        })
         .join("\n\n---\n\n");
 
       if (!allContent) return res.status(400).json({ error: "لا يوجد محتوى لإنشاء الفهرس" });

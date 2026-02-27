@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import type { NovelProject, Character, Chapter, CharacterRelationship, ChapterVersion, Bookmark as BookmarkType } from "@shared/schema";
 import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
+import { toArabicOrdinal } from "@shared/utils";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -946,7 +947,7 @@ export default function ProjectDetail() {
                       data-testid={`button-bookmark-${bm.id}`}
                     >
                       <Bookmark className="w-3.5 h-3.5 ml-1 text-primary" />
-                      {ch ? <>{labels.chapterSingular} <LtrNum>{ch.chapterNumber}</LtrNum></> : <>#<LtrNum>{bm.chapterId}</LtrNum></>}
+                      {ch ? <>{labels.chapterSingular} {toArabicOrdinal(ch.chapterNumber)}</> : <>#<LtrNum>{bm.chapterId}</LtrNum></>}
                       {bm.note && <span className="text-xs text-muted-foreground mr-1">({bm.note})</span>}
                     </Button>
                   );
@@ -2439,7 +2440,7 @@ export default function ProjectDetail() {
                           <div key={idx} className="border rounded-lg p-3 space-y-2">
                             <h5 className="font-semibold text-sm flex items-center gap-2">
                               <FileText className="w-4 h-4 text-primary" />
-                              {ch.title || `الفصل ${ch.chapterNumber}`}
+                              {ch.title || `الفصل ${toArabicOrdinal(ch.chapterNumber)}`}
                             </h5>
                             <div className="text-xs font-medium text-muted-foreground">ملخص التغييرات:</div>
                             <span className="block p-3 rounded-md bg-primary/5 border border-primary/10 text-sm text-foreground leading-relaxed" dir="rtl">{ch.changes}</span>
