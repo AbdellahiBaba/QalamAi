@@ -144,6 +144,8 @@ export default function ProjectDetail() {
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
   const [isCheckingContinuity, setIsCheckingContinuity] = useState(false);
   const [continuityResult, setContinuityResult] = useState<any>(null);
+  const [isAnalyzingStyle, setIsAnalyzingStyle] = useState(false);
+  const [styleResult, setStyleResult] = useState<any>(null);
   const [editingOutline, setEditingOutline] = useState(false);
   const [editOutlineText, setEditOutlineText] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
@@ -929,15 +931,17 @@ export default function ProjectDetail() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full max-w-full sm:max-w-md ${project.projectType === "essay" ? "grid-cols-3" : "grid-cols-4"}`}>
+          <TabsList className={`grid w-full max-w-full sm:max-w-lg ${project.projectType === "essay" ? "grid-cols-4" : "grid-cols-5"} sm:${project.projectType === "essay" ? "grid-cols-4" : "grid-cols-6"}`}>
             <TabsTrigger value="overview" data-testid="tab-overview">
               <BookOpen className="w-4 h-4 ml-1.5" />
-              نظرة عامة
+              <span className="hidden sm:inline">نظرة عامة</span>
+              <span className="sm:hidden">عام</span>
             </TabsTrigger>
             {project.projectType !== "essay" && (
               <TabsTrigger value="characters" data-testid="tab-characters">
                 <Users className="w-4 h-4 ml-1.5" />
-                الشخصيات
+                <span className="hidden sm:inline">الشخصيات</span>
+                <span className="sm:hidden">شخصيات</span>
               </TabsTrigger>
             )}
             <TabsTrigger value="chapters" data-testid="tab-chapters">
@@ -950,7 +954,12 @@ export default function ProjectDetail() {
             </TabsTrigger>
             <TabsTrigger value="continuity" data-testid="tab-continuity">
               <Shield className="w-4 h-4 ml-1.5" />
-              الاستمرارية
+              <span className="hidden sm:inline">الاستمرارية</span>
+              <span className="sm:hidden">اتساق</span>
+            </TabsTrigger>
+            <TabsTrigger value="style" data-testid="tab-style">
+              <PenTool className="w-4 h-4 ml-1.5" />
+              الأسلوب
             </TabsTrigger>
           </TabsList>
 
@@ -2025,6 +2034,213 @@ export default function ProjectDetail() {
                 <Shield className="w-12 h-12 mx-auto mb-4 opacity-30" />
                 <p data-testid="text-no-continuity">فحص الاستمرارية يراجع جميع الفصول المكتملة بحثاً عن تناقضات في الشخصيات والأحداث والأماكن والخط الزمني.</p>
                 <p className="text-xs mt-2">يتطلب فصلين مكتملين على الأقل</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="style" className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
+                <PenTool className="w-5 h-5 text-primary" />
+                تحليل الأسلوب الأدبي
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isAnalyzingStyle}
+                onClick={async () => {
+                  setIsAnalyzingStyle(true);
+                  try {
+                    const res = await apiRequest("POST", `/api/projects/${projectId}/style-analysis`);
+                    const data = await res.json();
+                    setStyleResult(data);
+                    toast({ title: "تم تحليل الأسلوب بنجاح" });
+                  } catch (err: any) {
+                    const errData = await err?.json?.().catch(() => null);
+                    toast({ title: errData?.error || "فشل في تحليل الأسلوب", variant: "destructive" });
+                  } finally {
+                    setIsAnalyzingStyle(false);
+                  }
+                }}
+                data-testid="button-style-analysis"
+              >
+                {isAnalyzingStyle ? (
+                  <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ التحليل...</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5 ml-1" /> {styleResult ? "إعادة التحليل" : "بدء التحليل"}</>
+                )}
+              </Button>
+            </div>
+
+            {styleResult ? (
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-serif font-semibold text-lg">التقييم العام</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-2xl font-bold ${(styleResult.overallScore || 0) >= 75 ? "text-green-600 dark:text-green-400" : (styleResult.overallScore || 0) >= 50 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid="text-style-score">
+                          {styleResult.overallScore}/100
+                        </span>
+                      </div>
+                    </div>
+                    {styleResult.summary && (
+                      <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-style-summary">{styleResult.summary}</p>
+                    )}
+                    {styleResult.topPriority && (
+                      <div className="mt-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3" data-testid="text-style-priority">
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          الأولوية القصوى للتحسين:
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">{styleResult.topPriority}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {styleResult.styleProfile && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h4 className="font-serif font-semibold mb-4 flex items-center gap-2">
+                        <Feather className="w-4 h-4 text-primary" />
+                        البصمة الأسلوبية
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {styleResult.styleProfile.dominantTone && (
+                          <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-style-tone">
+                            <span className="text-xs font-medium text-muted-foreground">النبرة السائدة</span>
+                            <p className="text-sm font-semibold mt-0.5">{styleResult.styleProfile.dominantTone}</p>
+                          </div>
+                        )}
+                        {styleResult.styleProfile.sentenceVariety && (
+                          <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-style-variety">
+                            <span className="text-xs font-medium text-muted-foreground">تنوع الجمل</span>
+                            <p className="text-sm font-semibold mt-0.5">
+                              {styleResult.styleProfile.sentenceVariety === "high" ? "عالٍ" : styleResult.styleProfile.sentenceVariety === "medium" ? "متوسط" : "منخفض"}
+                            </p>
+                          </div>
+                        )}
+                        {styleResult.styleProfile.dialogueQuality && styleResult.styleProfile.dialogueQuality !== "not_applicable" && (
+                          <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-style-dialogue">
+                            <span className="text-xs font-medium text-muted-foreground">جودة الحوار</span>
+                            <p className="text-sm font-semibold mt-0.5">
+                              {styleResult.styleProfile.dialogueQuality === "excellent" ? "ممتاز" : styleResult.styleProfile.dialogueQuality === "strong" ? "قوي" : styleResult.styleProfile.dialogueQuality === "adequate" ? "مقبول" : "ضعيف"}
+                            </p>
+                          </div>
+                        )}
+                        {styleResult.styleProfile.imageryRichness && (
+                          <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-style-imagery">
+                            <span className="text-xs font-medium text-muted-foreground">ثراء الصور البلاغية</span>
+                            <p className="text-sm font-semibold mt-0.5">
+                              {styleResult.styleProfile.imageryRichness === "rich" ? "غني" : styleResult.styleProfile.imageryRichness === "moderate" ? "معتدل" : styleResult.styleProfile.imageryRichness === "excessive" ? "مفرط" : "شحيح"}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      {styleResult.styleProfile.closestAuthorStyle && (
+                        <div className="mt-3 bg-primary/5 rounded-lg p-3 border border-primary/20" data-testid="text-style-closest-author">
+                          <span className="text-xs font-medium text-muted-foreground">أقرب أسلوب أدبي</span>
+                          <p className="text-sm mt-0.5 leading-relaxed">{styleResult.styleProfile.closestAuthorStyle}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {styleResult.dimensions?.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h4 className="font-serif font-semibold mb-4 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-primary" />
+                        الأبعاد الأسلوبية
+                      </h4>
+                      <div className="space-y-4">
+                        {styleResult.dimensions.map((dim: any, i: number) => (
+                          <div key={i} className="border rounded-lg p-4" data-testid={`card-dimension-${i}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-sm">{dim.name}</span>
+                              <span className={`text-lg font-bold ${(dim.score || 0) >= 7 ? "text-green-600 dark:text-green-400" : (dim.score || 0) >= 5 ? "text-yellow-600 dark:text-yellow-400" : "text-red-600 dark:text-red-400"}`} data-testid={`text-dimension-score-${i}`}>
+                                {dim.score}/10
+                              </span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-1.5 mb-2">
+                              <div
+                                className={`h-1.5 rounded-full ${(dim.score || 0) >= 7 ? "bg-green-500" : (dim.score || 0) >= 5 ? "bg-yellow-500" : "bg-red-500"}`}
+                                style={{ width: `${(dim.score || 0) * 10}%` }}
+                              />
+                            </div>
+                            <p className="text-sm text-muted-foreground leading-relaxed">{dim.analysis}</p>
+                            {dim.example && (
+                              <div className="mt-2 text-xs bg-muted/50 rounded p-2 border-r-2 border-primary/30">
+                                <span className="font-medium">مثال: </span>
+                                <span className="text-muted-foreground">«{dim.example}»</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {styleResult.strengths?.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        نقاط القوة
+                      </h4>
+                      <ul className="space-y-2">
+                        {styleResult.strengths.map((s: string, i: number) => (
+                          <li key={i} className="text-sm flex items-start gap-2" data-testid={`text-style-strength-${i}`}>
+                            <span className="text-green-600 mt-0.5">●</span>
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {styleResult.improvements?.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
+                        <Wand2 className="w-4 h-4 text-amber-600" />
+                        اقتراحات التحسين ({styleResult.improvements.length})
+                      </h4>
+                      <div className="space-y-4">
+                        {styleResult.improvements.map((imp: any, i: number) => (
+                          <div key={i} className={`border rounded-lg p-4 ${imp.impact === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : imp.impact === "medium" ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-improvement-${i}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant={imp.impact === "high" ? "destructive" : imp.impact === "medium" ? "secondary" : "outline"} data-testid={`badge-impact-${i}`}>
+                                {imp.impact === "high" ? "تأثير عالٍ" : imp.impact === "medium" ? "تأثير متوسط" : "تأثير طفيف"}
+                              </Badge>
+                              <span className="text-sm font-semibold">{imp.area}</span>
+                            </div>
+                            {imp.current && (
+                              <div className="text-xs bg-muted/50 rounded p-2 mb-2 border-r-2 border-red-300 dark:border-red-700">
+                                <span className="font-medium text-red-700 dark:text-red-400">الوضع الحالي: </span>
+                                <span className="text-muted-foreground">{imp.current}</span>
+                              </div>
+                            )}
+                            <div className="text-xs bg-green-50 dark:bg-green-950/20 rounded p-2 border-r-2 border-green-300 dark:border-green-700">
+                              <span className="font-medium text-green-700 dark:text-green-400">الاقتراح: </span>
+                              <span className="text-muted-foreground">{imp.suggestion}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <PenTool className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p data-testid="text-no-style">تحليل الأسلوب الأدبي يقيّم جودة الكتابة ويقدم اقتراحات تحسين عملية مع أمثلة.</p>
+                <p className="text-xs mt-2">يتطلب فصلاً مكتملاً واحداً على الأقل</p>
               </div>
             )}
           </TabsContent>
