@@ -1349,35 +1349,38 @@ export async function registerRoutes(
 
       if (!coverRendered) {
         drawBorder();
-        doc.font("ArabicBold")
-          .fontSize(28)
-          .fillColor("#2C1810");
-        const titleWidth = doc.widthOfString(project.title);
-        doc.text(project.title, (fullPageWidth - titleWidth) / 2, 350, {
+        doc.font("ArabicBold").fontSize(28).fillColor("#2C1810");
+        const coverTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
+        const coverTitleY = Math.max(300, 380 - coverTitleH / 2);
+        doc.text(project.title, 72, coverTitleY, {
+          width: pageWidth,
+          align: "center",
           features: ["rtla"],
-          lineBreak: false,
         });
 
         doc.font("Arabic")
           .fontSize(14)
           .fillColor("#6B5B4F");
+        const coverSubY = coverTitleY + coverTitleH + 30;
         const subAr = "بقلم أبو هاشم — ";
         const subEn = "QalamAI";
         const subArW = doc.widthOfString(subAr, { features: ["rtla"] });
         const subEnW = doc.widthOfString(subEn);
         const subTotalW = subArW + subEnW;
         const subStartX = (fullPageWidth - subTotalW) / 2;
-        doc.text(subEn, subStartX, 400, { width: subEnW + 2, lineBreak: false });
-        doc.text(subAr, subStartX + subEnW, 400, { width: subArW + 2, align: "right", features: ["rtla"], lineBreak: false });
+        doc.text(subEn, subStartX, coverSubY, { width: subEnW + 2, lineBreak: false });
+        doc.text(subAr, subStartX + subEnW, coverSubY, { width: subArW + 2, align: "right", features: ["rtla"], lineBreak: false });
       }
 
       doc.addPage();
       drawBorder();
 
       doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
-      const cpTitleW = doc.widthOfString(project.title);
-      doc.text(project.title, (fullPageWidth - cpTitleW) / 2, 280, { features: ["rtla"], lineBreak: false });
+      const cpTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
+      const cpTitleY = Math.max(240, 300 - cpTitleH / 2);
+      doc.text(project.title, 72, cpTitleY, { width: pageWidth, align: "center", features: ["rtla"] });
 
+      const authLineY = cpTitleY + cpTitleH + 30;
       doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
       const authAr = "كُتب بمساعدة أبو هاشم — ";
       const authEn = "QalamAI";
@@ -1385,12 +1388,12 @@ export async function registerRoutes(
       const authEnW = doc.widthOfString(authEn);
       const authTotalW = authArW + authEnW;
       const authStartX = (fullPageWidth - authTotalW) / 2;
-      doc.text(authEn, authStartX, 330, { width: authEnW + 2, lineBreak: false });
-      doc.text(authAr, authStartX + authEnW, 330, { width: authArW + 2, align: "right", features: ["rtla"], lineBreak: false });
+      doc.text(authEn, authStartX, authLineY, { width: authEnW + 2, lineBreak: false });
+      doc.text(authAr, authStartX + authEnW, authLineY, { width: authArW + 2, align: "right", features: ["rtla"], lineBreak: false });
 
       const dateLine = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
       const dateW = doc.widthOfString(dateLine);
-      doc.text(dateLine, (fullPageWidth - dateW) / 2, 370, { lineBreak: false });
+      doc.text(dateLine, (fullPageWidth - dateW) / 2, authLineY + 40, { lineBreak: false });
 
       doc.font("Arabic").fontSize(13).fillColor("#8B7355");
       const rightsAr = "جميع الحقوق محفوظة ";
@@ -1399,8 +1402,9 @@ export async function registerRoutes(
       const rightsEnW = doc.widthOfString(rightsEn);
       const rightsTotalW = rightsArW + rightsEnW;
       const rightsStartX = (fullPageWidth - rightsTotalW) / 2;
-      doc.text(rightsEn, rightsStartX, 410, { width: rightsEnW + 2, lineBreak: false });
-      doc.text(rightsAr, rightsStartX + rightsEnW, 410, { width: rightsArW + 2, align: "right", features: ["rtla"], lineBreak: false });
+      const rightsY = authLineY + 80;
+      doc.text(rightsEn, rightsStartX, rightsY, { width: rightsEnW + 2, lineBreak: false });
+      doc.text(rightsAr, rightsStartX + rightsEnW, rightsY, { width: rightsArW + 2, align: "right", features: ["rtla"], lineBreak: false });
 
       const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
 
@@ -1409,7 +1413,30 @@ export async function registerRoutes(
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
 
       const continuationStartY = 90;
-      let estimatedPage = 4;
+      const tocMinEntryHeight = 28;
+      const tocEntrySpacing = 6;
+      const tocFirstPageStartY = 145;
+      const tocContPageStartY = 72;
+      const tocBottomLimit = pageHeight - 120;
+      const tocEntryWidth = pageWidth - 90;
+
+      let tocPageCount = 1;
+      let simTocY = tocFirstPageStartY;
+      doc.font("Arabic").fontSize(13);
+      for (const ch of chapters) {
+        const chTitle = ch.title || `${chapterLabel} ${ch.chapterNumber}`;
+        const tocEntry = `${chapterLabel} ${ch.chapterNumber}: ${chTitle}`;
+        const entryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
+        const totalH = Math.max(entryH, tocMinEntryHeight) + tocEntrySpacing;
+        if (simTocY + totalH > tocBottomLimit) {
+          tocPageCount++;
+          simTocY = tocContPageStartY;
+        }
+        simTocY += totalH;
+      }
+
+      const pagesBeforeChapters = 2 + tocPageCount;
+      let estimatedPage = pagesBeforeChapters + 1;
       const chapterStartPages: number[] = [];
 
       for (const chapter of chapters) {
@@ -1451,11 +1478,12 @@ export async function registerRoutes(
         const pageNum = chapterStartPages[ci] || "";
 
         doc.font("Arabic").fontSize(13).fillColor("#333333");
+        const tocEntryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
+        const entryHeight = Math.max(tocEntryH, tocMinEntryHeight);
         doc.text(tocEntry, 100, tocY, {
-          width: pageWidth - 60,
+          width: pageWidth - 90,
           align: "right",
           features: ["rtla"],
-          lineBreak: false,
         });
 
         doc.font("Arabic").fontSize(13).fillColor("#8B7355");
@@ -1465,15 +1493,15 @@ export async function registerRoutes(
           lineBreak: false,
         });
 
-        tocY += 28;
-        if (tocY > pageHeight - 120) {
+        tocY += entryHeight + tocEntrySpacing;
+        if (tocY > tocBottomLimit) {
           doc.addPage();
           drawBorder();
           tocY = 72;
         }
       }
 
-      let pageNumber = 3;
+      let pageNumber = pagesBeforeChapters;
 
       const drawPageHeader = (chapterTitle: string) => {
         doc.font("Arabic").fontSize(9).fillColor("#999");

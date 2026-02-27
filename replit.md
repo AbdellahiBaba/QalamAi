@@ -40,7 +40,8 @@ The platform's brand identity is defined by a palette of gold, deep blue, warm s
 - **Stripe**: Payment gateway for plan purchases and per-project payments, integrated via Replit Stripe connector and `stripe-replit-sync`.
 - **DALL-E 3**: Used for AI-generated cover images with type-aware prompts (novel/essay/scenario styles). Title overlay via node-canvas with Amiri font.
 - **Nodemailer/SMTP**: For sending email notifications (project completion, plan activation, payment confirmation, ticket replies).
-- **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font. Type-aware chapter labels (الفصل/القسم/المشهد/المقطع). Glossary section appended when available. Cover title not duplicated when image has baked-in overlay.
+- **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font. Type-aware chapter labels (الفصل/القسم/المشهد/المقطع). Glossary section appended when available. Cover title not duplicated when image has baked-in overlay. TOC page numbers are estimated by simulating TOC layout with heightOfString per entry, then computing pagesBeforeChapters = 2 + tocPageCount. Cover/title page titles use width+align:center with line wrapping for long titles; all vertical positions are dynamic based on title height.
+- **jsPDF (client-side PDF)**: Canvas-based preview/download PDF generator. Uses drawWrappedRTLText for title wrapping — measures text width and word-wraps if it exceeds available page width. Applied to both generateNovelPDF and generateChapterPreviewPDF.
 - **archiver**: Used for EPUB generation with type-aware labels and glossary support.
 
 ## Mobile Responsiveness

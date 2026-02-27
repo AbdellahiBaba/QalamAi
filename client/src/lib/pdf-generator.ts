@@ -89,6 +89,37 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
     ctx.fillText(text, x, y);
   }
 
+  function drawWrappedRTLText(text: string, x: number, y: number, font: string, maxWidth: number, lineHeight: number, color: string = "#2C1810"): number {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textAlign = "right";
+    ctx.direction = "rtl";
+    const measured = ctx.measureText(text);
+    if (measured.width <= maxWidth) {
+      ctx.fillText(text, x, y);
+      return y + lineHeight;
+    }
+    const words = text.split(/\s+/);
+    let currentLine = "";
+    let currentY = y;
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = ctx.measureText(testLine).width;
+      if (testWidth > maxWidth && currentLine) {
+        ctx.fillText(currentLine, x, currentY);
+        currentY += lineHeight;
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      ctx.fillText(currentLine, x, currentY);
+      currentY += lineHeight;
+    }
+    return currentY;
+  }
+
   if (novel.coverImageUrl) {
     try {
       const coverImg = await loadImage(novel.coverImageUrl);
@@ -120,8 +151,9 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
 
   clearPage();
 
+  const availableWidth = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
   const titleY = PAGE_HEIGHT / 2 - 60;
-  drawRTLText(novel.title, PAGE_WIDTH - MARGIN_RIGHT, titleY - 40, "bold 36px 'Amiri', serif", "#8B4513");
+  drawWrappedRTLText(novel.title, PAGE_WIDTH - MARGIN_RIGHT, titleY - 40, "bold 36px 'Amiri', serif", availableWidth, 50, "#8B4513");
 
   ctx.strokeStyle = "#D4A574";
   ctx.lineWidth = 1;
@@ -145,8 +177,8 @@ export async function generateNovelPDF(novel: NovelData): Promise<void> {
     drawRTLText(`الفصل ${chapter.chapterNumber}`, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 14px 'Cairo', sans-serif", "#8B7355");
     y += TITLE_LINE_HEIGHT;
 
-    drawRTLText(chapter.title, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 24px 'Amiri', serif", "#8B4513");
-    y += 15;
+    y = drawWrappedRTLText(chapter.title, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 24px 'Amiri', serif", availableWidth, 36, "#8B4513");
+    y += 5;
 
     ctx.strokeStyle = "#D4A574";
     ctx.lineWidth = 0.5;
@@ -237,6 +269,8 @@ export async function generateChapterPreviewPDF(chapter: Chapter): Promise<strin
     ctx.fillText(String(pageNum), PAGE_WIDTH / 2, PAGE_HEIGHT - 40);
   }
 
+  const MARGIN_LEFT = 60;
+
   function drawRTLText(text: string, x: number, y: number, font: string, color: string = "#2C1810") {
     ctx.font = font;
     ctx.fillStyle = color;
@@ -245,13 +279,46 @@ export async function generateChapterPreviewPDF(chapter: Chapter): Promise<strin
     ctx.fillText(text, x, y);
   }
 
+  function drawWrappedRTLText(text: string, x: number, y: number, font: string, maxWidth: number, lineHeight: number, color: string = "#2C1810"): number {
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textAlign = "right";
+    ctx.direction = "rtl";
+    const measured = ctx.measureText(text);
+    if (measured.width <= maxWidth) {
+      ctx.fillText(text, x, y);
+      return y + lineHeight;
+    }
+    const words = text.split(/\s+/);
+    let currentLine = "";
+    let currentY = y;
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = ctx.measureText(testLine).width;
+      if (testWidth > maxWidth && currentLine) {
+        ctx.fillText(currentLine, x, currentY);
+        currentY += lineHeight;
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      ctx.fillText(currentLine, x, currentY);
+      currentY += lineHeight;
+    }
+    return currentY;
+  }
+
+  const previewAvailableWidth = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
+
   clearPage();
   let y = MARGIN_TOP + 20;
 
   drawRTLText(`الفصل ${chapter.chapterNumber}`, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 14px 'Cairo', sans-serif", "#8B7355");
   y += TITLE_LINE_HEIGHT;
-  drawRTLText(chapter.title, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 24px 'Amiri', serif", "#8B4513");
-  y += 15;
+  y = drawWrappedRTLText(chapter.title, PAGE_WIDTH - MARGIN_RIGHT, y, "bold 24px 'Amiri', serif", previewAvailableWidth, 36, "#8B4513");
+  y += 5;
   ctx.strokeStyle = "#D4A574";
   ctx.lineWidth = 0.5;
   ctx.beginPath();
