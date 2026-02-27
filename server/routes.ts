@@ -1002,7 +1002,7 @@ export async function registerRoutes(
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 16000,
+        max_completion_tokens: 16000,
       });
       const refined = response.choices[0]?.message?.content || project.outline;
       const updated = await storage.updateProject(id, { outline: refined });
@@ -2599,7 +2599,7 @@ ${allContent}
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 4000,
+        max_completion_tokens: 4000,
         response_format: { type: "json_object" },
       });
 
@@ -2650,7 +2650,7 @@ ${allContent}
           { role: "system", content: system },
           { role: "user", content: user },
         ],
-        max_tokens: 5000,
+        max_completion_tokens: 5000,
         response_format: { type: "json_object" },
       });
 
