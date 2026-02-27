@@ -367,6 +367,27 @@ export default function ProjectDetail() {
 
   const [autoWriteAll, setAutoWriteAll] = useState(false);
 
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (projectId && projectId !== loadedProjectId) {
+      setContinuityResult(null);
+      setStyleResult(null);
+      setLoadedProjectId(projectId!);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    if (project && projectId === loadedProjectId) {
+      if (project.continuityCheckResult && !continuityResult) {
+        try { setContinuityResult(JSON.parse(project.continuityCheckResult)); } catch {}
+      }
+      if (project.styleAnalysisResult && !styleResult) {
+        try { setStyleResult(JSON.parse(project.styleAnalysisResult)); } catch {}
+      }
+    }
+  }, [project, loadedProjectId]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get("payment");
@@ -2007,27 +2028,33 @@ export default function ProjectDetail() {
                     <CardContent className="p-6">
                       <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
                         <Info className="w-4 h-4 text-yellow-600" />
-                        المشاكل المكتشفة ({continuityResult.issues.length})
+                        المشاكل المكتشفة ({continuityResult.issues.filter((is: any) => !is.resolved).length}/{continuityResult.issues.length})
                       </h4>
                       <div className="space-y-4">
                         {continuityResult.issues.map((issue: any, i: number) => (
-                          <div key={i} className={`border rounded-lg p-4 ${issue.severity === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : issue.severity === "medium" ? "border-yellow-300 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-issue-${i}`}>
+                          <div key={i} className={`border rounded-lg p-4 ${issue.resolved ? "border-green-300 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : issue.severity === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : issue.severity === "medium" ? "border-yellow-300 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-issue-${i}`}>
                             <div className="flex items-center gap-2 mb-2">
-                              <Badge variant={issue.severity === "high" ? "destructive" : issue.severity === "medium" ? "secondary" : "outline"} data-testid={`badge-severity-${i}`}>
-                                {issue.severity === "high" ? "خطير" : issue.severity === "medium" ? "متوسط" : "طفيف"}
-                              </Badge>
+                              {issue.resolved ? (
+                                <Badge variant="outline" className="border-green-500 text-green-600 dark:text-green-400" data-testid={`badge-resolved-${i}`}>
+                                  <CheckCircle className="w-3 h-3 ml-1" />تم الإصلاح
+                                </Badge>
+                              ) : (
+                                <Badge variant={issue.severity === "high" ? "destructive" : issue.severity === "medium" ? "secondary" : "outline"} data-testid={`badge-severity-${i}`}>
+                                  {issue.severity === "high" ? "خطير" : issue.severity === "medium" ? "متوسط" : "طفيف"}
+                                </Badge>
+                              )}
                               <Badge variant="outline" data-testid={`badge-type-${i}`}>
                                 {issue.type === "character" ? "شخصية" : issue.type === "timeline" ? "خط زمني" : issue.type === "setting" ? "مكان" : issue.type === "plot" ? "حبكة" : "نبرة"}
                               </Badge>
                               {issue.chapter && <span className="text-xs text-muted-foreground">الفصل {issue.chapter}</span>}
                             </div>
-                            <p className="text-sm mb-2" data-testid={`text-issue-desc-${i}`}>{issue.description}</p>
+                            <p className={`text-sm mb-2 ${issue.resolved ? "line-through opacity-60" : ""}`} data-testid={`text-issue-desc-${i}`}>{issue.description}</p>
                             {issue.suggestion && (
-                              <p className="text-xs text-muted-foreground border-t pt-2 mt-2" data-testid={`text-issue-fix-${i}`}>
+                              <p className={`text-xs text-muted-foreground border-t pt-2 mt-2 ${issue.resolved ? "opacity-50" : ""}`} data-testid={`text-issue-fix-${i}`}>
                                 <span className="font-semibold">اقتراح: </span>{issue.suggestion}
                               </p>
                             )}
-                            {issue.chapter && project?.chapters && (() => {
+                            {!issue.resolved && issue.chapter && project?.chapters && (() => {
                               const targetChapter = project.chapters.find((ch: any) => ch.chapterNumber === issue.chapter && ch.content);
                               if (!targetChapter) return null;
                               return (
@@ -2096,6 +2123,13 @@ export default function ProjectDetail() {
                           onClick={async () => {
                             try {
                               await apiRequest("PATCH", `/api/chapters/${continuityFixPreview.chapterId}`, { content: continuityFixPreview.content });
+                              await apiRequest("POST", `/api/projects/${projectId}/resolve-continuity-issue`, { issueIndex: continuityFixPreview.issueIndex });
+                              setContinuityResult((prev: any) => {
+                                if (!prev?.issues) return prev;
+                                const updated = { ...prev, issues: [...prev.issues] };
+                                updated.issues[continuityFixPreview.issueIndex] = { ...updated.issues[continuityFixPreview.issueIndex], resolved: true };
+                                return updated;
+                              });
                               queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                               toast({ title: "تم تطبيق الإصلاح بنجاح" });
                             } catch {
