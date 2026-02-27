@@ -1435,7 +1435,7 @@ export default function ProjectDetail() {
                       </div>
                     </div>
                   ) : (
-                    <div className="font-serif text-sm leading-loose whitespace-pre-wrap border-t pt-4">
+                    <div className="font-serif text-sm leading-loose whitespace-pre-wrap border-t pt-4" dir="rtl">
                       {project.outline}
                     </div>
                   )
@@ -1772,7 +1772,7 @@ export default function ProjectDetail() {
                           ) : (
                             <>
                               <ScrollArea className="max-h-[60vh] sm:max-h-[600px]" ref={contentRef}>
-                                <div className="p-4 sm:p-8 font-serif text-sm sm:text-base leading-[2] sm:leading-[2.2] whitespace-pre-wrap">
+                                <div className="p-4 sm:p-8 font-serif text-sm sm:text-base leading-[2] sm:leading-[2.2] whitespace-pre-wrap" dir="rtl">
                                   {displayContent}
                                 </div>
                               </ScrollArea>
@@ -1933,7 +1933,7 @@ export default function ProjectDetail() {
             {project.glossary ? (
               <Card>
                 <CardContent className="p-6">
-                  <div className="font-serif text-sm leading-loose whitespace-pre-wrap" data-testid="text-glossary-content">
+                  <div className="font-serif text-sm leading-loose whitespace-pre-wrap" dir="rtl" data-testid="text-glossary-content">
                     {project.glossary}
                   </div>
                 </CardContent>
@@ -2000,7 +2000,7 @@ export default function ProjectDetail() {
                       </div>
                     </div>
                     {continuityResult.summary && (
-                      <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-continuity-summary">{continuityResult.summary}</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed" dir="rtl" data-testid="text-continuity-summary">{continuityResult.summary}</p>
                     )}
                   </CardContent>
                 </Card>
@@ -2049,9 +2049,9 @@ export default function ProjectDetail() {
                               </Badge>
                               {issue.chapter && <span className="text-xs text-muted-foreground">الفصل <LtrNum>{issue.chapter}</LtrNum></span>}
                             </div>
-                            <p className={`text-sm mb-2 ${issue.resolved ? "line-through opacity-60" : ""}`} data-testid={`text-issue-desc-${i}`}>{issue.description}</p>
+                            <p className={`text-sm mb-2 ${issue.resolved ? "line-through opacity-60" : ""}`} dir="rtl" data-testid={`text-issue-desc-${i}`}>{issue.description}</p>
                             {issue.suggestion && (
-                              <p className={`text-xs text-muted-foreground border-t pt-2 mt-2 ${issue.resolved ? "opacity-50" : ""}`} data-testid={`text-issue-fix-${i}`}>
+                              <p className={`text-xs text-muted-foreground border-t pt-2 mt-2 ${issue.resolved ? "opacity-50" : ""}`} dir="rtl" data-testid={`text-issue-fix-${i}`}>
                                 <span className="font-semibold">اقتراح: </span>{issue.suggestion}
                               </p>
                             )}
@@ -2108,7 +2108,7 @@ export default function ProjectDetail() {
                           <div className="text-right space-y-3">
                             <div>
                               <span className="block mb-2 text-sm font-medium text-foreground">ملخص التغييرات:</span>
-                              <span className="block p-3 rounded-md bg-primary/5 border border-primary/10 text-sm text-foreground leading-relaxed">{continuityFixPreview.changes}</span>
+                              <span className="block p-3 rounded-md bg-primary/5 border border-primary/10 text-sm text-foreground leading-relaxed" dir="rtl">{continuityFixPreview.changes}</span>
                             </div>
                             <div>
                               <span className="block mb-2 text-sm font-medium text-foreground">معاينة النص المعدّل:</span>
@@ -2219,7 +2219,7 @@ export default function ProjectDetail() {
                       </div>
                     </div>
                     {styleResult.summary && (
-                      <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-style-summary">{styleResult.summary}</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed" dir="rtl" data-testid="text-style-summary">{styleResult.summary}</p>
                     )}
                     {styleResult.topPriority && (
                       <div className="mt-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3" data-testid="text-style-priority">
@@ -2227,7 +2227,7 @@ export default function ProjectDetail() {
                           <Sparkles className="w-3.5 h-3.5" />
                           الأولوية القصوى للتحسين:
                         </p>
-                        <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">{styleResult.topPriority}</p>
+                        <p className="text-sm text-amber-700 dark:text-amber-400 mt-1" dir="rtl">{styleResult.topPriority}</p>
                       </div>
                     )}
                   </CardContent>
@@ -2304,9 +2304,9 @@ export default function ProjectDetail() {
                                 style={{ width: `${(dim.score || 0) * 10}%` }}
                               />
                             </div>
-                            <p className="text-sm text-muted-foreground leading-relaxed">{dim.analysis}</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed" dir="rtl">{dim.analysis}</p>
                             {dim.example && (
-                              <div className="mt-2 text-xs bg-muted/50 rounded p-2 border-r-2 border-primary/30">
+                              <div className="mt-2 text-xs bg-muted/50 rounded p-2 border-r-2 border-primary/30" dir="rtl">
                                 <span className="font-medium">مثال: </span>
                                 <span className="text-muted-foreground">«{dim.example}»</span>
                               </div>
@@ -2327,7 +2327,7 @@ export default function ProjectDetail() {
                       </h4>
                       <ul className="space-y-2">
                         {styleResult.strengths.map((s: string, i: number) => (
-                          <li key={i} className="text-sm flex items-start gap-2" data-testid={`text-style-strength-${i}`}>
+                          <li key={i} className="text-sm flex items-start gap-2" dir="rtl" data-testid={`text-style-strength-${i}`}>
                             <span className="text-green-600 mt-0.5">●</span>
                             {s}
                           </li>
@@ -2354,12 +2354,12 @@ export default function ProjectDetail() {
                               <span className="text-sm font-semibold">{imp.area}</span>
                             </div>
                             {imp.current && (
-                              <div className="text-xs bg-muted/50 rounded p-2 mb-2 border-r-2 border-red-300 dark:border-red-700">
+                              <div className="text-xs bg-muted/50 rounded p-2 mb-2 border-r-2 border-red-300 dark:border-red-700" dir="rtl">
                                 <span className="font-medium text-red-700 dark:text-red-400">الوضع الحالي: </span>
                                 <span className="text-muted-foreground">{imp.current}</span>
                               </div>
                             )}
-                            <div className="text-xs bg-green-50 dark:bg-green-950/20 rounded p-2 border-r-2 border-green-300 dark:border-green-700">
+                            <div className="text-xs bg-green-50 dark:bg-green-950/20 rounded p-2 border-r-2 border-green-300 dark:border-green-700" dir="rtl">
                               <span className="font-medium text-green-700 dark:text-green-400">الاقتراح: </span>
                               <span className="text-muted-foreground">{imp.suggestion}</span>
                             </div>
