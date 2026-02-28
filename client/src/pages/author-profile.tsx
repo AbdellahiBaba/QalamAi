@@ -108,7 +108,7 @@ export default function AuthorProfile() {
                   data-testid={`link-project-${project.id}`}
                 >
                   <Card className="transition-shadow hover:shadow-lg cursor-pointer" data-testid={`card-project-${project.id}`}>
-                    <div className="relative aspect-[3/4] bg-muted flex items-center justify-center rounded-t-md overflow-hidden">
+                    <div className="relative aspect-square bg-muted flex items-center justify-center rounded-t-md overflow-hidden">
                       {project.coverImageUrl ? (
                         <img
                           src={project.coverImageUrl}

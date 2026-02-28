@@ -116,7 +116,7 @@ export default function Gallery() {
                   href={project.shareToken ? `/shared/${project.shareToken}` : "#"}
                   data-testid={`link-gallery-project-${project.id}`}
                 >
-                  <div className="relative aspect-[3/4] bg-muted flex items-center justify-center rounded-t-md overflow-hidden cursor-pointer">
+                  <div className="relative aspect-square bg-muted flex items-center justify-center rounded-t-md overflow-hidden cursor-pointer">
                     {project.coverImageUrl ? (
                       <img
                         src={project.coverImageUrl}
