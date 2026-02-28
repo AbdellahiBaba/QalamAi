@@ -111,7 +111,7 @@ export default function Gallery() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="grid-gallery">
             {filteredProjects.map((project) => (
-              <Card key={project.id} className="overflow-visible hover-elevate" data-testid={`card-gallery-${project.id}`}>
+              <Card key={project.id} className="transition-shadow hover:shadow-lg" data-testid={`card-gallery-${project.id}`}>
                 <Link
                   href={project.shareToken ? `/shared/${project.shareToken}` : "#"}
                   data-testid={`link-gallery-project-${project.id}`}
