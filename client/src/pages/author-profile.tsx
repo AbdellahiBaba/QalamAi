@@ -107,7 +107,7 @@ export default function AuthorProfile() {
                   href={project.shareToken ? `/shared/${project.shareToken}` : "#"}
                   data-testid={`link-project-${project.id}`}
                 >
-                  <Card className="overflow-visible hover-elevate cursor-pointer" data-testid={`card-project-${project.id}`}>
+                  <Card className="transition-shadow hover:shadow-lg cursor-pointer" data-testid={`card-project-${project.id}`}>
                     <div className="relative aspect-[3/4] bg-muted flex items-center justify-center rounded-t-md overflow-hidden">
                       {project.coverImageUrl ? (
                         <img
