@@ -387,10 +387,10 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     if (project && projectId === loadedProjectId) {
-      if (project.continuityCheckResult && !continuityResult) {
+      if (project.continuityCheckResult) {
         try { setContinuityResult(JSON.parse(project.continuityCheckResult)); } catch {}
       }
-      if (project.styleAnalysisResult && !styleResult) {
+      if (project.styleAnalysisResult) {
         try { setStyleResult(JSON.parse(project.styleAnalysisResult)); } catch {}
       }
     }
@@ -2222,15 +2222,9 @@ export default function ProjectDetail() {
                             try {
                               await Promise.all(allContinuityPreview.map(async (fix) => {
                                 await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${fix.chapterId}`, { content: fix.content });
-                                await apiRequest("POST", `/api/projects/${projectId}/resolve-continuity-issue`, { issueIndex: fix.issueIndex });
                               }));
-                              setContinuityResult((prev: any) => {
-                                if (!prev?.issues) return prev;
-                                const updated = { ...prev, issues: [...prev.issues] };
-                                for (const fix of allContinuityPreview) {
-                                  updated.issues[fix.issueIndex] = { ...updated.issues[fix.issueIndex], resolved: true };
-                                }
-                                return updated;
+                              await apiRequest("POST", `/api/projects/${projectId}/resolve-continuity-issues-batch`, {
+                                issueIndices: allContinuityPreview.map(fix => fix.issueIndex)
                               });
                               queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                               toast({ title: "تم تطبيق جميع الإصلاحات", description: `\u200eتم إصلاح ${allContinuityPreview.length} مشكلة بنجاح` });
@@ -2654,17 +2648,13 @@ export default function ProjectDetail() {
                           data-testid="button-apply-all-style-fix"
                           onClick={async () => {
                             try {
-                              await Promise.all(allStylePreview.map(async (result) => {
-                                await Promise.all(result.fixedChapters.map(async (ch: any) => {
-                                  await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${ch.chapterId}`, { content: ch.fixedContent });
-                                }));
-                                await apiRequest("POST", `/api/projects/${projectId}/resolve-style-improvement`, { issueIndex: result.improvementIndex });
-                              }));
-                              const updated = { ...styleResult, improvements: [...styleResult.improvements] };
-                              for (const result of allStylePreview) {
-                                updated.improvements[result.improvementIndex] = { ...updated.improvements[result.improvementIndex], resolved: true };
-                              }
-                              setStyleResult(updated);
+                              const allChapterPatches = allStylePreview.flatMap((result) =>
+                                result.fixedChapters.map((ch: any) => apiRequest("PATCH", `/api/projects/${projectId}/chapters/${ch.chapterId}`, { content: ch.fixedContent }))
+                              );
+                              await Promise.all(allChapterPatches);
+                              await apiRequest("POST", `/api/projects/${projectId}/resolve-style-improvements-batch`, {
+                                improvementIndices: allStylePreview.map(r => r.improvementIndex)
+                              });
                               queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                               const totalChapters = allStylePreview.reduce((sum: number, r: any) => sum + r.fixedChapters.length, 0);
                               toast({ title: "تم تطبيق جميع التحسينات", description: `\u200eتم تحديث ${totalChapters} فصل عبر ${allStylePreview.length} اقتراح` });

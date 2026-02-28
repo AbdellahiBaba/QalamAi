@@ -2701,6 +2701,44 @@ ${allContent}
     }
   });
 
+  // ===== Batch Resolve Continuity Issues =====
+  app.post("/api/projects/:id/resolve-continuity-issues-batch", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { issueIndices } = req.body;
+
+      if (!Array.isArray(issueIndices) || issueIndices.length === 0) {
+        return res.status(400).json({ error: "أرقام المشاكل مطلوبة" });
+      }
+
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      if (!project.continuityCheckResult) {
+        return res.status(400).json({ error: "لا توجد نتائج فحص محفوظة" });
+      }
+
+      const result = JSON.parse(project.continuityCheckResult);
+      if (!result.issues) {
+        return res.status(400).json({ error: "لا توجد مشاكل" });
+      }
+
+      for (const idx of issueIndices) {
+        if (typeof idx === "number" && idx >= 0 && idx < result.issues.length) {
+          result.issues[idx].resolved = true;
+        }
+      }
+
+      await storage.updateProject(id, { continuityCheckResult: JSON.stringify(result) });
+      res.json(result);
+    } catch (error) {
+      console.error("Error batch resolving continuity issues:", error);
+      res.status(500).json({ error: "فشل في تحديث حالة المشاكل" });
+    }
+  });
+
   // ===== Fix Continuity Issue =====
   app.post("/api/chapters/:id/fix-continuity", isAuthenticated, async (req: any, res) => {
     try {
@@ -3026,6 +3064,44 @@ ${ch.content}
     } catch (error) {
       console.error("Error resolving style improvement:", error);
       res.status(500).json({ error: "فشل في تحديث حالة الاقتراح" });
+    }
+  });
+
+  // ===== Batch Resolve Style Improvements =====
+  app.post("/api/projects/:id/resolve-style-improvements-batch", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      const { improvementIndices } = req.body;
+
+      if (!Array.isArray(improvementIndices) || improvementIndices.length === 0) {
+        return res.status(400).json({ error: "أرقام الاقتراحات مطلوبة" });
+      }
+
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      if (!project.styleAnalysisResult) {
+        return res.status(400).json({ error: "لا توجد نتائج تحليل محفوظة" });
+      }
+
+      const result = JSON.parse(project.styleAnalysisResult);
+      if (!result.improvements) {
+        return res.status(400).json({ error: "لا توجد اقتراحات" });
+      }
+
+      for (const idx of improvementIndices) {
+        if (typeof idx === "number" && idx >= 0 && idx < result.improvements.length) {
+          result.improvements[idx].resolved = true;
+        }
+      }
+
+      await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(result) });
+      res.json(result);
+    } catch (error) {
+      console.error("Error batch resolving style improvements:", error);
+      res.status(500).json({ error: "فشل في تحديث حالة الاقتراحات" });
     }
   });
 
