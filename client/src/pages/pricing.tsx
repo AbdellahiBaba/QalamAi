@@ -616,6 +616,42 @@ export default function Pricing() {
         </div>
       </section>
 
+      <section className="py-12 sm:py-16 px-4 sm:px-6 bg-card/30">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <div className="space-y-2">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground" data-testid="text-analysis-tools-title">
+              أدوات التحليل المتقدمة
+            </h2>
+            <p className="text-muted-foreground">
+              فحص الاستمرارية وتحليل الأسلوب الأدبي — أدوات ذكية لتحسين جودة كتاباتك
+            </p>
+          </div>
+          <Card data-testid="card-analysis-pricing">
+            <CardContent className="p-6 space-y-4">
+              <div className="grid sm:grid-cols-2 gap-6 text-right">
+                <div className="space-y-2">
+                  <h3 className="font-serif font-bold">فحص الاستمرارية</h3>
+                  <p className="text-sm text-muted-foreground">يراجع جميع الفصول بحثاً عن تناقضات في الشخصيات والأحداث والخط الزمني</p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-serif font-bold">تحليل الأسلوب الأدبي</h3>
+                  <p className="text-sm text-muted-foreground">تحليل شامل لأسلوب الكتابة مع مقارنة بأساليب كبار الأدباء العرب</p>
+                </div>
+              </div>
+              <div className="border-t pt-4 space-y-2">
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">٣ استخدامات مجانية لكل مشروع</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <span>استخدامات إضافية: <span className="font-semibold text-primary">٥٩.٩٩ دولار</span> لكل ٣ استخدامات</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       <section className="py-12 sm:py-16 px-4 sm:px-6 bg-card/50">
         <div className="max-w-6xl mx-auto text-center space-y-4">
           <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground" data-testid="text-faq-title">

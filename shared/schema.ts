@@ -56,6 +56,14 @@ export const SOCIAL_MEDIA_TONES = [
   "professional", "casual", "inspirational", "humorous", "educational", "promotional",
 ] as const;
 
+export const ANALYSIS_UNLOCK_PRICE = 5999;
+export const FREE_ANALYSIS_USES = 3;
+export const PAID_ANALYSIS_USES = 3;
+
+export function getRemainingAnalysisUses(usedCount: number, paidCount: number): number {
+  return FREE_ANALYSIS_USES + (paidCount * PAID_ANALYSIS_USES) - usedCount;
+}
+
 export function getProjectPrice(pageCount: number): number {
   return NOVEL_PRICING[pageCount] || 0;
 }
@@ -132,7 +140,11 @@ export const novelProjects = pgTable("novel_projects", {
   narrativeTechnique: text("narrative_technique"),
   allowDialect: boolean("allow_dialect").notNull().default(false),
   continuityCheckResult: text("continuity_check_result"),
+  continuityCheckCount: integer("continuity_check_count").notNull().default(0),
+  continuityCheckPaidCount: integer("continuity_check_paid_count").notNull().default(0),
   styleAnalysisResult: text("style_analysis_result"),
+  styleAnalysisCount: integer("style_analysis_count").notNull().default(0),
+  styleAnalysisPaidCount: integer("style_analysis_paid_count").notNull().default(0),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

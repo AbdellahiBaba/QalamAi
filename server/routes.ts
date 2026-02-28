@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
@@ -2617,6 +2617,11 @@ ${glossaryParagraphs}
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
 
+      const remaining = getRemainingAnalysisUses(project.continuityCheckCount || 0, project.continuityCheckPaidCount || 0);
+      if (remaining <= 0) {
+        return res.status(402).json({ error: "استنفدت الاستخدامات المجانية لفحص الاستمرارية. يمكنك فتح ٣ استخدامات إضافية مقابل ٥٩.٩٩ دولار.", needsPayment: true, feature: "continuity" });
+      }
+
       const completedChapters = project.chapters
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
@@ -2682,11 +2687,11 @@ ${allContent}
         if (result.issues) {
           result.issues = result.issues.map((issue: any) => ({ ...issue, resolved: false }));
         }
-        await storage.updateProject(id, { continuityCheckResult: JSON.stringify(result) });
+        await storage.updateProject(id, { continuityCheckResult: JSON.stringify(result), continuityCheckCount: (project.continuityCheckCount || 0) + 1 } as any);
         res.json(result);
       } catch {
         const fallback = { overallScore: 0, issues: [], strengths: [], summary: resultText };
-        await storage.updateProject(id, { continuityCheckResult: JSON.stringify(fallback) });
+        await storage.updateProject(id, { continuityCheckResult: JSON.stringify(fallback), continuityCheckCount: (project.continuityCheckCount || 0) + 1 } as any);
         res.json(fallback);
       }
     } catch (error) {
@@ -2873,6 +2878,11 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
 
+      const styleRemaining = getRemainingAnalysisUses(project.styleAnalysisCount || 0, project.styleAnalysisPaidCount || 0);
+      if (styleRemaining <= 0) {
+        return res.status(402).json({ error: "استنفدت الاستخدامات المجانية لتحليل الأسلوب. يمكنك فتح ٣ استخدامات إضافية مقابل ٥٩.٩٩ دولار.", needsPayment: true, feature: "style" });
+      }
+
       const completedChapters = project.chapters
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
@@ -2905,11 +2915,11 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       const resultText = response.choices[0]?.message?.content || "{}";
       try {
         const result = JSON.parse(resultText);
-        await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(result) });
+        await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(result), styleAnalysisCount: (project.styleAnalysisCount || 0) + 1 } as any);
         res.json(result);
       } catch {
         const fallback = { overallScore: 0, summary: resultText, dimensions: [], strengths: [], improvements: [], styleProfile: {}, topPriority: "" };
-        await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(fallback) });
+        await storage.updateProject(id, { styleAnalysisResult: JSON.stringify(fallback), styleAnalysisCount: (project.styleAnalysisCount || 0) + 1 } as any);
         res.json(fallback);
       }
     } catch (error) {
@@ -3413,6 +3423,123 @@ ${ch.content}
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to update onboarding" });
+    }
+  });
+
+  app.get("/api/projects/:id/analysis-usage", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+
+      const continuityUsed = project.continuityCheckCount || 0;
+      const continuityPaid = project.continuityCheckPaidCount || 0;
+      const continuityRemaining = getRemainingAnalysisUses(continuityUsed, continuityPaid);
+      const continuityTotal = 3 + (continuityPaid * 3);
+
+      const styleUsed = project.styleAnalysisCount || 0;
+      const stylePaid = project.styleAnalysisPaidCount || 0;
+      const styleRemaining = getRemainingAnalysisUses(styleUsed, stylePaid);
+      const styleTotal = 3 + (stylePaid * 3);
+
+      res.json({
+        continuity: { used: continuityUsed, remaining: Math.max(0, continuityRemaining), total: continuityTotal },
+        style: { used: styleUsed, remaining: Math.max(0, styleRemaining), total: styleTotal },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch analysis usage" });
+    }
+  });
+
+  app.post("/api/projects/:id/analysis-checkout", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { feature } = req.body;
+      if (!feature || !["continuity", "style"].includes(feature)) {
+        return res.status(400).json({ error: "Feature must be 'continuity' or 'style'" });
+      }
+
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+
+      const stripe = await getUncachableStripeClient();
+      const featureLabel = feature === "continuity" ? "فحص الاستمرارية" : "تحليل الأسلوب الأدبي";
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              unit_amount: ANALYSIS_UNLOCK_PRICE,
+              product_data: {
+                name: `فتح ${featureLabel} — ${project.title}`,
+                description: `٣ استخدامات إضافية لـ${featureLabel}`,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${req.headers.origin || req.protocol + "://" + req.get("host")}/project/${id}?analysis_unlock=true&feature=${feature}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.origin || req.protocol + "://" + req.get("host")}/project/${id}`,
+        metadata: {
+          projectId: String(id),
+          feature,
+          type: "analysis_unlock",
+        },
+      });
+
+      res.json({ checkoutUrl: session.url });
+    } catch (error) {
+      console.error("Error creating analysis checkout:", error);
+      res.status(500).json({ error: "فشل في إنشاء جلسة الدفع" });
+    }
+  });
+
+  app.post("/api/projects/:id/analysis-unlock-verify", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { sessionId, feature } = req.body;
+      if (!sessionId || !feature || !["continuity", "style"].includes(feature)) {
+        return res.status(400).json({ error: "Missing sessionId or feature" });
+      }
+
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      if (session.payment_status !== "paid") {
+        return res.status(400).json({ error: "الدفع لم يكتمل بعد" });
+      }
+
+      if (session.metadata?.projectId !== String(id) || session.metadata?.feature !== feature || session.metadata?.type !== "analysis_unlock") {
+        return res.status(400).json({ error: "جلسة دفع غير صالحة" });
+      }
+
+      if (session.metadata?.redeemed === "true") {
+        return res.status(400).json({ error: "تم استخدام هذه الجلسة بالفعل", alreadyRedeemed: true });
+      }
+
+      await stripe.checkout.sessions.update(sessionId, {
+        metadata: { ...session.metadata, redeemed: "true" },
+      });
+
+      if (feature === "continuity") {
+        await storage.updateProject(id, { continuityCheckPaidCount: (project.continuityCheckPaidCount || 0) + 1 } as any);
+      } else {
+        await storage.updateProject(id, { styleAnalysisPaidCount: (project.styleAnalysisPaidCount || 0) + 1 } as any);
+      }
+
+      const featureLabel = feature === "continuity" ? "فحص الاستمرارية" : "تحليل الأسلوب الأدبي";
+      res.json({ success: true, message: `تم فتح ٣ استخدامات إضافية لـ${featureLabel}` });
+    } catch (error) {
+      console.error("Error verifying analysis unlock:", error);
+      res.status(500).json({ error: "فشل في التحقق من الدفع" });
     }
   });
 

@@ -62,3 +62,14 @@ All pages are fully mobile-responsive using Tailwind CSS responsive breakpoints 
 - **Project detail**: Responsive tabs and content layout
 - **Author profile**: Already mobile-optimized
 - **Home dashboard**: Responsive filters (full-width selects on mobile), stacked project cards
+
+## Analysis Tools Paywall
+Both فحص الاستمرارية (Continuity Check) and تحليل الأسلوب الأدبي (Style Analysis) have paid usage limits per project:
+- **3 free uses** per feature per project (constants: FREE_ANALYSIS_USES=3, PAID_ANALYSIS_USES=3, ANALYSIS_UNLOCK_PRICE=5999)
+- After exhaustion, user pays $59.99 via Stripe to unlock 3 more uses
+- Schema columns: `continuityCheckCount`, `continuityCheckPaidCount`, `styleAnalysisCount`, `styleAnalysisPaidCount` on novel_projects
+- Helper: `getRemainingAnalysisUses(usedCount, paidCount)` in shared/schema.ts
+- Endpoints: GET `/api/projects/:id/analysis-usage`, POST `/api/projects/:id/analysis-checkout`, POST `/api/projects/:id/analysis-unlock-verify`
+- Server enforces: 402 response with `needsPayment: true` when exhausted; count incremented after successful analysis
+- Frontend: Badge shows remaining/total uses near each button; lock icon + payment button when exhausted; URL param handling for Stripe redirect return
+- Replay protection: Stripe session metadata `redeemed` flag prevents double-redemption of payment sessions

@@ -214,6 +214,19 @@ export default function ProjectDetail() {
     enabled: !!authUser,
   });
 
+  const { data: analysisUsage, refetch: refetchAnalysisUsage } = useQuery<{
+    continuity: { used: number; remaining: number; total: number };
+    style: { used: number; remaining: number; total: number };
+  }>({
+    queryKey: ["/api/projects", projectId, "analysis-usage"],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/analysis-usage`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!projectId && !!authUser,
+  });
+
   const planCoversProject = userPlanCoversType(planData?.plan, project?.projectType || "novel");
   const hasAccess = hasFreeAccess || planCoversProject || !!project?.paid;
 
@@ -452,6 +465,36 @@ export default function ProjectDetail() {
       window.history.replaceState({}, "", `/project/${projectId}`);
     } else if (paymentStatus === "cancelled") {
       toast({ title: "تم إلغاء عملية الدفع", variant: "destructive" });
+      window.history.replaceState({}, "", `/project/${projectId}`);
+    }
+
+    const analysisUnlock = params.get("analysis_unlock");
+    const analysisFeature = params.get("feature");
+    const analysisSessionId = params.get("session_id");
+    if (analysisUnlock === "true" && analysisFeature && analysisSessionId) {
+      apiRequest("POST", `/api/projects/${projectId}/analysis-unlock-verify`, { sessionId: analysisSessionId, feature: analysisFeature })
+        .then((res) => res.json())
+        .then((data: any) => {
+          toast({ title: data.message || "تم فتح الاستخدامات الإضافية بنجاح" });
+          refetchAnalysisUsage();
+          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+        })
+        .catch((err: any) => {
+          let isAlreadyRedeemed = false;
+          try {
+            const msgParts = err?.message?.split(": ");
+            if (msgParts && msgParts.length > 1) {
+              const parsed = JSON.parse(msgParts.slice(1).join(": "));
+              if (parsed.alreadyRedeemed) isAlreadyRedeemed = true;
+            }
+          } catch {}
+          if (isAlreadyRedeemed) {
+            toast({ title: "تم تفعيل الاستخدامات الإضافية سابقاً" });
+            refetchAnalysisUsage();
+          } else {
+            toast({ title: "حدث خطأ في تأكيد الدفع", variant: "destructive" });
+          }
+        });
       window.history.replaceState({}, "", `/project/${projectId}`);
     }
   }, [projectId]);
@@ -1998,45 +2041,73 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="continuity" className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
-                <Shield className="w-5 h-5 text-primary" />
-                فحص الاستمرارية
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isCheckingContinuity}
-                onClick={async () => {
-                  setIsCheckingContinuity(true);
-                  try {
-                    const res = await apiRequest("POST", `/api/projects/${projectId}/continuity-check`);
-                    const data = await res.json();
-                    setContinuityResult(data);
-                    toast({ title: "تم فحص الاستمرارية بنجاح" });
-                  } catch (err: any) {
-                    let errorMsg = "فشل في فحص الاستمرارية";
-                    try {
-                      const msgParts = err?.message?.split(": ");
-                      if (msgParts && msgParts.length > 1) {
-                        const jsonStr = msgParts.slice(1).join(": ");
-                        const parsed = JSON.parse(jsonStr);
-                        if (parsed.error) errorMsg = parsed.error;
-                      }
-                    } catch {}
-                    toast({ title: errorMsg, variant: "destructive" });
-                  } finally {
-                    setIsCheckingContinuity(false);
-                  }
-                }}
-                data-testid="button-continuity-check"
-              >
-                {isCheckingContinuity ? (
-                  <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ الفحص...</>
-                ) : (
-                  <><Sparkles className="w-3.5 h-3.5 ml-1" /> {continuityResult ? "إعادة الفحص" : "بدء الفحص"}</>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  فحص الاستمرارية
+                </h3>
+                {analysisUsage && (
+                  <Badge variant={analysisUsage.continuity.remaining > 0 ? "secondary" : "destructive"} className="text-xs" data-testid="badge-continuity-remaining">
+                    <LtrNum>{analysisUsage.continuity.remaining}/{analysisUsage.continuity.total}</LtrNum> استخدامات متبقية
+                  </Badge>
                 )}
-              </Button>
+              </div>
+              {analysisUsage && analysisUsage.continuity.remaining <= 0 ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const res = await apiRequest("POST", `/api/projects/${projectId}/analysis-checkout`, { feature: "continuity" });
+                      const data = await res.json();
+                      if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+                    } catch {
+                      toast({ title: "فشل في إنشاء جلسة الدفع", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-continuity-unlock"
+                >
+                  <Lock className="w-3.5 h-3.5 ml-1" /> فتح ٣ استخدامات — <LtrNum>٥٩.٩٩$</LtrNum>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isCheckingContinuity}
+                  onClick={async () => {
+                    setIsCheckingContinuity(true);
+                    try {
+                      const res = await apiRequest("POST", `/api/projects/${projectId}/continuity-check`);
+                      const data = await res.json();
+                      setContinuityResult(data);
+                      refetchAnalysisUsage();
+                      toast({ title: "تم فحص الاستمرارية بنجاح" });
+                    } catch (err: any) {
+                      let errorMsg = "فشل في فحص الاستمرارية";
+                      try {
+                        const msgParts = err?.message?.split(": ");
+                        if (msgParts && msgParts.length > 1) {
+                          const jsonStr = msgParts.slice(1).join(": ");
+                          const parsed = JSON.parse(jsonStr);
+                          if (parsed.error) errorMsg = parsed.error;
+                          if (parsed.needsPayment) refetchAnalysisUsage();
+                        }
+                      } catch {}
+                      toast({ title: errorMsg, variant: "destructive" });
+                    } finally {
+                      setIsCheckingContinuity(false);
+                    }
+                  }}
+                  data-testid="button-continuity-check"
+                >
+                  {isCheckingContinuity ? (
+                    <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ الفحص...</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5 ml-1" /> {continuityResult ? "إعادة الفحص" : "بدء الفحص"}</>
+                  )}
+                </Button>
+              )}
             </div>
             {continuityResult ? (
               <div className="space-y-4">
@@ -2303,45 +2374,73 @@ export default function ProjectDetail() {
           </TabsContent>
 
           <TabsContent value="style" className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
-                <PenTool className="w-5 h-5 text-primary" />
-                تحليل الأسلوب الأدبي
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isAnalyzingStyle}
-                onClick={async () => {
-                  setIsAnalyzingStyle(true);
-                  try {
-                    const res = await apiRequest("POST", `/api/projects/${projectId}/style-analysis`);
-                    const data = await res.json();
-                    setStyleResult(data);
-                    toast({ title: "تم تحليل الأسلوب بنجاح" });
-                  } catch (err: any) {
-                    let errorMsg = "فشل في تحليل الأسلوب";
-                    try {
-                      const msgParts = err?.message?.split(": ");
-                      if (msgParts && msgParts.length > 1) {
-                        const jsonStr = msgParts.slice(1).join(": ");
-                        const parsed = JSON.parse(jsonStr);
-                        if (parsed.error) errorMsg = parsed.error;
-                      }
-                    } catch {}
-                    toast({ title: errorMsg, variant: "destructive" });
-                  } finally {
-                    setIsAnalyzingStyle(false);
-                  }
-                }}
-                data-testid="button-style-analysis"
-              >
-                {isAnalyzingStyle ? (
-                  <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ التحليل...</>
-                ) : (
-                  <><Sparkles className="w-3.5 h-3.5 ml-1" /> {styleResult ? "إعادة التحليل" : "بدء التحليل"}</>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
+                  <PenTool className="w-5 h-5 text-primary" />
+                  تحليل الأسلوب الأدبي
+                </h3>
+                {analysisUsage && (
+                  <Badge variant={analysisUsage.style.remaining > 0 ? "secondary" : "destructive"} className="text-xs" data-testid="badge-style-remaining">
+                    <LtrNum>{analysisUsage.style.remaining}/{analysisUsage.style.total}</LtrNum> استخدامات متبقية
+                  </Badge>
                 )}
-              </Button>
+              </div>
+              {analysisUsage && analysisUsage.style.remaining <= 0 ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const res = await apiRequest("POST", `/api/projects/${projectId}/analysis-checkout`, { feature: "style" });
+                      const data = await res.json();
+                      if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+                    } catch {
+                      toast({ title: "فشل في إنشاء جلسة الدفع", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-style-unlock"
+                >
+                  <Lock className="w-3.5 h-3.5 ml-1" /> فتح ٣ استخدامات — <LtrNum>٥٩.٩٩$</LtrNum>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isAnalyzingStyle}
+                  onClick={async () => {
+                    setIsAnalyzingStyle(true);
+                    try {
+                      const res = await apiRequest("POST", `/api/projects/${projectId}/style-analysis`);
+                      const data = await res.json();
+                      setStyleResult(data);
+                      refetchAnalysisUsage();
+                      toast({ title: "تم تحليل الأسلوب بنجاح" });
+                    } catch (err: any) {
+                      let errorMsg = "فشل في تحليل الأسلوب";
+                      try {
+                        const msgParts = err?.message?.split(": ");
+                        if (msgParts && msgParts.length > 1) {
+                          const jsonStr = msgParts.slice(1).join(": ");
+                          const parsed = JSON.parse(jsonStr);
+                          if (parsed.error) errorMsg = parsed.error;
+                          if (parsed.needsPayment) refetchAnalysisUsage();
+                        }
+                      } catch {}
+                      toast({ title: errorMsg, variant: "destructive" });
+                    } finally {
+                      setIsAnalyzingStyle(false);
+                    }
+                  }}
+                  data-testid="button-style-analysis"
+                >
+                  {isAnalyzingStyle ? (
+                    <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ التحليل...</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5 ml-1" /> {styleResult ? "إعادة التحليل" : "بدء التحليل"}</>
+                  )}
+                </Button>
+              )}
             </div>
 
             {styleResult ? (
