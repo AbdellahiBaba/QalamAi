@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { ArrowRight, FileText, Globe, Loader2, Newspaper, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -77,6 +78,7 @@ const essayFormSchema = z.object({
   placeSetting: z.string().optional().default(""),
   backgroundInfo: z.string().optional().default(""),
   specificData: z.string().optional().default(""),
+  allowDialect: z.boolean().default(false),
 });
 
 type EssayFormData = z.infer<typeof essayFormSchema>;
@@ -101,6 +103,7 @@ export default function NewEssay() {
       placeSetting: "",
       backgroundInfo: "",
       specificData: "",
+      allowDialect: false,
     },
   });
 
@@ -126,6 +129,7 @@ export default function NewEssay() {
         keyPoints: data.keyPoints || "",
         backgroundInfo: data.backgroundInfo || "",
         specificData: data.specificData || "",
+        allowDialect: data.allowDialect,
       };
       const res = await apiRequest("POST", "/api/projects", payload);
       const project = await res.json();

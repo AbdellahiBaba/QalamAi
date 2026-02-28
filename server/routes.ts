@@ -694,7 +694,7 @@ export async function registerRoutes(
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique } = req.body;
+      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect } = req.body;
 
       const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story") ? projectType : "novel";
       const validPageCount = type === "novel" ? (VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150) : (pageCount || 10);
@@ -723,6 +723,7 @@ export async function registerRoutes(
         episodeCount: type === "scenario" ? (episodeCount || 1) : null,
         formatType: type === "scenario" ? (formatType || "film") : null,
         narrativeTechnique: (type === "novel" || type === "short_story") && narrativeTechnique && NARRATIVE_TECHNIQUE_MAP[narrativeTechnique] ? narrativeTechnique : null,
+        allowDialect: allowDialect === true,
         ...(autoPaid ? { paid: true, status: "draft" } : {}),
       });
 

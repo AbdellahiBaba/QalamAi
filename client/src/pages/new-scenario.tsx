@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { ArrowRight, Plus, Trash2, Clapperboard, Users, MapPin, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { SCENARIO_GENRES } from "@shared/schema";
@@ -79,6 +80,7 @@ const scenarioFormSchema = z.object({
   placeSetting: z.string().min(1, "المكان مطلوب"),
   visualTone: z.string().optional(),
   targetAudience: z.string().optional(),
+  allowDialect: z.boolean().default(false),
 });
 
 type ScenarioFormData = z.infer<typeof scenarioFormSchema>;
@@ -101,6 +103,7 @@ export default function NewScenario() {
       placeSetting: "",
       visualTone: "",
       targetAudience: "",
+      allowDialect: false,
     },
   });
 
@@ -126,6 +129,7 @@ export default function NewScenario() {
         pageCount: 150,
         characters: data.characters,
         relationships: [],
+        allowDialect: data.allowDialect,
       };
       const res = await apiRequest("POST", "/api/projects", payload);
       const project = await res.json();
@@ -501,6 +505,24 @@ export default function NewScenario() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="allowDialect" render={({ field }) => (
+                    <FormItem className="flex flex-row-reverse items-center justify-between rounded-lg border p-4">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-allow-dialect"
+                        />
+                      </FormControl>
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">السماح باستخدام اللهجة في الحوار</FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          عند التفعيل، يستخدم أبو هاشم اللهجة المحددة لكل شخصية في حواراتها. الوصف المشهدي يبقى بالفصحى دائماً.
+                        </p>
+                      </div>
                     </FormItem>
                   )} />
 

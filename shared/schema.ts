@@ -108,6 +108,7 @@ export const novelProjects = pgTable("novel_projects", {
   episodeCount: integer("episode_count"),
   formatType: text("format_type"),
   narrativeTechnique: text("narrative_technique"),
+  allowDialect: boolean("allow_dialect").notNull().default(false),
   continuityCheckResult: text("continuity_check_result"),
   styleAnalysisResult: text("style_analysis_result"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),

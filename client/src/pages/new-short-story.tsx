@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, ChevronDown, ChevronUp, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
 
@@ -55,6 +56,7 @@ const formSchema = z.object({
   placeSetting: z.string().optional(),
   narrativePov: z.string().min(1, "نوع السرد مطلوب"),
   narrativeTechnique: z.string().optional(),
+  allowDialect: z.boolean().default(false),
   genre: z.string().min(1, "النوع الأدبي مطلوب"),
   pageCount: z.number().min(10).max(50),
   characters: z.array(z.object({
@@ -93,6 +95,7 @@ export default function NewShortStory() {
       placeSetting: "",
       narrativePov: "",
       narrativeTechnique: "",
+      allowDialect: false,
       genre: "",
       pageCount: 20,
       characters: [{ name: "", background: "", role: "protagonist", motivation: "", speechStyle: "", physicalDescription: "", psychologicalTraits: "", age: "" }],
@@ -426,6 +429,24 @@ export default function NewShortStory() {
                       )}
                     />
                   </div>
+
+                  <FormField control={form.control} name="allowDialect" render={({ field }) => (
+                    <FormItem className="flex flex-row-reverse items-center justify-between rounded-lg border p-4">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-allow-dialect"
+                        />
+                      </FormControl>
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">السماح باستخدام اللهجة جزئياً في الحوار</FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          عند التفعيل، قد يستخدم أبو هاشم اللهجة العامية جزئياً في حوارات الشخصيات فقط. السرد والوصف يبقيان بالفصحى دائماً.
+                        </p>
+                      </div>
+                    </FormItem>
+                  )} />
 
                   <div className="flex justify-start pt-2">
                     <Button type="button" onClick={() => setStep(1)} data-testid="button-next-step">
