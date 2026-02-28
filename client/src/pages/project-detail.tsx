@@ -152,6 +152,10 @@ export default function ProjectDetail() {
   const [styleResult, setStyleResult] = useState<any>(null);
   const [fixingStyleIndex, setFixingStyleIndex] = useState<number | null>(null);
   const [styleFixPreview, setStyleFixPreview] = useState<{ chapters: Array<{ chapterId: number; chapterNumber: number; title: string; fixedContent: string; changes: string }>; improvementIndex: number } | null>(null);
+  const [fixingAllContinuity, setFixingAllContinuity] = useState(false);
+  const [allContinuityPreview, setAllContinuityPreview] = useState<Array<{ issueIndex: number; chapterId: number; chapterNumber: number; chapterTitle: string; content: string; changes: string }> | null>(null);
+  const [fixingAllStyle, setFixingAllStyle] = useState(false);
+  const [allStylePreview, setAllStylePreview] = useState<Array<{ improvementIndex: number; area: string; fixedChapters: Array<{ chapterId: number; chapterNumber: number; title: string; fixedContent: string; changes: string }> }> | null>(null);
   const [editingOutline, setEditingOutline] = useState(false);
   const [editOutlineText, setEditOutlineText] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
@@ -2030,10 +2034,42 @@ export default function ProjectDetail() {
                 {continuityResult.issues?.length > 0 && (
                   <Card>
                     <CardContent className="p-6">
-                      <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
-                        <Info className="w-4 h-4 text-yellow-600" />
-                        المشاكل المكتشفة (<LtrNum>{continuityResult.issues.filter((is: any) => !is.resolved).length}/{continuityResult.issues.length}</LtrNum>)
-                      </h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-serif font-semibold flex items-center gap-2">
+                          <Info className="w-4 h-4 text-yellow-600" />
+                          المشاكل المكتشفة (<LtrNum>{continuityResult.issues.filter((is: any) => !is.resolved).length}/{continuityResult.issues.length}</LtrNum>)
+                        </h4>
+                        {continuityResult.issues.some((is: any) => !is.resolved && is.chapter) && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            disabled={fixingAllContinuity || fixingIssueIndex !== null}
+                            data-testid="button-fix-all-continuity"
+                            onClick={async () => {
+                              setFixingAllContinuity(true);
+                              try {
+                                const res = await apiRequest("POST", `/api/projects/${projectId}/fix-all-continuity`);
+                                const data = await res.json();
+                                if (data.fixes && data.fixes.length > 0) {
+                                  setAllContinuityPreview(data.fixes);
+                                } else {
+                                  toast({ title: "لم يتم العثور على إصلاحات", description: "لم يجد أبو هاشم مشاكل قابلة للإصلاح" });
+                                }
+                              } catch (err: any) {
+                                toast({ title: "فشل في إصلاح المشاكل", variant: "destructive" });
+                              } finally {
+                                setFixingAllContinuity(false);
+                              }
+                            }}
+                          >
+                            {fixingAllContinuity ? (
+                              <><Loader2 className="w-3.5 h-3.5 animate-spin ml-1.5" />جارٍ إصلاح الكل...</>
+                            ) : (
+                              <><Wand2 className="w-3.5 h-3.5 ml-1.5" />إصلاح الكل بواسطة أبو هاشم</>
+                            )}
+                          </Button>
+                        )}
+                      </div>
                       <div className="space-y-4">
                         {continuityResult.issues.map((issue: any, i: number) => (
                           <div key={i} className={`border rounded-lg p-4 ${issue.resolved ? "border-green-300 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : issue.severity === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : issue.severity === "medium" ? "border-yellow-300 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-issue-${i}`}>
@@ -2146,6 +2182,67 @@ export default function ProjectDetail() {
                           تطبيق التعديل
                         </AlertDialogAction>
                         <AlertDialogCancel data-testid="button-cancel-fix">إلغاء</AlertDialogCancel>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+
+                {allContinuityPreview && (
+                  <AlertDialog open={!!allContinuityPreview} onOpenChange={(open) => { if (!open) setAllContinuityPreview(null); }}>
+                    <AlertDialogContent dir="rtl" className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="font-serif flex items-center gap-2">
+                          <Wand2 className="w-5 h-5 text-primary" />
+                          مراجعة إصلاح جميع المشاكل
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-right">
+                          قام أبو هاشم بإصلاح <LtrNum value={allContinuityPreview.length} /> {allContinuityPreview.length === 1 ? "مشكلة" : "مشاكل"}. راجع التعديلات قبل التطبيق.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-4 my-4">
+                        {allContinuityPreview.map((fix, idx) => (
+                          <div key={idx} className="border rounded-lg p-3 space-y-2" data-testid={`card-all-continuity-fix-${idx}`}>
+                            <h5 className="font-semibold text-sm flex items-center gap-2" data-testid={`text-all-continuity-chapter-${idx}`}>
+                              <FileText className="w-4 h-4 text-primary" />
+                              {fix.chapterTitle || `الفصل ${toArabicOrdinal(fix.chapterNumber)}`}
+                            </h5>
+                            <div className="text-xs font-medium text-muted-foreground">ملخص التغييرات:</div>
+                            <span className="block p-3 rounded-md bg-primary/5 border border-primary/10 text-sm text-foreground leading-relaxed" dir="rtl" data-testid={`text-all-continuity-changes-${idx}`}>{fix.changes}</span>
+                            <div className="text-xs font-medium text-muted-foreground">معاينة النص المعدّل:</div>
+                            <div className="max-h-40 overflow-y-auto bg-muted/30 rounded p-3 text-sm leading-relaxed whitespace-pre-wrap font-serif" dir="rtl" data-testid={`text-all-continuity-preview-${idx}`}>
+                              {fix.content.substring(0, 2000)}{fix.content.length > 2000 ? "..." : ""}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <AlertDialogFooter className="flex-row-reverse gap-2">
+                        <AlertDialogAction
+                          data-testid="button-apply-all-continuity-fix"
+                          onClick={async () => {
+                            try {
+                              await Promise.all(allContinuityPreview.map(async (fix) => {
+                                await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${fix.chapterId}`, { content: fix.content });
+                                await apiRequest("POST", `/api/projects/${projectId}/resolve-continuity-issue`, { issueIndex: fix.issueIndex });
+                              }));
+                              setContinuityResult((prev: any) => {
+                                if (!prev?.issues) return prev;
+                                const updated = { ...prev, issues: [...prev.issues] };
+                                for (const fix of allContinuityPreview) {
+                                  updated.issues[fix.issueIndex] = { ...updated.issues[fix.issueIndex], resolved: true };
+                                }
+                                return updated;
+                              });
+                              queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                              toast({ title: "تم تطبيق جميع الإصلاحات", description: `\u200eتم إصلاح ${allContinuityPreview.length} مشكلة بنجاح` });
+                            } catch {
+                              toast({ title: "فشل في حفظ بعض الإصلاحات", variant: "destructive" });
+                            }
+                            setAllContinuityPreview(null);
+                          }}
+                        >
+                          تطبيق جميع التعديلات
+                        </AlertDialogAction>
+                        <AlertDialogCancel data-testid="button-cancel-all-continuity-fix">إلغاء</AlertDialogCancel>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -2347,10 +2444,47 @@ export default function ProjectDetail() {
                   return (
                   <Card>
                     <CardContent className="p-6">
-                      <h4 className="font-serif font-semibold mb-3 flex items-center gap-2">
-                        <Wand2 className="w-4 h-4 text-amber-600" />
-                        اقتراحات التحسين (<LtrNum value={`${unresolvedCount}/${totalCount}`} />)
-                      </h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-serif font-semibold flex items-center gap-2">
+                          <Wand2 className="w-4 h-4 text-amber-600" />
+                          اقتراحات التحسين (<LtrNum value={`${unresolvedCount}/${totalCount}`} />)
+                        </h4>
+                        {unresolvedCount > 0 && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            disabled={fixingAllStyle || fixingStyleIndex !== null}
+                            data-testid="button-fix-all-style"
+                            onClick={async () => {
+                              setFixingAllStyle(true);
+                              try {
+                                const res = await apiRequest("POST", `/api/projects/${projectId}/fix-all-style-improvements`);
+                                const data = await res.json();
+                                if (data.results && data.results.length > 0) {
+                                  const withFixes = data.results.filter((r: any) => r.fixedChapters && r.fixedChapters.length > 0);
+                                  if (withFixes.length > 0) {
+                                    setAllStylePreview(withFixes);
+                                  } else {
+                                    toast({ title: "لم يتم العثور على تعديلات", description: "لم يجد أبو هاشم أجزاء تحتاج تحسينًا" });
+                                  }
+                                } else {
+                                  toast({ title: "لم يتم العثور على تعديلات", description: "لم يجد أبو هاشم أجزاء تحتاج تحسينًا" });
+                                }
+                              } catch (err: any) {
+                                toast({ title: "فشل في تطبيق التحسينات", variant: "destructive" });
+                              } finally {
+                                setFixingAllStyle(false);
+                              }
+                            }}
+                          >
+                            {fixingAllStyle ? (
+                              <><Loader2 className="w-3.5 h-3.5 animate-spin ml-1.5" />جارٍ تحسين الكل...</>
+                            ) : (
+                              <><Wand2 className="w-3.5 h-3.5 ml-1.5" />إصلاح الكل بواسطة أبو هاشم</>
+                            )}
+                          </Button>
+                        )}
+                      </div>
                       <div className="space-y-4">
                         {styleResult.improvements.map((imp: any, i: number) => (
                           <div key={i} className={`border rounded-lg p-4 ${imp.resolved ? "border-green-300 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20" : imp.impact === "high" ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" : imp.impact === "medium" ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/30"}`} data-testid={`card-improvement-${i}`}>
@@ -2475,6 +2609,74 @@ export default function ProjectDetail() {
                           تطبيق التعديل
                         </AlertDialogAction>
                         <AlertDialogCancel data-testid="button-cancel-style-fix">إلغاء</AlertDialogCancel>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+
+                {allStylePreview && (
+                  <AlertDialog open={!!allStylePreview} onOpenChange={(open) => { if (!open) setAllStylePreview(null); }}>
+                    <AlertDialogContent dir="rtl" className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="font-serif flex items-center gap-2">
+                          <Wand2 className="w-5 h-5 text-primary" />
+                          مراجعة جميع تحسينات الأسلوب
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-right">
+                          قام أبو هاشم بمعالجة <LtrNum value={allStylePreview.length} /> {allStylePreview.length === 1 ? "اقتراح" : "اقتراحات"}. راجع التعديلات قبل التطبيق.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-6 my-4">
+                        {allStylePreview.map((result, rIdx) => (
+                          <div key={rIdx} className="border-2 border-primary/20 rounded-lg p-4 space-y-3" data-testid={`card-all-style-improvement-${rIdx}`}>
+                            <h5 className="font-serif font-semibold text-sm flex items-center gap-2 text-primary" data-testid={`text-all-style-area-${rIdx}`}>
+                              <PenTool className="w-4 h-4" />
+                              {result.area || `اقتراح ${rIdx + 1}`}
+                            </h5>
+                            {result.fixedChapters.map((ch: any, cIdx: number) => (
+                              <div key={cIdx} className="border rounded-lg p-3 space-y-2 bg-muted/20" data-testid={`card-all-style-chapter-${rIdx}-${cIdx}`}>
+                                <h6 className="text-sm font-medium flex items-center gap-2" data-testid={`text-all-style-chapter-title-${rIdx}-${cIdx}`}>
+                                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                                  {ch.title || `الفصل ${toArabicOrdinal(ch.chapterNumber)}`}
+                                </h6>
+                                <div className="text-xs font-medium text-muted-foreground">ملخص التغييرات:</div>
+                                <span className="block p-2 rounded-md bg-primary/5 border border-primary/10 text-xs text-foreground leading-relaxed" dir="rtl" data-testid={`text-all-style-changes-${rIdx}-${cIdx}`}>{ch.changes}</span>
+                                <div className="max-h-32 overflow-y-auto bg-muted/30 rounded p-2 text-xs leading-relaxed whitespace-pre-wrap font-serif" dir="rtl" data-testid={`text-all-style-preview-${rIdx}-${cIdx}`}>
+                                  {ch.fixedContent.substring(0, 1500)}{ch.fixedContent.length > 1500 ? "..." : ""}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                      <AlertDialogFooter className="flex-row-reverse gap-2">
+                        <AlertDialogAction
+                          data-testid="button-apply-all-style-fix"
+                          onClick={async () => {
+                            try {
+                              await Promise.all(allStylePreview.map(async (result) => {
+                                await Promise.all(result.fixedChapters.map(async (ch: any) => {
+                                  await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${ch.chapterId}`, { content: ch.fixedContent });
+                                }));
+                                await apiRequest("POST", `/api/projects/${projectId}/resolve-style-improvement`, { issueIndex: result.improvementIndex });
+                              }));
+                              const updated = { ...styleResult, improvements: [...styleResult.improvements] };
+                              for (const result of allStylePreview) {
+                                updated.improvements[result.improvementIndex] = { ...updated.improvements[result.improvementIndex], resolved: true };
+                              }
+                              setStyleResult(updated);
+                              queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                              const totalChapters = allStylePreview.reduce((sum: number, r: any) => sum + r.fixedChapters.length, 0);
+                              toast({ title: "تم تطبيق جميع التحسينات", description: `\u200eتم تحديث ${totalChapters} فصل عبر ${allStylePreview.length} اقتراح` });
+                            } catch {
+                              toast({ title: "فشل في تطبيق بعض التعديلات", variant: "destructive" });
+                            }
+                            setAllStylePreview(null);
+                          }}
+                        >
+                          تطبيق جميع التعديلات
+                        </AlertDialogAction>
+                        <AlertDialogCancel data-testid="button-cancel-all-style-fix">إلغاء</AlertDialogCancel>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

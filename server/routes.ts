@@ -2929,8 +2929,7 @@ ${chapterSummaries}
         return res.json({ fixedChapters: [] });
       }
 
-      const fixedChapters: any[] = [];
-      for (const ch of chaptersToFix) {
+      const fixResults = await Promise.all(chaptersToFix.map(async (ch: any) => {
         const fixSystemPrompt = `أنت أبو هاشم — محرر أدبي متخصص في تحسين الأسلوب الأدبي في النصوص العربية.
 مهمتك: تطبيق اقتراح تحسين أسلوبي محدد على نص ${chapterLabel} واحد.
 
@@ -2972,25 +2971,28 @@ ${ch.content}
 
           if (fixResponse.choices[0]?.finish_reason === "length") {
             console.warn(`Style fix truncated for chapter ${ch.id}, skipping`);
-            continue;
+            return null;
           }
 
           const fixText = fixResponse.choices[0]?.message?.content || "{}";
           const fixResult = JSON.parse(fixText);
           if (fixResult.fixedContent) {
-            fixedChapters.push({
+            return {
               chapterId: ch.id,
               chapterNumber: ch.chapterNumber,
               title: ch.title,
               fixedContent: fixResult.fixedContent,
               changes: fixResult.changes || "تم التحسين",
-            });
+            };
           }
+          return null;
         } catch (chErr) {
           console.error(`Error fixing style for chapter ${ch.id}:`, chErr);
+          return null;
         }
-      }
+      }));
 
+      const fixedChapters = fixResults.filter((r: any) => r !== null);
       res.json({ fixedChapters });
     } catch (error) {
       console.error("Error fixing style improvement:", error);
@@ -3024,6 +3026,283 @@ ${ch.content}
     } catch (error) {
       console.error("Error resolving style improvement:", error);
       res.status(500).json({ error: "فشل في تحديث حالة الاقتراح" });
+    }
+  });
+
+  // ===== Fix All Continuity Issues =====
+  app.post("/api/projects/:id/fix-all-continuity", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      const project = await storage.getProjectWithDetails(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      if (!project.continuityCheckResult) {
+        return res.status(400).json({ error: "لا توجد نتائج فحص محفوظة" });
+      }
+
+      const continuityResult = JSON.parse(project.continuityCheckResult);
+      if (!continuityResult.issues || !Array.isArray(continuityResult.issues)) {
+        return res.status(400).json({ error: "لا توجد مشاكل" });
+      }
+
+      const completedChapters = project.chapters
+        .filter((ch: any) => ch.content && ch.status === "completed")
+        .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
+
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+
+      const unresolvedIssues: { issue: any; index: number; chapter: any }[] = [];
+      for (let i = 0; i < continuityResult.issues.length; i++) {
+        const issue = continuityResult.issues[i];
+        if (issue.resolved) continue;
+        const targetChapter = completedChapters.find((ch: any) => ch.chapterNumber === issue.chapter);
+        if (targetChapter) {
+          unresolvedIssues.push({ issue, index: i, chapter: targetChapter });
+        }
+      }
+
+      if (unresolvedIssues.length === 0) {
+        return res.json({ fixes: [] });
+      }
+
+      const contextChapters = completedChapters
+        .map((ch: any) => `${chapterLabel} ${ch.chapterNumber} - ${ch.title}:\n${ch.content!.substring(0, 600)}`)
+        .join("\n---\n");
+
+      const typeMap: Record<string, string> = {
+        character: "تناقض في الشخصية", timeline: "تناقض في الخط الزمني",
+        setting: "تناقض في المكان", plot: "فجوة في الحبكة", tone: "تغير في النبرة"
+      };
+
+      const fixResults = await Promise.all(unresolvedIssues.map(async ({ issue, index, chapter }) => {
+        const issueTypeAr = typeMap[issue.type] || issue.type || "مشكلة";
+        const systemPrompt = `أنت أبو هاشم — محرر أدبي متخصص في إصلاح مشاكل الاستمرارية في النصوص العربية.
+مهمتك: إصلاح مشكلة محددة في نص ${chapterLabel} مع الحفاظ على بقية النص كما هو تمامًا.
+
+قواعد صارمة:
+1. أعد النص الكامل بعد الإصلاح — لا تحذف أي جزء لا يتعلق بالمشكلة
+2. عدّل فقط الأجزاء المرتبطة مباشرة بالمشكلة المذكورة
+3. حافظ على أسلوب الكتابة والنبرة الأصلية
+4. حافظ على طول النص تقريبًا
+5. أجب بصيغة JSON فقط بالشكل التالي:
+{
+  "fixedContent": "النص الكامل بعد الإصلاح",
+  "changes": "ملخص موجز للتغييرات التي أجريتها بالعربية"
+}`;
+
+        const userPrompt = `نوع المشكلة: ${issueTypeAr}
+الخطورة: ${issue.severity === "high" ? "خطيرة" : issue.severity === "medium" ? "متوسطة" : "طفيفة"}
+${issue.chapter ? `${chapterLabel} رقم: ${issue.chapter}` : ""}
+
+وصف المشكلة:
+${issue.description}
+
+${issue.suggestion ? `الاقتراح:\n${issue.suggestion}` : ""}
+
+محتوى ${chapterLabel} الحالي المطلوب إصلاحه (${chapterLabel} ${chapter.chapterNumber} - ${chapter.title}):
+${chapter.content}
+
+${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters}` : ""}
+
+أصلح المشكلة المحددة فقط وأعد النص الكامل بصيغة JSON.`;
+
+        try {
+          const response = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            max_completion_tokens: 16384,
+            response_format: { type: "json_object" },
+          });
+
+          if (response.choices[0]?.finish_reason === "length") {
+            console.warn(`Continuity fix truncated for issue ${index}, skipping`);
+            return null;
+          }
+
+          const resultText = response.choices[0]?.message?.content || "{}";
+          const result = JSON.parse(resultText);
+          if (result.fixedContent) {
+            return {
+              issueIndex: index,
+              chapterId: chapter.id,
+              chapterNumber: chapter.chapterNumber,
+              chapterTitle: chapter.title,
+              content: result.fixedContent,
+              changes: result.changes || "تم الإصلاح",
+            };
+          }
+          return null;
+        } catch (err) {
+          console.error(`Error fixing continuity issue ${index}:`, err);
+          return null;
+        }
+      }));
+
+      const fixes = fixResults.filter((r: any) => r !== null);
+      res.json({ fixes });
+    } catch (error) {
+      console.error("Error fixing all continuity issues:", error);
+      res.status(500).json({ error: "فشل في إصلاح المشاكل" });
+    }
+  });
+
+  // ===== Fix All Style Improvements =====
+  app.post("/api/projects/:id/fix-all-style-improvements", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+
+      const project = await storage.getProjectWithDetails(id);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      if (!project.styleAnalysisResult) {
+        return res.status(400).json({ error: "لا توجد نتائج تحليل محفوظة" });
+      }
+
+      const styleResult = JSON.parse(project.styleAnalysisResult);
+      if (!styleResult.improvements || !Array.isArray(styleResult.improvements)) {
+        return res.status(400).json({ error: "لا توجد اقتراحات" });
+      }
+
+      const completedChapters = project.chapters
+        .filter((ch: any) => ch.content && ch.status === "completed")
+        .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
+
+      if (completedChapters.length < 1) {
+        return res.status(400).json({ error: "لا توجد فصول مكتملة" });
+      }
+
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+
+      const unresolvedImprovements: { improvement: any; index: number }[] = [];
+      for (let i = 0; i < styleResult.improvements.length; i++) {
+        if (!styleResult.improvements[i].resolved) {
+          unresolvedImprovements.push({ improvement: styleResult.improvements[i], index: i });
+        }
+      }
+
+      if (unresolvedImprovements.length === 0) {
+        return res.json({ results: [] });
+      }
+
+      const chapterSummaries = completedChapters
+        .map((ch: any) => `[${chapterLabel} ${ch.chapterNumber} — ${ch.title} — ID:${ch.id}]\n${(ch.content || "").substring(0, 1500)}`)
+        .join("\n\n===\n\n");
+
+      const validChapterIds = new Set(completedChapters.map((ch: any) => ch.id));
+
+      const improvementResults = await Promise.all(unresolvedImprovements.map(async ({ improvement, index }) => {
+        try {
+          const identifyResponse = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            messages: [
+              { role: "system", content: `أنت أبو هاشم — محرر أدبي. مهمتك تحديد أي الفصول تحتاج تعديلًا لتطبيق اقتراح أسلوبي معين.
+أجب بصيغة JSON فقط: { "chapterIds": [<أرقام ID الفصول التي تحتاج تعديلًا>] }
+إذا لم تجد فصولًا تحتاج تعديلًا، أعد مصفوفة فارغة.` },
+              { role: "user", content: `مجال التحسين: ${improvement.area || "غير محدد"}
+الوضع الحالي: ${improvement.current || "غير محدد"}
+الاقتراح: ${improvement.suggestion}
+
+ملخص الفصول:
+${chapterSummaries}
+
+حدد أرقام ID الفصول التي تحتاج تعديلًا.` },
+            ],
+            max_completion_tokens: 1024,
+            response_format: { type: "json_object" },
+          });
+
+          if (identifyResponse.choices[0]?.finish_reason === "length") return null;
+
+          const identifyText = identifyResponse.choices[0]?.message?.content || "{}";
+          let identifyResult: any;
+          try {
+            identifyResult = JSON.parse(identifyText);
+          } catch {
+            identifyResult = { chapterIds: completedChapters.slice(0, 3).map((ch: any) => ch.id) };
+          }
+
+          const targetIds: number[] = Array.isArray(identifyResult.chapterIds) ? identifyResult.chapterIds : [];
+          const chaptersToFix = completedChapters.filter((ch: any) => targetIds.includes(ch.id) && validChapterIds.has(ch.id));
+          if (chaptersToFix.length === 0) return { improvementIndex: index, fixedChapters: [] };
+
+          const chapterFixes = await Promise.all(chaptersToFix.map(async (ch: any) => {
+            try {
+              const fixResponse = await openai.chat.completions.create({
+                model: "gpt-5.2",
+                messages: [
+                  { role: "system", content: `أنت أبو هاشم — محرر أدبي متخصص في تحسين الأسلوب الأدبي في النصوص العربية.
+مهمتك: تطبيق اقتراح تحسين أسلوبي محدد على نص ${chapterLabel} واحد.
+
+قواعد صارمة:
+1. عدّل فقط الأجزاء المتعلقة بالاقتراح المحدد
+2. أعد النص الكامل بعد التحسين — لا تحذف أي جزء غير متعلق
+3. حافظ على المعنى والسياق العام
+4. حافظ على طول النص تقريبًا
+5. أجب بصيغة JSON فقط:
+{
+  "fixedContent": "النص الكامل بعد التحسين",
+  "changes": "ملخص موجز بالعربية للتغييرات"
+}` },
+                  { role: "user", content: `مجال التحسين: ${improvement.area || "غير محدد"}
+التأثير: ${improvement.impact === "high" ? "عالٍ" : improvement.impact === "medium" ? "متوسط" : "طفيف"}
+
+الوضع الحالي:
+${improvement.current || "غير محدد"}
+
+الاقتراح:
+${improvement.suggestion}
+
+محتوى ${chapterLabel} ${ch.chapterNumber} — ${ch.title}:
+${ch.content}
+
+طبّق الاقتراح وأعد النص الكامل بصيغة JSON.` },
+                ],
+                max_completion_tokens: 16384,
+                response_format: { type: "json_object" },
+              });
+
+              if (fixResponse.choices[0]?.finish_reason === "length") return null;
+              const fixText = fixResponse.choices[0]?.message?.content || "{}";
+              const fixResult = JSON.parse(fixText);
+              if (fixResult.fixedContent) {
+                return {
+                  chapterId: ch.id,
+                  chapterNumber: ch.chapterNumber,
+                  title: ch.title,
+                  fixedContent: fixResult.fixedContent,
+                  changes: fixResult.changes || "تم التحسين",
+                };
+              }
+              return null;
+            } catch {
+              return null;
+            }
+          }));
+
+          return {
+            improvementIndex: index,
+            area: improvement.area,
+            fixedChapters: chapterFixes.filter((r: any) => r !== null),
+          };
+        } catch (err) {
+          console.error(`Error fixing style improvement ${index}:`, err);
+          return null;
+        }
+      }));
+
+      const results = improvementResults.filter((r: any) => r !== null);
+      res.json({ results });
+    } catch (error) {
+      console.error("Error fixing all style improvements:", error);
+      res.status(500).json({ error: "فشل في تطبيق تحسينات الأسلوب" });
     }
   });
 
