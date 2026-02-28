@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildStyleAnalysisPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
@@ -443,8 +443,8 @@ export async function registerRoutes(
               currency: "usd",
               unit_amount: project.price,
               product_data: {
-                name: project.projectType === "essay" ? `مقال: ${project.title}` : project.projectType === "scenario" ? `سيناريو: ${project.title}` : project.projectType === "short_story" ? `قصة قصيرة: ${project.title}` : `رواية: ${project.title}`,
-                description: project.projectType === "essay" ? `مقال احترافي` : project.projectType === "scenario" ? `سيناريو ${project.formatType === "series" ? "مسلسل" : "فيلم"}` : project.projectType === "short_story" ? `قصة قصيرة ${project.pageCount} صفحة` : `رواية ${project.pageCount} صفحة`,
+                name: project.projectType === "essay" ? `مقال: ${project.title}` : project.projectType === "scenario" ? `سيناريو: ${project.title}` : project.projectType === "short_story" ? `قصة قصيرة: ${project.title}` : project.projectType === "khawater" ? `خاطرة: ${project.title}` : project.projectType === "social_media" ? `محتوى سوشيال: ${project.title}` : `رواية: ${project.title}`,
+                description: project.projectType === "essay" ? `مقال احترافي` : project.projectType === "scenario" ? `سيناريو ${project.formatType === "series" ? "مسلسل" : "فيلم"}` : project.projectType === "short_story" ? `قصة قصيرة ${project.pageCount} صفحة` : project.projectType === "khawater" ? `خاطرة / تأمل أدبي` : project.projectType === "social_media" ? `محتوى سوشيال ميديا` : `رواية ${project.pageCount} صفحة`,
               },
             },
             quantity: 1,
@@ -696,7 +696,7 @@ export async function registerRoutes(
       const userId = req.user.claims.sub;
       const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect } = req.body;
 
-      const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story") ? projectType : "novel";
+      const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story" || projectType === "khawater" || projectType === "social_media") ? projectType : "novel";
       const validPageCount = type === "novel" ? (VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150) : (pageCount || 10);
       const price = getProjectPriceByType(type, validPageCount);
 
@@ -717,11 +717,11 @@ export async function registerRoutes(
         price,
         projectType: type,
         subject: type === "essay" ? (subject || null) : null,
-        essayTone: type === "essay" ? (essayTone || null) : null,
-        targetAudience: type === "essay" ? (targetAudience || null) : null,
-        genre: (type === "scenario" || type === "short_story") ? (genre || null) : null,
+        essayTone: (type === "essay" || type === "social_media") ? (essayTone || null) : null,
+        targetAudience: (type === "essay" || type === "social_media") ? (targetAudience || null) : null,
+        genre: (type === "scenario" || type === "short_story" || type === "khawater" || type === "social_media") ? (genre || null) : null,
         episodeCount: type === "scenario" ? (episodeCount || 1) : null,
-        formatType: type === "scenario" ? (formatType || "film") : null,
+        formatType: (type === "scenario" || type === "khawater") ? (formatType || null) : null,
         narrativeTechnique: (type === "novel" || type === "short_story") && narrativeTechnique && NARRATIVE_TECHNIQUE_MAP[narrativeTechnique] ? narrativeTechnique : null,
         allowDialect: allowDialect === true,
         ...(autoPaid ? { paid: true, status: "draft" } : {}),
@@ -758,6 +758,16 @@ export async function registerRoutes(
         }
       }
 
+      if (type === "khawater" || type === "social_media") {
+        await storage.createChapter({
+          projectId: project.id,
+          chapterNumber: 1,
+          title: type === "khawater" ? "النص" : "المحتوى",
+          summary: null,
+        });
+        await storage.updateProject(project.id, { outline: "—", outlineApproved: 1 });
+      }
+
       res.status(201).json(project);
     } catch (error) {
       console.error("Error creating project:", error);
@@ -780,6 +790,11 @@ export async function registerRoutes(
         return res.status(402).json({ error: "الرجاء إتمام الدفع أو تفعيل خطة مناسبة." });
       }
 
+      const pType = project.projectType || "novel";
+      if (pType === "khawater" || pType === "social_media") {
+        return res.status(400).json({ error: "هذا النوع من المشاريع لا يحتاج مخططاً — اضغط على زر الكتابة مباشرة" });
+      }
+
       const forceRegenerate = req.body?.forceRegenerate === true;
 
       if (project.outline && project.outlineApproved === 1 && !forceRegenerate) {
@@ -800,7 +815,6 @@ export async function registerRoutes(
       const rels = await db.select().from(characterRelationships).where(eq(characterRelationships.projectId, id));
 
       let promptResult: { system: string; user: string };
-      const pType = project.projectType || "novel";
 
       if (pType === "essay") {
         promptResult = buildEssayOutlinePrompt(project);
@@ -988,6 +1002,10 @@ export async function registerRoutes(
       const { instruction } = req.body;
       if (!instruction || typeof instruction !== "string") return res.status(400).json({ error: "التعليمات مطلوبة" });
 
+      if (project.projectType === "khawater" || project.projectType === "social_media") {
+        return res.status(400).json({ error: "هذا النوع من المشاريع لا يحتاج مخططاً" });
+      }
+
       const systemPrompt = project.projectType === "essay"
         ? "أنت أبو هاشم — محرر صحفي محترف. عدّل الهيكل التالي بناءً على تعليمات المستخدم. أعد الهيكل كاملاً مع التعديلات المطلوبة."
         : project.projectType === "scenario"
@@ -1072,7 +1090,11 @@ export async function registerRoutes(
           : chapter;
 
         let promptResult: { system: string; user: string };
-        if (pType === "essay") {
+        if (pType === "khawater") {
+          promptResult = buildKhawaterPrompt(project);
+        } else if (pType === "social_media") {
+          promptResult = buildSocialMediaPrompt(project);
+        } else if (pType === "essay") {
           promptResult = buildEssaySectionPrompt(project, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
         } else if (pType === "scenario") {
           promptResult = buildScenePrompt(project, chars, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
@@ -1408,7 +1430,7 @@ export async function registerRoutes(
       doc.text(rightsEn, rightsStartX, rightsY, { width: rightsEnW + 2, lineBreak: false });
       doc.text(rightsAr, rightsStartX + rightsEnW, rightsY, { width: rightsArW + 2, align: "right", features: ["rtla"], lineBreak: false });
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
 
       const chapters = (project.chapters || [])
         .filter((ch: any) => ch.content && ch.status === "completed")
@@ -1642,7 +1664,7 @@ export async function registerRoutes(
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
-      const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
       if (completedChapters.length === 0) return res.status(400).json({ error: "لا توجد فصول مكتملة" });
 
@@ -2560,7 +2582,7 @@ ${glossaryParagraphs}
         .filter((ch: any) => ch.content)
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
         .map((ch: any) => {
-          const glossaryLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+          const glossaryLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
           return `${glossaryLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}\n${ch.content}`;
         })
         .join("\n\n---\n\n");
@@ -2601,7 +2623,7 @@ ${glossaryParagraphs}
 
       if (completedChapters.length < 2) return res.status(400).json({ error: "يجب أن يكون هناك فصلان مكتملان على الأقل لإجراء فحص الاستمرارية" });
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
 
       const allContent = completedChapters
         .map((ch: any) => `${chapterLabel} ${ch.chapterNumber}: ${ch.title}\n${ch.content?.substring(0, 3000)}`)
@@ -2771,7 +2793,7 @@ ${allContent}
         .map((ch: any) => `الفصل ${ch.chapterNumber} - ${ch.title}:\n${ch.content!.substring(0, 600)}`)
         .join("\n---\n");
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
 
       const typeMap: Record<string, string> = {
         character: "تناقض في الشخصية", timeline: "تناقض في الخط الزمني",
@@ -2857,7 +2879,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
 
       if (completedChapters.length < 1) return res.status(400).json({ error: "يجب أن يكون هناك فصل مكتمل واحد على الأقل لتحليل الأسلوب" });
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
 
       const allContent = completedChapters
         .map((ch: any) => `${chapterLabel} ${ch.chapterNumber}: ${ch.title}\n${ch.content?.substring(0, 4000)}`)
@@ -2919,7 +2941,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
         return res.status(400).json({ error: "لا توجد فصول مكتملة" });
       }
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
 
       const chapterSummaries = completedChapters
         .map((ch: any) => `[${chapterLabel} ${ch.chapterNumber} — ${ch.title} — ID:${ch.id}]\n${(ch.content || "").substring(0, 1500)}`)
@@ -3129,7 +3151,7 @@ ${ch.content}
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
 
       const unresolvedIssues: { issue: any; index: number; chapter: any }[] = [];
       for (let i = 0; i < continuityResult.issues.length; i++) {
@@ -3256,7 +3278,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
         return res.status(400).json({ error: "لا توجد فصول مكتملة" });
       }
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
 
       const unresolvedImprovements: { improvement: any; index: number }[] = [];
       for (let i = 0; i < styleResult.improvements.length; i++) {

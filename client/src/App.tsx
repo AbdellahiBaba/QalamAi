@@ -11,6 +11,8 @@ import NewProject from "@/pages/new-project";
 import NewEssay from "@/pages/new-essay";
 import NewScenario from "@/pages/new-scenario";
 import NewShortStory from "@/pages/new-short-story";
+import NewKhawater from "@/pages/new-khawater";
+import NewSocialMedia from "@/pages/new-social-media";
 import ProjectDetail from "@/pages/project-detail";
 import Profile from "@/pages/profile";
 import About from "@/pages/about";
@@ -39,6 +41,8 @@ function AuthenticatedRouter() {
       <Route path="/project/new/essay" component={NewEssay} />
       <Route path="/project/new/scenario" component={NewScenario} />
       <Route path="/project/new/short-story" component={NewShortStory} />
+      <Route path="/project/new/khawater" component={NewKhawater} />
+      <Route path="/project/new/social-media" component={NewSocialMedia} />
       <Route path="/project/:id/read/:chapterId" component={Reader} />
       <Route path="/project/:id" component={ProjectDetail} />
       <Route path="/profile" component={Profile} />

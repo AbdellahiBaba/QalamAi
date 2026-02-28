@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/components/theme-provider";
@@ -404,6 +404,18 @@ export default function Home() {
                   قصة قصيرة جديدة
                 </DropdownMenuItem>
               </Link>
+              <Link href="/project/new/khawater">
+                <DropdownMenuItem data-testid="menu-new-khawater">
+                  <Feather className="w-4 h-4 ml-2" />
+                  خاطرة جديدة
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/project/new/social-media">
+                <DropdownMenuItem data-testid="menu-new-social-media">
+                  <Share2 className="w-4 h-4 ml-2" />
+                  محتوى سوشيال ميديا
+                </DropdownMenuItem>
+              </Link>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -518,7 +530,7 @@ export default function Home() {
                     <div className="space-y-3">
                       {writingStats.projectBreakdown.slice(0, 8).map((proj) => {
                         const maxWords = Math.max(...writingStats.projectBreakdown.map(p => p.words), 1);
-                        const typeLabel = proj.type === "essay" ? "مقال" : proj.type === "scenario" ? "سيناريو" : proj.type === "short_story" ? "قصة قصيرة" : "رواية";
+                        const typeLabel = proj.type === "essay" ? "مقال" : proj.type === "scenario" ? "سيناريو" : proj.type === "short_story" ? "قصة قصيرة" : proj.type === "khawater" ? "خاطرة" : proj.type === "social_media" ? "سوشيال ميديا" : "رواية";
                         return (
                           <div key={proj.projectId} data-testid={`breakdown-project-${proj.projectId}`}>
                             <div className="flex items-center justify-between gap-2 mb-1">
@@ -581,6 +593,8 @@ export default function Home() {
                       <SelectItem value="essay">مقال</SelectItem>
                       <SelectItem value="scenario">سيناريو</SelectItem>
                       <SelectItem value="short_story">قصة قصيرة</SelectItem>
+                      <SelectItem value="khawater">خاطرة</SelectItem>
+                      <SelectItem value="social_media">سوشيال ميديا</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -691,7 +705,7 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : "رواية"}
+                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خاطرة" : project.projectType === "social_media" ? "سوشيال ميديا" : "رواية"}
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {project.mainIdea}
@@ -772,7 +786,7 @@ export default function Home() {
             </div>
             <h2 className="font-serif text-2xl font-semibold mb-3">لا توجد مشاريع بعد</h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              ابدأ بإنشاء مشروعك الأول — رواية، مقال، أو سيناريو. وسيساعدك أبو هاشم في الكتابة بأسلوب احترافي
+              ابدأ بإنشاء مشروعك الأول — رواية، مقال، سيناريو، خاطرة، أو محتوى سوشيال ميديا. وسيساعدك أبو هاشم في الكتابة بأسلوب احترافي
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href="/project/new">
@@ -797,6 +811,18 @@ export default function Home() {
                 <Button size="lg" variant="outline" data-testid="button-empty-new-short-story">
                   <PenTool className="w-4 h-4 ml-2" />
                   قصة قصيرة جديدة
+                </Button>
+              </Link>
+              <Link href="/project/new/khawater">
+                <Button size="lg" variant="outline" data-testid="button-empty-new-khawater">
+                  <Feather className="w-4 h-4 ml-2" />
+                  خاطرة جديدة
+                </Button>
+              </Link>
+              <Link href="/project/new/social-media">
+                <Button size="lg" variant="outline" data-testid="button-empty-new-social-media">
+                  <Share2 className="w-4 h-4 ml-2" />
+                  محتوى سوشيال ميديا
                 </Button>
               </Link>
             </div>
@@ -858,9 +884,9 @@ export default function Home() {
             )}
 
             {onboardingStep === 2 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <Card
-                  className={`cursor-pointer hover-elevate ${selectedProjectType === "novel" ? "ring-2 ring-primary" : ""}`}
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "novel" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => setSelectedProjectType("novel")}
                   data-testid="card-project-type-novel"
                 >
@@ -870,11 +896,10 @@ export default function Home() {
                     </div>
                     <h4 className="font-semibold text-sm">رواية</h4>
                     <p className="text-xs text-muted-foreground">فصول مترابطة، شخصيات، حبكة كاملة</p>
-                    <p className="text-[10px] text-muted-foreground/70">حتى ١٠٠,٠٠٠ كلمة</p>
                   </CardContent>
                 </Card>
                 <Card
-                  className={`cursor-pointer hover-elevate ${selectedProjectType === "essay" ? "ring-2 ring-primary" : ""}`}
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "essay" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => setSelectedProjectType("essay")}
                   data-testid="card-project-type-essay"
                 >
@@ -884,11 +909,10 @@ export default function Home() {
                     </div>
                     <h4 className="font-semibold text-sm">مقال</h4>
                     <p className="text-xs text-muted-foreground">مقالات منظمة بأقسام وفقرات</p>
-                    <p className="text-[10px] text-muted-foreground/70">حتى ١٠,٠٠٠ كلمة</p>
                   </CardContent>
                 </Card>
                 <Card
-                  className={`cursor-pointer hover-elevate ${selectedProjectType === "scenario" ? "ring-2 ring-primary" : ""}`}
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "scenario" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => setSelectedProjectType("scenario")}
                   data-testid="card-project-type-scenario"
                 >
@@ -898,11 +922,10 @@ export default function Home() {
                     </div>
                     <h4 className="font-semibold text-sm">سيناريو</h4>
                     <p className="text-xs text-muted-foreground">مشاهد، حوارات، توجيهات إخراجية</p>
-                    <p className="text-[10px] text-muted-foreground/70">تنسيق سينمائي احترافي</p>
                   </CardContent>
                 </Card>
                 <Card
-                  className={`cursor-pointer hover-elevate ${selectedProjectType === "short_story" ? "ring-2 ring-primary" : ""}`}
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "short_story" ? "ring-2 ring-primary" : ""}`}
                   onClick={() => setSelectedProjectType("short_story")}
                   data-testid="card-project-type-short-story"
                 >
@@ -912,7 +935,32 @@ export default function Home() {
                     </div>
                     <h4 className="font-semibold text-sm">قصة قصيرة</h4>
                     <p className="text-xs text-muted-foreground">سرد مكثف ومؤثر بحبكة محكمة</p>
-                    <p className="text-[10px] text-muted-foreground/70">حتى ١٥,٠٠٠ كلمة</p>
+                  </CardContent>
+                </Card>
+                <Card
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "khawater" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("khawater")}
+                  data-testid="card-project-type-khawater"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center mx-auto">
+                      <Feather className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                    </div>
+                    <h4 className="font-semibold text-sm">خاطرة</h4>
+                    <p className="text-xs text-muted-foreground">تأملات أدبية وخواطر عميقة</p>
+                  </CardContent>
+                </Card>
+                <Card
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "social_media" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("social_media")}
+                  data-testid="card-project-type-social-media"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center mx-auto">
+                      <Share2 className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+                    </div>
+                    <h4 className="font-semibold text-sm">سوشيال ميديا</h4>
+                    <p className="text-xs text-muted-foreground">محتوى منصات التواصل الاجتماعي</p>
                   </CardContent>
                 </Card>
               </div>
@@ -1053,6 +1101,8 @@ export default function Home() {
                         essay: "/project/new/essay",
                         scenario: "/project/new/scenario",
                         short_story: "/project/new/short-story",
+                        khawater: "/project/new/khawater",
+                        social_media: "/project/new/social-media",
                       };
                       navigate(routes[selectedProjectType]);
                     }

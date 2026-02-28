@@ -24,6 +24,8 @@ const typeLabels: Record<string, string> = {
   essay: "مقال",
   scenario: "سيناريو",
   short_story: "قصة قصيرة",
+  khawater: "خاطرة",
+  social_media: "سوشيال ميديا",
 };
 
 const filterOptions = [
@@ -32,6 +34,8 @@ const filterOptions = [
   { value: "essay", label: "مقال" },
   { value: "scenario", label: "سيناريو" },
   { value: "short_story", label: "قصة قصيرة" },
+  { value: "khawater", label: "خاطرة" },
+  { value: "social_media", label: "سوشيال ميديا" },
 ];
 
 export default function Gallery() {

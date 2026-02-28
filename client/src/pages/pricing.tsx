@@ -46,6 +46,8 @@ const mainPlans = [
       "كتابة القصص القصيرة — جميع الأنواع الأدبية",
       "كتابة المقالات والأخبار — جميع التخصصات",
       "كتابة السيناريوهات — أفلام ومسلسلات",
+      "خواطر وتأملات أدبية — جميع الأساليب",
+      "محتوى سوشيال ميديا — جميع المنصات",
       "شخصيات وأقواس سردية غير محدودة",
       "تصدير بجميع الصيغ: PDF و EPUB",
       "دعم سريع على مدار الساعة",
@@ -128,11 +130,11 @@ const novelTiers = [
 const faqItems = [
   {
     q: "ما الفرق بين الخطط الثلاث؟",
-    a: "خطة المقالات مخصصة لكتابة المقالات والتقارير الصحفية. خطة السيناريوهات لكتابة سيناريوهات الأفلام والمسلسلات. الخطة الشاملة تمنحك وصولاً كاملاً لجميع أنواع الكتابة بما فيها الروايات والقصص القصيرة.",
+    a: "خطة المقالات مخصصة لكتابة المقالات والتقارير الصحفية. خطة السيناريوهات لكتابة سيناريوهات الأفلام والمسلسلات. الخطة الشاملة تمنحك وصولاً كاملاً لجميع أنواع الكتابة بما فيها الروايات والقصص القصيرة والخواطر ومحتوى السوشيال ميديا.",
   },
   {
     q: "كيف يعمل نظام الأسعار؟",
-    a: "خطط المقالات والسيناريوهات والشاملة تُشترى مرة واحدة وتتيح لك إنشاء مشاريع غير محدودة من النوع المشمول. للروايات والقصص القصيرة بدون الخطة الشاملة، تدفع لكل مشروع حسب عدد الصفحات.",
+    a: "خطط المقالات والسيناريوهات والشاملة تُشترى مرة واحدة وتتيح لك إنشاء مشاريع غير محدودة من النوع المشمول. الخواطر بـ ٩.٩٩$ ومحتوى السوشيال ميديا بـ ١٩.٩٩$ لكل قطعة. للروايات والقصص القصيرة بدون الخطة الشاملة، تدفع لكل مشروع حسب عدد الصفحات.",
   },
   {
     q: "ماذا يحدث بعد شراء الخطة؟",
@@ -303,7 +305,7 @@ export default function Pricing() {
             خطط الأسعار
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            اختر الخطة المناسبة لاحتياجاتك — مقالات احترافية، سيناريوهات درامية، أو وصول شامل لكل شيء
+            اختر الخطة المناسبة لاحتياجاتك — مقالات، سيناريوهات، خواطر، محتوى سوشيال ميديا، أو وصول شامل لكل شيء
           </p>
           {isLoggedIn && userPlan !== "free" && (
             <div className="mt-4 inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium" data-testid="text-current-plan">
@@ -556,6 +558,61 @@ export default function Pricing() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </section>
+
+      <section className="py-12 sm:py-16 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
+          <div className="space-y-2">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground" data-testid="text-single-pieces-title">
+              محتوى فردي
+            </h2>
+            <p className="text-muted-foreground">
+              {isPlanActive(userPlan, "all_in_one")
+                ? "خطتك الشاملة تغطي جميع أنواع المحتوى — ابدأ الكتابة الآن!"
+                : "خواطر أدبية ومحتوى سوشيال ميديا — أسعار مناسبة لكل قطعة"}
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-6">
+            <Card data-testid="card-khawater-pricing">
+              <CardContent className="p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Feather className="w-5 h-5 text-primary" />
+                  <h3 className="font-serif font-bold text-lg">خواطر وتأملات</h3>
+                </div>
+                <p className="text-sm text-muted-foreground text-right">تأملات أدبية وخواطر عميقة بأسلوب جبران وأنيس منصور</p>
+                <div className="flex items-center justify-between">
+                  {isPlanActive(userPlan, "all_in_one") ? (
+                    <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
+                  ) : (
+                    <span className="font-serif text-2xl font-bold text-primary">٩.٩٩ دولار</span>
+                  )}
+                  <Link href="/project/new/khawater">
+                    <Button variant="outline" data-testid="button-khawater-cta">ابدأ الآن</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-social-media-pricing">
+              <CardContent className="p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h3 className="font-serif font-bold text-lg">محتوى سوشيال ميديا</h3>
+                </div>
+                <p className="text-sm text-muted-foreground text-right">محتوى احترافي لتويتر وإنستغرام ولينكدإن وفيسبوك ويوتيوب وتيك توك</p>
+                <div className="flex items-center justify-between">
+                  {isPlanActive(userPlan, "all_in_one") ? (
+                    <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
+                  ) : (
+                    <span className="font-serif text-2xl font-bold text-primary">١٩.٩٩ دولار</span>
+                  )}
+                  <Link href="/project/new/social-media">
+                    <Button variant="outline" data-testid="button-social-media-cta">ابدأ الآن</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 

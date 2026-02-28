@@ -16,10 +16,12 @@ export const NOVEL_PRICING: Record<number, number> = {
 export const ESSAY_PRICE = 5000;
 export const SCENARIO_PRICE = 20000;
 export const SHORT_STORY_PRICE = 8000;
+export const KHAWATER_PRICE = 999;
+export const SOCIAL_MEDIA_PRICE = 1999;
 export const ALL_IN_ONE_PRICE = 50000;
 
 export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
-export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story"] as const;
+export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story", "khawater", "social_media"] as const;
 export type ProjectType = (typeof PROJECT_TYPES)[number];
 
 export const ESSAY_SUBJECTS = [
@@ -38,6 +40,22 @@ export const SHORT_STORY_GENRES = [
   "horror", "romantic", "historical", "satirical", "philosophical",
 ] as const;
 
+export const KHAWATER_STYLES = [
+  "reflection", "thought", "wisdom", "meditation", "letter", "prose_poem",
+] as const;
+
+export const KHAWATER_MOODS = [
+  "hopeful", "melancholic", "philosophical", "romantic", "nostalgic", "spiritual",
+] as const;
+
+export const SOCIAL_MEDIA_PLATFORMS = [
+  "twitter", "instagram", "linkedin", "facebook", "youtube_script", "tiktok_script",
+] as const;
+
+export const SOCIAL_MEDIA_TONES = [
+  "professional", "casual", "inspirational", "humorous", "educational", "promotional",
+] as const;
+
 export function getProjectPrice(pageCount: number): number {
   return NOVEL_PRICING[pageCount] || 0;
 }
@@ -50,6 +68,8 @@ export function getProjectPriceByType(projectType: string, pageCount?: number): 
   if (projectType === "essay") return ESSAY_PRICE;
   if (projectType === "scenario") return SCENARIO_PRICE;
   if (projectType === "short_story") return SHORT_STORY_PRICE;
+  if (projectType === "khawater") return KHAWATER_PRICE;
+  if (projectType === "social_media") return SOCIAL_MEDIA_PRICE;
   return getProjectPrice(pageCount || 150);
 }
 
@@ -60,6 +80,8 @@ export const PLAN_PRICES: Record<string, number> = {
   essay: ESSAY_PRICE,
   scenario: SCENARIO_PRICE,
   short_story: SHORT_STORY_PRICE,
+  khawater: KHAWATER_PRICE,
+  social_media: SOCIAL_MEDIA_PRICE,
   all_in_one: ALL_IN_ONE_PRICE,
 };
 

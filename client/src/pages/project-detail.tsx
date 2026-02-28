@@ -92,6 +92,44 @@ function getTypeLabels(projectType?: string) {
       allDone: "تم الانتهاء من كتابة جميع المشاهد!",
     };
   }
+  if (projectType === "khawater") {
+    return {
+      chaptersLabel: "النص",
+      chapterSingular: "النص",
+      outlineLabel: "—",
+      typeLabel: "خاطرة",
+      writeAll: "اكتب الخاطرة",
+      writeOne: "اكتب الخاطرة",
+      createOutline: "",
+      outlineCreating: "",
+      approveOutline: "",
+      noOutline: "",
+      mustApprove: "",
+      mustApproveDesc: "",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من كتابة الخاطرة.",
+      paymentDesc: "إتمام الدفع للبدء بكتابة الخاطرة",
+      allDone: "تم الانتهاء من كتابة الخاطرة!",
+    };
+  }
+  if (projectType === "social_media") {
+    return {
+      chaptersLabel: "المحتوى",
+      chapterSingular: "المحتوى",
+      outlineLabel: "—",
+      typeLabel: "سوشيال ميديا",
+      writeAll: "أنشئ المحتوى",
+      writeOne: "أنشئ المحتوى",
+      createOutline: "",
+      outlineCreating: "",
+      approveOutline: "",
+      noOutline: "",
+      mustApprove: "",
+      mustApproveDesc: "",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المحتوى.",
+      paymentDesc: "إتمام الدفع للبدء بإنشاء المحتوى",
+      allDone: "تم الانتهاء من إنشاء المحتوى!",
+    };
+  }
   return {
     chaptersLabel: "الفصول",
     chapterSingular: "الفصل",
@@ -969,7 +1007,7 @@ export default function ProjectDetail() {
                 <span className="hidden sm:inline">نظرة عامة</span>
                 <span className="sm:hidden">عام</span>
               </TabsTrigger>
-              {project.projectType !== "essay" && (
+              {project.projectType !== "essay" && project.projectType !== "khawater" && project.projectType !== "social_media" && (
                 <TabsTrigger value="characters" data-testid="tab-characters" className="flex-shrink-0">
                   <Users className="w-4 h-4 ml-1.5" />
                   <span className="hidden sm:inline">الشخصيات</span>
@@ -980,15 +1018,19 @@ export default function ProjectDetail() {
                 <FileText className="w-4 h-4 ml-1.5" />
                 {labels.chaptersLabel}
               </TabsTrigger>
-              <TabsTrigger value="glossary" data-testid="tab-glossary" className="flex-shrink-0">
-                <List className="w-4 h-4 ml-1.5" />
-                الفهرس
-              </TabsTrigger>
-              <TabsTrigger value="continuity" data-testid="tab-continuity" className="flex-shrink-0">
-                <Shield className="w-4 h-4 ml-1.5" />
-                <span className="hidden sm:inline">الاستمرارية</span>
-                <span className="sm:hidden">اتساق</span>
-              </TabsTrigger>
+              {project.projectType !== "khawater" && project.projectType !== "social_media" && (
+                <TabsTrigger value="glossary" data-testid="tab-glossary" className="flex-shrink-0">
+                  <List className="w-4 h-4 ml-1.5" />
+                  الفهرس
+                </TabsTrigger>
+              )}
+              {project.projectType !== "khawater" && project.projectType !== "social_media" && (
+                <TabsTrigger value="continuity" data-testid="tab-continuity" className="flex-shrink-0">
+                  <Shield className="w-4 h-4 ml-1.5" />
+                  <span className="hidden sm:inline">الاستمرارية</span>
+                  <span className="sm:hidden">اتساق</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="style" data-testid="tab-style" className="flex-shrink-0">
                 <PenTool className="w-4 h-4 ml-1.5" />
                 الأسلوب
@@ -1031,7 +1073,7 @@ export default function ProjectDetail() {
                 <CardContent className="p-4 sm:p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
-                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : "تفاصيل الرواية"}
+                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : "تفاصيل الرواية"}
                     </h3>
                     {project.projectType === "novel" && !editingSettings && (
                       <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs" data-testid="button-edit-settings">
@@ -1270,6 +1312,7 @@ export default function ProjectDetail() {
               </Card>
             </div>
 
+            {project.projectType !== "khawater" && project.projectType !== "social_media" && (
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between gap-4">
@@ -1454,6 +1497,7 @@ export default function ProjectDetail() {
                 )}
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="characters" className="space-y-6">
