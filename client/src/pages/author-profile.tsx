@@ -1,10 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { User, BookOpen, Image as ImageIcon } from "lucide-react";
+import StarRating from "@/components/ui/star-rating";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthorProject {
   id: number;
@@ -20,6 +24,8 @@ interface AuthorData {
   displayName: string;
   bio: string | null;
   profileImageUrl: string | null;
+  averageRating: number;
+  ratingCount: number;
   projects: AuthorProject[];
 }
 
@@ -31,6 +37,17 @@ const typeLabels: Record<string, string> = {
 
 export default function AuthorProfile() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
+  const [visitorRating, setVisitorRating] = useState(0);
+
+  useEffect(() => {
+    if (id) {
+      const stored = localStorage.getItem(`author-rating-${id}`);
+      if (stored) {
+        setVisitorRating(Number(stored));
+      }
+    }
+  }, [id]);
 
   const { data: author, isLoading, error } = useQuery<AuthorData>({
     queryKey: ["/api/authors", id],
@@ -40,6 +57,29 @@ export default function AuthorProfile() {
       return res.json();
     },
     enabled: !!id,
+  });
+
+  const rateMutation = useMutation({
+    mutationFn: async (rating: number) => {
+      const res = await apiRequest("POST", `/api/authors/${id}/rate`, { rating });
+      return res.json();
+    },
+    onSuccess: (_data: { average: number; count: number }, rating: number) => {
+      localStorage.setItem(`author-rating-${id}`, String(rating));
+      setVisitorRating(rating);
+      queryClient.invalidateQueries({ queryKey: ["/api/authors", id] });
+      toast({
+        title: "شكراً لتقييمك",
+        description: "تم تسجيل تقييمك بنجاح",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ أثناء تسجيل التقييم",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -88,11 +128,30 @@ export default function AuthorProfile() {
             </AvatarFallback>
           </Avatar>
           <div className="space-y-1">
-            <h1 className="text-2xl font-serif font-bold" data-testid="text-author-name">{author.displayName}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-serif font-bold" data-testid="text-author-name">{author.displayName}</h1>
+              <StarRating
+                rating={author.averageRating || 0}
+                count={author.ratingCount || 0}
+                size="md"
+                showCount={true}
+              />
+            </div>
             {author.bio && (
               <p className="text-muted-foreground max-w-xl" data-testid="text-author-bio">{author.bio}</p>
             )}
           </div>
+        </div>
+
+        <div className="space-y-2" data-testid="interactive-rating-section">
+          <h3 className="text-sm font-semibold text-muted-foreground">قيّم هذا الكاتب</h3>
+          <StarRating
+            rating={visitorRating}
+            interactive={true}
+            onRate={(rating) => rateMutation.mutate(rating)}
+            size="lg"
+            showCount={false}
+          />
         </div>
 
         <div>

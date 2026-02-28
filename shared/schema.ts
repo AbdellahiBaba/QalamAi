@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -388,3 +388,31 @@ export const apiUsageLogs = pgTable("api_usage_logs", {
 export const insertApiUsageLogSchema = createInsertSchema(apiUsageLogs).omit({ id: true, createdAt: true });
 export type InsertApiUsageLog = z.infer<typeof insertApiUsageLogSchema>;
 export type ApiUsageLog = typeof apiUsageLogs.$inferSelect;
+
+export const authorRatings = pgTable("author_ratings", {
+  id: serial("id").primaryKey(),
+  authorId: varchar("author_id").notNull(),
+  visitorIp: varchar("visitor_ip").notNull(),
+  rating: integer("rating").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("author_visitor_unique").on(table.authorId, table.visitorIp),
+]);
+
+export const insertAuthorRatingSchema = createInsertSchema(authorRatings).omit({ id: true, createdAt: true });
+export type InsertAuthorRating = z.infer<typeof insertAuthorRatingSchema>;
+export type AuthorRating = typeof authorRatings.$inferSelect;
+
+export const platformReviews = pgTable("platform_reviews", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  reviewerName: varchar("reviewer_name").notNull(),
+  content: text("content").notNull(),
+  rating: integer("rating").notNull(),
+  approved: boolean("approved").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPlatformReviewSchema = createInsertSchema(platformReviews).omit({ id: true, createdAt: true, approved: true });
+export type InsertPlatformReview = z.infer<typeof insertPlatformReviewSchema>;
+export type PlatformReview = typeof platformReviews.$inferSelect;

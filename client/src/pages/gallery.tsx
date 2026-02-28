@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Image as ImageIcon, BookOpen, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import StarRating from "@/components/ui/star-rating";
 
 interface GalleryProject {
   id: number;
@@ -17,6 +18,7 @@ interface GalleryProject {
   mainIdea: string | null;
   authorName: string | null;
   authorId: string | null;
+  authorAverageRating: number;
 }
 
 const typeLabels: Record<string, string> = {
@@ -156,6 +158,11 @@ export default function Gallery() {
                           {project.authorName}
                         </span>
                       )}
+                    </div>
+                  )}
+                  {project.authorAverageRating > 0 && (
+                    <div data-testid={`rating-author-${project.id}`}>
+                      <StarRating rating={project.authorAverageRating} size="sm" showCount={false} />
                     </div>
                   )}
                   {project.mainIdea && (

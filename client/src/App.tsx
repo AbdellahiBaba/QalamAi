@@ -31,6 +31,7 @@ import SharedProject from "@/pages/shared-project";
 import AuthorProfile from "@/pages/author-profile";
 import Gallery from "@/pages/gallery";
 import Reader from "@/pages/reader";
+import Reviews from "@/pages/reviews";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRouter() {
@@ -59,6 +60,7 @@ function AuthenticatedRouter() {
       <Route path="/shared/:token" component={SharedProject} />
       <Route path="/author/:id" component={AuthorProfile} />
       <Route path="/gallery" component={Gallery} />
+      <Route path="/reviews" component={Reviews} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -79,6 +81,7 @@ function PublicRouter() {
       <Route path="/shared/:token" component={SharedProject} />
       <Route path="/author/:id" component={AuthorProfile} />
       <Route path="/gallery" component={Gallery} />
+      <Route path="/reviews" component={Reviews} />
       <Route component={Landing} />
     </Switch>
   );

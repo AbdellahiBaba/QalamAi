@@ -12,11 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { SupportTicket, NovelProject, PromoCode } from "@shared/schema";
+import type { SupportTicket, NovelProject, PromoCode, PlatformReview } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
 
 interface RevenueData {
@@ -121,7 +121,7 @@ const projectStatusLabels: Record<string, string> = {
 export default function Admin() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews">("tickets");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -187,6 +187,37 @@ export default function Admin() {
       return res.json();
     },
     enabled: !!apiUsageDetailUser && showApiUsageDialog,
+  });
+
+  const { data: pendingReviews, isLoading: reviewsLoading } = useQuery<PlatformReview[]>({
+    queryKey: ["/api/admin/reviews"],
+    enabled: activeTab === "reviews",
+  });
+
+  const approveReviewMutation = useMutation({
+    mutationFn: async (reviewId: number) => {
+      await apiRequest("PATCH", `/api/admin/reviews/${reviewId}/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reviews"] });
+      toast({ title: "تمت الموافقة على المراجعة بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في الموافقة على المراجعة", variant: "destructive" });
+    },
+  });
+
+  const deleteReviewMutation = useMutation({
+    mutationFn: async (reviewId: number) => {
+      await apiRequest("DELETE", `/api/admin/reviews/${reviewId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reviews"] });
+      toast({ title: "تم حذف المراجعة بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في حذف المراجعة", variant: "destructive" });
+    },
   });
 
   const suspendApiMutation = useMutation({
@@ -419,6 +450,21 @@ export default function Admin() {
           >
             <Cpu className="w-4 h-4 sm:ml-2" />
             <span className="hidden sm:inline">استخدام API</span>
+          </Button>
+          <Button
+            variant={activeTab === "reviews" ? "default" : "outline"}
+            onClick={() => setActiveTab("reviews")}
+            size="sm"
+            className="shrink-0"
+            data-testid="button-tab-reviews"
+          >
+            <MessageSquare className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">المراجعات</span>
+            {pendingReviews && pendingReviews.length > 0 && (
+              <Badge variant="secondary" className="mr-1 text-[10px]" data-testid="badge-reviews-count">
+                <LtrNum>{pendingReviews.length}</LtrNum>
+              </Badge>
+            )}
           </Button>
         </div>
 
@@ -1425,6 +1471,93 @@ export default function Admin() {
               <div className="text-center py-16">
                 <Cpu className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">لا توجد بيانات استخدام API بعد</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "reviews" && (
+          <>
+            {reviewsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <Skeleton className="h-5 w-1/3 mb-2" />
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : pendingReviews && pendingReviews.length > 0 ? (
+              <div className="space-y-3">
+                {pendingReviews.map((review) => (
+                  <Card key={review.id} data-testid={`card-review-${review.id}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm" data-testid={`text-reviewer-name-${review.id}`}>
+                            {review.reviewerName}
+                          </span>
+                          <div className="flex items-center gap-0.5" data-testid={`text-review-rating-${review.id}`}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${i < review.rating ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`}
+                              />
+                            ))}
+                            <span className="text-xs text-muted-foreground mr-1">
+                              <LtrNum>{review.rating}</LtrNum>/5
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-muted-foreground" data-testid={`text-review-date-${review.id}`}>
+                          {review.createdAt ? new Date(review.createdAt).toLocaleDateString("ar-EG") : ""}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed" dir="rtl" data-testid={`text-review-content-${review.id}`}>
+                        {review.content}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-600 border-green-200 dark:border-green-800 dark:text-green-400"
+                          onClick={() => approveReviewMutation.mutate(review.id)}
+                          disabled={approveReviewMutation.isPending || deleteReviewMutation.isPending}
+                          data-testid={`button-approve-review-${review.id}`}
+                        >
+                          {approveReviewMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5 ml-1" />
+                          )}
+                          موافقة
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => deleteReviewMutation.mutate(review.id)}
+                          disabled={approveReviewMutation.isPending || deleteReviewMutation.isPending}
+                          data-testid={`button-delete-review-${review.id}`}
+                        >
+                          {deleteReviewMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5 ml-1" />
+                          )}
+                          حذف
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground" data-testid="text-no-reviews">لا توجد مراجعات معلقة</p>
               </div>
             )}
           </>

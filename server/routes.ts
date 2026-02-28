@@ -14,6 +14,7 @@ import { logApiUsage, logImageUsage } from "./api-usage";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
+import crypto from "crypto";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -2396,11 +2397,14 @@ ${glossaryParagraphs}
       const userId = req.params.id;
       const data = await storage.getPublicAuthor(userId);
       if (!data) return res.status(404).json({ error: "Author not found" });
+      const ratingData = await storage.getAuthorAverageRating(userId);
       res.json({
         id: data.user.id,
         displayName: data.user.displayName || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim(),
         bio: data.user.bio,
         profileImageUrl: data.user.profileImageUrl,
+        averageRating: ratingData.average,
+        ratingCount: ratingData.count,
         projects: data.projects.map(p => ({
           id: p.id,
           title: p.title,
@@ -2412,6 +2416,32 @@ ${glossaryParagraphs}
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch author" });
+    }
+  });
+
+  app.post("/api/authors/:id/rate", async (req, res) => {
+    try {
+      const authorId = req.params.id;
+      const { rating } = req.body;
+      if (!rating || typeof rating !== "number" || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+        return res.status(400).json({ error: "التقييم يجب أن يكون رقماً صحيحاً بين ١ و ٥" });
+      }
+      const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.ip || "unknown";
+      const hashedIp = crypto.createHash("sha256").update(ip + authorId).digest("hex");
+      await storage.rateAuthor(authorId, hashedIp, rating);
+      const ratingData = await storage.getAuthorAverageRating(authorId);
+      res.json(ratingData);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حفظ التقييم" });
+    }
+  });
+
+  app.get("/api/authors/:id/rating", async (req, res) => {
+    try {
+      const ratingData = await storage.getAuthorAverageRating(req.params.id);
+      res.json(ratingData);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التقييم" });
     }
   });
 
@@ -2427,6 +2457,7 @@ ${glossaryParagraphs}
         mainIdea: p.mainIdea?.slice(0, 200),
         authorName: p.authorName,
         authorId: p.authorId,
+        authorAverageRating: p.authorAverageRating,
       })));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch gallery" });
@@ -3645,6 +3676,66 @@ ${ch.content}
     } catch (error) {
       console.error("Error verifying analysis unlock:", error);
       res.status(500).json({ error: "فشل في التحقق من الدفع" });
+    }
+  });
+
+  // ===== Platform Reviews =====
+  app.get("/api/reviews", async (_req, res) => {
+    try {
+      const reviews = await storage.getApprovedReviews();
+      res.json(reviews);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المراجعات" });
+    }
+  });
+
+  app.post("/api/reviews", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { content, rating } = req.body;
+      if (!content || typeof content !== "string" || content.trim().length < 10) {
+        return res.status(400).json({ error: "المراجعة يجب أن تكون ١٠ أحرف على الأقل" });
+      }
+      if (!rating || typeof rating !== "number" || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+        return res.status(400).json({ error: "التقييم يجب أن يكون رقماً صحيحاً بين ١ و ٥" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+      const reviewerName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || "مستخدم";
+      const review = await storage.createPlatformReview({ userId, reviewerName, content: content.trim(), rating });
+      res.json({ success: true, message: "تم إرسال مراجعتك بنجاح وسيتم نشرها بعد مراجعة الإدارة", review });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إرسال المراجعة" });
+    }
+  });
+
+  // ===== Admin Review Moderation =====
+  app.get("/api/admin/reviews", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const reviews = await storage.getPendingReviews();
+      res.json(reviews);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المراجعات" });
+    }
+  });
+
+  app.patch("/api/admin/reviews/:id/approve", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const review = await storage.approvePlatformReview(id);
+      res.json(review);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في الموافقة على المراجعة" });
+    }
+  });
+
+  app.delete("/api/admin/reviews/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePlatformReview(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف المراجعة" });
     }
   });
 

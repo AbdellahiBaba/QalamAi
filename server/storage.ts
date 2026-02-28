@@ -1,6 +1,7 @@
 import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
   users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites, apiUsageLogs,
+  authorRatings, platformReviews,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -11,9 +12,10 @@ import {
   type TicketReply, type InsertTicketReply,
   type Notification, type PromoCode, type ReadingProgress, type Bookmark, type ProjectFavorite,
   type InsertApiUsageLog, type ApiUsageLog,
+  type InsertPlatformReview, type PlatformReview, type AuthorRating,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql, count, isNotNull } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count, isNotNull, avg } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -53,6 +55,13 @@ export interface IStorage {
   getAggregatedApiUsage(): Promise<Array<{ userId: string; email: string | null; displayName: string | null; totalCalls: number; totalTokens: number; totalCostMicro: number; apiSuspended: boolean }>>;
   getUserApiUsageLogs(userId: string): Promise<ApiUsageLog[]>;
   setUserApiSuspended(userId: string, suspended: boolean): Promise<User>;
+  rateAuthor(authorId: string, visitorIp: string, rating: number): Promise<void>;
+  getAuthorAverageRating(authorId: string): Promise<{ average: number; count: number }>;
+  createPlatformReview(data: InsertPlatformReview): Promise<PlatformReview>;
+  getApprovedReviews(): Promise<PlatformReview[]>;
+  getPendingReviews(): Promise<PlatformReview[]>;
+  approvePlatformReview(id: number): Promise<PlatformReview>;
+  deletePlatformReview(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -458,19 +467,22 @@ export class DatabaseStorage implements IStorage {
     return { user, projects: sharedProjects };
   }
 
-  async getGalleryProjects(): Promise<(NovelProject & { authorName: string; authorId: string })[]> {
+  async getGalleryProjects(): Promise<(NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]> {
     const projects = await db.select().from(novelProjects).where(isNotNull(novelProjects.shareToken)).orderBy(desc(novelProjects.updatedAt));
-    const result: (NovelProject & { authorName: string; authorId: string })[] = [];
+    const result: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[] = [];
     for (const p of projects) {
       const [user] = await db.select().from(users).where(eq(users.id, p.userId));
       if (user) {
+        const { average } = await this.getAuthorAverageRating(user.id);
         result.push({
           ...p,
           authorName: user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'كاتب مجهول',
           authorId: user.id,
+          authorAverageRating: average,
         });
       }
     }
+    result.sort((a, b) => b.authorAverageRating - a.authorAverageRating || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return result;
   }
 
@@ -523,6 +535,44 @@ export class DatabaseStorage implements IStorage {
   async setUserApiSuspended(userId: string, suspended: boolean): Promise<User> {
     const [updated] = await db.update(users).set({ apiSuspended: suspended, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
     return updated;
+  }
+
+  async rateAuthor(authorId: string, visitorIp: string, rating: number): Promise<void> {
+    await db.insert(authorRatings).values({ authorId, visitorIp, rating })
+      .onConflictDoUpdate({
+        target: [authorRatings.authorId, authorRatings.visitorIp],
+        set: { rating },
+      });
+  }
+
+  async getAuthorAverageRating(authorId: string): Promise<{ average: number; count: number }> {
+    const [result] = await db.select({
+      average: sql<number>`coalesce(avg(${authorRatings.rating}), 0)::float`,
+      count: sql<number>`count(*)::int`,
+    }).from(authorRatings).where(eq(authorRatings.authorId, authorId));
+    return { average: Math.round((result?.average || 0) * 10) / 10, count: result?.count || 0 };
+  }
+
+  async createPlatformReview(data: InsertPlatformReview): Promise<PlatformReview> {
+    const [review] = await db.insert(platformReviews).values(data).returning();
+    return review;
+  }
+
+  async getApprovedReviews(): Promise<PlatformReview[]> {
+    return db.select().from(platformReviews).where(eq(platformReviews.approved, true)).orderBy(desc(platformReviews.createdAt));
+  }
+
+  async getPendingReviews(): Promise<PlatformReview[]> {
+    return db.select().from(platformReviews).where(eq(platformReviews.approved, false)).orderBy(desc(platformReviews.createdAt));
+  }
+
+  async approvePlatformReview(id: number): Promise<PlatformReview> {
+    const [review] = await db.update(platformReviews).set({ approved: true }).where(eq(platformReviews.id, id)).returning();
+    return review;
+  }
+
+  async deletePlatformReview(id: number): Promise<void> {
+    await db.delete(platformReviews).where(eq(platformReviews.id, id));
   }
 }
 
