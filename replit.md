@@ -18,7 +18,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Advanced authoring tools such as inline editing, chapter version history, and a "Rewrite This Section" feature with tone selection.
 - AI-powered content enhancements: title suggestions, character suggestions, cover image generation (DALL-E with Arabic title calligraphy), originality/plagiarism checks, and glossary auto-generation.
 - Robust export capabilities: server-side PDF generation (with Amiri Arabic font support for RTL) and EPUB export.
-- User management includes profiles, public author profiles, and an onboarding wizard.
+- User management includes profiles, public author profiles, profile image upload (base64, max 2MB, PNG/JPEG/WebP), and an onboarding wizard.
 - Engagement features: in-app notification center, reading progress tracking, chapter bookmarks, and project favorites.
 - Writing statistics dashboard: showing daily writing activity, per-project word breakdown, and completion rates.
 - Community and sharing: project sharing via public read-only links and a public gallery.

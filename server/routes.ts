@@ -2445,6 +2445,29 @@ ${glossaryParagraphs}
     }
   });
 
+  app.post("/api/profile/avatar", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { image } = req.body;
+      if (!image || typeof image !== "string") {
+        return res.status(400).json({ error: "صورة غير صالحة" });
+      }
+      const match = image.match(/^data:image\/(png|jpeg|jpg|webp);base64,/);
+      if (!match) {
+        return res.status(400).json({ error: "صيغة الصورة غير مدعومة. استخدم PNG أو JPEG أو WebP" });
+      }
+      const base64Data = image.replace(/^data:image\/[a-z]+;base64,/, "");
+      const sizeBytes = Buffer.byteLength(base64Data, "base64");
+      if (sizeBytes > 2 * 1024 * 1024) {
+        return res.status(400).json({ error: "حجم الصورة يتجاوز 2 ميغابايت" });
+      }
+      const updated = await storage.updateUserProfileExtended(userId, { profileImageUrl: image });
+      res.json({ profileImageUrl: updated.profileImageUrl });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث الصورة الشخصية" });
+    }
+  });
+
   // ===== Content Moderation (Admin) =====
   app.get("/api/admin/projects/:id/content", isAuthenticated, isAdmin, async (req: any, res) => {
     try {

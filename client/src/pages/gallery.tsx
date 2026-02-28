@@ -131,7 +131,7 @@ export default function Gallery() {
                     ) : (
                       <ImageIcon className="w-12 h-12 text-muted-foreground" />
                     )}
-                    <Badge className="absolute top-2 right-2" data-testid={`badge-gallery-type-${project.id}`}>
+                    <Badge className="absolute bottom-2 right-2 text-xs bg-black/70 text-white border-0 shadow-md backdrop-blur-sm" data-testid={`badge-gallery-type-${project.id}`}>
                       {typeLabels[project.projectType] || project.projectType}
                     </Badge>
                   </div>
@@ -147,7 +147,7 @@ export default function Gallery() {
                           href={`/author/${project.authorId}`}
                           data-testid={`link-author-${project.id}`}
                         >
-                          <span className="text-sm text-muted-foreground hover:underline cursor-pointer">
+                          <span className="text-sm text-primary font-medium hover:underline cursor-pointer">
                             {project.authorName}
                           </span>
                         </Link>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/components/theme-provider";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,8 @@ import {
   Lock,
   Globe,
   ExternalLink,
+  Camera,
+  Loader2,
 } from "lucide-react";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
@@ -48,6 +50,7 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [publicProfile, setPublicProfile] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -76,6 +79,46 @@ export default function Profile() {
       toast({ title: "حدث خطأ أثناء تحديث الملف الشخصي", variant: "destructive" });
     },
   });
+
+  const avatarUploadMutation = useMutation({
+    mutationFn: async (image: string) => {
+      const res = await apiRequest("POST", "/api/profile/avatar", { image });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({ title: "تم تحديث الصورة الشخصية بنجاح" });
+    },
+    onError: (err: any) => {
+      let msg = "فشل في رفع الصورة";
+      try {
+        const parsed = JSON.parse(err?.message?.replace(/^\d+:\s*/, "") || "{}");
+        if (parsed.error) msg = parsed.error;
+      } catch {}
+      toast({ title: msg, variant: "destructive" });
+    },
+  });
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "حجم الصورة يتجاوز 2 ميغابايت", variant: "destructive" });
+      return;
+    }
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast({ title: "صيغة الصورة غير مدعومة. استخدم PNG أو JPEG أو WebP", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result && typeof reader.result === "string") {
+        avatarUploadMutation.mutate(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   const handleSaveProfile = () => {
     updateProfileMutation.mutate({ firstName, lastName, displayName, bio, publicProfile });
@@ -184,12 +227,29 @@ export default function Profile() {
           <div className="lg:col-span-1 space-y-6">
             <Card>
               <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-                <Avatar className="w-24 h-24" data-testid="img-avatar">
-                  <AvatarImage src={user?.profileImageUrl || undefined} />
-                  <AvatarFallback className="text-2xl">
-                    {user?.firstName?.[0] || user?.email?.[0] || "م"}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()} data-testid="button-upload-avatar">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={user?.profileImageUrl || undefined} />
+                    <AvatarFallback className="text-2xl">
+                      {user?.firstName?.[0] || user?.email?.[0] || "م"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {avatarUploadMutation.isPending ? (
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    ) : (
+                      <Camera className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                    data-testid="input-avatar-file"
+                  />
+                </div>
                 <div>
                   <h2 className="font-serif text-xl font-semibold" data-testid="text-user-name">
                     {user?.firstName || ""} {user?.lastName || ""}
