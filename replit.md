@@ -7,69 +7,34 @@ QalamAI is an AI-powered Arabic writing platform featuring the virtual literary 
 Not specified.
 
 ## System Architecture
-QalamAI is built as a React Single Page Application (SPA) with a strong emphasis on Arabic aesthetic and functionality, utilizing Tailwind CSS and Shadcn UI for a modern, responsive user experience. The backend is powered by Express.js with a PostgreSQL database. AI capabilities are integrated through OpenAI GPT-5.2 via Replit AI Integrations, embodying the specialized "Abu Hashim" agent persona across three distinct modes. Authentication supports both traditional email/password and Replit Auth (OpenID Connect). Stripe is integrated for payment processing, leveraging Replit's Stripe connector.
+QalamAI is built as a React Single Page Application (SPA) utilizing Tailwind CSS and Shadcn UI for a modern, responsive user experience. The backend is powered by Express.js with a PostgreSQL database. AI capabilities are integrated through OpenAI GPT-5.2 via Replit AI Integrations, embodying the specialized "Abu Hashim" agent persona across three distinct modes. Authentication supports both traditional email/password and Replit Auth (OpenID Connect). Stripe is integrated for payment processing.
 
-The platform's brand identity is defined by a palette of gold, deep blue, warm sand, and off-white, complemented by Arabic-rooted fonts like Cairo and Amiri, conveying an elegant and trustworthy voice.
+The platform's brand identity uses a palette of gold, deep blue, warm sand, and off-white, complemented by Arabic-rooted fonts like Cairo and Amiri, conveying an elegant and trustworthy voice. All pages are fully mobile-responsive.
 
 **Core Features include:**
-- Multi-type project creation (Novel, Essay, Scenario, Short Story, Khawater, Social Media) with dedicated workflows.
+- Multi-type project creation with dedicated workflows for Novel, Essay, Scenario, Short Story, Khawater, and Social Media content.
 - AI-driven outline generation and sequential content generation (chapters, sections, scenes) with streaming output.
 - Specialized AI knowledge bases for each content type, drawing from renowned Arab literary figures.
 - Advanced authoring tools such as inline editing, chapter version history, and a "Rewrite This Section" feature with tone selection.
-- AI-powered content enhancements: title suggestions, character suggestions, cover image generation (DALL-E with Arabic title calligraphy, regeneratable), originality/plagiarism checks, and glossary auto-generation.
+- AI-powered content enhancements: title suggestions, character suggestions, cover image generation (DALL-E with Arabic title calligraphy), originality/plagiarism checks, and glossary auto-generation.
 - Robust export capabilities: server-side PDF generation (with Amiri Arabic font support for RTL) and EPUB export.
 - User management includes profiles, public author profiles, and an onboarding wizard.
-- Engagement features: in-app notification center, reading progress tracking, chapter bookmarks, and project favorites (heart icon toggle with filter).
-- Writing statistics dashboard: expandable section on home page showing daily writing activity chart (last 14 days), per-project word breakdown with progress bars, avg words/project, completion rate, avg words/active day.
-- Community and sharing: project sharing via public read-only links and a public gallery of shared works.
-- Administrative tools: comprehensive admin panel for user, content, revenue, promo code management, aggregate word counts, 30-day writing activity trends, and top 5 writers leaderboard.
-- Enhanced onboarding wizard: 4-step guided dialog with animated Abu Hashim avatar, project type descriptions with word limits, expanded 5-item feature tour (glossary, style analysis), and actionable writing tips with progress bar.
-
-**Content Type Specifications:**
-- **Novel Writing**: Features multi-step creation (details, characters, relationships), auto-outlining, chapter-by-chapter generation with advanced narrative techniques, and specialized AI persona with memory of 12 Arab master novelists. Supports full novel regeneration after adding new characters (outline + all chapters recreated with confirmation dialog). Includes 12 Arabic narrative technique/style selection (linear, temporal break, polyphonic, omniscient narrator, limited, first person, second person, documentary, fragmented, stream of consciousness, symbolic, circular) with Abu Hashim AI suggestion. Time, place, and technique are editable from project detail page via PATCH /api/projects/:id/settings. Abu Hashim system prompt includes comprehensive Arabic grammar rules (النحو والصرف), Arabic rhetoric (البلاغة العربية — البيان والمعاني والبديع), technique-specific writing directives per narrative style, quality checklist (إيقاع نثري، تصوير فني، حوار أصيل، معجم متنوع، تدقيق لغوي), and comprehensive cultural awareness per Arab country/region with historical time period sensitivity.
-- **Essay/News Writing**: Offers multi-subject expertise, tone selection (11 styles: formal academic, analytical, investigative, editorial, conversational expert, narrative, persuasive, satirical, simplified scientific, literary, journalistic), structure generation, and SEO awareness. Project detail page shows essay-specific fields (subject, tone, target audience, section count) instead of novel fields. User-selectable word count target (2K/5K/10K/20K/37.5K or custom 500-50,000) maps to pageCount via /250; Abu Hashim prompts enforce per-section and total word minimums.
-- **Continuity Fix (إصلاح الاستمرارية)**: After running the continuity check, each detected issue shows an "إصلاح بواسطة أبو هاشم" button. Abu Hashim rewrites only the problematic section (POST /api/chapters/:id/fix-continuity), returns fixed content + change summary. User previews the fix in an AlertDialog with scrollable text preview before applying or cancelling. Applied fixes save via PATCH /api/projects/:projectId/chapters/:chapterId. **Fix All**: A "إصلاح الكل بواسطة أبو هاشم" button appears in the issues header when unresolved issues exist. Calls POST /api/projects/:id/fix-all-continuity which fixes all issues in parallel (Promise.all), returns all fixes in one response. User previews all fixes in a combined AlertDialog, then applies all with one click (parallel PATCH + resolve calls).
-- **Originality Check**: AI stylistic originality analysis (not plagiarism detection) evaluating uniqueness of expression, cliché avoidance, and stylistic fingerprint. Shows methodology explanation, flagged phrases with reasons, strengths, and improvement suggestions. Includes "Enhance" button to auto-rewrite chapter based on originality feedback (saves version for rollback).
-- **Literary Style Analysis (تحليل الأسلوب الأدبي)**: Comprehensive AI-driven analysis of the entire project's writing style via "الأسلوب" tab in project detail. Abu Hashim evaluates 7 dimensions (language structure, rhetorical imagery, narrative rhythm, dialogue quality, description/imagery, stylistic consistency, vocabulary richness). Returns overall score /100, style profile (dominant tone, sentence variety, dialogue quality, imagery richness, closest Arab author style), strengths, actionable improvement suggestions with before/after examples and impact ratings, and a top priority recommendation. Route: POST /api/projects/:id/style-analysis. Requires at least 1 completed chapter. Each improvement suggestion has an "إصلاح بواسطة أبو هاشم" button that sends the improvement to GPT-5.2 (POST /api/projects/:id/fix-style-improvement) using two-step approach: (1) identify chapters needing changes with truncated summaries, (2) fix each chapter in parallel (Promise.all) with max_completion_tokens: 16384. User previews changes per chapter in an AlertDialog before applying. Applied improvements save via PATCH /api/projects/:projectId/chapters/:chapterId and are marked resolved (POST /api/projects/:id/resolve-style-improvement) with green checkmark badge, strikethrough, and unresolved/total count header. **Fix All**: A "إصلاح الكل بواسطة أبو هاشم" button appears in the improvements header when unresolved suggestions exist. Calls POST /api/projects/:id/fix-all-style-improvements which processes all improvements in parallel, each with its own identify+fix pipeline. User previews all changes grouped by improvement in a combined AlertDialog, then applies all with one click.
-- **Scenario/Screenplay Writing**: Supports various genres, film or series formats, 3-act dramatic structure, scene-by-scene writing, proper screenplay formatting, character voice differentiation. Dialect in dialogue is conditional on user opt-in (default: Fusha only). Includes cultural awareness for Arab countries and historical periods. Project detail page shows scenario-specific fields (genre, format, episode count, scene count).
-- **Short Story Writing (القصة القصيرة)**: AI persona trained on 7 Arabic short story masters (يوسف إدريس, زكريا تامر, غسان كنفاني, محمود تيمور, إميلي نصر الله, محمد المنسي قنديل, إبراهيم أصلان). Supports 10-50 pages, 10 genres (realistic, symbolic, psychological, social, fantasy, horror, romantic, historical, satirical, philosophical), narrative technique selection. Structure: 3-7 sections (المقاطع) based on page count. Dedicated creation page at /project/new/short-story. Price: $80 per project (SHORT_STORY_PRICE = 8000). Covered by all_in_one plan.
-- **Khawater/Reflections (خواطر وتأملات)**: Single-piece literary content — no outline/chapters flow. 6 styles (reflection, thought, wisdom, meditation, letter, prose poem) and 6 moods (hopeful, melancholic, philosophical, romantic, nostalgic, spiritual). 3 length options (300/500/800 words mapped to pageCount 1/2/3). Abu Hashim draws from جبران خليل جبران, أنيس منصور, مصطفى صادق الرافعي, أحلام مستغانمي, نزار قباني. Dedicated creation page at /project/new/khawater. Price: $9.99 per piece (KHAWATER_PRICE = 999). Covered by all_in_one plan. Field mapping: genre = style, formatType = mood, pageCount = length.
-- **Social Media Content (محتوى السوشيال ميديا)**: Single-piece content for 6 platforms (Twitter/X, Instagram, LinkedIn, Facebook, YouTube script, TikTok script) with 6 tones (professional, casual, inspirational, humorous, educational, promotional). Abu Hashim generates platform-appropriate Arabic content with hashtags, CTAs, and formatting. Dedicated creation page at /project/new/social-media. Price: $19.99 per package (SOCIAL_MEDIA_PRICE = 1999). Covered by all_in_one plan. Field mapping: genre = platform, essayTone = tone, targetAudience = audience.
+- Engagement features: in-app notification center, reading progress tracking, chapter bookmarks, and project favorites.
+- Writing statistics dashboard: showing daily writing activity, per-project word breakdown, and completion rates.
+- Community and sharing: project sharing via public read-only links and a public gallery.
+- Administrative tools: comprehensive admin panel for user, content, and revenue management. Includes an "API Usage" tab tracking per-user OpenAI API calls, token counts, and estimated costs in microdollars. Admins can suspend/unsuspend users from making AI calls.
+- **API Usage Tracking**: All OpenAI API calls are instrumented via `server/api-usage.ts` logging to `apiUsageLogs` table. Cost is stored in microdollars (integer). Users can be suspended via `apiSuspended` boolean on users table — suspended users get 403 on all AI routes.
+- Enhanced onboarding wizard: 4-step guided dialog with animated Abu Hashim avatar, project type descriptions, expanded feature tour, and actionable writing tips.
+- **Content Type Specifics**: Each content type has tailored AI personas, generation parameters, and specific fields. For example, Novel Writing includes narrative technique selection and comprehensive cultural awareness. Essay/News Writing offers multi-subject expertise and tone selection. Scenario/Screenplay Writing supports various genres and proper screenplay formatting. Short Story and Khawater/Reflections have specific length, style, and mood options, with AI personas trained on relevant literary masters. Social Media Content generates platform-appropriate Arabic content with hashtags and CTAs.
+- **Analysis Tools**: Continuity Fix and Literary Style Analysis provide AI-driven improvements. Continuity Fix detects and allows fixing issues section by section or all at once. Literary Style Analysis provides comprehensive feedback on 7 dimensions of writing style, offering actionable improvement suggestions with "Fix by Abu Hashim" options for individual or all suggestions. These features have paid usage limits per project after initial free uses.
+- **Arabic Display Standards**: Chapter/section numbers are displayed as Arabic ordinal words. All numeric values displayed alongside Arabic text are wrapped with an LTR component to prevent BiDi reordering.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation and persona management.
 - **PostgreSQL**: Primary database for all application data.
-- **Stripe**: Payment gateway for plan purchases and per-project payments, integrated via Replit Stripe connector and `stripe-replit-sync`.
-- **DALL-E 3**: Used for AI-generated cover images with type-aware prompts (novel/essay/scenario styles). Title overlay via node-canvas with Amiri font.
-- **Nodemailer/SMTP**: For sending email notifications (project completion, plan activation, payment confirmation, ticket replies).
-- **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font. Type-aware chapter labels (الفصل/القسم/المشهد/المقطع). Glossary section appended when available. Cover title not duplicated when image has baked-in overlay. TOC page numbers are estimated by simulating TOC layout with heightOfString per entry, then computing pagesBeforeChapters = 2 + tocPageCount. Cover/title page titles use width+align:center with line wrapping for long titles; all vertical positions are dynamic based on title height.
-- **jsPDF (client-side PDF)**: Canvas-based preview/download PDF generator. Uses drawWrappedRTLText for title wrapping — measures text width and word-wraps if it exceeds available page width. Applied to both generateNovelPDF and generateChapterPreviewPDF.
-- **archiver**: Used for EPUB generation with type-aware labels and glossary support.
-
-## Arabic Ordinal Chapter Numbers
-Chapter/section numbers are displayed as Arabic ordinal words (الأول, الثاني, الثالث, etc.) instead of digits across all TOC/glossary/export surfaces. The shared utility `toArabicOrdinal(n)` in `shared/utils.ts` maps 1–30 to ordinal words and falls back to digits for >30. Applied in: server-side PDF TOC and chapter headings, EPUB TOC and chapter titles, glossary AI input, client-side PDF chapter headings, project detail bookmarks, and style fix preview dialog.
-
-## RTL Number Display
-All numeric values displayed alongside Arabic text are wrapped with the `LtrNum` component (`client/src/components/ui/ltr-num.tsx`) which renders `<span dir="ltr" style={{unicodeBidi: "isolate"}}>` to prevent BiDi reordering. This applies to scores (X/10, X/100), ratios (X/Y), percentages (X%), word counts, page counts, prices, and chapter numbers. For toast strings (non-JSX), use the Unicode LTR mark `\u200e` before numbers. Important: only wrap the numeric value, never Arabic text labels.
-
-## Mobile Responsiveness
-All pages are fully mobile-responsive using Tailwind CSS responsive breakpoints (sm:, md:, lg:):
-- **Landing page**: Responsive hero text (text-2xl→4xl→5xl), stacked feature cards, full-width CTAs, hidden nav links on mobile with hamburger-style compact layout
-- **Admin panel**: Scrollable tab bar with icon-only buttons on mobile, card-based ticket/user lists replacing tables on small screens, responsive search/filter controls
-- **Pricing page**: Responsive title/section sizing, stacked plan cards, compact nav
-- **Profile page**: Responsive header, stacked profile sections
-- **Gallery page**: Single-column grid on mobile, full-width search
-- **Project detail**: Responsive tabs and content layout
-- **Author profile**: Already mobile-optimized
-- **Home dashboard**: Responsive filters (full-width selects on mobile), stacked project cards
-
-## Analysis Tools Paywall
-Both فحص الاستمرارية (Continuity Check) and تحليل الأسلوب الأدبي (Style Analysis) have paid usage limits per project:
-- **3 free uses** per feature per project (constants: FREE_ANALYSIS_USES=3, PAID_ANALYSIS_USES=3, ANALYSIS_UNLOCK_PRICE=5999)
-- After exhaustion, user pays $59.99 via Stripe to unlock 3 more uses
-- Schema columns: `continuityCheckCount`, `continuityCheckPaidCount`, `styleAnalysisCount`, `styleAnalysisPaidCount` on novel_projects
-- Helper: `getRemainingAnalysisUses(usedCount, paidCount)` in shared/schema.ts
-- Endpoints: GET `/api/projects/:id/analysis-usage`, POST `/api/projects/:id/analysis-checkout`, POST `/api/projects/:id/analysis-unlock-verify`
-- Server enforces: 402 response with `needsPayment: true` when exhausted; count incremented after successful analysis
-- Frontend: Badge shows remaining/total uses near each button; lock icon + payment button when exhausted; URL param handling for Stripe redirect return
-- Replay protection: Stripe session metadata `redeemed` flag prevents double-redemption of payment sessions
+- **Stripe**: Payment gateway for plan purchases and per-project payments.
+- **DALL-E 3**: Used for AI-generated cover images.
+- **Nodemailer/SMTP**: For sending email notifications.
+- **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font.
+- **jsPDF**: Client-side library for PDF preview/download.
+- **archiver**: Used for EPUB generation.

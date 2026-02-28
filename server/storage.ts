@@ -1,6 +1,6 @@
 import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
-  users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites,
+  users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites, apiUsageLogs,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -10,6 +10,7 @@ import {
   type SupportTicket, type InsertSupportTicket,
   type TicketReply, type InsertTicketReply,
   type Notification, type PromoCode, type ReadingProgress, type Bookmark, type ProjectFavorite,
+  type InsertApiUsageLog, type ApiUsageLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull } from "drizzle-orm";
@@ -48,6 +49,10 @@ export interface IStorage {
   getUserProjectCount(userId: string): Promise<number>;
   toggleFavorite(userId: string, projectId: number): Promise<{ favorited: boolean }>;
   getFavoritesByUser(userId: string): Promise<number[]>;
+  createApiUsageLog(data: InsertApiUsageLog): Promise<ApiUsageLog>;
+  getAggregatedApiUsage(): Promise<Array<{ userId: string; email: string | null; displayName: string | null; totalCalls: number; totalTokens: number; totalCostMicro: number; apiSuspended: boolean }>>;
+  getUserApiUsageLogs(userId: string): Promise<ApiUsageLog[]>;
+  setUserApiSuspended(userId: string, suspended: boolean): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -487,6 +492,37 @@ export class DatabaseStorage implements IStorage {
   async getFavoritesByUser(userId: string): Promise<number[]> {
     const favs = await db.select({ projectId: projectFavorites.projectId }).from(projectFavorites).where(eq(projectFavorites.userId, userId)).orderBy(desc(projectFavorites.createdAt));
     return favs.map(f => f.projectId);
+  }
+
+  async createApiUsageLog(data: InsertApiUsageLog): Promise<ApiUsageLog> {
+    const [log] = await db.insert(apiUsageLogs).values(data).returning();
+    return log;
+  }
+
+  async getAggregatedApiUsage(): Promise<Array<{ userId: string; email: string | null; displayName: string | null; totalCalls: number; totalTokens: number; totalCostMicro: number; apiSuspended: boolean }>> {
+    const rows = await db.select({
+      userId: apiUsageLogs.userId,
+      email: users.email,
+      displayName: users.displayName,
+      totalCalls: sql<number>`count(*)::int`,
+      totalTokens: sql<number>`coalesce(sum(${apiUsageLogs.totalTokens}), 0)::int`,
+      totalCostMicro: sql<number>`coalesce(sum(${apiUsageLogs.estimatedCostMicro}), 0)::int`,
+      apiSuspended: users.apiSuspended,
+    })
+    .from(apiUsageLogs)
+    .innerJoin(users, eq(apiUsageLogs.userId, users.id))
+    .groupBy(apiUsageLogs.userId, users.email, users.displayName, users.apiSuspended)
+    .orderBy(sql`sum(${apiUsageLogs.estimatedCostMicro}) desc`);
+    return rows.map(r => ({ ...r, apiSuspended: r.apiSuspended ?? false }));
+  }
+
+  async getUserApiUsageLogs(userId: string): Promise<ApiUsageLog[]> {
+    return db.select().from(apiUsageLogs).where(eq(apiUsageLogs.userId, userId)).orderBy(desc(apiUsageLogs.createdAt));
+  }
+
+  async setUserApiSuspended(userId: string, suspended: boolean): Promise<User> {
+    const [updated] = await db.update(users).set({ apiSuspended: suspended, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+    return updated;
   }
 }
 

@@ -371,3 +371,20 @@ export type Bookmark = typeof bookmarks.$inferSelect;
 export const insertProjectFavoriteSchema = createInsertSchema(projectFavorites).omit({ id: true, createdAt: true });
 export type InsertProjectFavorite = z.infer<typeof insertProjectFavoriteSchema>;
 export type ProjectFavorite = typeof projectFavorites.$inferSelect;
+
+export const apiUsageLogs = pgTable("api_usage_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  projectId: integer("project_id"),
+  feature: varchar("feature").notNull(),
+  model: varchar("model").notNull(),
+  promptTokens: integer("prompt_tokens").default(0),
+  completionTokens: integer("completion_tokens").default(0),
+  totalTokens: integer("total_tokens").default(0),
+  estimatedCostMicro: integer("estimated_cost_micro").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertApiUsageLogSchema = createInsertSchema(apiUsageLogs).omit({ id: true, createdAt: true });
+export type InsertApiUsageLog = z.infer<typeof insertApiUsageLogSchema>;
+export type ApiUsageLog = typeof apiUsageLogs.$inferSelect;

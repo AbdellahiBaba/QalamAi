@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   displayName: varchar("display_name"),
   publicProfile: boolean("public_profile").default(false),
   onboardingCompleted: boolean("onboarding_completed").default(false),
+  apiSuspended: boolean("api_suspended").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

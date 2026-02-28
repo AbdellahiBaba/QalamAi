@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -77,6 +77,26 @@ const priorityColors: Record<string, string> = {
   urgent: "text-red-500",
 };
 
+const featureLabels: Record<string, string> = {
+  title_suggestion: "اقتراح عنوان",
+  format_suggestion: "اقتراح شكل أدبي",
+  technique_suggestion: "اقتراح تقنية سرد",
+  outline: "إنشاء مخطط",
+  outline_refine: "تحسين مخطط",
+  chapter: "كتابة فصل",
+  character_suggestion: "اقتراح شخصيات",
+  cover_image: "إنشاء غلاف",
+  rewrite: "إعادة كتابة",
+  originality_check: "فحص الأصالة",
+  originality_enhance: "تعزيز الأصالة",
+  glossary: "إنشاء مسرد",
+  continuity_check: "فحص الاتساق",
+  fix_continuity: "إصلاح اتساق",
+  style_analysis: "تحليل الأسلوب",
+  fix_style: "إصلاح الأسلوب",
+  fix_style_identify: "تحديد إصلاح الأسلوب",
+};
+
 const planLabels: Record<string, string> = {
   free: "مجاني",
   essay: "خطة المقالات",
@@ -101,7 +121,7 @@ const projectStatusLabels: Record<string, string> = {
 export default function Admin() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage">("tickets");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -114,6 +134,9 @@ export default function Admin() {
   const [showContentDialog, setShowContentDialog] = useState(false);
   const [contentProjectId, setContentProjectId] = useState<number | null>(null);
   const [newPromo, setNewPromo] = useState({ code: "", discountPercent: "", maxUses: "", validUntil: "", applicableTo: "all" });
+  const [apiUsageSearch, setApiUsageSearch] = useState("");
+  const [apiUsageDetailUser, setApiUsageDetailUser] = useState<string | null>(null);
+  const [showApiUsageDialog, setShowApiUsageDialog] = useState(false);
   const { toast } = useToast();
 
   const { data: stats, isLoading: statsLoading } = useQuery<{ status: string; count: number }[]>({
@@ -146,6 +169,38 @@ export default function Admin() {
   const { data: projectContent, isLoading: contentLoading } = useQuery<{ project: NovelProject; chapters: any[] }>({
     queryKey: ["/api/admin/projects", contentProjectId, "content"],
     enabled: !!contentProjectId && showContentDialog,
+  });
+
+  interface ApiUsageRow { userId: string; email: string | null; displayName: string | null; totalCalls: number; totalTokens: number; totalCostMicro: number; apiSuspended: boolean }
+  interface ApiLogEntry { id: number; userId: string; projectId: number | null; feature: string; model: string; promptTokens: number; completionTokens: number; totalTokens: number; estimatedCostMicro: number; createdAt: string }
+
+  const { data: apiUsageData, isLoading: apiUsageLoading } = useQuery<ApiUsageRow[]>({
+    queryKey: ["/api/admin/api-usage"],
+    enabled: activeTab === "api-usage",
+  });
+
+  const { data: apiUserLogs, isLoading: apiUserLogsLoading } = useQuery<ApiLogEntry[]>({
+    queryKey: ["/api/admin/api-usage", apiUsageDetailUser],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/api-usage/${apiUsageDetailUser}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: !!apiUsageDetailUser && showApiUsageDialog,
+  });
+
+  const suspendApiMutation = useMutation({
+    mutationFn: async ({ userId, suspended }: { userId: string; suspended: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/suspend-api`, { suspended });
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/api-usage"] });
+      toast({ title: variables.suspended ? "تم تعليق المستخدم من استخدام API" : "تم إعادة تفعيل المستخدم" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث حالة التعليق", variant: "destructive" });
+    },
   });
 
   const createPromoMutation = useMutation({
@@ -354,6 +409,16 @@ export default function Admin() {
           >
             <Tag className="w-4 h-4 sm:ml-2" />
             <span className="hidden sm:inline">رموز الخصم</span>
+          </Button>
+          <Button
+            variant={activeTab === "api-usage" ? "default" : "outline"}
+            onClick={() => setActiveTab("api-usage")}
+            size="sm"
+            className="shrink-0"
+            data-testid="button-tab-api-usage"
+          >
+            <Cpu className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">استخدام API</span>
           </Button>
         </div>
 
@@ -1143,7 +1208,274 @@ export default function Admin() {
             )}
           </>
         )}
+
+        {activeTab === "api-usage" && (
+          <>
+            {apiUsageLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <Card>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                      <Cpu className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">إجمالي الطلبات</p>
+                      <p className="text-xl font-bold" data-testid="text-total-api-calls">
+                        <LtrNum>{(apiUsageData || []).reduce((s, r) => s + r.totalCalls, 0).toLocaleString()}</LtrNum>
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-lg">
+                      <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">التكلفة التقديرية</p>
+                      <p className="text-xl font-bold" data-testid="text-total-api-cost" dir="ltr">
+                        ${((apiUsageData || []).reduce((s, r) => s + r.totalCostMicro, 0) / 1_000_000).toFixed(2)}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="bg-red-100 dark:bg-red-900/30 p-2 rounded-lg">
+                      <ShieldAlert className="w-5 h-5 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">مستخدمون معلّقون</p>
+                      <p className="text-xl font-bold" data-testid="text-suspended-users">
+                        <LtrNum>{(apiUsageData || []).filter(r => r.apiSuspended).length}</LtrNum>
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <div className="relative mb-4">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="بحث بالاسم أو البريد..."
+                value={apiUsageSearch}
+                onChange={(e) => setApiUsageSearch(e.target.value)}
+                className="pr-9"
+                data-testid="input-api-usage-search"
+              />
+            </div>
+
+            {apiUsageLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <Card key={i}><CardContent className="p-4"><Skeleton className="h-12 w-full" /></CardContent></Card>
+                ))}
+              </div>
+            ) : apiUsageData && apiUsageData.length > 0 ? (
+              <>
+                <div className="hidden md:block border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-right p-3 font-medium text-muted-foreground">المستخدم</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">الطلبات</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">التوكنز</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">التكلفة</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">الحالة</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apiUsageData
+                          .filter(r => {
+                            if (!apiUsageSearch.trim()) return true;
+                            const q = apiUsageSearch.toLowerCase();
+                            return (r.displayName || "").toLowerCase().includes(q) || (r.email || "").toLowerCase().includes(q);
+                          })
+                          .map((row) => (
+                          <tr key={row.userId} className="border-b hover:bg-muted/30" data-testid={`row-api-usage-${row.userId}`}>
+                            <td className="p-3">
+                              <div className="font-medium">{row.displayName || "—"}</div>
+                              <div className="text-xs text-muted-foreground" dir="ltr">{row.email || "—"}</div>
+                            </td>
+                            <td className="p-3"><LtrNum>{row.totalCalls.toLocaleString()}</LtrNum></td>
+                            <td className="p-3"><LtrNum>{row.totalTokens.toLocaleString()}</LtrNum></td>
+                            <td className="p-3" dir="ltr">${(row.totalCostMicro / 1_000_000).toFixed(4)}</td>
+                            <td className="p-3">
+                              {row.apiSuspended ? (
+                                <Badge variant="destructive" className="text-xs">معلّق</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">نشط</Badge>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setApiUsageDetailUser(row.userId);
+                                    setShowApiUsageDialog(true);
+                                  }}
+                                  data-testid={`button-api-details-${row.userId}`}
+                                >
+                                  <Info className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant={row.apiSuspended ? "outline" : "destructive"}
+                                  onClick={() => suspendApiMutation.mutate({ userId: row.userId, suspended: !row.apiSuspended })}
+                                  disabled={suspendApiMutation.isPending}
+                                  data-testid={`button-suspend-${row.userId}`}
+                                >
+                                  {suspendApiMutation.isPending ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : row.apiSuspended ? (
+                                    <><ShieldOff className="w-3 h-3 ml-1" /> تفعيل</>
+                                  ) : (
+                                    <><ShieldAlert className="w-3 h-3 ml-1" /> تعليق</>
+                                  )}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="md:hidden space-y-3">
+                  {apiUsageData
+                    .filter(r => {
+                      if (!apiUsageSearch.trim()) return true;
+                      const q = apiUsageSearch.toLowerCase();
+                      return (r.displayName || "").toLowerCase().includes(q) || (r.email || "").toLowerCase().includes(q);
+                    })
+                    .map((row) => (
+                    <Card key={row.userId} data-testid={`card-api-usage-${row.userId}`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{row.displayName || "—"}</p>
+                            <p className="text-xs text-muted-foreground" dir="ltr">{row.email || "—"}</p>
+                          </div>
+                          {row.apiSuspended ? (
+                            <Badge variant="destructive" className="text-xs">معلّق</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">نشط</Badge>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                          <div>
+                            <p className="text-muted-foreground">الطلبات</p>
+                            <p className="font-bold"><LtrNum>{row.totalCalls.toLocaleString()}</LtrNum></p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">التوكنز</p>
+                            <p className="font-bold"><LtrNum>{row.totalTokens.toLocaleString()}</LtrNum></p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">التكلفة</p>
+                            <p className="font-bold" dir="ltr">${(row.totalCostMicro / 1_000_000).toFixed(4)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              setApiUsageDetailUser(row.userId);
+                              setShowApiUsageDialog(true);
+                            }}
+                            data-testid={`button-api-details-m-${row.userId}`}
+                          >
+                            <Info className="w-3 h-3 ml-1" /> تفاصيل
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={row.apiSuspended ? "outline" : "destructive"}
+                            className="flex-1"
+                            onClick={() => suspendApiMutation.mutate({ userId: row.userId, suspended: !row.apiSuspended })}
+                            disabled={suspendApiMutation.isPending}
+                            data-testid={`button-suspend-m-${row.userId}`}
+                          >
+                            {row.apiSuspended ? (
+                              <><ShieldOff className="w-3 h-3 ml-1" /> تفعيل</>
+                            ) : (
+                              <><ShieldAlert className="w-3 h-3 ml-1" /> تعليق</>
+                            )}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16">
+                <Cpu className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">لا توجد بيانات استخدام API بعد</p>
+              </div>
+            )}
+          </>
+        )}
       </main>
+
+      <Dialog open={showApiUsageDialog} onOpenChange={(open) => { setShowApiUsageDialog(open); if (!open) setApiUsageDetailUser(null); }}>
+        <DialogContent className="max-w-3xl max-h-[80vh]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تفاصيل استخدام API</DialogTitle>
+          </DialogHeader>
+          {apiUserLogsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-8 w-full" />
+              ))}
+            </div>
+          ) : apiUserLogs && apiUserLogs.length > 0 ? (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-right p-2 font-medium text-muted-foreground text-xs">الميزة</th>
+                      <th className="text-right p-2 font-medium text-muted-foreground text-xs">النموذج</th>
+                      <th className="text-right p-2 font-medium text-muted-foreground text-xs">المدخل</th>
+                      <th className="text-right p-2 font-medium text-muted-foreground text-xs">المخرج</th>
+                      <th className="text-right p-2 font-medium text-muted-foreground text-xs">التكلفة</th>
+                      <th className="text-right p-2 font-medium text-muted-foreground text-xs">التاريخ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {apiUserLogs.map((log) => (
+                      <tr key={log.id} className="border-b" data-testid={`row-api-log-${log.id}`}>
+                        <td className="p-2 text-xs">{featureLabels[log.feature] || log.feature}</td>
+                        <td className="p-2 text-xs" dir="ltr">{log.model}</td>
+                        <td className="p-2 text-xs"><LtrNum>{log.promptTokens.toLocaleString()}</LtrNum></td>
+                        <td className="p-2 text-xs"><LtrNum>{log.completionTokens.toLocaleString()}</LtrNum></td>
+                        <td className="p-2 text-xs" dir="ltr">${(log.estimatedCostMicro / 1_000_000).toFixed(6)}</td>
+                        <td className="p-2 text-xs" dir="ltr">{new Date(log.createdAt).toLocaleString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ScrollArea>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">لا توجد سجلات استخدام</p>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showProjectsDialog} onOpenChange={setShowProjectsDialog}>
         <DialogContent className="max-w-2xl" dir="rtl">

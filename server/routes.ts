@@ -10,6 +10,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
+import { logApiUsage, logImageUsage } from "./api-usage";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -20,6 +21,15 @@ const openai = new OpenAI({
 });
 
 const FREE_ACCESS_USER_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+
+async function checkApiSuspension(userId: string, res: any): Promise<boolean> {
+  const user = await storage.getUser(userId);
+  if (user?.apiSuspended) {
+    res.status(403).json({ error: "تم تعليق حسابك من استخدام أبو هاشم حتى يتم تسوية المستحقات. تواصل مع الإدارة.", apiSuspended: true });
+    return true;
+  }
+  return false;
+}
 
 try {
   registerFont(path.join(process.cwd(), "server/fonts/Amiri-Bold.ttf"), { family: "Amiri", weight: "bold" });
@@ -495,6 +505,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/suggest-titles", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const { mainIdea, timeSetting, placeSetting, narrativePov, characters } = req.body;
       if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
         return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
@@ -520,6 +531,7 @@ export async function registerRoutes(
         ],
         max_completion_tokens: 2048,
       });
+      logApiUsage(req.user.claims.sub, null, "title_suggestion", "gpt-5.2", response);
 
       const content = response.choices[0]?.message?.content || "";
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -552,6 +564,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/suggest-format", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const { title, mainIdea, timeSetting, placeSetting } = req.body;
       if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
         return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
@@ -572,6 +585,7 @@ export async function registerRoutes(
         ],
         max_completion_tokens: 1024,
       });
+      logApiUsage(req.user.claims.sub, null, "format_suggestion", "gpt-5.2", response);
 
       const content = response.choices[0]?.message?.content || "";
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -603,6 +617,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/suggest-technique", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const { mainIdea, timeSetting, placeSetting, characters } = req.body;
       if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
         return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
@@ -627,6 +642,7 @@ export async function registerRoutes(
         ],
         max_completion_tokens: 2048,
       });
+      logApiUsage(req.user.claims.sub, null, "technique_suggestion", "gpt-5.2", response);
 
       const content = response.choices[0]?.message?.content || "";
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -777,6 +793,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:id/outline", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
@@ -834,6 +851,7 @@ export async function registerRoutes(
         ],
         max_completion_tokens: 8192,
       });
+      logApiUsage(userId, id, "outline", "gpt-5.2", response);
 
       const outline = response.choices[0]?.message?.content || "";
 
@@ -993,6 +1011,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:id/outline/refine", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
@@ -1024,6 +1043,7 @@ export async function registerRoutes(
         ],
         max_completion_tokens: 16000,
       });
+      logApiUsage(req.user.claims.sub, id, "outline_refine", "gpt-5.2", response);
       const refined = response.choices[0]?.message?.content || project.outline;
       const updated = await storage.updateProject(id, { outline: refined });
       res.json(updated);
@@ -1035,6 +1055,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:projectId/chapters/:chapterId/generate", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const projectId = parseInt(req.params.projectId);
       const chapterId = parseInt(req.params.chapterId);
 
@@ -1132,6 +1153,9 @@ export async function registerRoutes(
       if (fullContent) {
         await storage.saveChapterVersion(chapterId, fullContent, "ai_generated");
       }
+
+      const estCompletionTokens = Math.ceil(fullContent.length / 3);
+      logApiUsage(req.user.claims.sub, projectId, "chapter", "gpt-5.2", { usage: { prompt_tokens: 2000, completion_tokens: estCompletionTokens, total_tokens: 2000 + estCompletionTokens } });
 
       const wordCount = fullContent.split(/\s+/).filter(w => w.length > 0).length;
       const netWords = wordCount - oldWordCount;
@@ -1237,6 +1261,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:id/suggest-characters", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
@@ -1253,6 +1278,7 @@ export async function registerRoutes(
         ],
         max_completion_tokens: 4096,
       });
+      logApiUsage(req.user.claims.sub, id, "character_suggestion", "gpt-5.2", response);
 
       const content = response.choices[0]?.message?.content || "";
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -1279,6 +1305,7 @@ export async function registerRoutes(
 
   app.post("/api/projects/:id/generate-cover", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
@@ -1291,6 +1318,7 @@ export async function registerRoutes(
         prompt,
         size: "1024x1024",
       });
+      logImageUsage(req.user.claims.sub, id, "cover_image");
 
       const base64 = response.data[0]?.b64_json;
       if (!base64) return res.status(500).json({ error: "فشل في إنشاء الغلاف" });
@@ -1864,6 +1892,7 @@ ${glossaryParagraphs}
 
   app.post("/api/chapters/:id/rewrite", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const chapterId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const { content, tone } = req.body;
@@ -1892,6 +1921,7 @@ ${glossaryParagraphs}
         ],
         max_completion_tokens: 8192,
       });
+      logApiUsage(userId, chapter.projectId, "rewrite", "gpt-5.2", response);
 
       const rewrittenContent = response.choices[0]?.message?.content || "";
       if (!rewrittenContent) {
@@ -2481,9 +2511,42 @@ ${glossaryParagraphs}
     }
   });
 
+  // ===== Admin API Usage Endpoints =====
+  app.get("/api/admin/api-usage", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const data = await storage.getAggregatedApiUsage();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch API usage data" });
+    }
+  });
+
+  app.get("/api/admin/api-usage/:userId", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const logs = await storage.getUserApiUsageLogs(req.params.userId);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user API logs" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/suspend-api", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { suspended } = req.body;
+      if (typeof suspended !== "boolean") {
+        return res.status(400).json({ error: "suspended must be a boolean" });
+      }
+      const user = await storage.setUserApiSuspended(req.params.id, suspended);
+      res.json({ success: true, apiSuspended: user.apiSuspended });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update suspension status" });
+    }
+  });
+
   // ===== Originality Check =====
   app.post("/api/chapters/:id/originality-check", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const chapterId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const chapter = await storage.getChapter(chapterId);
@@ -2492,15 +2555,16 @@ ${glossaryParagraphs}
       if (!project || project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
       if (!chapter.content) return res.status(400).json({ error: "لا يوجد محتوى للفحص" });
 
-      const { system, user } = buildOriginalityCheckPrompt(chapter.content);
+      const { system, user: userMsg } = buildOriginalityCheckPrompt(chapter.content);
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
           { role: "system", content: system },
-          { role: "user", content: user },
+          { role: "user", content: userMsg },
         ],
         max_completion_tokens: 4096,
       });
+      logApiUsage(userId, chapter.projectId, "originality_check", "gpt-5.2", response);
 
       const content = response.choices[0]?.message?.content || "";
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -2520,6 +2584,7 @@ ${glossaryParagraphs}
   // ===== Enhance from Originality =====
   app.post("/api/chapters/:id/enhance-from-originality", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const chapterId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const { suggestions, flaggedPhrases } = req.body;
@@ -2553,6 +2618,7 @@ ${glossaryParagraphs}
         ],
         max_completion_tokens: 8192,
       });
+      logApiUsage(userId, chapter.projectId, "originality_enhance", "gpt-5.2", response);
 
       const enhancedContent = response.choices[0]?.message?.content || "";
       if (!enhancedContent) {
@@ -2572,6 +2638,7 @@ ${glossaryParagraphs}
   // ===== Glossary Generation =====
   app.post("/api/projects/:id/generate-glossary", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
@@ -2598,6 +2665,7 @@ ${glossaryParagraphs}
         ],
         max_completion_tokens: 8192,
       });
+      logApiUsage(req.user.claims.sub, id, "glossary", "gpt-5.2", response);
 
       const glossaryContent = response.choices[0]?.message?.content || "";
       await storage.updateProject(id, { glossary: glossaryContent } as any);
@@ -2611,6 +2679,7 @@ ${glossaryParagraphs}
   // ===== Continuity Check =====
   app.post("/api/projects/:id/continuity-check", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
@@ -2680,6 +2749,7 @@ ${allContent}
         max_completion_tokens: 4000,
         response_format: { type: "json_object" },
       });
+      logApiUsage(userId, id, "continuity_check", "gpt-5.2", response);
 
       const resultText = response.choices[0]?.message?.content || "{}";
       try {
@@ -2770,6 +2840,7 @@ ${allContent}
   // ===== Fix Continuity Issue =====
   app.post("/api/chapters/:id/fix-continuity", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const chapterId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const { issue } = req.body;
@@ -2845,6 +2916,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
         max_completion_tokens: 16384,
         response_format: { type: "json_object" },
       });
+      logApiUsage(userId, id, "fix_continuity", "gpt-5.2", response);
 
       if (response.choices[0]?.finish_reason === "length") {
         return res.status(400).json({ error: "النص طويل جدًا لإصلاحه دفعة واحدة. حاول تقسيم الفصل أو اختيار مشكلة أبسط." });
@@ -2872,6 +2944,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   // ===== Style Analysis =====
   app.post("/api/projects/:id/style-analysis", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
@@ -2911,6 +2984,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
         max_completion_tokens: 5000,
         response_format: { type: "json_object" },
       });
+      logApiUsage(userId, id, "style_analysis", "gpt-5.2", response);
 
       const resultText = response.choices[0]?.message?.content || "{}";
       try {
@@ -2931,6 +3005,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   // ===== Fix Style Improvement =====
   app.post("/api/projects/:id/fix-style-improvement", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const { improvement } = req.body;
@@ -2975,6 +3050,7 @@ ${chapterSummaries}
         max_completion_tokens: 1024,
         response_format: { type: "json_object" },
       });
+      logApiUsage(userId, id, "fix_style_identify", "gpt-5.2", identifyResponse);
 
       if (identifyResponse.choices[0]?.finish_reason === "length") {
         return res.status(400).json({ error: "المشروع يحتوي على فصول كثيرة. حاول مرة أخرى." });
@@ -3039,6 +3115,7 @@ ${ch.content}
             max_completion_tokens: 16384,
             response_format: { type: "json_object" },
           });
+          logApiUsage(userId, id, "fix_style", "gpt-5.2", fixResponse);
 
           if (fixResponse.choices[0]?.finish_reason === "length") {
             console.warn(`Style fix truncated for chapter ${ch.id}, skipping`);
@@ -3141,6 +3218,7 @@ ${ch.content}
   // ===== Fix All Continuity Issues =====
   app.post("/api/projects/:id/fix-all-continuity", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
 
@@ -3228,6 +3306,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
             max_completion_tokens: 16384,
             response_format: { type: "json_object" },
           });
+          logApiUsage(userId, id, "fix_continuity", "gpt-5.2", response);
 
           if (response.choices[0]?.finish_reason === "length") {
             console.warn(`Continuity fix truncated for issue ${index}, skipping`);
@@ -3264,6 +3343,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   // ===== Fix All Style Improvements =====
   app.post("/api/projects/:id/fix-all-style-improvements", isAuthenticated, async (req: any, res) => {
     try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
 
@@ -3327,6 +3407,7 @@ ${chapterSummaries}
             max_completion_tokens: 1024,
             response_format: { type: "json_object" },
           });
+          logApiUsage(userId, id, "fix_style_identify", "gpt-5.2", identifyResponse);
 
           if (identifyResponse.choices[0]?.finish_reason === "length") return null;
 
@@ -3377,6 +3458,7 @@ ${ch.content}
                 max_completion_tokens: 16384,
                 response_format: { type: "json_object" },
               });
+              logApiUsage(userId, id, "fix_style", "gpt-5.2", fixResponse);
 
               if (fixResponse.choices[0]?.finish_reason === "length") return null;
               const fixText = fixResponse.choices[0]?.message?.content || "{}";
