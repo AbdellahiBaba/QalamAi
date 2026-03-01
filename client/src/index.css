@@ -327,3 +327,33 @@
 .promo-stagger-4 { transition-delay: 0.45s; }
 .promo-stagger-5 { transition-delay: 0.6s; }
 .promo-stagger-6 { transition-delay: 0.75s; }
+
+.reviews-animate {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.reviews-animate.reviews-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reviews-slide-right {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.reviews-slide-right.reviews-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reviews-stagger-1 { transition-delay: 0s; }
+.reviews-stagger-2 { transition-delay: 0.12s; }
+.reviews-stagger-3 { transition-delay: 0.24s; }
+.reviews-stagger-4 { transition-delay: 0.36s; }
+.reviews-stagger-5 { transition-delay: 0.48s; }
+.reviews-stagger-6 { transition-delay: 0.6s; }
+

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { ArrowRight, MessageSquare, Star } from "lucide-react";
+import { ArrowRight, MessageSquare, Star, MessageSquareQuote, Award } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,77 @@ interface PlatformReview {
   rating: number;
   approved: boolean;
   createdAt: string;
+}
+
+const featuredTestimonials = [
+  {
+    id: "featured-1",
+    name: "سارة أحمد",
+    role: "كاتبة روائية مبتدئة",
+    content: "أبو هاشم ساعدني على كتابة فصول روايتي الأولى بأسلوب أدبي لم أكن أتوقّع أنني أستطيع تحقيقه. تجربة رائعة حقاً.",
+    rating: 5,
+  },
+  {
+    id: "featured-2",
+    name: "محمد العلي",
+    role: "كاتب قصص قصيرة",
+    content: "المنصّة تفهم اللغة العربية بعمق. الشخصيات التي ساعدني أبو هاشم في بنائها كانت حيّة ومقنعة جداً.",
+    rating: 5,
+  },
+  {
+    id: "featured-3",
+    name: "نورة الحربي",
+    role: "مدوّنة وكاتبة محتوى",
+    content: "أخيراً منصّة تحترم جمال اللغة العربية وتلتزم بالقيم. أنصح بها كل كاتب عربي يبحث عن أداة ذكية.",
+    rating: 5,
+  },
+];
+
+function useScrollAnimation() {
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const observe = useCallback((node: HTMLElement | null) => {
+    if (!node) return;
+    if (!observerRef.current) {
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("reviews-visible");
+              observerRef.current?.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.1, rootMargin: "0px 0px -40px 0px" }
+      );
+    }
+    observerRef.current.observe(node);
+  }, []);
+
+  useEffect(() => {
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  return observe;
+}
+
+function AnimatedCard({ children, stagger, className = "", slideDirection = "up" }: {
+  children: React.ReactNode;
+  stagger: number;
+  className?: string;
+  slideDirection?: "up" | "right";
+}) {
+  const observe = useScrollAnimation();
+  const animClass = slideDirection === "right" ? "reviews-slide-right" : "reviews-animate";
+
+  return (
+    <div
+      ref={observe}
+      className={`${animClass} reviews-stagger-${stagger} ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 export default function Reviews() {
@@ -145,50 +216,89 @@ export default function Reviews() {
           )}
         </div>
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="loading-skeletons">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-16" />
-                </CardContent>
-              </Card>
+        <section className="mb-12" data-testid="section-featured-reviews">
+          <div className="flex items-center gap-2 mb-6">
+            <Award className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold" data-testid="text-featured-title">آراء مميزة</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {featuredTestimonials.map((t, i) => (
+              <AnimatedCard key={t.id} stagger={i + 1} slideDirection="right">
+                <Card className="hover-elevate border-primary/20 bg-primary/[0.03]" data-testid={`card-${t.id}`}>
+                  <CardContent className="p-5 space-y-4">
+                    <div className="flex items-center gap-1 text-primary">
+                      {Array.from({ length: t.rating }).map((_, si) => (
+                        <Star key={si} className="w-4 h-4 fill-current" />
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed italic">
+                      <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
+                      {t.content}
+                    </p>
+                    <div className="pt-2 border-t border-primary/10">
+                      <p className="font-semibold text-sm" data-testid={`text-name-${t.id}`}>{t.name}</p>
+                      <p className="text-xs text-muted-foreground">{t.role}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </AnimatedCard>
             ))}
           </div>
-        ) : reviews && reviews.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="reviews-grid">
-            {reviews.map((review) => (
-              <Card key={review.id} data-testid={`card-review-${review.id}`}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="font-semibold text-sm" data-testid={`text-reviewer-${review.id}`}>
-                      {review.reviewerName}
-                    </span>
-                    <StarRating rating={review.rating} size="sm" showCount={false} />
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed" dir="rtl" data-testid={`text-content-${review.id}`}>
-                    {review.content}
-                  </p>
-                  <p className="text-xs text-muted-foreground/70" data-testid={`text-date-${review.id}`}>
-                    {formatDate(review.createdAt)}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+        </section>
+
+        <section data-testid="section-user-reviews">
+          <div className="flex items-center gap-2 mb-6">
+            <MessageSquare className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold" data-testid="text-user-reviews-title">آراء كتّابنا</h2>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center" data-testid="empty-state">
-            <Star className="w-12 h-12 text-muted-foreground/30 mb-4" />
-            <p className="text-lg font-medium text-muted-foreground">لا توجد مراجعات بعد</p>
-            <p className="text-sm text-muted-foreground/70 mt-1">كن أول من يضيف مراجعة</p>
-          </div>
-        )}
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="loading-skeletons">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-16" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : reviews && reviews.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="reviews-grid">
+              {reviews.map((review, i) => (
+                <AnimatedCard key={review.id} stagger={((i % 6) + 1)}>
+                  <Card className="hover-elevate" data-testid={`card-review-${review.id}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-semibold text-sm" data-testid={`text-reviewer-${review.id}`}>
+                          {review.reviewerName}
+                        </span>
+                        <StarRating rating={review.rating} size="sm" showCount={false} />
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed" dir="rtl" data-testid={`text-content-${review.id}`}>
+                        {review.content}
+                      </p>
+                      <p className="text-xs text-muted-foreground/70" data-testid={`text-date-${review.id}`}>
+                        {formatDate(review.createdAt)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </AnimatedCard>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center" data-testid="empty-state">
+              <Star className="w-12 h-12 text-muted-foreground/30 mb-4" />
+              <p className="text-lg font-medium text-muted-foreground">لا توجد مراجعات من المستخدمين بعد</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">كن أول من يضيف مراجعة</p>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

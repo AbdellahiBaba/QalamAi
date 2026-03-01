@@ -19,6 +19,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/components/theme-provider";
 
 const navLinks = [
@@ -32,9 +33,19 @@ const navLinks = [
   { label: "أبو هاشم", href: "/abu-hashim" },
 ];
 
+interface LandingReview {
+  id: number;
+  reviewerName: string;
+  content: string;
+  rating: number;
+}
+
 export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { data: realReviews } = useQuery<LandingReview[]>({
+    queryKey: ["/api/reviews"],
+  });
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -278,64 +289,53 @@ export default function Landing() {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            <Card className="bg-background">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-1 text-primary">
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                </div>
-                <p className="text-muted-foreground text-sm leading-relaxed italic">
-                  <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
-                  أبو هاشم ساعدني على كتابة فصول روايتي الأولى بأسلوب أدبي لم أكن أتوقّع أنني أستطيع تحقيقه. تجربة رائعة حقاً.
-                </p>
-                <div className="pt-2 border-t">
-                  <p className="font-semibold text-sm">سارة أحمد</p>
-                  <p className="text-xs text-muted-foreground">كاتبة روائية مبتدئة</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-background">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-1 text-primary">
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                </div>
-                <p className="text-muted-foreground text-sm leading-relaxed italic">
-                  <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
-                  المنصّة تفهم اللغة العربية بعمق. الشخصيات التي ساعدني أبو هاشم في بنائها كانت حيّة ومقنعة جداً.
-                </p>
-                <div className="pt-2 border-t">
-                  <p className="font-semibold text-sm">محمد العلي</p>
-                  <p className="text-xs text-muted-foreground">كاتب قصص قصيرة</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-background">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-1 text-primary">
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                </div>
-                <p className="text-muted-foreground text-sm leading-relaxed italic">
-                  <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
-                  أخيراً منصّة تحترم جمال اللغة العربية وتلتزم بالقيم. أنصح بها كل كاتب عربي يبحث عن أداة ذكية.
-                </p>
-                <div className="pt-2 border-t">
-                  <p className="font-semibold text-sm">نورة الحربي</p>
-                  <p className="text-xs text-muted-foreground">مدوّنة وكاتبة محتوى</p>
-                </div>
-              </CardContent>
-            </Card>
+            {[
+              { name: "سارة أحمد", role: "كاتبة روائية مبتدئة", content: "أبو هاشم ساعدني على كتابة فصول روايتي الأولى بأسلوب أدبي لم أكن أتوقّع أنني أستطيع تحقيقه. تجربة رائعة حقاً.", rating: 5 },
+              { name: "محمد العلي", role: "كاتب قصص قصيرة", content: "المنصّة تفهم اللغة العربية بعمق. الشخصيات التي ساعدني أبو هاشم في بنائها كانت حيّة ومقنعة جداً.", rating: 5 },
+              { name: "نورة الحربي", role: "مدوّنة وكاتبة محتوى", content: "أخيراً منصّة تحترم جمال اللغة العربية وتلتزم بالقيم. أنصح بها كل كاتب عربي يبحث عن أداة ذكية.", rating: 5 },
+            ].map((t, i) => (
+              <Card key={i} className="bg-background" data-testid={`card-testimonial-${i}`}>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-1 text-primary">
+                    {Array.from({ length: t.rating }).map((_, si) => (
+                      <Star key={si} className="w-4 h-4 fill-current" />
+                    ))}
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed italic">
+                    <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
+                    {t.content}
+                  </p>
+                  <div className="pt-2 border-t">
+                    <p className="font-semibold text-sm">{t.name}</p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
+          {realReviews && realReviews.length > 0 && (
+            <div className="grid md:grid-cols-3 gap-6 mt-6">
+              {realReviews.slice(0, 3).map((review) => (
+                <Card key={review.id} className="bg-background" data-testid={`card-landing-review-${review.id}`}>
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center gap-1 text-primary">
+                      {Array.from({ length: review.rating }).map((_, si) => (
+                        <Star key={si} className="w-4 h-4 fill-current" />
+                      ))}
+                    </div>
+                    <p className="text-muted-foreground text-sm leading-relaxed italic">
+                      <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
+                      {review.content}
+                    </p>
+                    <div className="pt-2 border-t">
+                      <p className="font-semibold text-sm">{review.reviewerName}</p>
+                      <p className="text-xs text-muted-foreground">مستخدم QalamAI</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
           <div className="text-center mt-10">
             <Link href="/reviews">
               <Button variant="outline" size="lg" data-testid="button-share-review">
