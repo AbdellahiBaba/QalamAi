@@ -16,69 +16,14 @@ declare global {
   }
 }
 
-let tiktokInitialized = false;
 let facebookInitialized = false;
-
-function injectTikTokPixel(pixelId: string) {
-  if (tiktokInitialized) return;
-  tiktokInitialized = true;
-
-  const w = window as any;
-  const t = "ttq";
-  w.TiktokAnalyticsObject = t;
-  const ttq = w[t] = w[t] || [];
-  ttq.methods = [
-    "page", "track", "identify", "instances", "debug", "on", "off",
-    "once", "ready", "alias", "group", "enableCookie", "disableCookie",
-    "holdConsent", "revokeConsent", "grantConsent"
-  ];
-  ttq.setAndDefer = function (obj: any, method: string) {
-    obj[method] = function () {
-      obj.push([method].concat(Array.prototype.slice.call(arguments, 0)));
-    };
-  };
-  for (let i = 0; i < ttq.methods.length; i++) {
-    ttq.setAndDefer(ttq, ttq.methods[i]);
-  }
-  ttq.instance = function (id: string) {
-    const e = ttq._i[id] || [];
-    for (let n = 0; n < ttq.methods.length; n++) {
-      ttq.setAndDefer(e, ttq.methods[n]);
-    }
-    return e;
-  };
-  ttq.load = function (id: string, opts?: any) {
-    const sdkUrl = "https://analytics.tiktok.com/i18n/pixel/events.js";
-    ttq._i = ttq._i || {};
-    ttq._i[id] = [];
-    ttq._i[id]._u = sdkUrl;
-    ttq._t = ttq._t || {};
-    ttq._t[id] = +new Date();
-    ttq._o = ttq._o || {};
-    ttq._o[id] = opts || {};
-    const scriptEl = document.createElement("script");
-    scriptEl.type = "text/javascript";
-    scriptEl.async = true;
-    scriptEl.src = sdkUrl + "?sdkid=" + id + "&lib=" + t;
-    const firstScript = document.getElementsByTagName("script")[0];
-    if (firstScript && firstScript.parentNode) {
-      firstScript.parentNode.insertBefore(scriptEl, firstScript);
-    } else {
-      document.head.appendChild(scriptEl);
-    }
-  };
-
-  ttq.load(pixelId);
-  ttq.page();
-}
 
 function injectFacebookPixel(pixelId: string) {
   if (facebookInitialized) return;
+  if (window.fbq) { facebookInitialized = true; return; }
   facebookInitialized = true;
 
   const w = window as any;
-  if (w.fbq) return;
-
   const n: any = w.fbq = function () {
     if (n.callMethod) {
       n.callMethod.apply(n, arguments);
@@ -121,9 +66,7 @@ export default function TrackingPixels() {
   useEffect(() => {
     if (!pixels) return;
     for (const pixel of pixels) {
-      if (pixel.platform === "tiktok") {
-        injectTikTokPixel(pixel.pixelId);
-      } else if (pixel.platform === "facebook") {
+      if (pixel.platform === "facebook") {
         injectFacebookPixel(pixel.pixelId);
       }
     }
