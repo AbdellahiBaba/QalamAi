@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookOpen, FileText } from "lucide-react";
 import LtrNum from "@/components/ui/ltr-num";
+import { ttqTrack } from "@/lib/ttq";
 
 interface SharedChapter {
   chapterNumber: number;
@@ -31,6 +33,16 @@ export default function SharedProject() {
     },
     enabled: !!token,
   });
+
+  useEffect(() => {
+    if (project) {
+      ttqTrack("ViewContent", {
+        contentId: token || "shared",
+        contentType: project.projectType || "product",
+        contentName: project.title,
+      });
+    }
+  }, [project]);
 
   if (isLoading) {
     return (

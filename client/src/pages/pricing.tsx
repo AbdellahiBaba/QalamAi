@@ -9,6 +9,17 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
+import { ttqTrack } from "@/lib/ttq";
+
+const planPriceUSD: Record<string, number> = {
+  essay: 50,
+  all_in_one: 500,
+  scenario: 200,
+  novel_150: 300,
+  novel_200: 350,
+  novel_250: 450,
+  novel_300: 600,
+};
 
 const mainPlans = [
   {
@@ -217,12 +228,27 @@ export default function Pricing() {
       const res = await apiRequest("POST", "/api/plans/purchase", body);
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, planKey) => {
       if (data.alreadyActive) {
         toast({ title: "الخطة مفعّلة بالفعل" });
         queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
         setPurchasingPlan(null);
       } else if (data.checkoutUrl) {
+        const planName = mainPlans.find(p => p.planKey === planKey)?.name || planKey;
+        ttqTrack("InitiateCheckout", {
+          contentId: planKey,
+          contentType: "product",
+          contentName: planName,
+          value: planPriceUSD[planKey] || 0,
+          currency: "USD",
+        });
+        ttqTrack("AddPaymentInfo", {
+          contentId: planKey,
+          contentType: "product",
+          contentName: planName,
+          value: planPriceUSD[planKey] || 0,
+          currency: "USD",
+        });
         window.location.href = data.checkoutUrl;
       }
     },
@@ -237,11 +263,26 @@ export default function Pricing() {
       const res = await apiRequest("POST", "/api/plans/verify", { sessionId, plan });
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (data.success) {
         toast({ title: "تم تفعيل خطتك بنجاح! 🎉" });
         queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
         queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+        const planName = mainPlans.find(p => p.planKey === variables.plan)?.name || variables.plan;
+        ttqTrack("Purchase", {
+          contentId: variables.plan,
+          contentType: "product",
+          contentName: planName,
+          value: planPriceUSD[variables.plan] || 0,
+          currency: "USD",
+        });
+        ttqTrack("PlaceAnOrder", {
+          contentId: variables.plan,
+          contentType: "product",
+          contentName: planName,
+          value: planPriceUSD[variables.plan] || 0,
+          currency: "USD",
+        });
       }
     },
     onError: () => {
@@ -266,6 +307,14 @@ export default function Pricing() {
       setLocation("/login");
       return;
     }
+    const planName = mainPlans.find(p => p.planKey === planKey)?.name || planKey;
+    ttqTrack("AddToCart", {
+      contentId: planKey,
+      contentType: "product",
+      contentName: planName,
+      value: planPriceUSD[planKey] || 0,
+      currency: "USD",
+    });
     setPurchasingPlan(planKey);
     purchaseMutation.mutate(planKey);
   };

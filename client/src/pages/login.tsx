@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Feather, Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 
 export default function Login() {
   const [, navigate] = useLocation();
@@ -32,6 +33,8 @@ export default function Login() {
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      ttqIdentify({ email, id: data.id || email });
+      ttqTrack("CompleteRegistration", { contentType: "product", contentName: "login" });
       navigate("/");
     } catch {
       toast({ title: "خطأ", description: "فشل في الاتصال بالخادم", variant: "destructive" });

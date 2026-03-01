@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { ttqIdentify } from "@/lib/ttq";
 
 interface PixelConfig {
   platform: string;
@@ -61,7 +63,14 @@ export default function TrackingPixels() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { user } = useAuth();
   const [location] = useLocation();
+
+  useEffect(() => {
+    if (user && window.ttq) {
+      ttqIdentify({ email: (user as any).email, id: String((user as any).id || (user as any).email) });
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!pixels) return;

@@ -3,6 +3,7 @@ import { useRoute, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ttqTrack } from "@/lib/ttq";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -444,6 +445,11 @@ export default function ProjectDetail() {
       if (project.styleAnalysisResult) {
         try { setStyleResult(JSON.parse(project.styleAnalysisResult)); } catch {}
       }
+      ttqTrack("ViewContent", {
+        contentId: String(project.id),
+        contentType: project.projectType || "product",
+        contentName: project.title,
+      });
     }
   }, [project, loadedProjectId]);
 
@@ -458,6 +464,16 @@ export default function ProjectDetail() {
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
           toast({ title: "تم الدفع بنجاح! يمكنك الآن بدء الكتابة." });
+          ttqTrack("Purchase", {
+            contentId: String(projectId),
+            contentType: "product",
+            contentName: "project_payment",
+          });
+          ttqTrack("PlaceAnOrder", {
+            contentId: String(projectId),
+            contentType: "product",
+            contentName: "project_payment",
+          });
         })
         .catch(() => {
           toast({ title: "حدث خطأ في تأكيد الدفع", variant: "destructive" });
@@ -511,6 +527,16 @@ export default function ProjectDetail() {
         return;
       }
       if (data.checkoutUrl) {
+        ttqTrack("InitiateCheckout", {
+          contentId: String(projectId),
+          contentType: "product",
+          contentName: "project_checkout",
+        });
+        ttqTrack("AddPaymentInfo", {
+          contentId: String(projectId),
+          contentType: "product",
+          contentName: "project_checkout",
+        });
         window.location.href = data.checkoutUrl;
       }
     },
