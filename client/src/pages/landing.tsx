@@ -24,6 +24,7 @@ import { useTheme } from "@/components/theme-provider";
 const navLinks = [
   { label: "الرئيسية", href: "/" },
   { label: "المعرض", href: "/gallery" },
+  { label: "آراء المستخدمين", href: "/reviews" },
   { label: "من نحن", href: "/about" },
   { label: "المميزات", href: "/features" },
   { label: "الأسعار", href: "/pricing" },
@@ -334,6 +335,14 @@ export default function Landing() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+          <div className="text-center mt-10">
+            <Link href="/reviews">
+              <Button variant="outline" size="lg" data-testid="button-share-review">
+                <MessageSquareQuote className="w-4 h-4 ml-2" />
+                شاركنا رأيك
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
