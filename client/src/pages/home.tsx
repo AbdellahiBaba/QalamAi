@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2 } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/components/theme-provider";
@@ -314,6 +314,12 @@ export default function Home() {
                 </div>
               </PopoverContent>
             </Popover>
+            <Link href="/reviews">
+              <Button variant="ghost" size="sm" data-testid="link-reviews">
+                <MessageSquareQuote className="w-4 h-4 ml-1" />
+                <span className="hidden sm:inline">آراء المستخدمين</span>
+              </Button>
+            </Link>
             <Link href="/tickets">
               <Button variant="ghost" size="sm" data-testid="link-tickets">
                 <TicketCheck className="w-4 h-4 ml-1" />

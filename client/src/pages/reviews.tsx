@@ -130,11 +130,17 @@ export default function Reviews() {
           ) : (
             <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="text-login-prompt">
               <span>سجل دخول لإضافة مراجعتك</span>
-              <Link href="/login">
-                <Button variant="outline" size="sm" data-testid="link-login">
-                  تسجيل الدخول
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="link-login"
+                onClick={() => {
+                  localStorage.setItem("returnTo", "/reviews");
+                  window.location.href = "/api/login";
+                }}
+              >
+                تسجيل الدخول
+              </Button>
             </div>
           )}
         </div>
