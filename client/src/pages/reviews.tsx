@@ -222,28 +222,30 @@ export default function Reviews() {
             <Award className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold" data-testid="text-featured-title">آراء مميزة</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {featuredTestimonials.map((t, i) => (
-              <AnimatedCard key={t.id} stagger={i + 1} slideDirection="right">
-                <Card className="hover-elevate border-primary/20 bg-primary/[0.03]" data-testid={`card-${t.id}`}>
-                  <CardContent className="p-5 space-y-4">
-                    <div className="flex items-center gap-1 text-primary">
-                      {Array.from({ length: t.rating }).map((_, si) => (
-                        <Star key={si} className="w-4 h-4 fill-current" />
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed italic">
-                      <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
-                      {t.content}
-                    </p>
-                    <div className="pt-2 border-t border-primary/10">
-                      <p className="font-semibold text-sm" data-testid={`text-name-${t.id}`}>{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.role}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </AnimatedCard>
-            ))}
+          <div className="reviews-carousel-container">
+            <div className="reviews-carousel-track">
+              {[...featuredTestimonials, ...featuredTestimonials].map((t, i) => (
+                <div key={`${t.id}-${i}`} className="reviews-carousel-card">
+                  <Card className="hover-elevate border-primary/20 bg-primary/[0.03] h-full" data-testid={`card-${t.id}`}>
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center gap-1 text-primary">
+                        {Array.from({ length: t.rating }).map((_, si) => (
+                          <Star key={si} className="w-4 h-4 fill-current" />
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed italic">
+                        <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
+                        {t.content}
+                      </p>
+                      <div className="pt-2 border-t border-primary/10">
+                        <p className="font-semibold text-sm" data-testid={`text-name-${t.id}`}>{t.name}</p>
+                        <p className="text-xs text-muted-foreground">{t.role}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

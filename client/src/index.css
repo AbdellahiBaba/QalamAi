@@ -357,3 +357,35 @@
 .reviews-stagger-5 { transition-delay: 0.48s; }
 .reviews-stagger-6 { transition-delay: 0.6s; }
 
+@keyframes reviews-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.reviews-carousel-container {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+}
+
+.reviews-carousel-track {
+  display: flex;
+  gap: 1.25rem;
+  width: max-content;
+  animation: reviews-scroll 30s linear infinite;
+}
+
+.reviews-carousel-track:hover {
+  animation-play-state: paused;
+}
+
+.reviews-carousel-card {
+  min-width: 320px;
+  max-width: 360px;
+  flex-shrink: 0;
+}
+
