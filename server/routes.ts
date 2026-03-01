@@ -3702,7 +3702,8 @@ ${ch.content}
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
       const reviewerName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || "مستخدم";
-      const review = await storage.createPlatformReview({ userId, reviewerName, content: content.trim(), rating });
+      const reviewerBio = (user as any).bio || null;
+      const review = await storage.createPlatformReview({ userId, reviewerName, reviewerBio, content: content.trim(), rating });
       res.json({ success: true, message: "تم إرسال مراجعتك بنجاح وسيتم نشرها بعد مراجعة الإدارة", review });
     } catch (error) {
       res.status(500).json({ error: "فشل في إرسال المراجعة" });

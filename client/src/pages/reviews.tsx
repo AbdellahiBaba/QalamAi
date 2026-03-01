@@ -22,6 +22,7 @@ interface PlatformReview {
   id: number;
   userId: string;
   reviewerName: string;
+  reviewerBio: string | null;
   content: string;
   rating: number;
   approved: boolean;
@@ -273,19 +274,27 @@ export default function Reviews() {
               {reviews.map((review, i) => (
                 <AnimatedCard key={review.id} stagger={((i % 6) + 1)}>
                   <Card className="hover-elevate" data-testid={`card-review-${review.id}`}>
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="font-semibold text-sm" data-testid={`text-reviewer-${review.id}`}>
-                          {review.reviewerName}
-                        </span>
-                        <StarRating rating={review.rating} size="sm" showCount={false} />
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center gap-1 text-primary">
+                        {Array.from({ length: review.rating }).map((_, si) => (
+                          <Star key={si} className="w-4 h-4 fill-current" />
+                        ))}
                       </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed" dir="rtl" data-testid={`text-content-${review.id}`}>
+                      <p className="text-sm text-muted-foreground leading-relaxed italic" dir="rtl" data-testid={`text-content-${review.id}`}>
+                        <MessageSquareQuote className="w-4 h-4 text-primary inline-block ml-1" />
                         {review.content}
                       </p>
-                      <p className="text-xs text-muted-foreground/70" data-testid={`text-date-${review.id}`}>
-                        {formatDate(review.createdAt)}
-                      </p>
+                      <div className="pt-2 border-t">
+                        <p className="font-semibold text-sm" data-testid={`text-reviewer-${review.id}`}>
+                          {review.reviewerName}
+                        </p>
+                        <p className="text-xs text-muted-foreground" data-testid={`text-bio-${review.id}`}>
+                          {review.reviewerBio || "مستخدم QalamAI"}
+                        </p>
+                        <p className="text-xs text-muted-foreground/60 mt-1" data-testid={`text-date-${review.id}`}>
+                          {formatDate(review.createdAt)}
+                        </p>
+                      </div>
                     </CardContent>
                   </Card>
                 </AnimatedCard>

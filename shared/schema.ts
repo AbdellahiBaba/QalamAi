@@ -407,6 +407,7 @@ export const platformReviews = pgTable("platform_reviews", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
   reviewerName: varchar("reviewer_name").notNull(),
+  reviewerBio: varchar("reviewer_bio"),
   content: text("content").notNull(),
   rating: integer("rating").notNull(),
   approved: boolean("approved").default(false),

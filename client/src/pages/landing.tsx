@@ -36,6 +36,7 @@ const navLinks = [
 interface LandingReview {
   id: number;
   reviewerName: string;
+  reviewerBio: string | null;
   content: string;
   rating: number;
 }
@@ -329,7 +330,7 @@ export default function Landing() {
                     </p>
                     <div className="pt-2 border-t">
                       <p className="font-semibold text-sm">{review.reviewerName}</p>
-                      <p className="text-xs text-muted-foreground">مستخدم QalamAI</p>
+                      <p className="text-xs text-muted-foreground">{review.reviewerBio || "مستخدم QalamAI"}</p>
                     </div>
                   </CardContent>
                 </Card>
