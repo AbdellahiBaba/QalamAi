@@ -3683,7 +3683,13 @@ ${ch.content}
   app.get("/api/reviews", async (_req, res) => {
     try {
       const reviews = await storage.getApprovedReviews();
-      res.json(reviews);
+      const enriched = await Promise.all(reviews.map(async (review) => {
+        const user = await storage.getUser(review.userId);
+        const liveBio = (user as any)?.bio || review.reviewerBio || null;
+        const liveName = user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || review.reviewerName;
+        return { ...review, reviewerBio: liveBio, reviewerName: liveName };
+      }));
+      res.json(enriched);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب المراجعات" });
     }
