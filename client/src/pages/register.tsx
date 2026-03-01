@@ -46,6 +46,7 @@ export default function Register() {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       ttqIdentify({ email, id: data.id || email });
       ttqTrack("CompleteRegistration", { contentType: "product", contentName: "registration" });
+      ttqTrack("Signup", { contentType: "product", contentName: "registration" });
       navigate("/");
     } catch {
       toast({ title: "خطأ", description: "فشل في الاتصال بالخادم", variant: "destructive" });

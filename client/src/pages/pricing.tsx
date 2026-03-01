@@ -9,7 +9,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
-import { ttqTrack } from "@/lib/ttq";
+import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 
 const planPriceUSD: Record<string, number> = {
   essay: 50,
@@ -306,6 +306,9 @@ export default function Pricing() {
     if (!isLoggedIn) {
       setLocation("/login");
       return;
+    }
+    if (authUser) {
+      ttqIdentify({ email: (authUser as any).email, id: String((authUser as any).id || (authUser as any).email) });
     }
     const planName = mainPlans.find(p => p.planKey === planKey)?.name || planKey;
     ttqTrack("AddToCart", {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Image as ImageIcon, BookOpen, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
+import { ttqTrack } from "@/lib/ttq";
 
 interface GalleryProject {
   id: number;
@@ -43,6 +44,31 @@ const filterOptions = [
 export default function Gallery() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    ttqTrack("ViewContent", {
+      contentId: "gallery",
+      contentType: "product_group",
+      contentName: "معرض الأعمال",
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      ttqTrack("Search", {
+        contentId: "gallery",
+        contentType: "product_group",
+        contentName: "gallery_search",
+        searchString: searchQuery.trim(),
+      });
+    }, 800);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [searchQuery]);
 
   const { data: projects, isLoading } = useQuery<GalleryProject[]>({
     queryKey: ["/api/gallery"],
