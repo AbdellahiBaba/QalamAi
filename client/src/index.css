@@ -286,3 +286,44 @@
     inset: -1px;
   }
 }
+
+@keyframes promo-glow {
+  0%, 100% { box-shadow: 0 0 20px hsl(43 76% 52% / 0.3), 0 0 60px hsl(43 76% 52% / 0.1); }
+  50% { box-shadow: 0 0 30px hsl(43 76% 52% / 0.5), 0 0 80px hsl(43 76% 52% / 0.2); }
+}
+
+@keyframes promo-hero-text {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.promo-glow {
+  animation: promo-glow 3s ease-in-out infinite;
+}
+
+.promo-hero-fade {
+  animation: promo-hero-text 1s ease-out forwards;
+}
+
+.promo-hero-fade-d1 { animation: promo-hero-text 1s ease-out 0.2s forwards; opacity: 0; }
+.promo-hero-fade-d2 { animation: promo-hero-text 1s ease-out 0.4s forwards; opacity: 0; }
+.promo-hero-fade-d3 { animation: promo-hero-text 1s ease-out 0.6s forwards; opacity: 0; }
+.promo-hero-fade-d4 { animation: promo-hero-text 1s ease-out 0.8s forwards; opacity: 0; }
+
+.promo-animate {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.promo-animate.animate-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.promo-stagger-1 { transition-delay: 0s; }
+.promo-stagger-2 { transition-delay: 0.15s; }
+.promo-stagger-3 { transition-delay: 0.3s; }
+.promo-stagger-4 { transition-delay: 0.45s; }
+.promo-stagger-5 { transition-delay: 0.6s; }
+.promo-stagger-6 { transition-delay: 0.75s; }
