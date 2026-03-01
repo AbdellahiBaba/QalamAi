@@ -417,3 +417,16 @@ export const platformReviews = pgTable("platform_reviews", {
 export const insertPlatformReviewSchema = createInsertSchema(platformReviews).omit({ id: true, createdAt: true, approved: true });
 export type InsertPlatformReview = z.infer<typeof insertPlatformReviewSchema>;
 export type PlatformReview = typeof platformReviews.$inferSelect;
+
+export const trackingPixels = pgTable("tracking_pixels", {
+  id: serial("id").primaryKey(),
+  platform: varchar("platform").notNull().unique(),
+  pixelId: varchar("pixel_id").notNull(),
+  accessToken: varchar("access_token"),
+  enabled: boolean("enabled").default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTrackingPixelSchema = createInsertSchema(trackingPixels).omit({ id: true, updatedAt: true });
+export type InsertTrackingPixel = z.infer<typeof insertTrackingPixelSchema>;
+export type TrackingPixel = typeof trackingPixels.$inferSelect;

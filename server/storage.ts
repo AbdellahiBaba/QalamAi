@@ -1,7 +1,7 @@
 import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
   users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites, apiUsageLogs,
-  authorRatings, platformReviews,
+  authorRatings, platformReviews, trackingPixels,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -13,6 +13,7 @@ import {
   type Notification, type PromoCode, type ReadingProgress, type Bookmark, type ProjectFavorite,
   type InsertApiUsageLog, type ApiUsageLog,
   type InsertPlatformReview, type PlatformReview, type AuthorRating,
+  type InsertTrackingPixel, type TrackingPixel,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, avg } from "drizzle-orm";
@@ -62,6 +63,8 @@ export interface IStorage {
   getPendingReviews(): Promise<PlatformReview[]>;
   approvePlatformReview(id: number): Promise<PlatformReview>;
   deletePlatformReview(id: number): Promise<void>;
+  getTrackingPixels(): Promise<TrackingPixel[]>;
+  upsertTrackingPixel(data: InsertTrackingPixel): Promise<TrackingPixel>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -573,6 +576,26 @@ export class DatabaseStorage implements IStorage {
 
   async deletePlatformReview(id: number): Promise<void> {
     await db.delete(platformReviews).where(eq(platformReviews.id, id));
+  }
+
+  async getTrackingPixels(): Promise<TrackingPixel[]> {
+    return db.select().from(trackingPixels);
+  }
+
+  async upsertTrackingPixel(data: InsertTrackingPixel): Promise<TrackingPixel> {
+    const [pixel] = await db.insert(trackingPixels)
+      .values(data)
+      .onConflictDoUpdate({
+        target: trackingPixels.platform,
+        set: {
+          pixelId: data.pixelId,
+          accessToken: data.accessToken,
+          enabled: data.enabled,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return pixel;
   }
 }
 

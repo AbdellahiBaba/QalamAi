@@ -11,6 +11,7 @@ import OpenAI from "openai";
 import { getUncachableStripeClient } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
 import { logApiUsage, logImageUsage } from "./api-usage";
+import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -265,6 +266,17 @@ export async function registerRoutes(
           await storage.updateProjectPayment(p.id, true);
         }
       }
+
+      trackServerEvent({
+        eventName: "Purchase",
+        userId,
+        value: PLAN_PRICES[plan] / 100,
+        currency: "USD",
+        contentType: "plan",
+        contentId: plan,
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      });
 
       res.json({ success: true, plan });
     } catch (error) {
@@ -784,6 +796,15 @@ export async function registerRoutes(
         });
         await storage.updateProject(project.id, { outline: "—", outlineApproved: 1 });
       }
+
+      trackServerEvent({
+        eventName: "InitiateCheckout",
+        userId,
+        contentType: type,
+        contentId: String(project.id),
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      });
 
       res.status(201).json(project);
     } catch (error) {
@@ -3743,6 +3764,66 @@ ${ch.content}
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "فشل في حذف المراجعة" });
+    }
+  });
+
+  // ===== Tracking Pixels =====
+  app.get("/api/tracking-pixels", async (_req, res) => {
+    try {
+      const pixels = await storage.getTrackingPixels();
+      res.json(pixels.filter(p => p.enabled).map(p => ({ platform: p.platform, pixelId: p.pixelId })));
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب بيانات التتبع" });
+    }
+  });
+
+  app.get("/api/admin/tracking-pixels", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const pixels = await storage.getTrackingPixels();
+      res.json(pixels.map(p => ({
+        id: p.id,
+        platform: p.platform,
+        pixelId: p.pixelId,
+        hasAccessToken: !!p.accessToken,
+        enabled: p.enabled,
+        updatedAt: p.updatedAt,
+      })));
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب بيانات التتبع" });
+    }
+  });
+
+  app.put("/api/admin/tracking-pixels", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { platform, pixelId, accessToken, enabled } = req.body;
+      if (!platform || !["tiktok", "facebook"].includes(platform)) {
+        return res.status(400).json({ error: "المنصة يجب أن تكون tiktok أو facebook" });
+      }
+      if (!pixelId || typeof pixelId !== "string") {
+        return res.status(400).json({ error: "معرّف البكسل مطلوب" });
+      }
+      let finalAccessToken: string | null = accessToken?.trim() || null;
+      if (!finalAccessToken) {
+        const existing = (await storage.getTrackingPixels()).find(p => p.platform === platform);
+        if (existing) finalAccessToken = existing.accessToken;
+      }
+      const pixel = await storage.upsertTrackingPixel({
+        platform,
+        pixelId: pixelId.trim(),
+        accessToken: finalAccessToken,
+        enabled: !!enabled,
+      });
+      invalidatePixelCache();
+      res.json({
+        id: pixel.id,
+        platform: pixel.platform,
+        pixelId: pixel.pixelId,
+        hasAccessToken: !!pixel.accessToken,
+        enabled: pixel.enabled,
+        updatedAt: pixel.updatedAt,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حفظ بيانات التتبع" });
     }
   });
 

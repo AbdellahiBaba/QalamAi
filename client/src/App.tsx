@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
+import TrackingPixels from "@/components/tracking-pixels";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import NewProject from "@/pages/new-project";
@@ -133,6 +134,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
+          <TrackingPixels />
           <AppRouter />
         </TooltipProvider>
       </QueryClientProvider>

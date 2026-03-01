@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2 } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -121,7 +121,7 @@ const projectStatusLabels: Record<string, string> = {
 export default function Admin() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking">("tickets");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -204,6 +204,51 @@ export default function Admin() {
     },
     onError: () => {
       toast({ title: "فشل في الموافقة على المراجعة", variant: "destructive" });
+    },
+  });
+
+  interface TrackingPixelData {
+    id: number;
+    platform: string;
+    pixelId: string;
+    hasAccessToken: boolean;
+    enabled: boolean;
+    updatedAt: string;
+  }
+
+  const { data: trackingPixelsData, isLoading: trackingLoading } = useQuery<TrackingPixelData[]>({
+    queryKey: ["/api/admin/tracking-pixels"],
+    enabled: activeTab === "tracking",
+  });
+
+  const [tiktokConfig, setTiktokConfig] = useState({ pixelId: "", accessToken: "", enabled: false, hasAccessToken: false });
+  const [facebookConfig, setFacebookConfig] = useState({ pixelId: "", accessToken: "", enabled: false, hasAccessToken: false });
+  const [trackingInitialized, setTrackingInitialized] = useState(false);
+
+  useEffect(() => {
+    if (trackingPixelsData && !trackingInitialized) {
+      const tiktok = trackingPixelsData.find(p => p.platform === "tiktok");
+      const facebook = trackingPixelsData.find(p => p.platform === "facebook");
+      if (tiktok) setTiktokConfig({ pixelId: tiktok.pixelId, accessToken: "", enabled: !!tiktok.enabled, hasAccessToken: !!tiktok.hasAccessToken });
+      if (facebook) setFacebookConfig({ pixelId: facebook.pixelId, accessToken: "", enabled: !!facebook.enabled, hasAccessToken: !!facebook.hasAccessToken });
+      setTrackingInitialized(true);
+    }
+  }, [trackingPixelsData, trackingInitialized]);
+
+  const saveTrackingPixelMutation = useMutation({
+    mutationFn: async (data: { platform: string; pixelId: string; accessToken: string; enabled: boolean }) => {
+      await apiRequest("PUT", "/api/admin/tracking-pixels", data);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/tracking-pixels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tracking-pixels"] });
+      setTrackingInitialized(false);
+      if (variables.platform === "tiktok") setTiktokConfig(c => ({ ...c, accessToken: "" }));
+      if (variables.platform === "facebook") setFacebookConfig(c => ({ ...c, accessToken: "" }));
+      toast({ title: `تم حفظ إعدادات ${variables.platform === "tiktok" ? "TikTok" : "Facebook"} بنجاح` });
+    },
+    onError: () => {
+      toast({ title: "فشل في حفظ الإعدادات", variant: "destructive" });
     },
   });
 
@@ -465,6 +510,16 @@ export default function Admin() {
                 <LtrNum>{pendingReviews.length}</LtrNum>
               </Badge>
             )}
+          </Button>
+          <Button
+            variant={activeTab === "tracking" ? "default" : "outline"}
+            onClick={() => setActiveTab("tracking")}
+            size="sm"
+            className="shrink-0"
+            data-testid="button-tab-tracking"
+          >
+            <Crosshair className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">بكسل التتبع</span>
           </Button>
         </div>
 
@@ -1558,6 +1613,174 @@ export default function Admin() {
               <div className="text-center py-16">
                 <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground" data-testid="text-no-reviews">لا توجد مراجعات معلقة</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "tracking" && (
+          <>
+            {trackingLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <Skeleton className="h-5 w-1/4 mb-4" />
+                      <Skeleton className="h-10 w-full mb-3" />
+                      <Skeleton className="h-10 w-full mb-3" />
+                      <Skeleton className="h-8 w-24" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <Card data-testid="card-tiktok-pixel">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center">
+                          <span className="text-white font-bold text-sm">TT</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-base">TikTok Pixel</h3>
+                          <p className="text-xs text-muted-foreground">تتبع الأحداث على تيك توك (بكسل + Events API)</p>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <span className="text-xs text-muted-foreground">{tiktokConfig.enabled ? "مفعّل" : "معطّل"}</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={tiktokConfig.enabled}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${tiktokConfig.enabled ? "bg-primary" : "bg-muted"}`}
+                          onClick={() => setTiktokConfig(c => ({ ...c, enabled: !c.enabled }))}
+                          data-testid="toggle-tiktok-enabled"
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${tiktokConfig.enabled ? "translate-x-1" : "translate-x-6"}`} />
+                        </button>
+                      </label>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm mb-1.5 block">معرّف البكسل (Pixel ID)</Label>
+                        <Input
+                          value={tiktokConfig.pixelId}
+                          onChange={(e) => setTiktokConfig(c => ({ ...c, pixelId: e.target.value }))}
+                          placeholder="مثال: C5XXXXXXXXXXXXXXXXXX"
+                          dir="ltr"
+                          className="text-left"
+                          data-testid="input-tiktok-pixel-id"
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">تجده في TikTok Events Manager → Setup → Pixel ID</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm mb-1.5 block">رمز الوصول (Access Token) — اختياري للتتبع من الخادم</Label>
+                        <Input
+                          value={tiktokConfig.accessToken}
+                          onChange={(e) => setTiktokConfig(c => ({ ...c, accessToken: e.target.value }))}
+                          placeholder={tiktokConfig.hasAccessToken ? "••••••••  (محفوظ — أدخل قيمة جديدة للتحديث)" : "رمز الوصول لـ TikTok Events API"}
+                          dir="ltr"
+                          type="password"
+                          className="text-left"
+                          data-testid="input-tiktok-access-token"
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {tiktokConfig.hasAccessToken && !tiktokConfig.accessToken ? "✓ رمز الوصول محفوظ بأمان. أدخل قيمة جديدة فقط إذا أردت التحديث" : "مطلوب لتتبع الأحداث من الخادم (Server-Side Events). اتركه فارغاً لتتبع المتصفح فقط"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => saveTrackingPixelMutation.mutate({ platform: "tiktok", pixelId: tiktokConfig.pixelId, accessToken: tiktokConfig.accessToken, enabled: tiktokConfig.enabled })}
+                      disabled={saveTrackingPixelMutation.isPending || !tiktokConfig.pixelId.trim()}
+                      data-testid="button-save-tiktok"
+                    >
+                      {saveTrackingPixelMutation.isPending ? <Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> : <Check className="w-4 h-4 ml-1.5" />}
+                      حفظ إعدادات TikTok
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-facebook-pixel">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
+                          <span className="text-white font-bold text-sm">FB</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-base">Facebook Pixel</h3>
+                          <p className="text-xs text-muted-foreground">تتبع الأحداث على فيسبوك وإنستجرام (بكسل + Conversions API)</p>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <span className="text-xs text-muted-foreground">{facebookConfig.enabled ? "مفعّل" : "معطّل"}</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={facebookConfig.enabled}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${facebookConfig.enabled ? "bg-primary" : "bg-muted"}`}
+                          onClick={() => setFacebookConfig(c => ({ ...c, enabled: !c.enabled }))}
+                          data-testid="toggle-facebook-enabled"
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${facebookConfig.enabled ? "translate-x-1" : "translate-x-6"}`} />
+                        </button>
+                      </label>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm mb-1.5 block">معرّف البكسل (Pixel ID)</Label>
+                        <Input
+                          value={facebookConfig.pixelId}
+                          onChange={(e) => setFacebookConfig(c => ({ ...c, pixelId: e.target.value }))}
+                          placeholder="مثال: 1234567890123456"
+                          dir="ltr"
+                          className="text-left"
+                          data-testid="input-facebook-pixel-id"
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">تجده في Facebook Events Manager → Data Sources → Pixel ID</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm mb-1.5 block">رمز الوصول (Access Token) — اختياري للتتبع من الخادم</Label>
+                        <Input
+                          value={facebookConfig.accessToken}
+                          onChange={(e) => setFacebookConfig(c => ({ ...c, accessToken: e.target.value }))}
+                          placeholder={facebookConfig.hasAccessToken ? "••••••••  (محفوظ — أدخل قيمة جديدة للتحديث)" : "رمز الوصول لـ Facebook Conversions API"}
+                          dir="ltr"
+                          type="password"
+                          className="text-left"
+                          data-testid="input-facebook-access-token"
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {facebookConfig.hasAccessToken && !facebookConfig.accessToken ? "✓ رمز الوصول محفوظ بأمان. أدخل قيمة جديدة فقط إذا أردت التحديث" : "مطلوب لتتبع الأحداث من الخادم (Server-Side Events). اتركه فارغاً لتتبع المتصفح فقط"}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => saveTrackingPixelMutation.mutate({ platform: "facebook", pixelId: facebookConfig.pixelId, accessToken: facebookConfig.accessToken, enabled: facebookConfig.enabled })}
+                      disabled={saveTrackingPixelMutation.isPending || !facebookConfig.pixelId.trim()}
+                      data-testid="button-save-facebook"
+                    >
+                      {saveTrackingPixelMutation.isPending ? <Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> : <Check className="w-4 h-4 ml-1.5" />}
+                      حفظ إعدادات Facebook
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Info className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
+                      <div className="text-xs text-muted-foreground space-y-1.5 leading-relaxed" dir="rtl">
+                        <p><strong>التتبع من المتصفح:</strong> يتم تلقائياً عند تفعيل البكسل — يتتبع مشاهدات الصفحات وتفاعلات المستخدم.</p>
+                        <p><strong>التتبع من الخادم (Events API):</strong> يتطلب إدخال رمز الوصول — يتتبع عمليات الشراء وإنشاء المشاريع بدقة أعلى.</p>
+                        <p>رموز الوصول محفوظة بأمان على الخادم ولا تُرسل أبداً إلى المتصفح.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </>
