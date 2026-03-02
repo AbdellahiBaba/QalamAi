@@ -16,6 +16,7 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: { clientSecret: s
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isDark = document.documentElement.classList.contains("dark");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,9 +55,9 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: { clientSecret: s
               base: {
                 fontSize: "16px",
                 fontFamily: "'Inter', system-ui, sans-serif",
-                color: "#1a1a1a",
+                color: isDark ? "#f5f5f5" : "#1a1a1a",
                 letterSpacing: "0.025em",
-                "::placeholder": { color: "#9ca3af" },
+                "::placeholder": { color: isDark ? "#71717a" : "#9ca3af" },
               },
               invalid: { color: "#ef4444" },
             },
