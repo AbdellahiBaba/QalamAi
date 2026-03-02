@@ -21,6 +21,7 @@ import { Crown } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
+import { TrialPromptPopup } from "@/components/trial-prompt-popup";
 
 export default function Home() {
   useDocumentTitle("مشاريعي — قلم AI");
@@ -126,7 +127,7 @@ export default function Home() {
     enabled: showWritingStats,
   });
 
-  const { data: trialStatus } = useQuery<{ trialActive: boolean; trialEndsAt: string | null; plan: string }>({
+  const { data: trialStatus } = useQuery<{ trialActive: boolean; trialUsed: boolean; trialEndsAt: string | null; plan: string }>({
     queryKey: ["/api/trial/status"],
   });
 
@@ -1177,6 +1178,11 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <TrialPromptPopup
+        userPlan={userPlan}
+        trialUsed={trialStatus?.trialUsed ?? true}
+      />
     </div>
   );
 }

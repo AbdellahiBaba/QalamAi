@@ -52,6 +52,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Routes: `POST /api/trial/create-setup-intent`, `POST /api/trial/activate`, `POST /api/trial/check-expiry`, `GET /api/trial/status`.
 - Dashboard shows countdown banner for active trial users. App.tsx auto-checks expiry on load.
 - Pricing page shows trial card with card capture dialog for eligible users.
+- **Dashboard trial prompt popup** (`client/src/components/trial-prompt-popup.tsx`): shows after 3s for authenticated free-plan users who haven't used trial. Includes inline Stripe card capture flow. Uses `sessionStorage` key `qalamai_trial_prompt_dismissed` (shows once per session, reappears next visit if user hasn't started trial). Rendered in `home.tsx`.
 
 ## Admin Grant Analysis Uses
 - Admin can grant extra continuity check and style analysis uses to users via `POST /api/admin/users/:id/grant-analysis`.
