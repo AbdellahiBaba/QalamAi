@@ -782,6 +782,78 @@ ${pages.map(p => `  <url>
     }
   });
 
+  app.post("/api/projects/:id/suggest-titles", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (await checkApiSuspension(userId, res)) return;
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
+
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+
+      if (!project.mainIdea || project.mainIdea.length < 5) {
+        return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة لاقتراح العناوين" });
+      }
+
+      const safeChars = Array.isArray(project.characters)
+        ? project.characters.filter((c: any) => c && typeof c.name === "string" && typeof c.role === "string").slice(0, 20).map((c: any) => ({ name: String(c.name).slice(0, 100), role: String(c.role).slice(0, 50) }))
+        : undefined;
+
+      const { system, user } = buildTitleSuggestionPrompt({
+        mainIdea: project.mainIdea.slice(0, 2000),
+        projectType: project.projectType || "novel",
+        timeSetting: project.timeSetting || undefined,
+        placeSetting: project.placeSetting || undefined,
+        narrativePov: project.narrativePov || undefined,
+        characters: safeChars,
+        subject: project.subject || undefined,
+        essayTone: project.essayTone || undefined,
+        targetAudience: project.targetAudience || undefined,
+        genre: project.genre || undefined,
+        formatType: project.formatType || undefined,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 2048,
+      });
+      logApiUsage(userId, projectId, "title_suggestion", "gpt-5.2", response);
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "فشل في توليد العناوين" });
+      }
+
+      let suggestions: Array<{ title: string; reason: string }>;
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!Array.isArray(parsed)) throw new Error("Not an array");
+        suggestions = parsed
+          .filter((s: any) => s && typeof s.title === "string" && typeof s.reason === "string")
+          .slice(0, 5)
+          .map((s: any) => ({ title: String(s.title), reason: String(s.reason) }));
+      } catch {
+        return res.status(500).json({ error: "فشل في توليد العناوين" });
+      }
+
+      if (suggestions.length === 0) {
+        return res.status(500).json({ error: "فشل في توليد العناوين" });
+      }
+
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error suggesting titles for project:", error);
+      res.status(500).json({ error: "فشل في اقتراح العناوين" });
+    }
+  });
+
   app.post("/api/projects/suggest-format", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;

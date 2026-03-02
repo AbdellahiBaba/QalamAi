@@ -207,6 +207,8 @@ export default function ProjectDetail() {
   const [editNarrativeTechnique, setEditNarrativeTechnique] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
+  const [titleSuggestions, setTitleSuggestions] = useState<Array<{ title: string; reason: string }>>([]);
+  const [isSuggestingTitles, setIsSuggestingTitles] = useState(false);
   const [editSubject, setEditSubject] = useState("");
   const [editEssayTone, setEditEssayTone] = useState("");
   const [editTargetAudience, setEditTargetAudience] = useState("");
@@ -908,6 +910,24 @@ export default function ProjectDetail() {
     saveSettingsMutation.mutate({ title: editTitleValue.trim() });
   };
 
+  const handleSuggestTitles = async () => {
+    if (!projectId) return;
+    setIsSuggestingTitles(true);
+    setTitleSuggestions([]);
+    try {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/suggest-titles`, {});
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setTitleSuggestions(data);
+      } else {
+        toast({ title: data.error || "فشل في اقتراح العناوين", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "فشل في اقتراح العناوين", variant: "destructive" });
+    }
+    setIsSuggestingTitles(false);
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
@@ -918,25 +938,68 @@ export default function ProjectDetail() {
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 relative">
               <Feather className="w-5 h-5 text-primary shrink-0" />
               {editingTitle ? (
-                <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                  <Input
-                    value={editTitleValue}
-                    onChange={(e) => setEditTitleValue(e.target.value)}
-                    className="h-8 text-sm font-serif font-bold flex-1 min-w-[120px]"
-                    maxLength={200}
-                    autoFocus
-                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
-                    data-testid="input-edit-title"
-                  />
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSaveTitle} disabled={saveSettingsMutation.isPending} data-testid="button-save-title">
-                    {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEditingTitle(false)} data-testid="button-cancel-title">
-                    <X className="w-3 h-3" />
-                  </Button>
+                <div className="flex flex-col gap-2 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Input
+                      value={editTitleValue}
+                      onChange={(e) => setEditTitleValue(e.target.value)}
+                      className="h-8 text-sm font-serif font-bold flex-1 min-w-[120px]"
+                      maxLength={200}
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") { setEditingTitle(false); setTitleSuggestions([]); } }}
+                      data-testid="input-edit-title"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                      onClick={handleSuggestTitles}
+                      disabled={isSuggestingTitles}
+                      title="اقتراح عناوين بالذكاء الاصطناعي"
+                      data-testid="button-suggest-titles"
+                    >
+                      {isSuggestingTitles ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSaveTitle} disabled={saveSettingsMutation.isPending} data-testid="button-save-title">
+                      {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => { setEditingTitle(false); setTitleSuggestions([]); }} data-testid="button-cancel-title">
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  {isSuggestingTitles && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground px-1" data-testid="text-suggesting-titles">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>أبو هاشم يفكّر في عناوين إبداعية...</span>
+                    </div>
+                  )}
+                  {titleSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-[60] p-3 space-y-1.5 max-w-md" data-testid="container-title-suggestions">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Sparkles className="w-3 h-3 text-amber-500" />
+                          اقتراحات أبو هاشم
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setTitleSuggestions([])} data-testid="button-close-suggestions">
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      {titleSuggestions.map((s, i) => (
+                        <button
+                          key={i}
+                          className="w-full text-right px-3 py-2 rounded-md hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 group/chip"
+                          onClick={() => { setEditTitleValue(s.title); setTitleSuggestions([]); }}
+                          data-testid={`button-suggestion-${i}`}
+                        >
+                          <div className="font-serif font-bold text-sm text-foreground group-hover/chip:text-primary transition-colors">{s.title}</div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{s.reason}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 min-w-0 group">
@@ -947,7 +1010,7 @@ export default function ProjectDetail() {
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                    onClick={() => { setEditTitleValue(project.title); setEditingTitle(true); }}
+                    onClick={() => { setEditTitleValue(project.title); setEditingTitle(true); setTitleSuggestions([]); }}
                     data-testid="button-edit-title"
                   >
                     <Pencil className="w-3 h-3" />
