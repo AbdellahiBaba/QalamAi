@@ -1025,6 +1025,10 @@ ${pages.map(p => `  <url>
         updates.narrativePov = req.body.narrativePov;
       }
 
+      if (typeof req.body.mainIdea === "string" && req.body.mainIdea.trim().length > 0) {
+        updates.mainIdea = req.body.mainIdea.trim().slice(0, 5000);
+      }
+
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: "لا توجد تعديلات" });
       }

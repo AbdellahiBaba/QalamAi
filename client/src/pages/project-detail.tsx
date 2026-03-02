@@ -216,6 +216,8 @@ export default function ProjectDetail() {
   const [editFormatType, setEditFormatType] = useState("");
   const [editEpisodeCount, setEditEpisodeCount] = useState("");
   const [editNarrativePov, setEditNarrativePov] = useState("");
+  const [editingMainIdea, setEditingMainIdea] = useState(false);
+  const [editMainIdeaValue, setEditMainIdeaValue] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -1619,10 +1621,54 @@ export default function ProjectDetail() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="group">
                 <CardContent className="p-4 sm:p-6 space-y-4">
-                  <h3 className="font-serif text-lg font-semibold">الفكرة الرئيسية</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{project.mainIdea}</p>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-serif text-lg font-semibold">الفكرة الرئيسية</h3>
+                    {!editingMainIdea && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+                        onClick={() => { setEditingMainIdea(true); setEditMainIdeaValue(project.mainIdea || ""); }}
+                        data-testid="button-edit-main-idea"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {editingMainIdea ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editMainIdeaValue}
+                        onChange={(e) => setEditMainIdeaValue(e.target.value)}
+                        className="min-h-[100px] text-sm"
+                        dir="rtl"
+                        data-testid="textarea-main-idea"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs"
+                          disabled={saveSettingsMutation.isPending || !editMainIdeaValue.trim()}
+                          onClick={() => {
+                            saveSettingsMutation.mutate({ mainIdea: editMainIdeaValue.trim() }, {
+                              onSuccess: () => { setEditingMainIdea(false); }
+                            });
+                          }}
+                          data-testid="button-save-main-idea"
+                        >
+                          {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} حفظ
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingMainIdea(false)} data-testid="button-cancel-main-idea">
+                          <X className="w-3 h-3" /> إلغاء
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground leading-relaxed">{project.mainIdea}</p>
+                  )}
                   {!project.coverImageUrl && (
                     <Button
                       variant="outline"
