@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Sparkles, BookOpen, PenTool, Loader2, CreditCard, Shield, X } from "lucide-react";
+import { Clock, Sparkles, BookOpen, PenTool, Loader2, CreditCard, Shield, X, Check, Zap, Star } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -43,37 +43,43 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: { clientSecret: s
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-trial-popup-card-capture">
-      <div className="rounded-md border p-4 bg-card">
+    <form onSubmit={handleSubmit} className="space-y-5" data-testid="form-trial-popup-card-capture">
+      <div className="relative rounded-xl border-2 border-amber-200 dark:border-amber-800/50 p-4 bg-white dark:bg-zinc-900 shadow-sm transition-all focus-within:border-amber-400 dark:focus-within:border-amber-600 focus-within:shadow-md">
+        <div className="absolute -top-2.5 right-4 bg-white dark:bg-zinc-900 px-2 text-[10px] font-medium text-amber-600 dark:text-amber-400 tracking-wide">
+          بيانات البطاقة
+        </div>
         <CardElement
           options={{
             style: {
               base: {
                 fontSize: "16px",
-                color: "hsl(var(--foreground))",
-                "::placeholder": { color: "hsl(var(--muted-foreground))" },
+                fontFamily: "'Inter', system-ui, sans-serif",
+                color: "#1a1a1a",
+                letterSpacing: "0.025em",
+                "::placeholder": { color: "#9ca3af" },
               },
-              invalid: { color: "hsl(var(--destructive))" },
+              invalid: { color: "#ef4444" },
             },
             hidePostalCode: true,
           }}
         />
       </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Shield className="w-3.5 h-3.5 shrink-0" />
-        <span>بياناتك محمية بتشفير Stripe الآمن</span>
+
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Shield className="w-3.5 h-3.5 shrink-0 text-green-600 dark:text-green-400" />
+        <span>محمية بتشفير <span className="font-semibold">Stripe</span> المعتمد عالمياً</span>
       </div>
+
       <Button
         type="submit"
-        className="w-full bg-amber-600 text-white dark:bg-amber-600 dark:text-white"
-        size="lg"
+        className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-l from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-200"
         disabled={!stripe || isSubmitting}
         data-testid="button-trial-popup-confirm"
       >
         {isSubmitting ? (
-          <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+          <Loader2 className="w-5 h-5 ml-2 animate-spin" />
         ) : (
-          <CreditCard className="w-4 h-4 ml-2" />
+          <CreditCard className="w-5 h-5 ml-2" />
         )}
         {isSubmitting ? "جارٍ التأكيد..." : "تأكيد وبدء التجربة المجانية"}
       </Button>
@@ -182,92 +188,98 @@ export function TrialPromptPopup({ userPlan, trialUsed }: TrialPromptPopupProps)
       data-testid="trial-prompt-popup-overlay"
     >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm marketing-backdrop-enter"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm marketing-backdrop-enter"
         onClick={dismiss}
       />
       <div
-        className="relative w-full max-w-md bg-card border-2 border-amber-500/50 rounded-lg marketing-popup-enter overflow-hidden"
+        className="relative w-full max-w-[420px] bg-card rounded-2xl marketing-popup-enter overflow-hidden shadow-2xl shadow-black/20 dark:shadow-black/50 border border-amber-200/50 dark:border-amber-800/30"
         dir="rtl"
         data-testid="trial-prompt-popup"
       >
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500" />
 
         <Button
           size="icon"
           variant="ghost"
-          className="absolute top-2 left-2 z-10"
+          className="absolute top-3 left-3 z-10 h-8 w-8 rounded-full hover:bg-black/10 dark:hover:bg-white/10"
           onClick={dismiss}
           data-testid="button-close-trial-prompt"
         >
           <X className="w-4 h-4" />
         </Button>
 
-        <div className="p-6 space-y-5">
-          {!showCardCapture ? (
-            <>
+        {!showCardCapture ? (
+          <div className="flex flex-col">
+            <div className="bg-gradient-to-bl from-amber-50 via-amber-50/80 to-orange-50/60 dark:from-amber-950/40 dark:via-amber-950/20 dark:to-orange-950/10 px-6 pt-8 pb-6">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center marketing-icon-pulse">
-                  <Clock className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30 marketing-icon-pulse">
+                    <Zap className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-green-500 border-2 border-white dark:border-zinc-900 flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                  </div>
                 </div>
-                <h2
-                  className="font-serif text-xl font-bold text-foreground text-center"
-                  data-testid="text-trial-prompt-heading"
-                >
-                  جرّب قلم AI مجاناً لمدة ٢٤ ساعة
-                </h2>
-                <p className="text-sm text-muted-foreground text-center">
-                  ابدأ تجربتك المجانية الآن واستمتع بجميع المميزات
-                </p>
+                <div className="text-center space-y-1.5">
+                  <h2
+                    className="font-serif text-xl font-bold text-foreground"
+                    data-testid="text-trial-prompt-heading"
+                  >
+                    جرّب قلم AI مجاناً لمدة ٢٤ ساعة
+                  </h2>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    ابدأ تجربتك المجانية واستمتع بجميع مميزات المنصة
+                  </p>
+                </div>
               </div>
+            </div>
 
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-3 p-2 rounded-md bg-amber-50/50 dark:bg-amber-950/20">
-                  <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="text-sm text-foreground">كتابة رواية كاملة مع أبو هاشم</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-md bg-amber-50/50 dark:bg-amber-950/20">
-                  <PenTool className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="text-sm text-foreground">مقالات، سيناريوهات، قصص قصيرة وأكثر</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-md bg-amber-50/50 dark:bg-amber-950/20">
-                  <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="text-sm text-foreground">تحليل أدبي وأغلفة بالذكاء الاصطناعي</span>
-                </div>
+            <div className="px-6 py-5 space-y-5">
+              <div className="space-y-2">
+                {[
+                  { icon: BookOpen, text: "كتابة رواية كاملة مع أبو هاشم" },
+                  { icon: PenTool, text: "مقالات، سيناريوهات، قصص قصيرة وأكثر" },
+                  { icon: Sparkles, text: "تحليل أدبي وأغلفة بالذكاء الاصطناعي" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-amber-50/60 dark:bg-amber-950/15 border border-amber-100/80 dark:border-amber-900/20">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                      <item.icon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <span className="text-sm text-foreground font-medium">{item.text}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <Badge variant="secondary" className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
-                  <LtrNum>1</LtrNum> مشروع
-                </Badge>
-                <Badge variant="secondary" className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
-                  <LtrNum>3</LtrNum> فصول
-                </Badge>
-                <Badge variant="secondary" className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
-                  <LtrNum>1</LtrNum> غلاف
-                </Badge>
-                <Badge variant="secondary" className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200">
-                  <LtrNum>1</LtrNum> تحليل
-                </Badge>
+                {[
+                  { count: 1, label: "مشروع" },
+                  { count: 3, label: "فصول" },
+                  { count: 1, label: "غلاف" },
+                  { count: 1, label: "تحليل" },
+                ].map((item, i) => (
+                  <Badge key={i} variant="secondary" className="text-xs px-2.5 py-1 bg-amber-100/80 dark:bg-amber-900/25 text-amber-800 dark:text-amber-200 border border-amber-200/50 dark:border-amber-800/30 font-medium">
+                    <LtrNum>{item.count}</LtrNum> {item.label}
+                  </Badge>
+                ))}
               </div>
 
-              <div className="flex flex-col gap-2 pt-1">
+              <div className="flex flex-col gap-2.5">
                 <Button
-                  size="lg"
-                  className="w-full bg-amber-600 text-white dark:bg-amber-600 dark:text-white"
+                  className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-l from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-200"
                   onClick={handleStartTrial}
                   disabled={trialLoading}
                   data-testid="button-trial-prompt-start"
                 >
                   {trialLoading ? (
-                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    <Loader2 className="w-5 h-5 ml-2 animate-spin" />
                   ) : (
-                    <Sparkles className="w-4 h-4 ml-2" />
+                    <Sparkles className="w-5 h-5 ml-2" />
                   )}
                   {trialLoading ? "جارٍ التحضير..." : "ابدأ التجربة المجانية"}
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full text-muted-foreground"
+                  className="w-full text-muted-foreground hover:text-foreground text-sm"
                   onClick={dismiss}
                   data-testid="button-trial-prompt-later"
                 >
@@ -275,52 +287,63 @@ export function TrialPromptPopup({ userPlan, trialUsed }: TrialPromptPopupProps)
                 </Button>
               </div>
 
-              <p className="text-xs text-center text-muted-foreground">
-                بعد ٢٤ ساعة يتم تفعيل الخطة الشاملة (<LtrNum>$500</LtrNum>) تلقائياً
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="text-center space-y-2">
+              <div className="rounded-xl bg-orange-50/80 dark:bg-orange-950/15 border border-orange-200/50 dark:border-orange-800/20 p-3 text-center">
+                <p className="text-xs text-orange-700 dark:text-orange-300 leading-relaxed">
+                  <Clock className="w-3 h-3 inline-block ml-1 align-text-bottom" />
+                  بعد انتهاء ٢٤ ساعة يتم تفعيل الخطة الشاملة (<LtrNum>$500</LtrNum>) تلقائياً
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="px-6 py-8 space-y-6">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                <CreditCard className="w-7 h-7 text-white" />
+              </div>
+              <div className="text-center space-y-1.5">
                 <h3 className="font-serif text-lg font-bold text-foreground" data-testid="text-trial-popup-card-title">
                   أدخل بيانات البطاقة
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   لن يتم خصم أي مبلغ الآن. سيتم حفظ البطاقة لتفعيل الخطة الشاملة بعد ٢٤ ساعة.
                 </p>
               </div>
-              {trialClientSecret && stripePromise ? (
-                <Elements stripe={stripePromise} options={{ clientSecret: trialClientSecret }}>
-                  <CardCaptureForm
-                    clientSecret={trialClientSecret}
-                    onSuccess={handleCardSuccess}
-                    onError={handleCardError}
-                  />
-                </Elements>
-              ) : (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              )}
-              {activateTrialMutation.isPending && (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>جارٍ تفعيل التجربة...</span>
-                </div>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-muted-foreground"
-                onClick={() => { setShowCardCapture(false); setTrialClientSecret(null); }}
-                disabled={activateTrialMutation.isPending}
-                data-testid="button-trial-popup-back"
-              >
-                رجوع
-              </Button>
-            </>
-          )}
-        </div>
+            </div>
+
+            {trialClientSecret && stripePromise ? (
+              <Elements stripe={stripePromise}>
+                <CardCaptureForm
+                  clientSecret={trialClientSecret}
+                  onSuccess={handleCardSuccess}
+                  onError={handleCardError}
+                />
+              </Elements>
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              </div>
+            )}
+
+            {activateTrialMutation.isPending && (
+              <div className="flex items-center justify-center gap-2 text-sm text-amber-600 dark:text-amber-400 font-medium">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>جارٍ تفعيل التجربة...</span>
+              </div>
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground hover:text-foreground"
+              onClick={() => { setShowCardCapture(false); setTrialClientSecret(null); }}
+              disabled={activateTrialMutation.isPending}
+              data-testid="button-trial-popup-back"
+            >
+              رجوع
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

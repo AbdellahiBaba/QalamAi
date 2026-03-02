@@ -586,7 +586,7 @@ export default function Pricing() {
             </DialogDescription>
           </DialogHeader>
           {trialClientSecret && stripePromise ? (
-            <Elements stripe={stripePromise} options={{ clientSecret: trialClientSecret }}>
+            <Elements stripe={stripePromise}>
               <CardCaptureForm
                 clientSecret={trialClientSecret}
                 onSuccess={handleCardSuccess}
