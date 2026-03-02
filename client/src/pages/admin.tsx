@@ -410,6 +410,8 @@ export default function Admin() {
   const [grantProjectId, setGrantProjectId] = useState<string>("all");
   const [grantContinuity, setGrantContinuity] = useState("0");
   const [grantStyle, setGrantStyle] = useState("0");
+  const [grantContinuityUsed, setGrantContinuityUsed] = useState("0");
+  const [grantStyleUsed, setGrantStyleUsed] = useState("0");
 
   const { data: grantUserProjects } = useQuery<NovelProject[]>({
     queryKey: ["/api/admin/users", grantUser?.id, "projects"],
@@ -417,8 +419,8 @@ export default function Admin() {
   });
 
   const setAnalysisCountsMutation = useMutation({
-    mutationFn: async ({ projectId, continuityCheckPaidCount, styleAnalysisPaidCount }: { projectId: number; continuityCheckPaidCount: number; styleAnalysisPaidCount: number }) => {
-      const res = await apiRequest("PATCH", `/api/admin/projects/${projectId}/analysis-counts`, { continuityCheckPaidCount, styleAnalysisPaidCount });
+    mutationFn: async ({ projectId, continuityCheckPaidCount, styleAnalysisPaidCount, continuityCheckCount, styleAnalysisCount }: { projectId: number; continuityCheckPaidCount: number; styleAnalysisPaidCount: number; continuityCheckCount: number; styleAnalysisCount: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/projects/${projectId}/analysis-counts`, { continuityCheckPaidCount, styleAnalysisPaidCount, continuityCheckCount, styleAnalysisCount });
       return res.json();
     },
     onSuccess: () => {
@@ -430,6 +432,8 @@ export default function Admin() {
       setGrantUser(null);
       setGrantContinuity("0");
       setGrantStyle("0");
+      setGrantContinuityUsed("0");
+      setGrantStyleUsed("0");
       setGrantProjectId("all");
     },
     onError: () => {
@@ -453,6 +457,8 @@ export default function Admin() {
       setGrantUser(null);
       setGrantContinuity("0");
       setGrantStyle("0");
+      setGrantContinuityUsed("0");
+      setGrantStyleUsed("0");
       setGrantProjectId("all");
     },
     onError: () => {
@@ -466,9 +472,13 @@ export default function Admin() {
     if (selectedGrantProject) {
       setGrantContinuity(String(selectedGrantProject.continuityCheckPaidCount || 0));
       setGrantStyle(String(selectedGrantProject.styleAnalysisPaidCount || 0));
+      setGrantContinuityUsed(String(selectedGrantProject.continuityCheckCount || 0));
+      setGrantStyleUsed(String(selectedGrantProject.styleAnalysisCount || 0));
     } else {
       setGrantContinuity("0");
       setGrantStyle("0");
+      setGrantContinuityUsed("0");
+      setGrantStyleUsed("0");
     }
   }, [grantProjectId, selectedGrantProject]);
 
@@ -2051,54 +2061,107 @@ export default function Admin() {
               </div>
 
               {selectedGrantProject && (
-                <div className="rounded-md border p-3 space-y-2 bg-muted/30" data-testid="section-current-analysis-counts">
-                  <div className="text-xs font-medium text-muted-foreground">الاستخدام الحالي:</div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="space-y-0.5">
-                      <div className="text-muted-foreground">فحص الاستمرارية</div>
-                      <div className="font-medium">
-                        المستخدم: <LtrNum>{selectedGrantProject.continuityCheckCount || 0}</LtrNum>
-                        {" / "}
-                        المتاح: <LtrNum>{Math.max(0, FREE_ANALYSIS_USES + ((selectedGrantProject.continuityCheckPaidCount || 0) * PAID_ANALYSIS_USES) - (selectedGrantProject.continuityCheckCount || 0))}</LtrNum>
-                      </div>
-                      <div className="text-muted-foreground">الباقات المدفوعة: <LtrNum>{selectedGrantProject.continuityCheckPaidCount || 0}</LtrNum></div>
+                <>
+                  <div className="rounded-md border p-3 space-y-3 bg-muted/30" data-testid="section-current-analysis-counts">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium text-muted-foreground">الاستخدام الحالي:</div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2"
+                        onClick={() => { setGrantContinuityUsed("0"); setGrantStyleUsed("0"); }}
+                        data-testid="button-reset-usage"
+                      >
+                        تصفير الاستخدام
+                      </Button>
                     </div>
-                    <div className="space-y-0.5">
-                      <div className="text-muted-foreground">تحليل الأسلوب</div>
-                      <div className="font-medium">
-                        المستخدم: <LtrNum>{selectedGrantProject.styleAnalysisCount || 0}</LtrNum>
-                        {" / "}
-                        المتاح: <LtrNum>{Math.max(0, FREE_ANALYSIS_USES + ((selectedGrantProject.styleAnalysisPaidCount || 0) * PAID_ANALYSIS_USES) - (selectedGrantProject.styleAnalysisCount || 0))}</LtrNum>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="space-y-0.5">
+                        <div className="font-medium">فحص الاستمرارية</div>
+                        <div className="text-muted-foreground">
+                          المتاح: <LtrNum>{Math.max(0, FREE_ANALYSIS_USES + ((parseInt(grantContinuity) || 0) * PAID_ANALYSIS_USES) - (parseInt(grantContinuityUsed) || 0))}</LtrNum>
+                        </div>
                       </div>
-                      <div className="text-muted-foreground">الباقات المدفوعة: <LtrNum>{selectedGrantProject.styleAnalysisPaidCount || 0}</LtrNum></div>
+                      <div className="space-y-0.5">
+                        <div className="font-medium">تحليل الأسلوب</div>
+                        <div className="text-muted-foreground">
+                          المتاح: <LtrNum>{Math.max(0, FREE_ANALYSIS_USES + ((parseInt(grantStyle) || 0) * PAID_ANALYSIS_USES) - (parseInt(grantStyleUsed) || 0))}</LtrNum>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">المرات المستخدمة - فحص الاستمرارية</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={grantContinuityUsed}
+                        onChange={(e) => setGrantContinuityUsed(e.target.value)}
+                        data-testid="input-grant-continuity-used"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">المرات المستخدمة - تحليل الأسلوب</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={grantStyleUsed}
+                        onChange={(e) => setGrantStyleUsed(e.target.value)}
+                        data-testid="input-grant-style-used"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">الباقات المدفوعة - فحص الاستمرارية</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={grantContinuity}
+                        onChange={(e) => setGrantContinuity(e.target.value)}
+                        data-testid="input-grant-continuity"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">الباقات المدفوعة - تحليل الأسلوب</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={grantStyle}
+                        onChange={(e) => setGrantStyle(e.target.value)}
+                        data-testid="input-grant-style"
+                      />
+                    </div>
+                  </div>
+                </>
               )}
 
-              <div className="space-y-2">
-                <Label>{selectedGrantProject ? "عدد باقات فحص الاستمرارية المدفوعة" : "عدد محاولات فحص الاستمرارية (إضافة)"}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={grantContinuity}
-                  onChange={(e) => setGrantContinuity(e.target.value)}
-                  data-testid="input-grant-continuity"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{selectedGrantProject ? "عدد باقات تحليل الأسلوب المدفوعة" : "عدد محاولات تحليل الأسلوب (إضافة)"}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={grantStyle}
-                  onChange={(e) => setGrantStyle(e.target.value)}
-                  data-testid="input-grant-style"
-                />
-              </div>
-
-              {grantProjectId === "all" && (
-                <p className="text-xs text-muted-foreground">سيتم إضافة المحاولات لجميع مشاريع المستخدم</p>
+              {!selectedGrantProject && (
+                <>
+                  <div className="space-y-2">
+                    <Label>عدد محاولات فحص الاستمرارية (إضافة)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={grantContinuity}
+                      onChange={(e) => setGrantContinuity(e.target.value)}
+                      data-testid="input-grant-continuity"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>عدد محاولات تحليل الأسلوب (إضافة)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={grantStyle}
+                      onChange={(e) => setGrantStyle(e.target.value)}
+                      data-testid="input-grant-style"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">سيتم إضافة المحاولات لجميع مشاريع المستخدم</p>
+                </>
               )}
 
               <Button
@@ -2113,6 +2176,8 @@ export default function Admin() {
                       projectId: selectedGrantProject.id,
                       continuityCheckPaidCount: Math.max(0, parseInt(grantContinuity) || 0),
                       styleAnalysisPaidCount: Math.max(0, parseInt(grantStyle) || 0),
+                      continuityCheckCount: Math.max(0, parseInt(grantContinuityUsed) || 0),
+                      styleAnalysisCount: Math.max(0, parseInt(grantStyleUsed) || 0),
                     });
                   } else {
                     grantAnalysisMutation.mutate({

@@ -2489,7 +2489,7 @@ ${glossaryParagraphs}
       const project = await storage.getProject(projectId);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
 
-      const { continuityCheckPaidCount, styleAnalysisPaidCount } = req.body;
+      const { continuityCheckPaidCount, styleAnalysisPaidCount, continuityCheckCount, styleAnalysisCount } = req.body;
       const updates: any = {};
 
       if (typeof continuityCheckPaidCount === "number") {
@@ -2497,6 +2497,12 @@ ${glossaryParagraphs}
       }
       if (typeof styleAnalysisPaidCount === "number") {
         updates.styleAnalysisPaidCount = Math.max(0, Math.min(1000, Math.floor(styleAnalysisPaidCount)));
+      }
+      if (typeof continuityCheckCount === "number") {
+        updates.continuityCheckCount = Math.max(0, Math.min(1000, Math.floor(continuityCheckCount)));
+      }
+      if (typeof styleAnalysisCount === "number") {
+        updates.styleAnalysisCount = Math.max(0, Math.min(1000, Math.floor(styleAnalysisCount)));
       }
 
       if (Object.keys(updates).length === 0) {
