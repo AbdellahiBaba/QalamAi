@@ -192,6 +192,7 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isDark = document.documentElement.classList.contains("dark");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,10 +230,12 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: {
             style: {
               base: {
                 fontSize: "16px",
-                color: "hsl(var(--foreground))",
-                "::placeholder": { color: "hsl(var(--muted-foreground))" },
+                fontFamily: "'Inter', system-ui, sans-serif",
+                color: isDark ? "#f5f5f5" : "#1a1a1a",
+                letterSpacing: "0.025em",
+                "::placeholder": { color: isDark ? "#71717a" : "#9ca3af" },
               },
-              invalid: { color: "hsl(var(--destructive))" },
+              invalid: { color: "#ef4444" },
             },
             hidePostalCode: true,
           }}
