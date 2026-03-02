@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -119,6 +120,7 @@ const projectStatusLabels: Record<string, string> = {
 };
 
 export default function Admin() {
+  useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking">("tickets");

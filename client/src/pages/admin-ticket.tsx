@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useRoute, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +38,7 @@ const priorityLabels: Record<string, string> = {
 type TicketWithReplies = SupportTicket & { replies: TicketReply[] };
 
 export default function AdminTicket() {
+  useDocumentTitle("إدارة التذكرة — قلم AI");
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [, params] = useRoute("/admin/tickets/:id");

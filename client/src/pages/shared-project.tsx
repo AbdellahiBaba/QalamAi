@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookOpen, FileText } from "lucide-react";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack } from "@/lib/ttq";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 interface SharedChapter {
   chapterNumber: number;
@@ -23,6 +24,7 @@ interface SharedProject {
 
 export default function SharedProject() {
   const { token } = useParams<{ token: string }>();
+  useDocumentTitle("مشروع مشارك — قلم AI");
 
   const { data: project, isLoading, error } = useQuery<SharedProject>({
     queryKey: ["/api/shared", token],
@@ -80,6 +82,7 @@ export default function SharedProject() {
               src={project.coverImageUrl}
               alt={project.title}
               className="max-h-80 rounded-lg shadow-lg"
+              loading="lazy"
               data-testid="img-shared-cover"
             />
           </div>

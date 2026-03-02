@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +23,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 
 export default function Home() {
+  useDocumentTitle("مشاريعي — قلم AI");
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { data: projects, isLoading } = useQuery<NovelProject[]>({

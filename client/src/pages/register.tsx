@@ -8,8 +8,10 @@ import { Feather, Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function Register() {
+  useDocumentTitle("إنشاء حساب — قلم AI");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [firstName, setFirstName] = useState("");

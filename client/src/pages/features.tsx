@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   Feather,
   BookOpen,
@@ -220,6 +221,7 @@ function ContentSection({ icon: SectionIcon, title, subtitle, features, ctaText,
 }
 
 export default function Features() {
+  useDocumentTitle("مميزات قلم AI — أدوات الكتابة الإبداعية");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">

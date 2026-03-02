@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   BookOpen,
   Feather,
@@ -42,6 +43,7 @@ interface LandingReview {
 }
 
 export default function Landing() {
+  useDocumentTitle("QalamAI — حيث تتحوّل الفكرة إلى رواية");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { data: realReviews } = useQuery<LandingReview[]>({

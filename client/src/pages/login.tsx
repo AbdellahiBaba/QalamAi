@@ -8,8 +8,10 @@ import { Feather, Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function Login() {
+  useDocumentTitle("تسجيل الدخول — قلم AI");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [email, setEmail] = useState("");

@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Tickets() {
+  useDocumentTitle("تذاكر الدعم — قلم AI");
   const { user, logout } = useAuth();
   const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/tickets"],

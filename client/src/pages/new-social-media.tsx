@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -48,6 +49,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function NewSocialMedia() {
+  useDocumentTitle("محتوى سوشيال ميديا — قلم AI");
   const [, navigate] = useLocation();
   const { toast } = useToast();
 

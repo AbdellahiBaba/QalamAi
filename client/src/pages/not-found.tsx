@@ -2,8 +2,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen } from "lucide-react";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function NotFound() {
+  useDocumentTitle("الصفحة غير موجودة — قلم AI");
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background" dir="rtl">
       <Card className="w-full max-w-md mx-4">

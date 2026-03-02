@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -153,6 +154,7 @@ function getTypeLabels(projectType?: string) {
 export default function ProjectDetail() {
   const [, params] = useRoute("/project/:id");
   const projectId = params?.id;
+  useDocumentTitle("تفاصيل المشروع — قلم AI");
   const { toast } = useToast();
   const { user: authUser } = useAuth();
   const FREE_ACCESS_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
@@ -1119,6 +1121,7 @@ export default function ProjectDetail() {
                       src={project.coverImageUrl}
                       alt={`غلاف ${project.title}`}
                       className="max-h-96 rounded-lg shadow-lg"
+                      loading="lazy"
                       data-testid="img-cover"
                     />
                   </div>

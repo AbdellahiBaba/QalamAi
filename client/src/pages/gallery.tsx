@@ -9,6 +9,7 @@ import { Search, Image as ImageIcon, BookOpen, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 interface GalleryProject {
   id: number;
@@ -42,6 +43,7 @@ const filterOptions = [
 ];
 
 export default function Gallery() {
+  useDocumentTitle("معرض الأعمال — قلم AI");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -154,6 +156,7 @@ export default function Gallery() {
                         src={project.coverImageUrl}
                         alt={project.title}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                         data-testid={`img-gallery-cover-${project.id}`}
                       />
                     ) : (

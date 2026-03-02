@@ -42,3 +42,11 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - **pdfkit**: Library used for server-side PDF generation with Amiri Arabic font.
 - **jsPDF**: Client-side library for PDF preview/download.
 - **archiver**: Used for EPUB generation.
+
+## SEO & Performance
+- **Dynamic Page Titles**: Each page uses `useDocumentTitle` hook (`client/src/hooks/use-document-title.ts`) to set unique Arabic `<title>` and OG meta tags.
+- **Sitemap**: `GET /sitemap.xml` route in `server/routes.ts` generates XML sitemap with all public pages pointing to `qalamai.net`.
+- **robots.txt**: Static file in `client/public/robots.txt` allows all crawlers, blocks admin/profile/project paths, points to sitemap.
+- **Code Splitting**: All 25+ pages in `client/src/App.tsx` are lazily loaded via `React.lazy()` + `<Suspense>` with Arabic loading fallback.
+- **Error Boundary**: `client/src/components/error-boundary.tsx` wraps the app router, showing Arabic recovery screen on runtime errors.
+- **Lazy Images**: All `<img>` tags in gallery, author-profile, shared-project, and project-detail pages have `loading="lazy"` attribute.

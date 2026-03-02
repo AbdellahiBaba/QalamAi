@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Feather, BookOpen, Sparkles, Heart, Shield, PenTool, Quote, Users } from "lucide-react";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
@@ -50,6 +51,7 @@ const rules = [
 ];
 
 export default function AbuHashim() {
+  useDocumentTitle("أبو هاشم — وكيلك الأدبي الذكي");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   Dialog,
   DialogContent,
@@ -101,6 +102,7 @@ function AnimatedCard({ children, stagger, className = "", slideDirection = "up"
 }
 
 export default function Reviews() {
+  useDocumentTitle("آراء المستخدمين — قلم AI");
   const { user } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);

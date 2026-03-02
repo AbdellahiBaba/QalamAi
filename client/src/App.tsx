@@ -5,90 +5,111 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import TrackingPixels from "@/components/tracking-pixels";
-import Landing from "@/pages/landing";
-import Home from "@/pages/home";
-import NewProject from "@/pages/new-project";
-import NewEssay from "@/pages/new-essay";
-import NewScenario from "@/pages/new-scenario";
-import NewShortStory from "@/pages/new-short-story";
-import NewKhawater from "@/pages/new-khawater";
-import NewSocialMedia from "@/pages/new-social-media";
-import ProjectDetail from "@/pages/project-detail";
-import Profile from "@/pages/profile";
-import About from "@/pages/about";
-import Features from "@/pages/features";
-import Pricing from "@/pages/pricing";
-import Contact from "@/pages/contact";
-import AbuHashim from "@/pages/abu-hashim";
-import NovelTheme from "@/pages/novel-theme";
-import Tickets from "@/pages/tickets";
-import TicketDetail from "@/pages/ticket-detail";
-import Admin from "@/pages/admin";
-import AdminTicket from "@/pages/admin-ticket";
-import Login from "@/pages/login";
-import Register from "@/pages/register";
-import SharedProject from "@/pages/shared-project";
-import AuthorProfile from "@/pages/author-profile";
-import Gallery from "@/pages/gallery";
-import Reader from "@/pages/reader";
-import Reviews from "@/pages/reviews";
-import Promo from "@/pages/promo";
-import NotFound from "@/pages/not-found";
+import { ErrorBoundary } from "@/components/error-boundary";
+
+const Landing = lazy(() => import("@/pages/landing"));
+const Home = lazy(() => import("@/pages/home"));
+const NewProject = lazy(() => import("@/pages/new-project"));
+const NewEssay = lazy(() => import("@/pages/new-essay"));
+const NewScenario = lazy(() => import("@/pages/new-scenario"));
+const NewShortStory = lazy(() => import("@/pages/new-short-story"));
+const NewKhawater = lazy(() => import("@/pages/new-khawater"));
+const NewSocialMedia = lazy(() => import("@/pages/new-social-media"));
+const ProjectDetail = lazy(() => import("@/pages/project-detail"));
+const Profile = lazy(() => import("@/pages/profile"));
+const About = lazy(() => import("@/pages/about"));
+const Features = lazy(() => import("@/pages/features"));
+const Pricing = lazy(() => import("@/pages/pricing"));
+const Contact = lazy(() => import("@/pages/contact"));
+const AbuHashim = lazy(() => import("@/pages/abu-hashim"));
+const NovelTheme = lazy(() => import("@/pages/novel-theme"));
+const Tickets = lazy(() => import("@/pages/tickets"));
+const TicketDetail = lazy(() => import("@/pages/ticket-detail"));
+const Admin = lazy(() => import("@/pages/admin"));
+const AdminTicket = lazy(() => import("@/pages/admin-ticket"));
+const Login = lazy(() => import("@/pages/login"));
+const Register = lazy(() => import("@/pages/register"));
+const SharedProject = lazy(() => import("@/pages/shared-project"));
+const AuthorProfile = lazy(() => import("@/pages/author-profile"));
+const Gallery = lazy(() => import("@/pages/gallery"));
+const Reader = lazy(() => import("@/pages/reader"));
+const Reviews = lazy(() => import("@/pages/reviews"));
+const Promo = lazy(() => import("@/pages/promo"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
+      <div className="text-center space-y-4">
+        <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mx-auto animate-pulse">
+          <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+        </div>
+        <p className="text-muted-foreground font-serif">جاري التحميل...</p>
+      </div>
+    </div>
+  );
+}
 
 function AuthenticatedRouter() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/project/new" component={NewProject} />
-      <Route path="/project/new/essay" component={NewEssay} />
-      <Route path="/project/new/scenario" component={NewScenario} />
-      <Route path="/project/new/short-story" component={NewShortStory} />
-      <Route path="/project/new/khawater" component={NewKhawater} />
-      <Route path="/project/new/social-media" component={NewSocialMedia} />
-      <Route path="/project/:id/read/:chapterId" component={Reader} />
-      <Route path="/project/:id" component={ProjectDetail} />
-      <Route path="/profile" component={Profile} />
-      <Route path="/tickets" component={Tickets} />
-      <Route path="/tickets/:id" component={TicketDetail} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/admin/tickets/:id" component={AdminTicket} />
-      <Route path="/about" component={About} />
-      <Route path="/features" component={Features} />
-      <Route path="/pricing" component={Pricing} />
-      <Route path="/contact" component={Contact} />
-      <Route path="/abu-hashim" component={AbuHashim} />
-      <Route path="/novel-theme" component={NovelTheme} />
-      <Route path="/shared/:token" component={SharedProject} />
-      <Route path="/author/:id" component={AuthorProfile} />
-      <Route path="/gallery" component={Gallery} />
-      <Route path="/reviews" component={Reviews} />
-      <Route path="/promo" component={Promo} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<LoadingFallback />}>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/project/new" component={NewProject} />
+        <Route path="/project/new/essay" component={NewEssay} />
+        <Route path="/project/new/scenario" component={NewScenario} />
+        <Route path="/project/new/short-story" component={NewShortStory} />
+        <Route path="/project/new/khawater" component={NewKhawater} />
+        <Route path="/project/new/social-media" component={NewSocialMedia} />
+        <Route path="/project/:id/read/:chapterId" component={Reader} />
+        <Route path="/project/:id" component={ProjectDetail} />
+        <Route path="/profile" component={Profile} />
+        <Route path="/tickets" component={Tickets} />
+        <Route path="/tickets/:id" component={TicketDetail} />
+        <Route path="/admin" component={Admin} />
+        <Route path="/admin/tickets/:id" component={AdminTicket} />
+        <Route path="/about" component={About} />
+        <Route path="/features" component={Features} />
+        <Route path="/pricing" component={Pricing} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/abu-hashim" component={AbuHashim} />
+        <Route path="/novel-theme" component={NovelTheme} />
+        <Route path="/shared/:token" component={SharedProject} />
+        <Route path="/author/:id" component={AuthorProfile} />
+        <Route path="/gallery" component={Gallery} />
+        <Route path="/reviews" component={Reviews} />
+        <Route path="/promo" component={Promo} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
 function PublicRouter() {
   return (
-    <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
-      <Route path="/about" component={About} />
-      <Route path="/features" component={Features} />
-      <Route path="/pricing" component={Pricing} />
-      <Route path="/contact" component={Contact} />
-      <Route path="/abu-hashim" component={AbuHashim} />
-      <Route path="/novel-theme" component={NovelTheme} />
-      <Route path="/shared/:token" component={SharedProject} />
-      <Route path="/author/:id" component={AuthorProfile} />
-      <Route path="/gallery" component={Gallery} />
-      <Route path="/reviews" component={Reviews} />
-      <Route path="/promo" component={Promo} />
-      <Route component={Landing} />
-    </Switch>
+    <Suspense fallback={<LoadingFallback />}>
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
+        <Route path="/about" component={About} />
+        <Route path="/features" component={Features} />
+        <Route path="/pricing" component={Pricing} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/abu-hashim" component={AbuHashim} />
+        <Route path="/novel-theme" component={NovelTheme} />
+        <Route path="/shared/:token" component={SharedProject} />
+        <Route path="/author/:id" component={AuthorProfile} />
+        <Route path="/gallery" component={Gallery} />
+        <Route path="/reviews" component={Reviews} />
+        <Route path="/promo" component={Promo} />
+        <Route component={Landing} />
+      </Switch>
+    </Suspense>
   );
 }
 
@@ -107,18 +128,7 @@ function AppRouter() {
   }, [user, setLocation]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center mx-auto animate-pulse">
-            <svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-          </div>
-          <p className="text-muted-foreground font-serif">جاري التحميل...</p>
-        </div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   if (!user) {
@@ -135,7 +145,9 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <TrackingPixels />
-          <AppRouter />
+          <ErrorBoundary>
+            <AppRouter />
+          </ErrorBoundary>
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>

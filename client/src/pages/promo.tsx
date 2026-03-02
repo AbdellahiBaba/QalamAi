@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import {
   Feather,
   PenTool,
@@ -85,6 +86,7 @@ const exportCards = [
 ];
 
 export default function Promo() {
+  useDocumentTitle("عرض ترويجي — قلم AI");
   return (
     <div className="bg-background text-foreground overflow-x-hidden" dir="rtl">
       <Link href="/">

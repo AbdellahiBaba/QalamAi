@@ -4,6 +4,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
 
 export default function Profile() {
+  useDocumentTitle("الملف الشخصي — قلم AI");
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();

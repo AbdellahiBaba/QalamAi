@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -79,6 +80,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function NewShortStory() {
+  useDocumentTitle("قصة قصيرة جديدة — قلم AI");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [step, setStep] = useState(0);

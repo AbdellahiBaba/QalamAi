@@ -8,6 +8,7 @@ import { Feather, Mail, Send, MapPin, Clock, Loader2 } from "lucide-react";
 import { SiX, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,6 +22,7 @@ const navLinks = [
 ];
 
 export default function Contact() {
+  useDocumentTitle("تواصل معنا — قلم AI");
   const { user } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState(user?.firstName || "");

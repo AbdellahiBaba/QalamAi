@@ -2,8 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Feather, BookOpen, Heart, Users, Scale, ShieldCheck, Brain, BookMarked } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function NovelTheme() {
+  useDocumentTitle("سمات الرواية — قلم AI");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">

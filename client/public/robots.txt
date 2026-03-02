@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /profile
+Disallow: /tickets
+Disallow: /project/
+
+Sitemap: https://qalamai.net/sitemap.xml

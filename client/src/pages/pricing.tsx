@@ -8,6 +8,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 
@@ -181,6 +182,7 @@ function isPlanActive(userPlan: string | null | undefined, planKey: string): boo
 }
 
 export default function Pricing() {
+  useDocumentTitle("أسعار الخطط — قلم AI");
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);

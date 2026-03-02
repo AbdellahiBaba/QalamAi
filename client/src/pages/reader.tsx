@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
@@ -29,6 +30,7 @@ const fontSizeClass: Record<FontSize, string> = {
 };
 
 export default function Reader() {
+  useDocumentTitle("وضع القراءة — قلم AI");
   const [, params] = useRoute("/project/:id/read/:chapterId");
   const [, setLocation] = useLocation();
   const projectId = params?.id;

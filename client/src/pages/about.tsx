@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Feather, Heart, Shield, BookOpen, Cpu, Globe, Eye, Compass, Gem, PenTool } from "lucide-react";
 import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
@@ -46,6 +47,7 @@ const values = [
 ];
 
 export default function About() {
+  useDocumentTitle("عن قلم AI — منصة الكتابة بالذكاء الاصطناعي");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">

@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { User, BookOpen, Image as ImageIcon } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useToast } from "@/hooks/use-toast";
 
 interface AuthorProject {
@@ -37,6 +38,7 @@ const typeLabels: Record<string, string> = {
 
 export default function AuthorProfile() {
   const { id } = useParams<{ id: string }>();
+  useDocumentTitle("ملف الكاتب — قلم AI");
   const { toast } = useToast();
   const [visitorRating, setVisitorRating] = useState(0);
 
@@ -173,6 +175,7 @@ export default function AuthorProfile() {
                           src={project.coverImageUrl}
                           alt={project.title}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                           data-testid={`img-project-cover-${project.id}`}
                         />
                       ) : (
