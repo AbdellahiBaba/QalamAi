@@ -271,7 +271,8 @@ export default function Profile() {
                   </span>
                   {(!user?.plan || user.plan === "free") && (
                     <Link href="/pricing">
-                      <span className="text-xs text-primary cursor-pointer hover:underline" data-testid="link-upgrade-plan">
+                      <span className="upgrade-btn inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full cursor-pointer" data-testid="link-upgrade-plan">
+                        <Crown className="w-3 h-3" />
                         ترقية الخطة
                       </span>
                     </Link>

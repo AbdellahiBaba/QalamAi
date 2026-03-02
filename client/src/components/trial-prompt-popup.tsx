@@ -8,29 +8,26 @@ import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack } from "@/lib/ttq";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 const SESSION_KEY = "qalamai_trial_prompt_dismissed";
 
-function CardCaptureForm({ clientSecret, onSuccess, onError }: { clientSecret: string; onSuccess: (id: string) => void; onError: (msg: string) => void }) {
+function CardCaptureForm({ onSuccess, onError }: { onSuccess: (id: string) => void; onError: (msg: string) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isDark = document.documentElement.classList.contains("dark");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) return;
     setIsSubmitting(true);
     try {
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) {
-        onError("لم يتم العثور على حقل البطاقة");
-        setIsSubmitting(false);
-        return;
-      }
-      const { error, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: { card: cardElement },
+      const { error, setupIntent } = await stripe.confirmSetup({
+        elements,
+        confirmParams: {
+          return_url: window.location.href,
+        },
+        redirect: "if_required",
       });
       if (error) {
         onError(error.message || "فشل في تأكيد بيانات البطاقة");
@@ -45,23 +42,10 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: { clientSecret: s
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" data-testid="form-trial-popup-card-capture">
-      <div className="relative rounded-xl border-2 border-amber-200 dark:border-amber-800/50 p-4 bg-white dark:bg-zinc-900 shadow-sm transition-all focus-within:border-amber-400 dark:focus-within:border-amber-600 focus-within:shadow-md">
-        <div className="absolute -top-2.5 right-4 bg-white dark:bg-zinc-900 px-2 text-[10px] font-medium text-amber-600 dark:text-amber-400 tracking-wide">
-          بيانات البطاقة
-        </div>
-        <CardElement
+      <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800/50 p-4 bg-white dark:bg-zinc-900 shadow-sm">
+        <PaymentElement
           options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                fontFamily: "'Inter', system-ui, sans-serif",
-                color: isDark ? "#f5f5f5" : "#1a1a1a",
-                letterSpacing: "0.025em",
-                "::placeholder": { color: isDark ? "#71717a" : "#9ca3af" },
-              },
-              invalid: { color: "#ef4444" },
-            },
-            hidePostalCode: true,
+            layout: "tabs",
           }}
         />
       </div>
@@ -74,7 +58,7 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: { clientSecret: s
       <Button
         type="submit"
         className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-l from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-200"
-        disabled={!stripe || isSubmitting}
+        disabled={!stripe || !elements || isSubmitting}
         data-testid="button-trial-popup-confirm"
       >
         {isSubmitting ? (
@@ -182,6 +166,8 @@ export function TrialPromptPopup({ userPlan, trialUsed }: TrialPromptPopupProps)
   }, [toast]);
 
   if (!visible || !canShow) return null;
+
+  const isDark = document.documentElement.classList.contains("dark");
 
   return (
     <div
@@ -313,9 +299,20 @@ export function TrialPromptPopup({ userPlan, trialUsed }: TrialPromptPopupProps)
             </div>
 
             {trialClientSecret && stripePromise ? (
-              <Elements stripe={stripePromise}>
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret: trialClientSecret,
+                  appearance: {
+                    theme: isDark ? "night" : "stripe",
+                    variables: {
+                      colorPrimary: "#d97706",
+                      borderRadius: "8px",
+                    },
+                  },
+                }}
+              >
                 <CardCaptureForm
-                  clientSecret={trialClientSecret}
                   onSuccess={handleCardSuccess}
                   onError={handleCardError}
                 />

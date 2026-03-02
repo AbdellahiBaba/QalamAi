@@ -422,3 +422,27 @@
   animation: marketing-icon-pulse 2.5s ease-in-out infinite;
 }
 
+@keyframes upgrade-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes upgrade-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(217, 119, 6, 0.3), 0 0 0 0 rgba(217, 119, 6, 0.1); }
+  50% { box-shadow: 0 0 12px rgba(217, 119, 6, 0.5), 0 0 20px 2px rgba(217, 119, 6, 0.15); }
+}
+
+.upgrade-btn {
+  background: linear-gradient(90deg, #d97706, #f59e0b, #d97706, #f59e0b);
+  background-size: 300% 100%;
+  animation: upgrade-shimmer 4s linear infinite, upgrade-glow 3s ease-in-out infinite;
+  color: white;
+  font-weight: 600;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.upgrade-btn:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+

@@ -13,7 +13,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 const planPriceUSD: Record<string, number> = {
   essay: 50,
@@ -184,15 +184,13 @@ function isPlanActive(userPlan: string | null | undefined, planKey: string): boo
   return userPlan === planKey;
 }
 
-function CardCaptureForm({ clientSecret, onSuccess, onError }: {
-  clientSecret: string;
+function CardCaptureForm({ onSuccess, onError }: {
   onSuccess: (setupIntentId: string) => void;
   onError: (msg: string) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isDark = document.documentElement.classList.contains("dark");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,15 +198,12 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: {
 
     setIsSubmitting(true);
     try {
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) {
-        onError("لم يتم العثور على حقل البطاقة");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const { error, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
-        payment_method: { card: cardElement },
+      const { error, setupIntent } = await stripe.confirmSetup({
+        elements,
+        confirmParams: {
+          return_url: window.location.href,
+        },
+        redirect: "if_required",
       });
 
       if (error) {
@@ -225,19 +220,9 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: {
   return (
     <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-card-capture">
       <div className="rounded-md border p-4 bg-card">
-        <CardElement
+        <PaymentElement
           options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                fontFamily: "'Inter', system-ui, sans-serif",
-                color: isDark ? "#f5f5f5" : "#1a1a1a",
-                letterSpacing: "0.025em",
-                "::placeholder": { color: isDark ? "#71717a" : "#9ca3af" },
-              },
-              invalid: { color: "#ef4444" },
-            },
-            hidePostalCode: true,
+            layout: "tabs",
           }}
         />
       </div>
@@ -249,7 +234,7 @@ function CardCaptureForm({ clientSecret, onSuccess, onError }: {
         type="submit"
         className="w-full"
         size="lg"
-        disabled={!stripe || isSubmitting}
+        disabled={!stripe || !elements || isSubmitting}
         data-testid="button-confirm-trial"
       >
         {isSubmitting ? (
@@ -589,9 +574,20 @@ export default function Pricing() {
             </DialogDescription>
           </DialogHeader>
           {trialClientSecret && stripePromise ? (
-            <Elements stripe={stripePromise}>
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret: trialClientSecret,
+                appearance: {
+                  theme: document.documentElement.classList.contains("dark") ? "night" : "stripe",
+                  variables: {
+                    colorPrimary: "#d97706",
+                    borderRadius: "8px",
+                  },
+                },
+              }}
+            >
               <CardCaptureForm
-                clientSecret={trialClientSecret}
                 onSuccess={handleCardSuccess}
                 onError={handleCardError}
               />
