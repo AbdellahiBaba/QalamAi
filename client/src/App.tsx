@@ -127,6 +127,21 @@ function AppRouter() {
     }
   }, [user, setLocation]);
 
+  useEffect(() => {
+    if (user && (user as any).plan === "trial" && (user as any).trialActive) {
+      fetch("/api/trial/check-expiry", { method: "POST", credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.trialActive) {
+            queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/trial/status"] });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
+
   if (isLoading) {
     return <LoadingFallback />;
   }

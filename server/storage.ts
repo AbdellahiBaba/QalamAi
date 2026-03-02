@@ -65,6 +65,9 @@ export interface IStorage {
   deletePlatformReview(id: number): Promise<void>;
   getTrackingPixels(): Promise<TrackingPixel[]>;
   upsertTrackingPixel(data: InsertTrackingPixel): Promise<TrackingPixel>;
+  updateUserTrial(userId: string, data: Partial<User>): Promise<User>;
+  grantAnalysisUses(projectId: number, continuityUses: number, styleUses: number): Promise<void>;
+  grantAnalysisUsesForAllProjects(userId: string, continuityUses: number, styleUses: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -596,6 +599,25 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return pixel;
+  }
+
+  async updateUserTrial(userId: string, data: Partial<User>): Promise<User> {
+    const [updated] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async grantAnalysisUses(projectId: number, continuityUses: number, styleUses: number): Promise<void> {
+    await db.update(novelProjects).set({
+      continuityCheckPaidCount: sql`COALESCE(${novelProjects.continuityCheckPaidCount}, 0) + ${continuityUses}`,
+      styleAnalysisPaidCount: sql`COALESCE(${novelProjects.styleAnalysisPaidCount}, 0) + ${styleUses}`,
+    }).where(eq(novelProjects.id, projectId));
+  }
+
+  async grantAnalysisUsesForAllProjects(userId: string, continuityUses: number, styleUses: number): Promise<void> {
+    await db.update(novelProjects).set({
+      continuityCheckPaidCount: sql`COALESCE(${novelProjects.continuityCheckPaidCount}, 0) + ${continuityUses}`,
+      styleAnalysisPaidCount: sql`COALESCE(${novelProjects.styleAnalysisPaidCount}, 0) + ${styleUses}`,
+    }).where(eq(novelProjects.userId, userId));
   }
 }
 

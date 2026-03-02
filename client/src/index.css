@@ -389,3 +389,36 @@
   flex-shrink: 0;
 }
 
+@keyframes marketing-popup-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes marketing-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes marketing-icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.marketing-popup-enter {
+  animation: marketing-popup-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.marketing-backdrop-enter {
+  animation: marketing-backdrop-in 0.25s ease-out forwards;
+}
+
+.marketing-icon-pulse {
+  animation: marketing-icon-pulse 2.5s ease-in-out infinite;
+}
+

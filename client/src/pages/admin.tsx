@@ -404,6 +404,45 @@ export default function Admin() {
     setShowPlanDialog(true);
   };
 
+  const [showGrantDialog, setShowGrantDialog] = useState(false);
+  const [grantUser, setGrantUser] = useState<AdminUser | null>(null);
+  const [grantProjectId, setGrantProjectId] = useState<string>("all");
+  const [grantContinuity, setGrantContinuity] = useState("0");
+  const [grantStyle, setGrantStyle] = useState("0");
+
+  const { data: grantUserProjects } = useQuery<NovelProject[]>({
+    queryKey: ["/api/admin/users", grantUser?.id, "projects"],
+    enabled: !!grantUser,
+  });
+
+  const grantAnalysisMutation = useMutation({
+    mutationFn: async ({ userId, continuityUses, styleUses, projectId }: { userId: string; continuityUses: number; styleUses: number; projectId?: number }) => {
+      const body: any = { continuityUses, styleUses };
+      if (projectId) body.projectId = projectId;
+      const res = await apiRequest("POST", `/api/admin/users/${userId}/grant-analysis`, body);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم منح محاولات التحليل بنجاح" });
+      setShowGrantDialog(false);
+      setGrantUser(null);
+      setGrantContinuity("0");
+      setGrantStyle("0");
+      setGrantProjectId("all");
+    },
+    onError: () => {
+      toast({ title: "فشل في منح المحاولات", variant: "destructive" });
+    },
+  });
+
+  const handleGrantAnalysis = (u: AdminUser) => {
+    setGrantUser(u);
+    setGrantContinuity("0");
+    setGrantStyle("0");
+    setGrantProjectId("all");
+    setShowGrantDialog(true);
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
@@ -830,6 +869,15 @@ export default function Admin() {
                                 <Crown className="w-4 h-4 ml-1" />
                                 تغيير الخطة
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleGrantAnalysis(u)}
+                                data-testid={`button-grant-analysis-${u.id}`}
+                              >
+                                <BarChart3 className="w-4 h-4 ml-1" />
+                                منح تحليل
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -883,6 +931,10 @@ export default function Admin() {
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => handleChangePlan(u)} data-testid={`button-change-plan-mobile-${u.id}`}>
                           <Crown className="w-3.5 h-3.5 ml-1" />
                           تغيير الخطة
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleGrantAnalysis(u)} data-testid={`button-grant-analysis-mobile-${u.id}`}>
+                          <BarChart3 className="w-3.5 h-3.5 ml-1" />
+                          منح تحليل
                         </Button>
                       </div>
                     </CardContent>
@@ -1931,6 +1983,71 @@ export default function Admin() {
                   </Button>
                 ))}
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGrantDialog} onOpenChange={setShowGrantDialog}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>منح محاولات تحليل</DialogTitle>
+          </DialogHeader>
+          {grantUser && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                المستخدم: {[grantUser.firstName, grantUser.lastName].filter(Boolean).join(" ") || grantUser.email || grantUser.id}
+              </div>
+              <div className="space-y-2">
+                <Label>المشروع</Label>
+                <Select value={grantProjectId} onValueChange={setGrantProjectId}>
+                  <SelectTrigger data-testid="select-grant-project">
+                    <SelectValue placeholder="اختر مشروعاً" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">جميع المشاريع</SelectItem>
+                    {grantUserProjects?.map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>{p.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>عدد محاولات فحص الاستمرارية</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={grantContinuity}
+                  onChange={(e) => setGrantContinuity(e.target.value)}
+                  data-testid="input-grant-continuity"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>عدد محاولات تحليل الأسلوب</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={grantStyle}
+                  onChange={(e) => setGrantStyle(e.target.value)}
+                  data-testid="input-grant-style"
+                />
+              </div>
+              <Button
+                className="w-full"
+                disabled={grantAnalysisMutation.isPending || (parseInt(grantContinuity) <= 0 && parseInt(grantStyle) <= 0)}
+                onClick={() => {
+                  grantAnalysisMutation.mutate({
+                    userId: grantUser.id,
+                    continuityUses: parseInt(grantContinuity) || 0,
+                    styleUses: parseInt(grantStyle) || 0,
+                    projectId: grantProjectId !== "all" ? parseInt(grantProjectId) : undefined,
+                  });
+                }}
+                data-testid="button-submit-grant-analysis"
+              >
+                {grantAnalysisMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <BarChart3 className="w-4 h-4 ml-2" />}
+                منح المحاولات
+              </Button>
             </div>
           )}
         </DialogContent>

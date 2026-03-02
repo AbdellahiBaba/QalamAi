@@ -126,8 +126,40 @@ export default function Home() {
     enabled: showWritingStats,
   });
 
+  const { data: trialStatus } = useQuery<{ trialActive: boolean; trialEndsAt: string | null; plan: string }>({
+    queryKey: ["/api/trial/status"],
+  });
+
+  const [trialRemaining, setTrialRemaining] = useState<{ hours: number; minutes: number } | null>(null);
+
+  useEffect(() => {
+    if (!trialStatus?.trialActive || !trialStatus?.trialEndsAt) {
+      setTrialRemaining(null);
+      return;
+    }
+    const update = () => {
+      const diff = new Date(trialStatus.trialEndsAt!).getTime() - Date.now();
+      if (diff <= 0) {
+        setTrialRemaining(null);
+        apiRequest("POST", "/api/trial/check-expiry").then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/trial/status"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        });
+        return;
+      }
+      setTrialRemaining({
+        hours: Math.floor(diff / 3600000),
+        minutes: Math.floor((diff % 3600000) / 60000),
+      });
+    };
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [trialStatus]);
+
   const userPlan = planData?.plan || "free";
-  const planLabel = userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : null;
+  const planLabel = userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : userPlan === "trial" ? "تجربة مجانية" : null;
 
   const stats = useMemo(() => {
     if (!projects) return { total: 0, totalWords: 0, completed: 0, active: 0 };
@@ -355,6 +387,25 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {trialRemaining && (
+        <div className="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800 px-4 py-3" data-testid="banner-trial-countdown">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                متبقي <LtrNum>{trialRemaining.hours}</LtrNum> ساعة و <LtrNum>{trialRemaining.minutes}</LtrNum> دقيقة من الفترة التجريبية
+              </span>
+            </div>
+            <Link href="/pricing">
+              <Button size="sm" variant="outline" className="border-amber-400 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50" data-testid="button-trial-upgrade">
+                <Crown className="w-3 h-3 ml-1" />
+                ترقية الآن
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">

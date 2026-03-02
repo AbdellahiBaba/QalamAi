@@ -33,6 +33,12 @@ export const users = pgTable("users", {
   publicProfile: boolean("public_profile").default(false),
   onboardingCompleted: boolean("onboarding_completed").default(false),
   apiSuspended: boolean("api_suspended").default(false),
+  trialActive: boolean("trial_active").default(false),
+  trialStartedAt: timestamp("trial_started_at"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  trialUsed: boolean("trial_used").default(false),
+  trialStripeSetupIntentId: varchar("trial_stripe_setup_intent_id"),
+  trialStripePaymentMethodId: varchar("trial_stripe_payment_method_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

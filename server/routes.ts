@@ -3,12 +3,12 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
 import OpenAI from "openai";
-import { getUncachableStripeClient } from "./stripeClient";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -312,6 +312,183 @@ ${pages.map(p => `  <url>
     } catch (error) {
       console.error("Error verifying plan:", error);
       res.status(500).json({ error: "فشل في التحقق من الدفع" });
+    }
+  });
+
+  app.post("/api/trial/create-setup-intent", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+      if (user.trialUsed) return res.status(400).json({ error: "لقد استخدمت الفترة التجريبية من قبل" });
+      if (user.plan && user.plan !== "free") return res.status(400).json({ error: "لديك خطة مفعّلة بالفعل" });
+
+      const stripe = await getUncachableStripeClient();
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          metadata: { userId },
+        });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customerId);
+      }
+
+      const setupIntent = await stripe.setupIntents.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        metadata: { userId, type: "trial" },
+      });
+
+      const publishableKey = await getStripePublishableKey();
+      res.json({ clientSecret: setupIntent.client_secret, publishableKey });
+    } catch (error) {
+      console.error("Error creating trial setup intent:", error);
+      res.status(500).json({ error: "فشل في إعداد بيانات الدفع" });
+    }
+  });
+
+  app.post("/api/trial/activate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { setupIntentId } = req.body;
+      if (!setupIntentId) return res.status(400).json({ error: "بيانات غير صالحة" });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+      if (user.trialUsed) return res.status(400).json({ error: "لقد استخدمت الفترة التجريبية من قبل" });
+
+      const stripe = await getUncachableStripeClient();
+      const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
+      if (setupIntent.status !== "succeeded") return res.status(400).json({ error: "لم يتم تأكيد بيانات الدفع" });
+
+      const siCustomer = typeof setupIntent.customer === "string" ? setupIntent.customer : setupIntent.customer?.id;
+      if (!siCustomer || siCustomer !== user.stripeCustomerId) {
+        return res.status(403).json({ error: "بيانات الدفع لا تطابق حسابك" });
+      }
+
+      const paymentMethodId = typeof setupIntent.payment_method === "string" ? setupIntent.payment_method : setupIntent.payment_method?.id;
+      if (!paymentMethodId) return res.status(400).json({ error: "لم يتم حفظ وسيلة الدفع" });
+
+      const now = new Date();
+      const trialEndsAt = new Date(now.getTime() + TRIAL_DURATION_HOURS * 60 * 60 * 1000);
+
+      await storage.updateUserTrial(userId, {
+        plan: "trial",
+        trialActive: true,
+        trialStartedAt: now,
+        trialEndsAt,
+        trialUsed: true,
+        trialStripeSetupIntentId: setupIntentId,
+        trialStripePaymentMethodId: paymentMethodId,
+      });
+
+      const projects = await storage.getProjectsByUser(userId);
+      for (const p of projects) {
+        if (!p.paid) {
+          await storage.updateProjectPayment(p.id, true);
+        }
+      }
+
+      trackServerEvent({
+        eventName: "StartTrial",
+        userId,
+        value: 0,
+        currency: "USD",
+        contentType: "trial",
+        contentId: "trial_24h",
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      });
+
+      res.json({ success: true, trialEndsAt });
+    } catch (error) {
+      console.error("Error activating trial:", error);
+      res.status(500).json({ error: "فشل في تفعيل الفترة التجريبية" });
+    }
+  });
+
+  app.post("/api/trial/check-expiry", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+      if (!user.trialActive || user.plan !== "trial") {
+        return res.json({ trialActive: false, plan: user.plan });
+      }
+
+      if (!isTrialExpired(user.trialEndsAt)) {
+        return res.json({ trialActive: true, trialEndsAt: user.trialEndsAt, plan: "trial" });
+      }
+
+      if (!user.stripeCustomerId || !user.trialStripePaymentMethodId) {
+        console.error("Trial auto-charge: missing stripe data for user", userId);
+        await storage.updateUserTrial(userId, { plan: "free", trialActive: false });
+        return res.json({ trialActive: false, plan: "free", charged: false, chargeFailed: true });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: TRIAL_CHARGE_AMOUNT,
+          currency: "usd",
+          customer: user.stripeCustomerId,
+          payment_method: user.trialStripePaymentMethodId,
+          off_session: true,
+          confirm: true,
+          metadata: { userId, type: "trial_auto_charge" },
+        });
+
+        if (paymentIntent.status === "succeeded") {
+          await storage.updateUserTrial(userId, {
+            plan: "all_in_one",
+            trialActive: false,
+            planPurchasedAt: new Date(),
+          });
+
+          trackServerEvent({
+            eventName: "Purchase",
+            userId,
+            value: TRIAL_CHARGE_AMOUNT / 100,
+            currency: "USD",
+            contentType: "plan",
+            contentId: "all_in_one",
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
+          });
+
+          return res.json({ trialActive: false, plan: "all_in_one", charged: true });
+        }
+      } catch (chargeError: any) {
+        console.error("Trial auto-charge failed:", chargeError.message);
+      }
+
+      await storage.updateUserTrial(userId, {
+        plan: "free",
+        trialActive: false,
+      });
+
+      return res.json({ trialActive: false, plan: "free", charged: false, chargeFailed: true });
+    } catch (error) {
+      console.error("Error checking trial expiry:", error);
+      res.status(500).json({ error: "فشل في التحقق من حالة الفترة التجريبية" });
+    }
+  });
+
+  app.get("/api/trial/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+      res.json({
+        trialActive: user.trialActive || false,
+        trialUsed: user.trialUsed || false,
+        trialEndsAt: user.trialEndsAt,
+        plan: user.plan,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب حالة التجربة" });
     }
   });
 
@@ -760,6 +937,17 @@ ${pages.map(p => `  <url>
       const price = getProjectPriceByType(type, validPageCount);
 
       const user = await storage.getUser(userId);
+
+      if (user?.plan === "trial" && user.trialActive) {
+        if (isTrialExpired(user.trialEndsAt)) {
+          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
+        }
+        const existingCount = await storage.getUserProjectCount(userId);
+        if (existingCount >= TRIAL_MAX_PROJECTS) {
+          return res.status(403).json({ error: `الفترة التجريبية تسمح بمشروع واحد فقط` });
+        }
+      }
+
       const isFreeUser = FREE_ACCESS_USER_IDS.includes(userId);
       const planCovers = userPlanCoversType(user?.plan, type);
       const autoPaid = isFreeUser || planCovers;
@@ -1122,6 +1310,17 @@ ${pages.map(p => `  <url>
         return res.status(402).json({ error: "الرجاء إتمام الدفع أو تفعيل خطة مناسبة." });
       }
 
+      if (chapterUser?.plan === "trial" && chapterUser.trialActive) {
+        if (isTrialExpired(chapterUser.trialEndsAt)) {
+          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
+        }
+        const allChapsForCount = await storage.getChaptersByProject(projectId);
+        const completedCount = allChapsForCount.filter((c: any) => c.status === "completed").length;
+        if (completedCount >= TRIAL_MAX_CHAPTERS) {
+          return res.status(403).json({ error: `الفترة التجريبية تسمح بـ ${TRIAL_MAX_CHAPTERS} فصول فقط` });
+        }
+      }
+
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "Chapter not found" });
 
@@ -1363,6 +1562,16 @@ ${pages.map(p => `  <url>
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
 
+      const coverUser = await storage.getUser(req.user.claims.sub);
+      if (coverUser?.plan === "trial" && coverUser.trialActive) {
+        if (isTrialExpired(coverUser.trialEndsAt)) {
+          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
+        }
+        if (project.coverImageUrl) {
+          return res.status(403).json({ error: `الفترة التجريبية تسمح بتصميم غلاف واحد فقط` });
+        }
+      }
+
       const prompt = buildCoverPrompt(project);
 
       const response = await openai.images.generate({
@@ -1388,6 +1597,11 @@ ${pages.map(p => `  <url>
   app.get("/api/projects/:id/export/pdf", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      const exportUser = await storage.getUser(req.user.claims.sub);
+      if (exportUser?.plan === "trial") {
+        return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
+      }
+
       const project = await storage.getProjectWithDetails(id);
       if (!project || project.userId !== req.user.claims.sub) {
         return res.status(404).json({ error: "المشروع غير موجود" });
@@ -1740,6 +1954,10 @@ ${pages.map(p => `  <url>
   app.get("/api/projects/:id/export/epub", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      const epubExportUser = await storage.getUser(req.user.claims.sub);
+      if (epubExportUser?.plan === "trial") {
+        return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
+      }
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
@@ -2192,6 +2410,36 @@ ${glossaryParagraphs}
     } catch (error) {
       console.error("Error updating user plan:", error);
       res.status(500).json({ error: "Failed to update user plan" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/grant-analysis", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const { continuityUses, styleUses, projectId } = req.body;
+      const contUses = Math.max(0, Math.min(100, parseInt(continuityUses) || 0));
+      const styUses = Math.max(0, Math.min(100, parseInt(styleUses) || 0));
+      if (contUses <= 0 && styUses <= 0) {
+        return res.status(400).json({ error: "يجب تحديد عدد المحاولات (قيمة موجبة)" });
+      }
+
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+      if (projectId) {
+        const project = await storage.getProject(parseInt(projectId));
+        if (!project || project.userId !== userId) {
+          return res.status(404).json({ error: "المشروع غير موجود" });
+        }
+        await storage.grantAnalysisUses(parseInt(projectId), contUses, styUses);
+      } else {
+        await storage.grantAnalysisUsesForAllProjects(userId, contUses, styUses);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error granting analysis uses:", error);
+      res.status(500).json({ error: "فشل في منح المحاولات" });
     }
   });
 
@@ -2791,6 +3039,16 @@ ${glossaryParagraphs}
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
 
+      const contUser = await storage.getUser(userId);
+      if (contUser?.plan === "trial" && contUser.trialActive) {
+        if (isTrialExpired(contUser.trialEndsAt)) {
+          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
+        }
+        if ((project.continuityCheckCount || 0) >= TRIAL_MAX_CONTINUITY) {
+          return res.status(403).json({ error: "الفترة التجريبية تسمح بفحص استمرارية واحد فقط" });
+        }
+      }
+
       const remaining = getRemainingAnalysisUses(project.continuityCheckCount || 0, project.continuityCheckPaidCount || 0);
       if (remaining <= 0) {
         return res.status(402).json({ error: "استنفدت الاستخدامات المجانية لفحص الاستمرارية. يمكنك فتح ٣ استخدامات إضافية مقابل ٥٩.٩٩ دولار.", needsPayment: true, feature: "continuity" });
@@ -3055,6 +3313,16 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      const styleUser = await storage.getUser(userId);
+      if (styleUser?.plan === "trial" && styleUser.trialActive) {
+        if (isTrialExpired(styleUser.trialEndsAt)) {
+          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
+        }
+        if ((project.styleAnalysisCount || 0) >= TRIAL_MAX_STYLE) {
+          return res.status(403).json({ error: "الفترة التجريبية تسمح بتحليل أسلوب واحد فقط" });
+        }
+      }
 
       const styleRemaining = getRemainingAnalysisUses(project.styleAnalysisCount || 0, project.styleAnalysisPaidCount || 0);
       if (styleRemaining <= 0) {

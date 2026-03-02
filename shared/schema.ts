@@ -60,8 +60,21 @@ export const ANALYSIS_UNLOCK_PRICE = 5999;
 export const FREE_ANALYSIS_USES = 3;
 export const PAID_ANALYSIS_USES = 3;
 
+export const TRIAL_MAX_PROJECTS = 1;
+export const TRIAL_MAX_CHAPTERS = 3;
+export const TRIAL_MAX_COVERS = 1;
+export const TRIAL_MAX_CONTINUITY = 1;
+export const TRIAL_MAX_STYLE = 1;
+export const TRIAL_DURATION_HOURS = 24;
+export const TRIAL_CHARGE_AMOUNT = 50000;
+
 export function getRemainingAnalysisUses(usedCount: number, paidCount: number): number {
   return FREE_ANALYSIS_USES + (paidCount * PAID_ANALYSIS_USES) - usedCount;
+}
+
+export function isTrialExpired(trialEndsAt: Date | null | undefined): boolean {
+  if (!trialEndsAt) return true;
+  return new Date() > new Date(trialEndsAt);
 }
 
 export function getProjectPrice(pageCount: number): number {
@@ -96,6 +109,7 @@ export const PLAN_PRICES: Record<string, number> = {
 export function userPlanCoversType(plan: string | null | undefined, projectType: string): boolean {
   if (!plan || plan === "free") return false;
   if (plan === "all_in_one") return true;
+  if (plan === "trial") return true;
   if (plan === "essay" && projectType === "essay") return true;
   if (plan === "scenario" && projectType === "scenario") return true;
   return false;

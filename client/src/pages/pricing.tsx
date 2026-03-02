@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers, Loader2, CheckCircle, Tag, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers, Loader2, CheckCircle, Tag, X, Clock, CreditCard, Shield } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -11,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 const planPriceUSD: Record<string, number> = {
   essay: 50,
@@ -181,6 +184,82 @@ function isPlanActive(userPlan: string | null | undefined, planKey: string): boo
   return userPlan === planKey;
 }
 
+function CardCaptureForm({ clientSecret, onSuccess, onError }: {
+  clientSecret: string;
+  onSuccess: (setupIntentId: string) => void;
+  onError: (msg: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsSubmitting(true);
+    try {
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) {
+        onError("لم يتم العثور على حقل البطاقة");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { error, setupIntent } = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: { card: cardElement },
+      });
+
+      if (error) {
+        onError(error.message || "فشل في تأكيد بيانات البطاقة");
+      } else if (setupIntent && setupIntent.id) {
+        onSuccess(setupIntent.id);
+      }
+    } catch (err: any) {
+      onError(err.message || "حدث خطأ غير متوقع");
+    }
+    setIsSubmitting(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-card-capture">
+      <div className="rounded-md border p-4 bg-card">
+        <CardElement
+          options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "hsl(var(--foreground))",
+                "::placeholder": { color: "hsl(var(--muted-foreground))" },
+              },
+              invalid: { color: "hsl(var(--destructive))" },
+            },
+            hidePostalCode: true,
+          }}
+        />
+      </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Shield className="w-3.5 h-3.5 shrink-0" />
+        <span>بياناتك محمية بتشفير Stripe الآمن</span>
+      </div>
+      <Button
+        type="submit"
+        className="w-full"
+        size="lg"
+        disabled={!stripe || isSubmitting}
+        data-testid="button-confirm-trial"
+      >
+        {isSubmitting ? (
+          <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+        ) : (
+          <CreditCard className="w-4 h-4 ml-2" />
+        )}
+        {isSubmitting ? "جارٍ التأكيد..." : "تأكيد وبدء التجربة المجانية"}
+      </Button>
+    </form>
+  );
+}
+
 export default function Pricing() {
   useDocumentTitle("أسعار الخطط — قلم AI");
   const { toast } = useToast();
@@ -188,6 +267,10 @@ export default function Pricing() {
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [validatedPromo, setValidatedPromo] = useState<{ code: string; discountPercent: number; applicableTo: string } | null>(null);
+  const [trialDialogOpen, setTrialDialogOpen] = useState(false);
+  const [trialClientSecret, setTrialClientSecret] = useState<string | null>(null);
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [trialLoading, setTrialLoading] = useState(false);
 
   const { data: authUser } = useQuery<any>({
     queryKey: ["/api/auth/user"],
@@ -198,8 +281,73 @@ export default function Pricing() {
     enabled: !!authUser,
   });
 
+  const { data: trialStatus } = useQuery<{ trialActive: boolean; trialUsed: boolean; trialEndsAt: string | null }>({
+    queryKey: ["/api/trial/status"],
+    enabled: !!authUser,
+  });
+
   const userPlan = planData?.plan || "free";
   const isLoggedIn = !!authUser;
+  const canStartTrial = isLoggedIn && !trialStatus?.trialUsed && (!userPlan || userPlan === "free");
+
+  const activateTrialMutation = useMutation({
+    mutationFn: async (setupIntentId: string) => {
+      const res = await apiRequest("POST", "/api/trial/activate", { setupIntentId });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم تفعيل التجربة المجانية بنجاح" });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trial/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setTrialDialogOpen(false);
+      setTrialClientSecret(null);
+      ttqTrack("StartTrial", {
+        contentId: "trial_24h",
+        contentType: "trial",
+        contentName: "تجربة مجانية 24 ساعة",
+        value: 0,
+        currency: "USD",
+      });
+      setLocation("/");
+    },
+    onError: () => {
+      toast({ title: "فشل في تفعيل التجربة المجانية", variant: "destructive" });
+    },
+  });
+
+  const handleStartTrial = useCallback(async () => {
+    if (!isLoggedIn) {
+      setLocation("/login");
+      return;
+    }
+    setTrialLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/trial/create-setup-intent", {});
+      const data = await res.json();
+      if (data.clientSecret && data.publishableKey) {
+        setTrialClientSecret(data.clientSecret);
+        setStripePromise(loadStripe(data.publishableKey));
+        setTrialDialogOpen(true);
+      }
+    } catch (err: any) {
+      const msg = err.message || "";
+      if (msg.includes("400")) {
+        toast({ title: "لا يمكن بدء التجربة المجانية", description: "ربما استخدمت التجربة من قبل أو لديك خطة مفعّلة", variant: "destructive" });
+      } else {
+        toast({ title: "حدث خطأ أثناء إعداد التجربة", variant: "destructive" });
+      }
+    }
+    setTrialLoading(false);
+  }, [isLoggedIn, setLocation, toast]);
+
+  const handleCardSuccess = useCallback((setupIntentId: string) => {
+    activateTrialMutation.mutate(setupIntentId);
+  }, [activateTrialMutation]);
+
+  const handleCardError = useCallback((msg: string) => {
+    toast({ title: msg, variant: "destructive" });
+  }, [toast]);
 
   const validatePromoMutation = useMutation({
     mutationFn: async ({ code, planType }: { code: string; planType: string }) => {
@@ -364,11 +512,100 @@ export default function Pricing() {
           {isLoggedIn && userPlan !== "free" && (
             <div className="mt-4 inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium" data-testid="text-current-plan">
               <CheckCircle className="w-4 h-4" />
-              <span>خطتك الحالية: {userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : userPlan}</span>
+              <span>خطتك الحالية: {userPlan === "all_in_one" ? "الخطة الشاملة" : userPlan === "essay" ? "خطة المقالات" : userPlan === "scenario" ? "خطة السيناريوهات" : userPlan === "trial" ? "تجربة مجانية" : userPlan}</span>
             </div>
           )}
         </div>
       </section>
+
+      {canStartTrial && (
+        <section className="pb-8 px-4 sm:px-6">
+          <div className="max-w-2xl mx-auto">
+            <Card
+              className="relative border-2 border-amber-500/50 bg-gradient-to-br from-amber-50/50 to-amber-100/30 dark:from-amber-950/20 dark:to-amber-900/10"
+              data-testid="card-trial"
+            >
+              <CardContent className="p-6 sm:p-8 text-center space-y-4">
+                <div className="flex items-center justify-center gap-2">
+                  <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground" data-testid="text-trial-title">
+                    تجربة مجانية — ٢٤ ساعة
+                  </h2>
+                </div>
+                <p className="text-muted-foreground text-sm sm:text-base">
+                  جرّب جميع مميزات المنصة مجاناً لمدة ٢٤ ساعة
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <Badge variant="secondary" className="text-xs">
+                    <LtrNum>1</LtrNum> مشروع
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    <LtrNum>3</LtrNum> فصول
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    <LtrNum>1</LtrNum> غلاف
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    <LtrNum>1</LtrNum> تحليل
+                  </Badge>
+                </div>
+                <Button
+                  size="lg"
+                  className="bg-amber-600 text-white border-amber-700 dark:bg-amber-600 dark:text-white dark:border-amber-700"
+                  onClick={handleStartTrial}
+                  disabled={trialLoading || activateTrialMutation.isPending}
+                  data-testid="button-start-trial"
+                >
+                  {trialLoading ? (
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 ml-2" />
+                  )}
+                  {trialLoading ? "جارٍ التحضير..." : "ابدأ التجربة المجانية"}
+                </Button>
+                <p className="text-xs text-muted-foreground" data-testid="text-trial-fine-print">
+                  بعد انتهاء الفترة التجريبية، يتم تفعيل خطة الشاملة (<LtrNum>$500</LtrNum>) تلقائياً
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
+
+      <Dialog open={trialDialogOpen} onOpenChange={(open) => {
+        if (!activateTrialMutation.isPending) {
+          setTrialDialogOpen(open);
+          if (!open) setTrialClientSecret(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md" dir="rtl" data-testid="dialog-trial-card-capture">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg text-center">أدخل بيانات البطاقة</DialogTitle>
+            <DialogDescription className="text-center text-sm">
+              لن يتم خصم أي مبلغ الآن. سيتم حفظ البطاقة لتفعيل الخطة الشاملة بعد ٢٤ ساعة.
+            </DialogDescription>
+          </DialogHeader>
+          {trialClientSecret && stripePromise ? (
+            <Elements stripe={stripePromise} options={{ clientSecret: trialClientSecret }}>
+              <CardCaptureForm
+                clientSecret={trialClientSecret}
+                onSuccess={handleCardSuccess}
+                onError={handleCardError}
+              />
+            </Elements>
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {activateTrialMutation.isPending && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>جارٍ تفعيل التجربة...</span>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <section className="pb-8 px-4 sm:px-6">
         <div className="max-w-md mx-auto">

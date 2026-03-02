@@ -43,6 +43,26 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - **jsPDF**: Client-side library for PDF preview/download.
 - **archiver**: Used for EPUB generation.
 
+## Free Trial System
+- **24-hour free trial** with Stripe Setup Intent + auto-charge. Trial constants in `shared/schema.ts`.
+- Users must provide a credit card via Stripe Elements before trial activates.
+- Trial plan = `"trial"`, limits: 1 project, 3 chapters, 1 cover, 1 continuity check, 1 style analysis; no export.
+- After 24h, auto-charges $500 for `all_in_one` plan via `stripe.paymentIntents.create` with `off_session`.
+- Trial fields on users table: `trialActive`, `trialStartedAt`, `trialEndsAt`, `trialUsed`, `trialStripeSetupIntentId`, `trialStripePaymentMethodId`.
+- Routes: `POST /api/trial/create-setup-intent`, `POST /api/trial/activate`, `POST /api/trial/check-expiry`, `GET /api/trial/status`.
+- Dashboard shows countdown banner for active trial users. App.tsx auto-checks expiry on load.
+- Pricing page shows trial card with card capture dialog for eligible users.
+
+## Admin Grant Analysis Uses
+- Admin can grant extra continuity check and style analysis uses to users via `POST /api/admin/users/:id/grant-analysis`.
+- UI in admin panel: "منح تحليل" button on each user row, dialog with project selector + number inputs.
+- Storage methods: `grantAnalysisUses()`, `grantAnalysisUsesForAllProjects()`.
+
+## Marketing Popup
+- `client/src/components/marketing-popup.tsx`: animated popup for first-time visitors on landing page.
+- Checks `localStorage.getItem("qalamai_visited")`, shows after 3s delay, tracks with TikTok ViewContent event.
+- CSS animations scoped with `marketing-` prefix in `client/src/index.css`.
+
 ## SEO & Performance
 - **Dynamic Page Titles**: Each page uses `useDocumentTitle` hook (`client/src/hooks/use-document-title.ts`) to set unique Arabic `<title>` and OG meta tags.
 - **Sitemap**: `GET /sitemap.xml` route in `server/routes.ts` generates XML sitemap with all public pages pointing to `qalamai.net`.
