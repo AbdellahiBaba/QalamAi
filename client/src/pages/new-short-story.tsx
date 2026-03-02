@@ -87,6 +87,9 @@ export default function NewShortStory() {
   const [expandedChars, setExpandedChars] = useState<Set<number>>(new Set());
   const [suggestingFormat, setSuggestingFormat] = useState(false);
   const [formatSuggestion, setFormatSuggestion] = useState<{ recommendation: string; confidence: string; reasoning: string; shortStoryAdvantages: string; novelAdvantages: string } | null>(null);
+  const [suggestingTitles, setSuggestingTitles] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<Array<{ title: string; reason: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -173,6 +176,43 @@ export default function NewShortStory() {
     }
   };
 
+  const handleSuggestTitles = async () => {
+    const mainIdea = form.getValues("mainIdea");
+    if (!mainIdea || mainIdea.length < 10) {
+      toast({ title: "أدخل الفكرة الرئيسية أولاً", description: "يجب أن تكون الفكرة 10 أحرف على الأقل لاقتراح عناوين مناسبة", variant: "destructive" });
+      return;
+    }
+
+    setSuggestingTitles(true);
+    setShowSuggestions(false);
+    try {
+      const res = await apiRequest("POST", "/api/projects/suggest-titles", {
+        mainIdea,
+        projectType: "short_story",
+        genre: form.getValues("genre"),
+        timeSetting: form.getValues("timeSetting"),
+        placeSetting: form.getValues("placeSetting"),
+        narrativePov: form.getValues("narrativePov"),
+      });
+      const suggestions = await res.json();
+      if (Array.isArray(suggestions) && suggestions.length > 0) {
+        setTitleSuggestions(suggestions);
+        setShowSuggestions(true);
+      } else {
+        toast({ title: "لم يتمكن أبو هاشم من اقتراح عناوين", description: "حاول إضافة مزيد من التفاصيل", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "فشل في اقتراح العناوين", description: "حاول مرة أخرى", variant: "destructive" });
+    } finally {
+      setSuggestingTitles(false);
+    }
+  };
+
+  const selectTitle = (title: string) => {
+    form.setValue("title", title, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    setShowSuggestions(false);
+  };
+
   const toggleExpanded = (index: number) => {
     setExpandedChars(prev => {
       const next = new Set(prev);
@@ -236,10 +276,49 @@ export default function NewShortStory() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>عنوان القصة</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="مثال: صمت الحجارة" data-testid="input-title" />
-                        </FormControl>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input placeholder="مثال: صمت الحجارة" {...field} data-testid="input-title" />
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSuggestTitles}
+                            disabled={suggestingTitles}
+                            className="shrink-0 gap-1.5 border-[hsl(43,76%,52%)] text-[hsl(43,76%,52%)] hover:bg-[hsl(43,76%,52%)]/10 whitespace-nowrap"
+                            data-testid="button-suggest-titles"
+                          >
+                            {suggestingTitles ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            {suggestingTitles ? "جارٍ التفكير..." : "اقتراح من أبو هاشم"}
+                          </Button>
+                        </div>
                         <FormMessage />
+                        {showSuggestions && titleSuggestions.length > 0 && (
+                          <div className="mt-3 rounded-lg border border-[hsl(43,76%,52%)]/30 bg-[hsl(43,76%,92%)] dark:bg-[hsl(213,66%,11%)]/50 p-4 space-y-2" data-testid="panel-title-suggestions">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 text-[hsl(43,76%,52%)]" />
+                                <span className="text-sm font-semibold">اقتراحات أبو هاشم</span>
+                              </div>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => setShowSuggestions(false)} className="h-6 w-6 p-0" data-testid="button-close-suggestions">
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {titleSuggestions.map((suggestion, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => selectTitle(suggestion.title)}
+                                className="w-full text-right p-3 rounded-md border border-transparent hover:border-[hsl(43,76%,52%)]/50 hover:bg-white dark:hover:bg-[hsl(213,66%,15%)] transition-colors cursor-pointer"
+                                data-testid={`button-suggestion-${index}`}
+                              >
+                                <div className="font-serif font-bold text-base">{suggestion.title}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{suggestion.reason}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </FormItem>
                     )}
                   />
