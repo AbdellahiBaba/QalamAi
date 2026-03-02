@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { SupportTicket, NovelProject, PromoCode, PlatformReview } from "@shared/schema";
+import { FREE_ANALYSIS_USES, PAID_ANALYSIS_USES } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
 
 interface RevenueData {
@@ -415,6 +416,27 @@ export default function Admin() {
     enabled: !!grantUser,
   });
 
+  const setAnalysisCountsMutation = useMutation({
+    mutationFn: async ({ projectId, continuityCheckPaidCount, styleAnalysisPaidCount }: { projectId: number; continuityCheckPaidCount: number; styleAnalysisPaidCount: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/projects/${projectId}/analysis-counts`, { continuityCheckPaidCount, styleAnalysisPaidCount });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث عدد المحاولات بنجاح" });
+      if (grantUser) {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/users", grantUser.id, "projects"] });
+      }
+      setShowGrantDialog(false);
+      setGrantUser(null);
+      setGrantContinuity("0");
+      setGrantStyle("0");
+      setGrantProjectId("all");
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث المحاولات", variant: "destructive" });
+    },
+  });
+
   const grantAnalysisMutation = useMutation({
     mutationFn: async ({ userId, continuityUses, styleUses, projectId }: { userId: string; continuityUses: number; styleUses: number; projectId?: number }) => {
       const body: any = { continuityUses, styleUses };
@@ -424,6 +446,9 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({ title: "تم منح محاولات التحليل بنجاح" });
+      if (grantUser) {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/users", grantUser.id, "projects"] });
+      }
       setShowGrantDialog(false);
       setGrantUser(null);
       setGrantContinuity("0");
@@ -434,6 +459,18 @@ export default function Admin() {
       toast({ title: "فشل في منح المحاولات", variant: "destructive" });
     },
   });
+
+  const selectedGrantProject = grantUserProjects?.find(p => String(p.id) === grantProjectId);
+
+  useEffect(() => {
+    if (selectedGrantProject) {
+      setGrantContinuity(String(selectedGrantProject.continuityCheckPaidCount || 0));
+      setGrantStyle(String(selectedGrantProject.styleAnalysisPaidCount || 0));
+    } else {
+      setGrantContinuity("0");
+      setGrantStyle("0");
+    }
+  }, [grantProjectId, selectedGrantProject]);
 
   const handleGrantAnalysis = (u: AdminUser) => {
     setGrantUser(u);
@@ -1991,7 +2028,7 @@ export default function Admin() {
       <Dialog open={showGrantDialog} onOpenChange={setShowGrantDialog}>
         <DialogContent dir="rtl">
           <DialogHeader>
-            <DialogTitle>منح محاولات تحليل</DialogTitle>
+            <DialogTitle>إدارة محاولات التحليل</DialogTitle>
           </DialogHeader>
           {grantUser && (
             <div className="space-y-4">
@@ -2005,15 +2042,42 @@ export default function Admin() {
                     <SelectValue placeholder="اختر مشروعاً" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع المشاريع</SelectItem>
+                    <SelectItem value="all">جميع المشاريع (إضافة)</SelectItem>
                     {grantUserProjects?.map((p) => (
                       <SelectItem key={p.id} value={String(p.id)}>{p.title}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedGrantProject && (
+                <div className="rounded-md border p-3 space-y-2 bg-muted/30" data-testid="section-current-analysis-counts">
+                  <div className="text-xs font-medium text-muted-foreground">الاستخدام الحالي:</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="space-y-0.5">
+                      <div className="text-muted-foreground">فحص الاستمرارية</div>
+                      <div className="font-medium">
+                        المستخدم: <LtrNum>{selectedGrantProject.continuityCheckCount || 0}</LtrNum>
+                        {" / "}
+                        المتاح: <LtrNum>{Math.max(0, FREE_ANALYSIS_USES + ((selectedGrantProject.continuityCheckPaidCount || 0) * PAID_ANALYSIS_USES) - (selectedGrantProject.continuityCheckCount || 0))}</LtrNum>
+                      </div>
+                      <div className="text-muted-foreground">الباقات المدفوعة: <LtrNum>{selectedGrantProject.continuityCheckPaidCount || 0}</LtrNum></div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-muted-foreground">تحليل الأسلوب</div>
+                      <div className="font-medium">
+                        المستخدم: <LtrNum>{selectedGrantProject.styleAnalysisCount || 0}</LtrNum>
+                        {" / "}
+                        المتاح: <LtrNum>{Math.max(0, FREE_ANALYSIS_USES + ((selectedGrantProject.styleAnalysisPaidCount || 0) * PAID_ANALYSIS_USES) - (selectedGrantProject.styleAnalysisCount || 0))}</LtrNum>
+                      </div>
+                      <div className="text-muted-foreground">الباقات المدفوعة: <LtrNum>{selectedGrantProject.styleAnalysisPaidCount || 0}</LtrNum></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label>عدد محاولات فحص الاستمرارية</Label>
+                <Label>{selectedGrantProject ? "عدد باقات فحص الاستمرارية المدفوعة" : "عدد محاولات فحص الاستمرارية (إضافة)"}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -2023,7 +2087,7 @@ export default function Admin() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>عدد محاولات تحليل الأسلوب</Label>
+                <Label>{selectedGrantProject ? "عدد باقات تحليل الأسلوب المدفوعة" : "عدد محاولات تحليل الأسلوب (إضافة)"}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -2032,21 +2096,36 @@ export default function Admin() {
                   data-testid="input-grant-style"
                 />
               </div>
+
+              {grantProjectId === "all" && (
+                <p className="text-xs text-muted-foreground">سيتم إضافة المحاولات لجميع مشاريع المستخدم</p>
+              )}
+
               <Button
                 className="w-full"
-                disabled={grantAnalysisMutation.isPending || (parseInt(grantContinuity) <= 0 && parseInt(grantStyle) <= 0)}
+                disabled={
+                  (selectedGrantProject ? setAnalysisCountsMutation.isPending : grantAnalysisMutation.isPending) ||
+                  (!selectedGrantProject && parseInt(grantContinuity) <= 0 && parseInt(grantStyle) <= 0)
+                }
                 onClick={() => {
-                  grantAnalysisMutation.mutate({
-                    userId: grantUser.id,
-                    continuityUses: parseInt(grantContinuity) || 0,
-                    styleUses: parseInt(grantStyle) || 0,
-                    projectId: grantProjectId !== "all" ? parseInt(grantProjectId) : undefined,
-                  });
+                  if (selectedGrantProject) {
+                    setAnalysisCountsMutation.mutate({
+                      projectId: selectedGrantProject.id,
+                      continuityCheckPaidCount: Math.max(0, parseInt(grantContinuity) || 0),
+                      styleAnalysisPaidCount: Math.max(0, parseInt(grantStyle) || 0),
+                    });
+                  } else {
+                    grantAnalysisMutation.mutate({
+                      userId: grantUser.id,
+                      continuityUses: parseInt(grantContinuity) || 0,
+                      styleUses: parseInt(grantStyle) || 0,
+                    });
+                  }
                 }}
                 data-testid="button-submit-grant-analysis"
               >
-                {grantAnalysisMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <BarChart3 className="w-4 h-4 ml-2" />}
-                منح المحاولات
+                {(grantAnalysisMutation.isPending || setAnalysisCountsMutation.isPending) ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <BarChart3 className="w-4 h-4 ml-2" />}
+                {selectedGrantProject ? "تحديث المحاولات" : "منح المحاولات"}
               </Button>
             </div>
           )}

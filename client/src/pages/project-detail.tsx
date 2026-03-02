@@ -205,6 +205,15 @@ export default function ProjectDetail() {
   const [editTimeSetting, setEditTimeSetting] = useState("");
   const [editPlaceSetting, setEditPlaceSetting] = useState("");
   const [editNarrativeTechnique, setEditNarrativeTechnique] = useState("");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState("");
+  const [editSubject, setEditSubject] = useState("");
+  const [editEssayTone, setEditEssayTone] = useState("");
+  const [editTargetAudience, setEditTargetAudience] = useState("");
+  const [editGenre, setEditGenre] = useState("");
+  const [editFormatType, setEditFormatType] = useState("");
+  const [editEpisodeCount, setEditEpisodeCount] = useState("");
+  const [editNarrativePov, setEditNarrativePov] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -286,7 +295,7 @@ export default function ProjectDetail() {
   });
 
   const saveSettingsMutation = useMutation({
-    mutationFn: async (data: { timeSetting?: string; placeSetting?: string; narrativeTechnique?: string }) => {
+    mutationFn: async (data: Record<string, any>) => {
       const res = await apiRequest("PATCH", `/api/projects/${projectId}/settings`, data);
       return res.json();
     },
@@ -294,6 +303,7 @@ export default function ProjectDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
       toast({ title: "تم حفظ التعديلات" });
       setEditingSettings(false);
+      setEditingTitle(false);
     },
     onError: () => {
       toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
@@ -855,15 +865,47 @@ export default function ProjectDetail() {
     setEditTimeSetting(project.timeSetting || "");
     setEditPlaceSetting(project.placeSetting || "");
     setEditNarrativeTechnique(project.narrativeTechnique || "");
+    setEditSubject(project.subject || "");
+    setEditEssayTone(project.essayTone || "");
+    setEditTargetAudience(project.targetAudience || "");
+    setEditGenre(project.genre || "");
+    setEditFormatType(project.formatType || "");
+    setEditEpisodeCount(String(project.episodeCount || ""));
+    setEditNarrativePov(project.narrativePov || "");
     setEditingSettings(true);
   };
 
   const handleSaveSettings = () => {
-    saveSettingsMutation.mutate({
-      timeSetting: editTimeSetting,
-      placeSetting: editPlaceSetting,
-      narrativeTechnique: editNarrativeTechnique,
-    });
+    if (!project) return;
+    const pt = project.projectType;
+    const data: Record<string, any> = {};
+    if (pt === "novel") {
+      data.timeSetting = editTimeSetting;
+      data.placeSetting = editPlaceSetting;
+      data.narrativeTechnique = editNarrativeTechnique;
+    } else if (pt === "essay") {
+      data.subject = editSubject;
+      data.essayTone = editEssayTone;
+      data.targetAudience = editTargetAudience;
+    } else if (pt === "scenario") {
+      data.genre = editGenre;
+      data.formatType = editFormatType;
+      data.episodeCount = editFormatType === "series" && editEpisodeCount ? parseInt(editEpisodeCount) : null;
+      data.timeSetting = editTimeSetting;
+      data.placeSetting = editPlaceSetting;
+    } else if (pt === "short_story") {
+      data.genre = editGenre;
+      data.timeSetting = editTimeSetting;
+      data.placeSetting = editPlaceSetting;
+      data.narrativePov = editNarrativePov;
+      data.narrativeTechnique = editNarrativeTechnique;
+    }
+    saveSettingsMutation.mutate(data);
+  };
+
+  const handleSaveTitle = () => {
+    if (!editTitleValue.trim()) return;
+    saveSettingsMutation.mutate({ title: editTitleValue.trim() });
   };
 
   return (
@@ -878,9 +920,40 @@ export default function ProjectDetail() {
             </Link>
             <div className="flex items-center gap-2 min-w-0">
               <Feather className="w-5 h-5 text-primary shrink-0" />
-              <span className="font-serif text-base sm:text-lg font-bold line-clamp-1" data-testid="text-project-name">
-                {project.title}
-              </span>
+              {editingTitle ? (
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <Input
+                    value={editTitleValue}
+                    onChange={(e) => setEditTitleValue(e.target.value)}
+                    className="h-8 text-sm font-serif font-bold flex-1 min-w-[120px]"
+                    maxLength={200}
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
+                    data-testid="input-edit-title"
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSaveTitle} disabled={saveSettingsMutation.isPending} data-testid="button-save-title">
+                    {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEditingTitle(false)} data-testid="button-cancel-title">
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 min-w-0 group">
+                  <span className="font-serif text-base sm:text-lg font-bold line-clamp-1" data-testid="text-project-name">
+                    {project.title}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    onClick={() => { setEditTitleValue(project.title); setEditingTitle(true); }}
+                    data-testid="button-edit-title"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
@@ -1150,12 +1223,12 @@ export default function ProjectDetail() {
                     <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
                       {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : "تفاصيل الرواية"}
                     </h3>
-                    {project.projectType === "novel" && !editingSettings && (
+                    {["novel", "essay", "scenario", "short_story"].includes(project.projectType) && !editingSettings && (
                       <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs" data-testid="button-edit-settings">
                         <Pencil className="w-3 h-3" /> تعديل
                       </Button>
                     )}
-                    {project.projectType === "novel" && editingSettings && (
+                    {["novel", "essay", "scenario", "short_story"].includes(project.projectType) && editingSettings && (
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={handleSaveSettings} disabled={saveSettingsMutation.isPending} className="h-7 gap-1 text-xs" data-testid="button-save-settings">
                           {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} حفظ
@@ -1168,120 +1241,251 @@ export default function ProjectDetail() {
                   </div>
                   <div className="space-y-3 text-sm">
                     {project.projectType === "essay" ? (
-                      <>
-                        {project.subject && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">الموضوع:</span>
-                            <span className="font-medium">{project.subject}</span>
+                      editingSettings ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الموضوع</Label>
+                            <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} data-testid="input-edit-subject" className="h-8 text-sm" />
                           </div>
-                        )}
-                        {project.essayTone && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">أسلوب الكتابة:</span>
-                            <span className="font-medium">{
-                              ({ formal: "رسمي أكاديمي", analytical: "تحليلي", investigative: "استقصائي", editorial: "افتتاحي / رأي", conversational: "حواري خبير", narrative: "سردي قصصي", persuasive: "إقناعي", satirical: "ساخر", scientific: "علمي تبسيطي", literary: "أدبي", journalistic: "صحفي إخباري" } as Record<string, string>)[project.essayTone] || project.essayTone
-                            }</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">أسلوب الكتابة</Label>
+                            <Select value={editEssayTone} onValueChange={setEditEssayTone}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-essay-tone">
+                                <SelectValue placeholder="اختر الأسلوب" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries({ formal: "رسمي أكاديمي", analytical: "تحليلي", investigative: "استقصائي", editorial: "افتتاحي / رأي", conversational: "حواري خبير", narrative: "سردي قصصي", persuasive: "إقناعي", satirical: "ساخر", scientific: "علمي تبسيطي", literary: "أدبي", journalistic: "صحفي إخباري" }).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {project.targetAudience && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">الجمهور المستهدف:</span>
-                            <span className="font-medium">{project.targetAudience}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الجمهور المستهدف</Label>
+                            <Input value={editTargetAudience} onChange={(e) => setEditTargetAudience(e.target.value)} data-testid="input-edit-target-audience" className="h-8 text-sm" />
                           </div>
-                        )}
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">عدد الأقسام:</span>
-                          <span className="font-medium">{project.chapters?.length || 0}</span>
-                        </div>
-                      </>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد الأقسام:</span>
+                            <span className="font-medium">{project.chapters?.length || 0}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {project.subject && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الموضوع:</span>
+                              <span className="font-medium">{project.subject}</span>
+                            </div>
+                          )}
+                          {project.essayTone && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">أسلوب الكتابة:</span>
+                              <span className="font-medium">{
+                                ({ formal: "رسمي أكاديمي", analytical: "تحليلي", investigative: "استقصائي", editorial: "افتتاحي / رأي", conversational: "حواري خبير", narrative: "سردي قصصي", persuasive: "إقناعي", satirical: "ساخر", scientific: "علمي تبسيطي", literary: "أدبي", journalistic: "صحفي إخباري" } as Record<string, string>)[project.essayTone] || project.essayTone
+                              }</span>
+                            </div>
+                          )}
+                          {project.targetAudience && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الجمهور المستهدف:</span>
+                              <span className="font-medium">{project.targetAudience}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد الأقسام:</span>
+                            <span className="font-medium">{project.chapters?.length || 0}</span>
+                          </div>
+                        </>
+                      )
                     ) : project.projectType === "short_story" ? (
-                      <>
-                        {project.genre && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">النوع الأدبي:</span>
-                            <span className="font-medium">{
-                              ({ realistic: "واقعي", symbolic: "رمزي / أسطوري", psychological: "نفسي", social: "اجتماعي", fantasy: "فانتازيا", horror: "رعب", romantic: "رومانسي", historical: "تاريخي", satirical: "ساخر", philosophical: "فلسفي" } as Record<string, string>)[project.genre] || project.genre
-                            }</span>
+                      editingSettings ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">النوع الأدبي</Label>
+                            <Select value={editGenre} onValueChange={setEditGenre}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-short-story-genre">
+                                <SelectValue placeholder="اختر النوع" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries({ realistic: "واقعي", symbolic: "رمزي / أسطوري", psychological: "نفسي", social: "اجتماعي", fantasy: "فانتازيا", horror: "رعب", romantic: "رومانسي", historical: "تاريخي", satirical: "ساخر", philosophical: "فلسفي" }).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {project.timeSetting && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">الزمان:</span>
-                            <span className="font-medium">{project.timeSetting}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الزمان</Label>
+                            <Input value={editTimeSetting} onChange={(e) => setEditTimeSetting(e.target.value)} data-testid="input-edit-short-time" className="h-8 text-sm" />
                           </div>
-                        )}
-                        {project.placeSetting && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">المكان:</span>
-                            <span className="font-medium">{project.placeSetting}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">المكان</Label>
+                            <Input value={editPlaceSetting} onChange={(e) => setEditPlaceSetting(e.target.value)} data-testid="input-edit-short-place" className="h-8 text-sm" />
                           </div>
-                        )}
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">نوع السرد:</span>
-                          <span className="font-medium">{povLabel(project.narrativePov)}</span>
-                        </div>
-                        {project.narrativeTechnique && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">التقنية السردية:</span>
-                            <span className="font-medium">{TECHNIQUE_LABELS[project.narrativeTechnique] || project.narrativeTechnique}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">نوع السرد</Label>
+                            <Select value={editNarrativePov} onValueChange={setEditNarrativePov}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-pov">
+                                <SelectValue placeholder="اختر نوع السرد" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="first_person">ضمير المتكلم</SelectItem>
+                                <SelectItem value="third_person">ضمير الغائب</SelectItem>
+                                <SelectItem value="omniscient">الراوي العليم</SelectItem>
+                                <SelectItem value="multiple">تعدد الأصوات</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">الحجم:</span>
-                          <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة</span>
-                        </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">عدد الشخصيات:</span>
-                          <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
-                        </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">عدد المقاطع:</span>
-                          <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
-                        </div>
-                      </>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">التقنية السردية</Label>
+                            <Select value={editNarrativeTechnique} onValueChange={setEditNarrativeTechnique}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-short-technique">
+                                <SelectValue placeholder="اختر التقنية" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(TECHNIQUE_LABELS).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الحجم:</span>
+                            <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {project.genre && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">النوع الأدبي:</span>
+                              <span className="font-medium">{
+                                ({ realistic: "واقعي", symbolic: "رمزي / أسطوري", psychological: "نفسي", social: "اجتماعي", fantasy: "فانتازيا", horror: "رعب", romantic: "رومانسي", historical: "تاريخي", satirical: "ساخر", philosophical: "فلسفي" } as Record<string, string>)[project.genre] || project.genre
+                              }</span>
+                            </div>
+                          )}
+                          {project.timeSetting && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الزمان:</span>
+                              <span className="font-medium">{project.timeSetting}</span>
+                            </div>
+                          )}
+                          {project.placeSetting && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">المكان:</span>
+                              <span className="font-medium">{project.placeSetting}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">نوع السرد:</span>
+                            <span className="font-medium">{povLabel(project.narrativePov)}</span>
+                          </div>
+                          {project.narrativeTechnique && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">التقنية السردية:</span>
+                              <span className="font-medium">{TECHNIQUE_LABELS[project.narrativeTechnique] || project.narrativeTechnique}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الحجم:</span>
+                            <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد الشخصيات:</span>
+                            <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد المقاطع:</span>
+                            <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
+                          </div>
+                        </>
+                      )
                     ) : project.projectType === "scenario" ? (
-                      <>
-                        {project.genre && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">النوع الدرامي:</span>
-                            <span className="font-medium">{
-                              ({ drama: "دراما", comedy: "كوميديا", thriller: "إثارة", romance: "رومانسي", action: "أكشن", "sci-fi": "خيال علمي", horror: "رعب", family: "عائلي", social: "اجتماعي", crime: "جريمة", war: "حربي" } as Record<string, string>)[project.genre] || project.genre
-                            }</span>
+                      editingSettings ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">النوع الدرامي</Label>
+                            <Select value={editGenre} onValueChange={setEditGenre}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-scenario-genre">
+                                <SelectValue placeholder="اختر النوع" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries({ drama: "دراما", comedy: "كوميديا", thriller: "إثارة", romance: "رومانسي", action: "أكشن", "sci-fi": "خيال علمي", horror: "رعب", family: "عائلي", social: "اجتماعي", crime: "جريمة", war: "حربي" }).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {project.formatType && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">الشكل:</span>
-                            <span className="font-medium">{project.formatType === "film" ? "فيلم سينمائي" : project.formatType === "series" ? "مسلسل تلفزيوني" : project.formatType}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الشكل</Label>
+                            <Select value={editFormatType} onValueChange={setEditFormatType}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-format-type">
+                                <SelectValue placeholder="اختر الشكل" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="film">فيلم سينمائي</SelectItem>
+                                <SelectItem value="series">مسلسل تلفزيوني</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {project.formatType === "series" && project.episodeCount && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">عدد الحلقات:</span>
-                            <span className="font-medium"><LtrNum>{project.episodeCount}</LtrNum></span>
+                          {editFormatType === "series" && (
+                            <div className="space-y-1">
+                              <Label className="text-muted-foreground text-xs">عدد الحلقات</Label>
+                              <Input type="number" min={1} max={100} value={editEpisodeCount} onChange={(e) => setEditEpisodeCount(e.target.value)} data-testid="input-edit-episode-count" className="h-8 text-sm" />
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الزمان</Label>
+                            <Input value={editTimeSetting} onChange={(e) => setEditTimeSetting(e.target.value)} data-testid="input-edit-scenario-time" className="h-8 text-sm" />
                           </div>
-                        )}
-                        {project.timeSetting && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">الزمان:</span>
-                            <span className="font-medium">{project.timeSetting}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">المكان</Label>
+                            <Input value={editPlaceSetting} onChange={(e) => setEditPlaceSetting(e.target.value)} data-testid="input-edit-scenario-place" className="h-8 text-sm" />
                           </div>
-                        )}
-                        {project.placeSetting && (
+                        </>
+                      ) : (
+                        <>
+                          {project.genre && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">النوع الدرامي:</span>
+                              <span className="font-medium">{
+                                ({ drama: "دراما", comedy: "كوميديا", thriller: "إثارة", romance: "رومانسي", action: "أكشن", "sci-fi": "خيال علمي", horror: "رعب", family: "عائلي", social: "اجتماعي", crime: "جريمة", war: "حربي" } as Record<string, string>)[project.genre] || project.genre
+                              }</span>
+                            </div>
+                          )}
+                          {project.formatType && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الشكل:</span>
+                              <span className="font-medium">{project.formatType === "film" ? "فيلم سينمائي" : project.formatType === "series" ? "مسلسل تلفزيوني" : project.formatType}</span>
+                            </div>
+                          )}
+                          {project.formatType === "series" && project.episodeCount && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">عدد الحلقات:</span>
+                              <span className="font-medium"><LtrNum>{project.episodeCount}</LtrNum></span>
+                            </div>
+                          )}
+                          {project.timeSetting && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الزمان:</span>
+                              <span className="font-medium">{project.timeSetting}</span>
+                            </div>
+                          )}
+                          {project.placeSetting && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">المكان:</span>
+                              <span className="font-medium">{project.placeSetting}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">المكان:</span>
-                            <span className="font-medium">{project.placeSetting}</span>
+                            <span className="text-muted-foreground">عدد الشخصيات:</span>
+                            <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
                           </div>
-                        )}
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">عدد الشخصيات:</span>
-                          <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
-                        </div>
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">عدد المشاهد:</span>
-                          <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
-                        </div>
-                      </>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد المشاهد:</span>
+                            <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
+                          </div>
+                        </>
+                      )
                     ) : editingSettings ? (
                       <>
                         <div className="space-y-1">

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
@@ -902,7 +902,12 @@ ${pages.map(p => `  <url>
         return res.status(404).json({ error: "المشروع غير موجود" });
       }
 
-      const updates: Partial<{ timeSetting: string; placeSetting: string; narrativeTechnique: string | null }> = {};
+      const updates: Partial<NovelProject> = {};
+
+      if (typeof req.body.title === "string" && req.body.title.trim().length > 0) {
+        updates.title = req.body.title.trim().slice(0, 200);
+      }
+
       if (typeof req.body.timeSetting === "string") {
         updates.timeSetting = req.body.timeSetting.slice(0, 500);
       }
@@ -913,6 +918,39 @@ ${pages.map(p => `  <url>
         if (req.body.narrativeTechnique === "" || NARRATIVE_TECHNIQUE_MAP[req.body.narrativeTechnique]) {
           updates.narrativeTechnique = req.body.narrativeTechnique || null;
         }
+      }
+
+      const validEssayTones = ["formal", "analytical", "investigative", "editorial", "conversational", "narrative", "persuasive", "satirical", "scientific", "literary", "journalistic"];
+      if (typeof req.body.subject === "string") {
+        updates.subject = req.body.subject.slice(0, 500);
+      }
+      if (typeof req.body.essayTone === "string" && validEssayTones.includes(req.body.essayTone)) {
+        updates.essayTone = req.body.essayTone;
+      }
+      if (typeof req.body.targetAudience === "string") {
+        updates.targetAudience = req.body.targetAudience.slice(0, 500);
+      }
+
+      const validShortStoryGenres = ["realistic", "symbolic", "psychological", "social", "fantasy", "horror", "romantic", "historical", "satirical", "philosophical"];
+      const validScenarioGenres = ["drama", "comedy", "thriller", "romance", "action", "sci-fi", "horror", "family", "social", "crime", "war"];
+      if (typeof req.body.genre === "string") {
+        const projectType = project.projectType;
+        const validGenres = projectType === "scenario" ? validScenarioGenres : validShortStoryGenres;
+        if (validGenres.includes(req.body.genre)) {
+          updates.genre = req.body.genre;
+        }
+      }
+      if (typeof req.body.formatType === "string" && ["film", "series"].includes(req.body.formatType)) {
+        updates.formatType = req.body.formatType;
+      }
+      if (req.body.episodeCount === null) {
+        updates.episodeCount = null;
+      } else if (typeof req.body.episodeCount === "number" && req.body.episodeCount >= 1 && req.body.episodeCount <= 100) {
+        updates.episodeCount = req.body.episodeCount;
+      }
+      const validPovs = ["first_person", "third_person", "omniscient", "multiple"];
+      if (typeof req.body.narrativePov === "string" && validPovs.includes(req.body.narrativePov)) {
+        updates.narrativePov = req.body.narrativePov;
       }
 
       if (Object.keys(updates).length === 0) {
@@ -2440,6 +2478,36 @@ ${glossaryParagraphs}
     } catch (error) {
       console.error("Error granting analysis uses:", error);
       res.status(500).json({ error: "فشل في منح المحاولات" });
+    }
+  });
+
+  app.patch("/api/admin/projects/:id/analysis-counts", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
+
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+
+      const { continuityCheckPaidCount, styleAnalysisPaidCount } = req.body;
+      const updates: any = {};
+
+      if (typeof continuityCheckPaidCount === "number") {
+        updates.continuityCheckPaidCount = Math.max(0, Math.min(1000, Math.floor(continuityCheckPaidCount)));
+      }
+      if (typeof styleAnalysisPaidCount === "number") {
+        updates.styleAnalysisPaidCount = Math.max(0, Math.min(1000, Math.floor(styleAnalysisPaidCount)));
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "لا توجد تعديلات" });
+      }
+
+      const updated = await storage.updateProject(projectId, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating analysis counts:", error);
+      res.status(500).json({ error: "فشل في تحديث عدد المحاولات" });
     }
   });
 
