@@ -19,8 +19,9 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -1195,159 +1196,325 @@ export default function ProjectDetail() {
             </div>
           </div>
           {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                onClick={() => {
-                  window.open(`/api/projects/${projectId}/export/pdf`, "_blank");
-                }}
-                data-testid="button-download-pdf"
-              >
-                <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل PDF</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  window.open(`/api/projects/${projectId}/export/epub`, "_blank");
-                }}
-                data-testid="button-download-epub"
-              >
-                <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل EPUB</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  window.open(`/api/projects/${projectId}/export/docx`, "_blank");
-                }}
-                data-testid="button-download-docx"
-              >
-                <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل DOCX</span>
-              </Button>
-              {project.shareToken ? (
+            <>
+              <div className="hidden sm:flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    window.open(`/api/projects/${projectId}/export/pdf`, "_blank");
+                  }}
+                  data-testid="button-download-pdf"
+                >
+                  <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل PDF</span>
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    const url = `${window.location.origin}/shared/${project.shareToken}`;
-                    navigator.clipboard.writeText(url);
-                    toast({ title: "تم نسخ رابط المشاركة" });
+                    window.open(`/api/projects/${projectId}/export/epub`, "_blank");
                   }}
-                  data-testid="button-copy-share-link"
+                  data-testid="button-download-epub"
                 >
-                  <Copy className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">نسخ الرابط</span>
+                  <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل EPUB</span>
                 </Button>
-              ) : null}
-              <Button
-                size="sm"
-                variant={project.shareToken ? "destructive" : "secondary"}
-                onClick={async () => {
-                  try {
-                    if (project.shareToken) {
-                      await apiRequest("DELETE", `/api/projects/${projectId}/share`);
-                      toast({ title: "تم إلغاء المشاركة" });
-                    } else {
-                      await apiRequest("POST", `/api/projects/${projectId}/share`);
-                      toast({ title: "تم إنشاء رابط المشاركة" });
-                    }
-                    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                  } catch {
-                    toast({ title: "حدث خطأ", variant: "destructive" });
-                  }
-                }}
-                data-testid="button-toggle-share"
-              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    window.open(`/api/projects/${projectId}/export/docx`, "_blank");
+                  }}
+                  data-testid="button-download-docx"
+                >
+                  <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل DOCX</span>
+                </Button>
                 {project.shareToken ? (
-                  <><X className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">إلغاء المشاركة</span></>
-                ) : (
-                  <><Share2 className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">مشاركة</span></>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/shared/${project.shareToken}`;
+                      navigator.clipboard.writeText(url);
+                      toast({ title: "تم نسخ رابط المشاركة" });
+                    }}
+                    data-testid="button-copy-share-link"
+                  >
+                    <Copy className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">نسخ الرابط</span>
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant={project.shareToken ? "destructive" : "secondary"}
+                  onClick={async () => {
+                    try {
+                      if (project.shareToken) {
+                        await apiRequest("DELETE", `/api/projects/${projectId}/share`);
+                        toast({ title: "تم إلغاء المشاركة" });
+                      } else {
+                        await apiRequest("POST", `/api/projects/${projectId}/share`);
+                        toast({ title: "تم إنشاء رابط المشاركة" });
+                      }
+                      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                    } catch {
+                      toast({ title: "حدث خطأ", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-toggle-share"
+                >
+                  {project.shareToken ? (
+                    <><X className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">إلغاء المشاركة</span></>
+                  ) : (
+                    <><Share2 className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">مشاركة</span></>
+                  )}
+                </Button>
+                {project.shareToken && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="publish-to-gallery"
+                      checked={!!project.publishedToGallery}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          if (checked) {
+                            await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
+                            toast({ title: "تم نشر المشروع في المعرض" });
+                          } else {
+                            await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
+                            toast({ title: "تم إلغاء النشر من المعرض" });
+                          }
+                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                        } catch {
+                          toast({ title: "حدث خطأ", variant: "destructive" });
+                        }
+                      }}
+                      data-testid="switch-publish-to-gallery"
+                    />
+                    <Label
+                      htmlFor="publish-to-gallery"
+                      className="text-xs cursor-pointer whitespace-nowrap"
+                      data-testid="label-publish-to-gallery"
+                      title="عند التفعيل، سيظهر مشروعك في المعرض العام ليقرأه الجميع"
+                    >
+                      نشر في المعرض
+                    </Label>
+                  </div>
                 )}
-              </Button>
-              {project.shareToken && (
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="publish-to-gallery"
-                    checked={!!project.publishedToGallery}
-                    onCheckedChange={async (checked) => {
-                      try {
-                        if (checked) {
-                          await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
-                          toast({ title: "تم نشر المشروع في المعرض" });
-                        } else {
-                          await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
-                          toast({ title: "تم إلغاء النشر من المعرض" });
+                {project.projectType === "essay" && project.shareToken && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="publish-to-news"
+                      checked={!!project.publishedToNews}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          if (checked) {
+                            await apiRequest("POST", `/api/projects/${projectId}/publish-to-news`);
+                            toast({ title: "تم نشر المقال في صفحة المقالات" });
+                          } else {
+                            await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-news`);
+                            toast({ title: "تم إلغاء النشر من صفحة المقالات" });
+                          }
+                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                        } catch {
+                          toast({ title: "حدث خطأ", variant: "destructive" });
                         }
-                        queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                      } catch {
-                        toast({ title: "حدث خطأ", variant: "destructive" });
-                      }
-                    }}
-                    data-testid="switch-publish-to-gallery"
-                  />
-                  <Label
-                    htmlFor="publish-to-gallery"
-                    className="text-xs cursor-pointer whitespace-nowrap"
-                    data-testid="label-publish-to-gallery"
-                    title="عند التفعيل، سيظهر مشروعك في المعرض العام ليقرأه الجميع"
-                  >
-                    نشر في المعرض
-                  </Label>
-                </div>
-              )}
-              {project.projectType === "essay" && project.shareToken && (
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="publish-to-news"
-                    checked={!!project.publishedToNews}
-                    onCheckedChange={async (checked) => {
-                      try {
-                        if (checked) {
-                          await apiRequest("POST", `/api/projects/${projectId}/publish-to-news`);
-                          toast({ title: "تم نشر المقال في صفحة المقالات" });
-                        } else {
-                          await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-news`);
-                          toast({ title: "تم إلغاء النشر من صفحة المقالات" });
+                      }}
+                      data-testid="switch-publish-to-news"
+                    />
+                    <Label
+                      htmlFor="publish-to-news"
+                      className="text-xs cursor-pointer whitespace-nowrap"
+                      data-testid="label-publish-to-news"
+                      title="عند التفعيل، سيظهر مقالك في صفحة المقالات العامة ليقرأه الجميع"
+                    >
+                      نشر في صفحة المقالات
+                    </Label>
+                  </div>
+                )}
+              </div>
+              <div className="flex sm:hidden shrink-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" data-testid="button-mobile-actions">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" dir="rtl" className="w-56" data-testid="dropdown-mobile-actions">
+                    <DropdownMenuItem
+                      onClick={() => window.open(`/api/projects/${projectId}/export/pdf`, "_blank")}
+                      data-testid="menu-download-pdf"
+                    >
+                      <Download className="w-4 h-4 ml-2" />
+                      تحميل PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => window.open(`/api/projects/${projectId}/export/epub`, "_blank")}
+                      data-testid="menu-download-epub"
+                    >
+                      <Download className="w-4 h-4 ml-2" />
+                      تحميل EPUB
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => window.open(`/api/projects/${projectId}/export/docx`, "_blank")}
+                      data-testid="menu-download-docx"
+                    >
+                      <Download className="w-4 h-4 ml-2" />
+                      تحميل DOCX
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {project.shareToken ? (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const url = `${window.location.origin}/shared/${project.shareToken}`;
+                          navigator.clipboard.writeText(url);
+                          toast({ title: "تم نسخ رابط المشاركة" });
+                        }}
+                        data-testid="menu-copy-share-link"
+                      >
+                        <Copy className="w-4 h-4 ml-2" />
+                        نسخ الرابط
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        try {
+                          if (project.shareToken) {
+                            await apiRequest("DELETE", `/api/projects/${projectId}/share`);
+                            toast({ title: "تم إلغاء المشاركة" });
+                          } else {
+                            await apiRequest("POST", `/api/projects/${projectId}/share`);
+                            toast({ title: "تم إنشاء رابط المشاركة" });
+                          }
+                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                        } catch {
+                          toast({ title: "حدث خطأ", variant: "destructive" });
                         }
-                        queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                      } catch {
-                        toast({ title: "حدث خطأ", variant: "destructive" });
-                      }
-                    }}
-                    data-testid="switch-publish-to-news"
-                  />
-                  <Label
-                    htmlFor="publish-to-news"
-                    className="text-xs cursor-pointer whitespace-nowrap"
-                    data-testid="label-publish-to-news"
-                    title="عند التفعيل، سيظهر مقالك في صفحة المقالات العامة ليقرأه الجميع"
+                      }}
+                      data-testid="menu-toggle-share"
+                    >
+                      {project.shareToken ? (
+                        <><X className="w-4 h-4 ml-2" /> إلغاء المشاركة</>
+                      ) : (
+                        <><Share2 className="w-4 h-4 ml-2" /> مشاركة</>
+                      )}
+                    </DropdownMenuItem>
+                    {project.shareToken && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                          <Label className="text-xs cursor-pointer" data-testid="label-publish-gallery-mobile">نشر في المعرض</Label>
+                          <Switch
+                            checked={!!project.publishedToGallery}
+                            onCheckedChange={async (checked) => {
+                              try {
+                                if (checked) {
+                                  await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
+                                  toast({ title: "تم نشر المشروع في المعرض" });
+                                } else {
+                                  await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
+                                  toast({ title: "تم إلغاء النشر من المعرض" });
+                                }
+                                queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                              } catch {
+                                toast({ title: "حدث خطأ", variant: "destructive" });
+                              }
+                            }}
+                            data-testid="switch-publish-gallery-mobile"
+                          />
+                        </div>
+                        {project.projectType === "essay" && (
+                          <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                            <Label className="text-xs cursor-pointer" data-testid="label-publish-news-mobile">نشر في المقالات</Label>
+                            <Switch
+                              checked={!!project.publishedToNews}
+                              onCheckedChange={async (checked) => {
+                                try {
+                                  if (checked) {
+                                    await apiRequest("POST", `/api/projects/${projectId}/publish-to-news`);
+                                    toast({ title: "تم نشر المقال في صفحة المقالات" });
+                                  } else {
+                                    await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-news`);
+                                    toast({ title: "تم إلغاء النشر من صفحة المقالات" });
+                                  }
+                                  queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                                } catch {
+                                  toast({ title: "حدث خطأ", variant: "destructive" });
+                                }
+                              }}
+                              data-testid="switch-publish-news-mobile"
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowShortcutsDialog(true)}
+                      data-testid="menu-shortcuts"
+                    >
+                      <Keyboard className="w-4 h-4 ml-2" />
+                      اختصارات لوحة المفاتيح
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                      data-testid="menu-delete-project"
+                    >
+                      <Trash2 className="w-4 h-4 ml-2" />
+                      حذف المشروع
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </>
+          )}
+          {!(project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0) && (
+            <div className="flex sm:hidden shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" data-testid="button-mobile-actions-minimal">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" dir="rtl" className="w-48" data-testid="dropdown-mobile-actions-minimal">
+                  <DropdownMenuItem
+                    onClick={() => setShowShortcutsDialog(true)}
+                    data-testid="menu-shortcuts-minimal"
                   >
-                    نشر في صفحة المقالات
-                  </Label>
-                </div>
-              )}
+                    <Keyboard className="w-4 h-4 ml-2" />
+                    اختصارات لوحة المفاتيح
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="text-destructive focus:text-destructive"
+                    data-testid="menu-delete-minimal"
+                  >
+                    <Trash2 className="w-4 h-4 ml-2" />
+                    حذف المشروع
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
           <ThemeToggle />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowShortcutsDialog(true)}
-            title="اختصارات لوحة المفاتيح"
-            data-testid="button-show-shortcuts"
-          >
-            <Keyboard className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowDeleteDialog(true)}
-            title="حذف المشروع"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            data-testid="button-delete-project"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          <div className="hidden sm:flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowShortcutsDialog(true)}
+              title="اختصارات لوحة المفاتيح"
+              data-testid="button-show-shortcuts"
+            >
+              <Keyboard className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowDeleteDialog(true)}
+              title="حذف المشروع"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              data-testid="button-delete-project"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </header>
 

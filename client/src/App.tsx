@@ -40,6 +40,9 @@ const Promo = lazy(() => import("@/pages/promo"));
 const EssaysNews = lazy(() => import("@/pages/essays-news"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
+const Privacy = lazy(() => import("@/pages/privacy"));
+const Terms = lazy(() => import("@/pages/terms"));
+const Refund = lazy(() => import("@/pages/refund"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function LoadingFallback() {
@@ -87,6 +90,9 @@ function AuthenticatedRouter() {
         <Route path="/reviews" component={Reviews} />
         <Route path="/promo" component={Promo} />
         <Route path="/essays" component={EssaysNews} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
+        <Route path="/refund" component={Refund} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -114,6 +120,9 @@ function PublicRouter() {
         <Route path="/reviews" component={Reviews} />
         <Route path="/promo" component={Promo} />
         <Route path="/essays" component={EssaysNews} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
+        <Route path="/refund" component={Refund} />
         <Route component={Landing} />
       </Switch>
     </Suspense>

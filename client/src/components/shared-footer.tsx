@@ -47,6 +47,15 @@ export function SharedFooter() {
               <Link href="/login">
                 <span className="text-sm opacity-80 hover:opacity-100 transition-opacity cursor-pointer" data-testid="link-footer-login">تسجيل الدخول</span>
               </Link>
+              <Link href="/privacy">
+                <span className="text-sm opacity-80 hover:opacity-100 transition-opacity cursor-pointer" data-testid="link-footer-privacy">سياسة الخصوصية</span>
+              </Link>
+              <Link href="/terms">
+                <span className="text-sm opacity-80 hover:opacity-100 transition-opacity cursor-pointer" data-testid="link-footer-terms">شروط الاستخدام</span>
+              </Link>
+              <Link href="/refund">
+                <span className="text-sm opacity-80 hover:opacity-100 transition-opacity cursor-pointer" data-testid="link-footer-refund">سياسة الاسترداد</span>
+              </Link>
             </div>
           </div>
         </div>

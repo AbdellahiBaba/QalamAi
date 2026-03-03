@@ -1132,7 +1132,7 @@ export default function Home() {
                         {(project.projectType === "scenario") && <Film className="w-4 h-4 text-purple-500 shrink-0" />}
                         {(project.projectType === "poetry") && <BookMarked className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                         {(!project.projectType || project.projectType === "novel") && <BookOpen className="w-4 h-4 text-primary shrink-0" />}
-                        <h3 className="font-serif text-lg font-semibold line-clamp-2" data-testid={`text-project-title-${project.id}`}>
+                        <h3 className="font-serif text-lg font-semibold line-clamp-2 break-words" data-testid={`text-project-title-${project.id}`}>
                           {project.title}
                         </h3>
                       </div>
