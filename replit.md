@@ -71,11 +71,11 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Streak auto-updates when chapters are generated or manually edited.
 - Home page shows streak card with flame icon, progress bar, settable goal popover, and milestone badges (3/7/14/30 days).
 
-## Abu Hashim Project Chat
-- `POST /api/projects/:id/chat` — contextual AI chat about a specific project.
-- `buildProjectChatPrompt` in `server/abu-hashim.ts` builds system prompt with project context (title, idea, characters, chapter summaries).
-- Floating chat sidebar in project-detail.tsx: toggle button (bottom-left), quick question suggestions, message history, RTL chat UI.
-- Toggle via Ctrl+/ keyboard shortcut.
+## Abu Hashim Chat
+- **General chat**: `POST /api/chat` — general literary advice, brainstorming, writing tips. `buildGeneralChatPrompt` in `server/abu-hashim.ts`. Supports conversation history (last 10 messages). Floating chat sidebar on home.tsx dashboard with quick questions.
+- **Project chat**: `POST /api/projects/:id/chat` — contextual AI chat about a specific project. `buildProjectChatPrompt` in `server/abu-hashim.ts` builds system prompt with project context (title, idea, characters, chapter summaries).
+- Both pages have floating amber chat button (bottom-left), sliding sidebar with quick question suggestions, message history, RTL chat UI.
+- Toggle via Ctrl+/ keyboard shortcut (project workspace).
 
 ## Keyboard Shortcuts (project-detail.tsx)
 - `useKeyboardShortcuts` hook in `client/src/hooks/use-keyboard-shortcuts.ts`.
