@@ -852,7 +852,7 @@ ${pages.map(p => `  <url>
   app.post("/api/projects/suggest-titles", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const { mainIdea, timeSetting, placeSetting, narrativePov, characters } = req.body;
+      const { mainIdea, timeSetting, placeSetting, narrativePov, characters, projectType: reqProjectType, poetryMeter, poetryEra, poetryTheme, poetryTone } = req.body;
       if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
         return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
       }
@@ -861,12 +861,20 @@ ${pages.map(p => `  <url>
         ? characters.filter((c: any) => c && typeof c.name === "string" && typeof c.role === "string").slice(0, 20).map((c: any) => ({ name: String(c.name).slice(0, 100), role: String(c.role).slice(0, 50) }))
         : undefined;
 
+      const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry"];
+      const safeProjectType = validTypes.includes(reqProjectType) ? reqProjectType : undefined;
+
       const { system, user } = buildTitleSuggestionPrompt({
         mainIdea: mainIdea.slice(0, 2000),
+        projectType: safeProjectType,
         timeSetting: typeof timeSetting === "string" ? timeSetting.slice(0, 200) : undefined,
         placeSetting: typeof placeSetting === "string" ? placeSetting.slice(0, 200) : undefined,
         narrativePov: typeof narrativePov === "string" ? narrativePov.slice(0, 50) : undefined,
         characters: safeChars,
+        poetryMeter: typeof poetryMeter === "string" ? poetryMeter : undefined,
+        poetryEra: typeof poetryEra === "string" ? poetryEra : undefined,
+        poetryTheme: typeof poetryTheme === "string" ? poetryTheme : undefined,
+        poetryTone: typeof poetryTone === "string" ? poetryTone : undefined,
       });
 
       const response = await openai.chat.completions.create({

@@ -432,13 +432,22 @@ export default function NewProject() {
     setSuggestingTitles(true);
     setShowSuggestions(false);
     try {
-      const res = await apiRequest("POST", "/api/projects/suggest-titles", {
+      const payload: any = {
         mainIdea,
-        timeSetting: form.getValues("timeSetting"),
-        placeSetting: form.getValues("placeSetting"),
-        narrativePov: form.getValues("narrativePov"),
-        characters: form.getValues("characters")?.filter(c => c.name).map(c => ({ name: c.name, role: c.role })),
-      });
+        projectType,
+      };
+      if (projectType === "poetry") {
+        payload.poetryMeter = form.getValues("poetryMeter");
+        payload.poetryEra = form.getValues("poetryEra");
+        payload.poetryTheme = form.getValues("poetryTheme");
+        payload.poetryTone = form.getValues("poetryTone");
+      } else {
+        payload.timeSetting = form.getValues("timeSetting");
+        payload.placeSetting = form.getValues("placeSetting");
+        payload.narrativePov = form.getValues("narrativePov");
+        payload.characters = form.getValues("characters")?.filter(c => c.name).map(c => ({ name: c.name, role: c.role }));
+      }
+      const res = await apiRequest("POST", "/api/projects/suggest-titles", payload);
       const suggestions = await res.json();
       if (Array.isArray(suggestions) && suggestions.length > 0) {
         setTitleSuggestions(suggestions);
@@ -503,15 +512,29 @@ export default function NewProject() {
       const data = await res.json();
       form.setValue("title", data.title, { shouldValidate: true });
       form.setValue("mainIdea", data.mainIdea, { shouldValidate: true });
-      form.setValue("timeSetting", data.timeSetting, { shouldValidate: true });
-      form.setValue("placeSetting", data.placeSetting, { shouldValidate: true });
-      form.setValue("narrativePov", data.narrativePov, { shouldValidate: true });
-      form.setValue("narrativeTechnique", data.narrativeTechnique || "", { shouldValidate: true });
-      if (data.characters) {
-        form.setValue("characters", data.characters, { shouldValidate: true });
+      if (projectType === "poetry") {
+        if (data.poetryMeter) form.setValue("poetryMeter", data.poetryMeter, { shouldValidate: true });
+        if (data.poetryRhyme) {
+          form.setValue("poetryRhyme", data.poetryRhyme, { shouldValidate: true });
+          setSelectedPoetryRhyme(data.poetryRhyme);
+        }
+        if (data.poetryEra) form.setValue("poetryEra", data.poetryEra, { shouldValidate: true });
+        if (data.poetryTone) form.setValue("poetryTone", data.poetryTone, { shouldValidate: true });
+        if (data.poetryTheme) form.setValue("poetryTheme", data.poetryTheme, { shouldValidate: true });
+        if (data.poetryVerseCount) form.setValue("poetryVerseCount", data.poetryVerseCount, { shouldValidate: true });
+        form.setValue("poetryImageryLevel", data.poetryImageryLevel ?? 5, { shouldValidate: true });
+        form.setValue("poetryEmotionLevel", data.poetryEmotionLevel ?? 5, { shouldValidate: true });
+      } else {
+        form.setValue("timeSetting", data.timeSetting, { shouldValidate: true });
+        form.setValue("placeSetting", data.placeSetting, { shouldValidate: true });
+        form.setValue("narrativePov", data.narrativePov, { shouldValidate: true });
+        form.setValue("narrativeTechnique", data.narrativeTechnique || "", { shouldValidate: true });
+        if (data.characters) {
+          form.setValue("characters", data.characters, { shouldValidate: true });
+        }
+        form.setValue("relationships", data.relationships || [], { shouldValidate: true });
       }
-      form.setValue("relationships", data.relationships || [], { shouldValidate: true });
-      toast({ title: "تم اقتراح مشروع كامل — راجع التفاصيل وعدّلها كما تشاء" });
+      toast({ title: projectType === "poetry" ? "تم اقتراح قصيدة كاملة — راجع التفاصيل وعدّلها كما تشاء" : "تم اقتراح مشروع كامل — راجع التفاصيل وعدّلها كما تشاء" });
       setShowHintInput(false);
       setFullProjectHint("");
     } catch {
@@ -701,7 +724,7 @@ export default function NewProject() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            {step >= 0 && projectType === "novel" && (
+            {step >= 0 && (projectType === "novel" || projectType === "poetry") && (
               <div className="mb-6 flex flex-col items-center gap-3">
                 <Button
                   type="button"
@@ -715,7 +738,7 @@ export default function NewProject() {
                   ) : (
                     <Sparkles className="h-5 w-5" />
                   )}
-                  {suggestingFullProject ? "أبو هاشم يفكّر..." : "أبو هاشم يقترح لك مشروعاً كاملاً"}
+                  {suggestingFullProject ? "أبو هاشم يفكّر..." : projectType === "poetry" ? "أبو هاشم يقترح لك قصيدة كاملة" : "أبو هاشم يقترح لك مشروعاً كاملاً"}
                 </Button>
                 {showHintInput && (
                   <div className="flex items-center gap-2 w-full max-w-md">
@@ -761,10 +784,61 @@ export default function NewProject() {
                   <FormField control={form.control} name="title" render={({ field }) => (
                     <FormItem>
                       <FormLabel>عنوان القصيدة</FormLabel>
-                      <FormControl>
-                        <Input placeholder="مثال: قصيدة في مدح الوطن" {...field} data-testid="input-poetry-title" />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input placeholder="مثال: قصيدة في مدح الوطن" {...field} data-testid="input-poetry-title" />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSuggestTitles}
+                          disabled={suggestingTitles}
+                          className="shrink-0 gap-1.5 border-[hsl(43,76%,52%)] text-[hsl(43,76%,52%)] hover:bg-[hsl(43,76%,52%)]/10 whitespace-nowrap"
+                          data-testid="button-suggest-poetry-titles"
+                        >
+                          {suggestingTitles ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
+                          {suggestingTitles ? "جارٍ التفكير..." : "اقتراح من أبو هاشم"}
+                        </Button>
+                      </div>
                       <FormMessage />
+
+                      {showSuggestions && titleSuggestions.length > 0 && (
+                        <div className="mt-3 rounded-lg border border-[hsl(43,76%,52%)]/30 bg-[hsl(43,76%,92%)] dark:bg-[hsl(213,66%,11%)]/50 p-4 space-y-2" data-testid="panel-poetry-title-suggestions">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4 text-[hsl(43,76%,52%)]" />
+                              <span className="text-sm font-semibold">اقتراحات أبو هاشم</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowSuggestions(false)}
+                              className="h-6 w-6 p-0"
+                              data-testid="button-close-poetry-suggestions"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {titleSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => selectTitle(suggestion.title)}
+                              className="w-full text-right p-3 rounded-md border border-transparent hover:border-[hsl(43,76%,52%)]/50 hover:bg-white dark:hover:bg-[hsl(213,66%,15%)] transition-colors cursor-pointer"
+                              data-testid={`button-poetry-suggestion-${index}`}
+                            >
+                              <div className="font-serif font-bold text-base">{suggestion.title}</div>
+                              <div className="text-xs text-muted-foreground mt-1">{suggestion.reason}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </FormItem>
                   )} />
 

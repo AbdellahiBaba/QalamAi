@@ -888,6 +888,10 @@ export function buildTitleSuggestionPrompt(data: {
   targetAudience?: string;
   genre?: string;
   formatType?: string;
+  poetryMeter?: string;
+  poetryEra?: string;
+  poetryTheme?: string;
+  poetryTone?: string;
 }) {
   const povMap: Record<string, string> = {
     first_person: "ضمير المتكلم",
@@ -926,6 +930,17 @@ export function buildTitleSuggestionPrompt(data: {
     for (const char of data.characters) {
       prompt += `\n- ${char.name} (${char.role})`;
     }
+  }
+
+  if (data.projectType === "poetry") {
+    const meterInfo = data.poetryMeter ? getMeterInfo(data.poetryMeter) : null;
+    if (meterInfo) prompt += `\nالبحر الشعري: ${meterInfo.name}`;
+    const eraInfo = data.poetryEra && ERAS[data.poetryEra] ? ERAS[data.poetryEra] : null;
+    if (eraInfo) prompt += `\nالعصر الأدبي: ${eraInfo.name}`;
+    const themeInfo = data.poetryTheme ? POETRY_THEMES.find(t => t.id === data.poetryTheme) : null;
+    if (themeInfo) prompt += `\nالغرض الشعري: ${themeInfo.name}`;
+    const toneInfo = data.poetryTone ? POETRY_TONES.find(t => t.id === data.poetryTone) : null;
+    if (toneInfo) prompt += `\nالنغمة: ${toneInfo.name}`;
   }
 
   const typeInstructions: Record<string, string> = {
