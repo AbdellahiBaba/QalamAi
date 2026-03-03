@@ -37,6 +37,9 @@ const Gallery = lazy(() => import("@/pages/gallery"));
 const Reader = lazy(() => import("@/pages/reader"));
 const Reviews = lazy(() => import("@/pages/reviews"));
 const Promo = lazy(() => import("@/pages/promo"));
+const EssaysNews = lazy(() => import("@/pages/essays-news"));
+const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
+const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function LoadingFallback() {
@@ -83,6 +86,7 @@ function AuthenticatedRouter() {
         <Route path="/gallery" component={Gallery} />
         <Route path="/reviews" component={Reviews} />
         <Route path="/promo" component={Promo} />
+        <Route path="/essays" component={EssaysNews} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
@@ -96,6 +100,8 @@ function PublicRouter() {
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password/:token" component={ResetPassword} />
         <Route path="/about" component={About} />
         <Route path="/features" component={Features} />
         <Route path="/pricing" component={Pricing} />
@@ -107,6 +113,7 @@ function PublicRouter() {
         <Route path="/gallery" component={Gallery} />
         <Route path="/reviews" component={Reviews} />
         <Route path="/promo" component={Promo} />
+        <Route path="/essays" component={EssaysNews} />
         <Route component={Landing} />
       </Switch>
     </Suspense>

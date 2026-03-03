@@ -2,9 +2,12 @@ import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { users } from "@shared/models/auth";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
+import { storage } from "../../storage";
+import { sendPasswordResetEmail } from "../../email";
 
 export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
@@ -117,6 +120,50 @@ export function registerAuthRoutes(app: Express): void {
     } catch (error) {
       console.error("Error updating profile:", error);
       res.status(500).json({ message: "فشل في تحديث الملف الشخصي" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req: any, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "البريد الإلكتروني مطلوب" });
+      }
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.password) {
+        return res.json({ message: "إذا كان البريد الإلكتروني مسجلاً، ستتلقى رابط إعادة التعيين" });
+      }
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+      await sendPasswordResetEmail(email, token);
+      res.json({ message: "إذا كان البريد الإلكتروني مسجلاً، ستتلقى رابط إعادة التعيين" });
+    } catch (error) {
+      console.error("Error in forgot-password:", error);
+      res.status(500).json({ message: "فشل في إرسال رابط إعادة التعيين" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req: any, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ message: "الرمز وكلمة المرور مطلوبان" });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ message: "كلمة المرور يجب أن تكون ٦ أحرف على الأقل" });
+      }
+      const resetToken = await storage.getPasswordResetToken(token);
+      if (!resetToken || resetToken.used || new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "رابط إعادة التعيين غير صالح أو منتهي الصلاحية" });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await storage.updateUserPassword(resetToken.userId, hashedPassword);
+      await storage.markPasswordResetTokenUsed(token);
+      res.json({ message: "تم إعادة تعيين كلمة المرور بنجاح" });
+    } catch (error) {
+      console.error("Error in reset-password:", error);
+      res.status(500).json({ message: "فشل في إعادة تعيين كلمة المرور" });
     }
   });
 

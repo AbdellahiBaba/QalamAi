@@ -3341,6 +3341,65 @@ ${glossaryParagraphs}
     }
   });
 
+  app.get("/api/public/essays", async (_req, res) => {
+    try {
+      const allProjects = await storage.getGalleryProjects();
+      const essays = allProjects.filter((p: any) => p.projectType === "essay");
+      const essaysWithStats = await Promise.all(essays.map(async (p: any) => {
+        const views = await storage.getEssayViewCount(p.id);
+        const clicks = await storage.getEssayClickCount(p.id);
+        return {
+          id: p.id,
+          title: p.title,
+          mainIdea: p.mainIdea?.slice(0, 300),
+          coverImageUrl: p.coverImageUrl,
+          shareToken: p.shareToken,
+          authorName: p.authorName,
+          authorId: p.authorId,
+          views,
+          clicks,
+          createdAt: (p as any).createdAt,
+        };
+      }));
+      essaysWithStats.sort((a, b) => b.clicks - a.clicks);
+      res.json(essaysWithStats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch essays" });
+    }
+  });
+
+  app.post("/api/public/essays/:id/view", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+      const referrer = req.headers.referer || null;
+      await storage.recordEssayView(id, visitorIp, referrer as string | undefined);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to record view" });
+    }
+  });
+
+  app.post("/api/public/essays/:id/click", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+      await storage.recordEssayClick(id, visitorIp);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to record click" });
+    }
+  });
+
+  app.get("/api/admin/essay-analytics", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const analytics = await storage.getEssayAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch essay analytics" });
+    }
+  });
+
   // ===== Profile Extended Update =====
   app.patch("/api/profile", isAuthenticated, async (req: any, res) => {
     try {

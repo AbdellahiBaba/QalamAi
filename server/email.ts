@@ -246,3 +246,39 @@ export async function sendProjectPaymentEmail(email: string, projectTitle: strin
     console.error("[Email] Failed to send project payment email:", err);
   }
 }
+
+export async function sendPasswordResetEmail(email: string, resetToken: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const baseUrl = getBaseUrl();
+  const resetLink = `${baseUrl}/reset-password/${resetToken}`;
+
+  const body = `
+    <p style="font-size:16px;color:${BRAND_BLUE};line-height:1.8;text-align:right;">
+      لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك على QalamAI.
+    </p>
+    <p style="font-size:16px;color:${BRAND_BLUE};line-height:1.8;text-align:right;">
+      اضغط على الزر أدناه لإعادة تعيين كلمة المرور:
+    </p>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${resetLink}" style="display:inline-block;background:${BRAND_GOLD};color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:16px;font-weight:bold;">
+        إعادة تعيين كلمة المرور
+      </a>
+    </div>
+    <p style="font-size:14px;color:#6B5B4F;text-align:right;">
+      هذا الرابط صالح لمدة ساعة واحدة فقط. إذا لم تطلب إعادة تعيين كلمة المرور، تجاهل هذا البريد.
+    </p>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "إعادة تعيين كلمة المرور — QalamAI",
+      html: wrapInTemplate("إعادة تعيين كلمة المرور", body),
+    });
+    console.log(`[Email] Sent password reset email to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send password reset email:", err);
+  }
+}

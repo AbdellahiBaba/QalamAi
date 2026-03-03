@@ -125,7 +125,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays">("tickets");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -191,6 +191,23 @@ export default function Admin() {
       return res.json();
     },
     enabled: !!apiUsageDetailUser && showApiUsageDialog,
+  });
+
+  interface EssayAnalyticsRow { projectId: number; title: string; views: number; clicks: number }
+
+  const { data: essayAnalytics, isLoading: essayAnalyticsLoading } = useQuery<EssayAnalyticsRow[]>({
+    queryKey: ["/api/admin/essay-analytics"],
+    enabled: activeTab === "essays",
+  });
+
+  const [essaySortBy, setEssaySortBy] = useState<"views" | "clicks" | "ctr">("clicks");
+
+  const sortedEssayAnalytics = (essayAnalytics || []).slice().sort((a, b) => {
+    if (essaySortBy === "views") return b.views - a.views;
+    if (essaySortBy === "clicks") return b.clicks - a.clicks;
+    const ctrA = a.views > 0 ? a.clicks / a.views : 0;
+    const ctrB = b.views > 0 ? b.clicks / b.views : 0;
+    return ctrB - ctrA;
   });
 
   const { data: pendingReviews, isLoading: reviewsLoading } = useQuery<PlatformReview[]>({
@@ -610,6 +627,16 @@ export default function Admin() {
           >
             <Crosshair className="w-4 h-4 sm:ml-2" />
             <span className="hidden sm:inline">بكسل التتبع</span>
+          </Button>
+          <Button
+            variant={activeTab === "essays" ? "default" : "outline"}
+            onClick={() => setActiveTab("essays")}
+            size="sm"
+            className="shrink-0"
+            data-testid="button-tab-essays"
+          >
+            <FileText className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">المقالات</span>
           </Button>
         </div>
 
@@ -1885,6 +1912,151 @@ export default function Admin() {
                   </CardContent>
                 </Card>
               </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "essays" && (
+          <>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-6">
+              <h2 className="font-serif text-lg font-bold flex-1">تحليلات المقالات</h2>
+              <Select value={essaySortBy} onValueChange={(v) => setEssaySortBy(v as "views" | "clicks" | "ctr")}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-essay-sort">
+                  <SelectValue placeholder="ترتيب حسب" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="clicks">الأكثر نقراً</SelectItem>
+                  <SelectItem value="views">الأكثر مشاهدة</SelectItem>
+                  <SelectItem value="ctr">أعلى CTR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {essayAnalyticsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <Skeleton className="h-5 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : sortedEssayAnalytics.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <Card data-testid="card-total-essays">
+                    <CardContent className="p-5 text-center">
+                      <div className="text-3xl font-bold mb-1"><LtrNum>{sortedEssayAnalytics.length}</LtrNum></div>
+                      <div className="text-xs text-muted-foreground">إجمالي المقالات</div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-total-essay-views">
+                    <CardContent className="p-5 text-center">
+                      <div className="text-3xl font-bold mb-1 text-blue-500"><LtrNum>{sortedEssayAnalytics.reduce((s, e) => s + e.views, 0)}</LtrNum></div>
+                      <div className="text-xs text-muted-foreground">إجمالي المشاهدات</div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-total-essay-clicks">
+                    <CardContent className="p-5 text-center">
+                      <div className="text-3xl font-bold mb-1 text-green-500"><LtrNum>{sortedEssayAnalytics.reduce((s, e) => s + e.clicks, 0)}</LtrNum></div>
+                      <div className="text-xs text-muted-foreground">إجمالي النقرات</div>
+                    </CardContent>
+                  </Card>
+                  <Card data-testid="card-avg-ctr">
+                    <CardContent className="p-5 text-center">
+                      <div className="text-3xl font-bold mb-1 text-amber-500">
+                        <LtrNum>
+                          {(() => {
+                            const totalViews = sortedEssayAnalytics.reduce((s, e) => s + e.views, 0);
+                            const totalClicks = sortedEssayAnalytics.reduce((s, e) => s + e.clicks, 0);
+                            return totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : "0";
+                          })()}%
+                        </LtrNum>
+                      </div>
+                      <div className="text-xs text-muted-foreground">متوسط CTR</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="hidden sm:block border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-right p-3 font-medium text-muted-foreground">#</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">العنوان</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">المشاهدات</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">النقرات</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">CTR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedEssayAnalytics.map((essay, idx) => {
+                          const ctr = essay.views > 0 ? ((essay.clicks / essay.views) * 100).toFixed(1) : "0";
+                          return (
+                            <tr key={essay.projectId} className="border-b last:border-0 hover:bg-muted/30 transition-colors" data-testid={`row-essay-${essay.projectId}`}>
+                              <td className="p-3 text-muted-foreground"><LtrNum>{idx + 1}</LtrNum></td>
+                              <td className="p-3 font-medium max-w-[400px] truncate">{essay.title}</td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-1.5">
+                                  <Eye className="w-3.5 h-3.5 text-blue-500" />
+                                  <LtrNum>{essay.views.toLocaleString()}</LtrNum>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-1.5">
+                                  <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                                  <LtrNum>{essay.clicks.toLocaleString()}</LtrNum>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <Badge variant="secondary"><LtrNum>{ctr}%</LtrNum></Badge>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="sm:hidden space-y-3">
+                  {sortedEssayAnalytics.map((essay, idx) => {
+                    const ctr = essay.views > 0 ? ((essay.clicks / essay.views) * 100).toFixed(1) : "0";
+                    return (
+                      <Card key={essay.projectId} data-testid={`card-essay-${essay.projectId}`}>
+                        <CardContent className="p-4 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-medium text-sm line-clamp-2">{essay.title}</span>
+                            <span className="font-mono text-xs text-muted-foreground shrink-0">#{idx + 1}</span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Eye className="w-3.5 h-3.5 text-blue-500" />
+                              <LtrNum>{essay.views.toLocaleString()}</LtrNum> مشاهدة
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                              <LtrNum>{essay.clicks.toLocaleString()}</LtrNum> نقرة
+                            </div>
+                            <Badge variant="secondary" className="text-[10px]">
+                              CTR: <LtrNum>{ctr}%</LtrNum>
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">لا توجد مقالات منشورة بعد</p>
+                </CardContent>
+              </Card>
             )}
           </>
         )}

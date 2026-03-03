@@ -1,7 +1,7 @@
 import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
   users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites, apiUsageLogs,
-  authorRatings, platformReviews, trackingPixels,
+  authorRatings, platformReviews, trackingPixels, essayViews, essayClicks, passwordResetTokens,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -14,6 +14,7 @@ import {
   type InsertApiUsageLog, type ApiUsageLog,
   type InsertPlatformReview, type PlatformReview, type AuthorRating,
   type InsertTrackingPixel, type TrackingPixel,
+  type EssayView, type EssayClick, type PasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, avg } from "drizzle-orm";
@@ -68,6 +69,16 @@ export interface IStorage {
   updateUserTrial(userId: string, data: Partial<User>): Promise<User>;
   grantAnalysisUses(projectId: number, continuityUses: number, styleUses: number): Promise<void>;
   grantAnalysisUsesForAllProjects(userId: string, continuityUses: number, styleUses: number): Promise<void>;
+  recordEssayView(projectId: number, visitorIp: string, referrer?: string): Promise<void>;
+  recordEssayClick(projectId: number, visitorIp: string): Promise<void>;
+  getEssayViewCount(projectId: number): Promise<number>;
+  getEssayClickCount(projectId: number): Promise<number>;
+  getEssayAnalytics(): Promise<Array<{ projectId: number; title: string; views: number; clicks: number }>>;
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(token: string): Promise<void>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -618,6 +629,69 @@ export class DatabaseStorage implements IStorage {
       continuityCheckPaidCount: sql`COALESCE(${novelProjects.continuityCheckPaidCount}, 0) + ${continuityUses}`,
       styleAnalysisPaidCount: sql`COALESCE(${novelProjects.styleAnalysisPaidCount}, 0) + ${styleUses}`,
     }).where(eq(novelProjects.userId, userId));
+  }
+
+  async recordEssayView(projectId: number, visitorIp: string, referrer?: string): Promise<void> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [existing] = await db.select().from(essayViews)
+      .where(and(
+        eq(essayViews.projectId, projectId),
+        eq(essayViews.visitorIp, visitorIp),
+        sql`${essayViews.viewedAt} >= ${today}`
+      ));
+    if (!existing) {
+      await db.insert(essayViews).values({ projectId, visitorIp, referrer: referrer || null });
+    }
+  }
+
+  async recordEssayClick(projectId: number, visitorIp: string): Promise<void> {
+    await db.insert(essayClicks).values({ projectId, visitorIp });
+  }
+
+  async getEssayViewCount(projectId: number): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(essayViews).where(eq(essayViews.projectId, projectId));
+    return result?.count || 0;
+  }
+
+  async getEssayClickCount(projectId: number): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(essayClicks).where(eq(essayClicks.projectId, projectId));
+    return result?.count || 0;
+  }
+
+  async getEssayAnalytics(): Promise<Array<{ projectId: number; title: string; views: number; clicks: number }>> {
+    const projects = await db.select().from(novelProjects)
+      .where(and(eq(novelProjects.projectType, "essay"), isNotNull(novelProjects.shareToken)));
+    const results = [];
+    for (const p of projects) {
+      const views = await this.getEssayViewCount(p.id);
+      const clicks = await this.getEssayClickCount(p.id);
+      results.push({ projectId: p.id, title: p.title, views, clicks });
+    }
+    return results.sort((a, b) => b.clicks - a.clicks);
+  }
+
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken> {
+    const [created] = await db.insert(passwordResetTokens).values({ userId, token, expiresAt }).returning();
+    return created;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [result] = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.token, token));
+    return result;
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<void> {
+    await db.update(passwordResetTokens).set({ used: true }).where(eq(passwordResetTokens.token, token));
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(users.id, userId));
   }
 }
 

@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MarketingPopup } from "@/components/marketing-popup";
+import { EssaysMarketingPopup } from "@/components/essays-marketing-popup";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
@@ -87,6 +88,7 @@ export default function Landing() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
       />
       <MarketingPopup />
+      <EssaysMarketingPopup />
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3">

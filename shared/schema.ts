@@ -445,3 +445,33 @@ export const trackingPixels = pgTable("tracking_pixels", {
 export const insertTrackingPixelSchema = createInsertSchema(trackingPixels).omit({ id: true, updatedAt: true });
 export type InsertTrackingPixel = z.infer<typeof insertTrackingPixelSchema>;
 export type TrackingPixel = typeof trackingPixels.$inferSelect;
+
+export const essayViews = pgTable("essay_views", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  visitorIp: varchar("visitor_ip").notNull(),
+  viewedAt: timestamp("viewed_at").defaultNow(),
+  referrer: text("referrer"),
+});
+
+export type EssayView = typeof essayViews.$inferSelect;
+
+export const essayClicks = pgTable("essay_clicks", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  visitorIp: varchar("visitor_ip").notNull(),
+  clickedAt: timestamp("clicked_at").defaultNow(),
+});
+
+export type EssayClick = typeof essayClicks.$inferSelect;
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

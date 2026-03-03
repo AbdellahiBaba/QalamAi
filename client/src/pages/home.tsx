@@ -175,6 +175,33 @@ export default function Home() {
 
   const [trialRemaining, setTrialRemaining] = useState<{ hours: number; minutes: number } | null>(null);
 
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [welcomeType, setWelcomeType] = useState<"new" | "returning" | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const sessionKey = `qalamai_welcome_shown_${user.id}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    const lastLoginKey = `qalamai_last_login_${user.id}`;
+    const lastLogin = localStorage.getItem(lastLoginKey);
+
+    if (!lastLogin) {
+      setWelcomeType("new");
+    } else {
+      setWelcomeType("returning");
+    }
+    setWelcomeOpen(true);
+    sessionStorage.setItem(sessionKey, "1");
+    localStorage.setItem(lastLoginKey, new Date().toISOString());
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!welcomeOpen) return;
+    const timer = setTimeout(() => setWelcomeOpen(false), 8000);
+    return () => clearTimeout(timer);
+  }, [welcomeOpen]);
+
   useEffect(() => {
     if (!trialStatus?.trialActive || !trialStatus?.trialEndsAt) {
       setTrialRemaining(null);
@@ -462,11 +489,12 @@ export default function Home() {
       </header>
 
       <Button
-        className="fixed bottom-6 left-6 z-50 rounded-full w-14 h-14 shadow-lg bg-amber-500 hover:bg-amber-600 text-white"
+        className="fixed bottom-6 left-6 z-[9999] rounded-full w-16 h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
         onClick={() => setChatOpen(!chatOpen)}
         data-testid="button-toggle-chat"
+        title="تحدث مع أبو هاشم"
       >
-        {chatOpen ? <X className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+        {chatOpen ? <X className="w-7 h-7" /> : <Sparkles className="w-7 h-7" />}
       </Button>
 
       <div
@@ -1482,6 +1510,82 @@ export default function Home() {
                 </Button>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={welcomeOpen} onOpenChange={setWelcomeOpen}>
+        <DialogContent dir="rtl" className="max-w-md" data-testid="dialog-welcome">
+          <DialogHeader className="text-center sm:text-center">
+            <div className="flex justify-center mb-3">
+              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center animate-bounce">
+                <Sparkles className="w-8 h-8 text-amber-500" />
+              </div>
+            </div>
+            <DialogTitle className="font-serif text-2xl" data-testid="text-welcome-title">
+              {welcomeType === "new" ? "أهلاً وسهلاً بك في قلم AI!" : "مرحباً بعودتك!"}
+            </DialogTitle>
+            <DialogDescription data-testid="text-welcome-description">
+              {welcomeType === "new"
+                ? "يسعدنا انضمامك إلينا! رحلتك الإبداعية تبدأ الآن مع أبو هاشم، مساعدك الذكي في الكتابة العربية."
+                : "اشتقنا لك! نحن سعداء بعودتك لمواصلة رحلتك الإبداعية."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 space-y-4" data-testid="welcome-content">
+            {welcomeType === "new" ? (
+              <div className="space-y-3">
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md p-4 text-center">
+                  <Feather className="w-6 h-6 text-amber-500 mx-auto mb-2" />
+                  <p className="text-sm leading-relaxed">
+                    ابدأ بإنشاء مشروعك الأول — رواية، مقال، سيناريو، أو قصة قصيرة — وسيرافقك أبو هاشم في كل خطوة من خطوات الكتابة.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>جرّب محادثة أبو هاشم من الزر الذهبي في أسفل الشاشة</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {streakData && streakData.streak > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md p-4 flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                      <Flame className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg" data-testid="text-welcome-streak">
+                        <LtrNum>{streakData.streak}</LtrNum> {streakData.streak === 1 ? "يوم متتالي" : "أيام متتالية"}
+                      </div>
+                      <p className="text-xs text-muted-foreground">حافظ على سلسلتك! واصل الكتابة اليوم</p>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-muted/50 rounded-md p-3 text-center">
+                    <div className="text-lg font-bold" data-testid="text-welcome-projects">
+                      <LtrNum>{stats.total}</LtrNum>
+                    </div>
+                    <div className="text-xs text-muted-foreground">مشروع</div>
+                  </div>
+                  <div className="bg-muted/50 rounded-md p-3 text-center">
+                    <div className="text-lg font-bold" data-testid="text-welcome-words">
+                      <LtrNum>{stats.totalWords.toLocaleString("ar-EG")}</LtrNum>
+                    </div>
+                    <div className="text-xs text-muted-foreground">كلمة</div>
+                  </div>
+                </div>
+                <p className="text-sm text-center text-muted-foreground">
+                  واصل إبداعك — كل كلمة تكتبها تقرّبك من حلمك الأدبي
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-center pt-1">
+            <Button onClick={() => setWelcomeOpen(false)} data-testid="button-welcome-close">
+              {welcomeType === "new" ? "هيا نبدأ!" : "متابعة الكتابة"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

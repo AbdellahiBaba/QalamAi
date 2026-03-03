@@ -99,6 +99,13 @@ export default function Login() {
                   </button>
                 </div>
               </div>
+              <div className="flex justify-start">
+                <Link href="/forgot-password">
+                  <span className="text-sm text-primary font-medium cursor-pointer hover:underline" data-testid="link-forgot-password">
+                    نسيت كلمة المرور؟
+                  </span>
+                </Link>
+              </div>
               <Button type="submit" className="w-full" size="lg" disabled={isSubmitting} data-testid="button-login">
                 {isSubmitting ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}
                 {isSubmitting ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}

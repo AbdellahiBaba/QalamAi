@@ -1244,11 +1244,12 @@ export default function ProjectDetail() {
       </header>
 
       <Button
-        className="fixed bottom-6 left-6 z-50 rounded-full w-14 h-14 shadow-lg bg-amber-500 hover:bg-amber-600 text-white"
+        className="fixed bottom-6 left-6 z-[9999] rounded-full w-16 h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
         onClick={() => setChatOpen(!chatOpen)}
         data-testid="button-toggle-chat"
+        title="تحدث مع أبو هاشم"
       >
-        {chatOpen ? <X className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+        {chatOpen ? <X className="w-7 h-7" /> : <Sparkles className="w-7 h-7" />}
       </Button>
 
       <div
