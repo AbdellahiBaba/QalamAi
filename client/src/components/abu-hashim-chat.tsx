@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, X, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, X, Loader2, ArrowRight, MessageCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AbuHashimChatProps {
@@ -50,14 +50,32 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
 
   return (
     <>
-      <Button
-        className="fixed bottom-6 left-6 z-[9999] rounded-full w-16 h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
-        onClick={() => setChatOpen(!chatOpen)}
-        data-testid="button-toggle-chat"
-        title="تحدث مع أبو هاشم"
-      >
-        {chatOpen ? <X className="w-7 h-7" /> : <Sparkles className="w-7 h-7" />}
-      </Button>
+      {mode === "general" ? (
+        <button
+          className="fixed top-20 left-0 z-[9999] flex items-center gap-2 bg-gradient-to-l from-amber-500 to-amber-600 text-white shadow-xl rounded-r-full pl-3 pr-5 py-3 transition-all duration-300 group"
+          onClick={() => setChatOpen(!chatOpen)}
+          data-testid="button-toggle-chat"
+          aria-label="تحدث مع أبو هاشم — مستشارك الأدبي"
+        >
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            {chatOpen ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+          </div>
+          <div className="text-right">
+            <span className="block text-sm font-bold leading-tight">أبو هاشم</span>
+            <span className="block text-[10px] opacity-80 leading-tight">مستشارك الأدبي</span>
+          </div>
+          <Sparkles className="w-4 h-4 opacity-60 animate-pulse" />
+        </button>
+      ) : (
+        <Button
+          className="fixed bottom-6 left-6 z-[9999] rounded-full w-16 h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
+          onClick={() => setChatOpen(!chatOpen)}
+          data-testid="button-toggle-chat"
+          title="تحدث مع أبو هاشم"
+        >
+          {chatOpen ? <X className="w-7 h-7" /> : <Sparkles className="w-7 h-7" />}
+        </Button>
+      )}
 
       <div
         className={`fixed top-0 left-0 h-full w-[380px] max-w-[90vw] bg-background border-r shadow-2xl z-40 transition-transform duration-300 flex flex-col ${chatOpen ? "translate-x-0" : "-translate-x-full"}`}

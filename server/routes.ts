@@ -3353,6 +3353,7 @@ ${glossaryParagraphs}
         const chapters = await storage.getChaptersByProject(p.id);
         const totalWords = chapters.reduce((sum: number, ch: any) => sum + (ch.content ? ch.content.split(/\s+/).length : 0), 0);
         const [user] = await db.select().from(users).where(eq(users.id, p.userId));
+        const { average: authorAverageRating } = await storage.getAuthorAverageRating(p.userId);
         return {
           id: p.id,
           title: p.title,
@@ -3361,6 +3362,7 @@ ${glossaryParagraphs}
           shareToken: p.shareToken,
           authorName: user?.firstName || user?.email || "مؤلف",
           authorId: p.userId,
+          authorAverageRating,
           subject: p.subject,
           views,
           clicks,

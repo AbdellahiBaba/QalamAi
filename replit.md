@@ -51,7 +51,9 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Welcome Popup: Warm welcome dialog for new signups and returning users with personalized stats.
 - Social Sharing: Sticky bar on shared project pages with X/Twitter, Facebook, WhatsApp, Telegram, and copy link buttons.
 - Reader Reactions: Essay readers can react with like/love/insightful/thoughtful. Counts shown on essay cards and shared view. Uses `essayReactions` table.
-- Abu Hashim Chat Component: Reusable `abu-hashim-chat.tsx` component used in both home and project-detail pages.
+- Abu Hashim Chat Component: Reusable `abu-hashim-chat.tsx` component used in both home and project-detail pages. In "general" mode (dashboard), the chat trigger is a prominent branded tab on the left edge with "أبو هاشم" label. In "project" mode, it's a floating button at bottom-left.
+- Shared Project Navigation: Back button and QalamAI branding in a sticky nav bar at the top of shared-project.tsx.
+- Essay Author Details: Essay cards on /essays show clickable author names (navigates to /author/:id) and star ratings matching the gallery style.
 - Reading Time Estimates: Calculated at ~200 wpm for Arabic, shown on essay cards and shared project pages.
 - Related Essays: "مقالات ذات صلة" section at bottom of shared essays showing up to 3 related essays by subject.
 - Admin Social Media Links: Admin can manage platform social media profile links (LinkedIn, TikTok, X, Instagram, Facebook, YouTube, Snapchat, Telegram, WhatsApp) with enable/disable toggle and display order. Uses `socialMediaLinks` table. Reusable `SocialMediaIcons` component renders enabled links in all public page footers and the contact page.

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   Heart,
   Clock,
 } from "lucide-react";
+import StarRating from "@/components/ui/star-rating";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 interface PublicEssay {
@@ -32,6 +33,7 @@ interface PublicEssay {
   reactions: { like: number; love: number; insightful: number; thoughtful: number } | null;
   totalWords: number;
   createdAt: string | null;
+  authorAverageRating: number;
 }
 
 function calcReadingTime(wordCount: number): number {
@@ -40,6 +42,7 @@ function calcReadingTime(wordCount: number): number {
 
 export default function EssaysNews() {
   useDocumentTitle("المقالات السياسية والرأي العام — قلم AI");
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -166,12 +169,29 @@ export default function EssaysNews() {
                       {essay.title}
                     </h3>
                     {essay.authorName && (
-                      <p
-                        className="text-sm text-muted-foreground"
-                        data-testid={`text-essay-author-${essay.id}`}
-                      >
-                        {essay.authorName}
-                      </p>
+                      <div>
+                        {essay.authorId ? (
+                          <span
+                            className="text-sm text-primary font-medium hover:underline cursor-pointer"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/author/${essay.authorId}`); }}
+                            role="link"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); navigate(`/author/${essay.authorId}`); } }}
+                            data-testid={`link-essay-author-${essay.id}`}
+                          >
+                            {essay.authorName}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground" data-testid={`text-essay-author-${essay.id}`}>
+                            {essay.authorName}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {essay.authorAverageRating > 0 && (
+                      <div data-testid={`rating-essay-author-${essay.id}`}>
+                        <StarRating rating={essay.authorAverageRating} size="sm" showCount={false} />
+                      </div>
                     )}
                     {essay.mainIdea && (
                       <p

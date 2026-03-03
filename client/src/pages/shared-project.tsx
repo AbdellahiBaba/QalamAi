@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather } from "lucide-react";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -231,6 +231,23 @@ export default function SharedProject() {
         <Progress value={scrollProgress} className="h-1 rounded-none" />
       </div>
 
+      <nav className="sticky top-0 z-30 backdrop-blur-md bg-background/80 border-b" data-testid="nav-shared-header">
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="gap-1" data-testid="button-back" onClick={() => window.history.back()}>
+              <ArrowRight className="w-4 h-4" />
+              العودة
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+              <Feather className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-serif text-lg font-bold">قلم AI</span>
+          </div>
+        </div>
+      </nav>
+
       {totalChapters > 1 && (
         <div className="fixed top-1 left-4 right-4 z-40 flex justify-center pointer-events-none">
           <div className="bg-background/90 backdrop-blur-sm border rounded-b-lg px-4 py-1.5 flex items-center gap-3 pointer-events-auto shadow-sm" data-testid="chapter-progress-tracker">
@@ -250,7 +267,7 @@ export default function SharedProject() {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 py-8 pt-12">
+      <div className="max-w-3xl mx-auto px-4 py-8 pt-6">
         {project.coverImageUrl && (
           <div className="mb-8 flex justify-center">
             <img
