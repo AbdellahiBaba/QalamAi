@@ -432,6 +432,30 @@
   50% { box-shadow: 0 0 12px rgba(217, 119, 6, 0.5), 0 0 20px 2px rgba(217, 119, 6, 0.15); }
 }
 
+.edit-btn-pulse {
+  color: #d97706;
+  animation: edit-pulse 2.5s ease-in-out infinite;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  border-radius: 6px;
+}
+
+.edit-btn-pulse:hover {
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.6);
+  background: rgba(217, 119, 6, 0.08);
+}
+
+@keyframes edit-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 6, 0);
+    border-color: rgba(217, 119, 6, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(217, 119, 6, 0.2);
+    border-color: rgba(217, 119, 6, 0.6);
+  }
+}
+
 .upgrade-btn {
   background: linear-gradient(90deg, #d97706, #f59e0b, #d97706, #f59e0b);
   background-size: 300% 100%;

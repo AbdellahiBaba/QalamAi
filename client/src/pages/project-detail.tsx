@@ -1016,7 +1016,7 @@ export default function ProjectDetail() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    className="h-6 w-6 edit-btn-pulse shrink-0"
                     onClick={() => { setEditTitleValue(project.title); setEditingTitle(true); setTitleSuggestions([]); }}
                     data-testid="button-edit-title"
                   >
@@ -1294,7 +1294,7 @@ export default function ProjectDetail() {
                       {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : "تفاصيل الرواية"}
                     </h3>
                     {!editingSettings && (
-                      <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs" data-testid="button-edit-settings">
+                      <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs edit-btn-pulse" data-testid="button-edit-settings">
                         <Pencil className="w-3 h-3" /> تعديل
                       </Button>
                     )}
@@ -1729,7 +1729,7 @@ export default function ProjectDetail() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+                        className="h-7 w-7 edit-btn-pulse"
                         onClick={() => { setEditingMainIdea(true); setEditMainIdeaValue(project.mainIdea || ""); }}
                         data-testid="button-edit-main-idea"
                       >
@@ -1835,6 +1835,7 @@ export default function ProjectDetail() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="edit-btn-pulse"
                           onClick={() => { setEditingOutline(true); setEditOutlineText(project.outline || ""); }}
                           data-testid="button-edit-outline"
                         >
