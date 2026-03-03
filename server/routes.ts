@@ -3360,7 +3360,7 @@ ${glossaryParagraphs}
           mainIdea: p.mainIdea?.slice(0, 300),
           coverImageUrl: p.coverImageUrl,
           shareToken: p.shareToken,
-          authorName: user?.firstName || user?.email || "مؤلف",
+          authorName: user?.displayName || user?.firstName || user?.email || "مؤلف",
           authorId: p.userId,
           authorAverageRating,
           subject: p.subject,
@@ -3514,7 +3514,7 @@ ${glossaryParagraphs}
           title: p.title,
           shareToken: p.shareToken,
           coverImageUrl: p.coverImageUrl,
-          authorName: user?.firstName || user?.email || "مؤلف",
+          authorName: user?.displayName || user?.firstName || user?.email || "مؤلف",
           totalWords,
         };
       }));
@@ -3565,6 +3565,48 @@ ${glossaryParagraphs}
       res.json({ profileImageUrl: updated.profileImageUrl });
     } catch (error) {
       res.status(500).json({ error: "فشل في تحديث الصورة الشخصية" });
+    }
+  });
+
+  app.post("/api/profile/generate-avatar", isAuthenticated, async (req: any, res) => {
+    try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+      const { style } = req.body;
+      const validStyles = ["classic", "modern", "calligraphy", "watercolor"];
+      const selectedStyleKey = validStyles.includes(style) ? style : "classic";
+      const userBio = (user.bio || "").slice(0, 200);
+
+      const styleDescriptions: Record<string, string> = {
+        classic: "classical oil painting style portrait with warm golden tones, reminiscent of Renaissance masters, elegant and timeless",
+        modern: "modern digital art portrait with clean lines, vibrant colors, and contemporary aesthetic, professional and sleek",
+        calligraphy: "portrait incorporating Arabic calligraphy elements and Islamic geometric patterns as decorative frame, elegant ink-wash style",
+        watercolor: "soft watercolor portrait with gentle flowing colors, artistic and dreamy atmosphere, delicate brushstrokes",
+      };
+
+      const selectedStyle = styleDescriptions[selectedStyleKey];
+
+      const prompt = `Create a professional author profile avatar portrait. Style: ${selectedStyle}. The portrait should depict an Arab author/writer persona - sophisticated, intellectual, and creative. Include subtle literary elements like a quill pen, books, or manuscript pages in the background. The portrait should be suitable as a profile picture with the subject centered. ${userBio ? `The author describes themselves as: ${userBio}` : ""} Make it artistic and unique, NOT a photograph. Square format, centered composition.`;
+
+      const response = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt,
+        size: "1024x1024",
+      });
+      logImageUsage(userId, 0, "profile_avatar");
+
+      const base64 = response.data[0]?.b64_json;
+      if (!base64) return res.status(500).json({ error: "فشل في إنشاء الصورة الشخصية" });
+
+      const profileImageUrl = `data:image/png;base64,${base64}`;
+      await storage.updateUserProfileExtended(userId, { profileImageUrl });
+      res.json({ profileImageUrl });
+    } catch (error) {
+      console.error("Error generating avatar:", error);
+      res.status(500).json({ error: "فشل في إنشاء الصورة الشخصية" });
     }
   });
 

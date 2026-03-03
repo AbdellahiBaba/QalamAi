@@ -35,7 +35,10 @@ import {
   ExternalLink,
   Camera,
   Loader2,
+  Sparkles,
+  Palette,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +56,8 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [publicProfile, setPublicProfile] = useState(false);
+  const [avatarStyle, setAvatarStyle] = useState("classic");
+  const [showAvatarGenerator, setShowAvatarGenerator] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -122,6 +127,26 @@ export default function Profile() {
     reader.readAsDataURL(file);
     e.target.value = "";
   };
+
+  const generateAvatarMutation = useMutation({
+    mutationFn: async (style: string) => {
+      const res = await apiRequest("POST", "/api/profile/generate-avatar", { style });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({ title: "تم إنشاء الصورة الشخصية بنجاح" });
+      setShowAvatarGenerator(false);
+    },
+    onError: (err: any) => {
+      let msg = "فشل في إنشاء الصورة";
+      try {
+        const parsed = JSON.parse(err?.message?.replace(/^\d+:\s*/, "") || "{}");
+        if (parsed.error) msg = parsed.error;
+      } catch {}
+      toast({ title: msg, variant: "destructive" });
+    },
+  });
 
   const handleSaveProfile = () => {
     updateProfileMutation.mutate({ firstName, lastName, displayName, bio, publicProfile });
@@ -246,6 +271,56 @@ export default function Profile() {
                     data-testid="input-avatar-file"
                   />
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setShowAvatarGenerator(!showAvatarGenerator)}
+                  data-testid="button-toggle-ai-avatar"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  توليد صورة بالذكاء الاصطناعي
+                </Button>
+                {showAvatarGenerator && (
+                  <div className="w-full space-y-3 p-3 border rounded-lg bg-muted/30" data-testid="panel-ai-avatar-generator">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Palette className="w-4 h-4 text-primary" />
+                      اختر نمط الصورة
+                    </div>
+                    <Select value={avatarStyle} onValueChange={setAvatarStyle}>
+                      <SelectTrigger data-testid="select-avatar-style">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="classic" data-testid="option-style-classic">كلاسيكي — لوحة زيتية</SelectItem>
+                        <SelectItem value="modern" data-testid="option-style-modern">عصري — فن رقمي</SelectItem>
+                        <SelectItem value="calligraphy" data-testid="option-style-calligraphy">خط عربي — زخارف إسلامية</SelectItem>
+                        <SelectItem value="watercolor" data-testid="option-style-watercolor">ألوان مائية — فني</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      className="w-full gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+                      onClick={() => generateAvatarMutation.mutate(avatarStyle)}
+                      disabled={generateAvatarMutation.isPending}
+                      data-testid="button-generate-ai-avatar"
+                    >
+                      {generateAvatarMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          جاري التوليد...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          توليد الصورة
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      سيقوم أبو هاشم بتصميم صورة فنية فريدة لملفك الشخصي
+                    </p>
+                  </div>
+                )}
                 <div>
                   <h2 className="font-serif text-xl font-semibold" data-testid="text-user-name">
                     {user?.firstName || ""} {user?.lastName || ""}
