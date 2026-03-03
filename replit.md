@@ -54,6 +54,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Abu Hashim Chat Component: Reusable `abu-hashim-chat.tsx` component used in both home and project-detail pages.
 - Reading Time Estimates: Calculated at ~200 wpm for Arabic, shown on essay cards and shared project pages.
 - Related Essays: "مقالات ذات صلة" section at bottom of shared essays showing up to 3 related essays by subject.
+- Admin Social Media Links: Admin can manage platform social media profile links (LinkedIn, TikTok, X, Instagram, Facebook, YouTube, Snapchat, Telegram, WhatsApp) with enable/disable toggle and display order. Uses `socialMediaLinks` table. Reusable `SocialMediaIcons` component renders enabled links in all public page footers and the contact page.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation.

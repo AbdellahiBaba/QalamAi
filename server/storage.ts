@@ -16,6 +16,7 @@ import {
   type InsertTrackingPixel, type TrackingPixel,
   type EssayView, type EssayClick, type PasswordResetToken,
   essayReactions, type EssayReaction,
+  socialMediaLinks, type SocialMediaLink, type InsertSocialMediaLink,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, avg } from "drizzle-orm";
@@ -83,6 +84,10 @@ export interface IStorage {
   upsertEssayReaction(projectId: number, visitorIp: string, reactionType: string): Promise<void>;
   getEssayReactionCounts(projectId: number): Promise<Record<string, number>>;
   getPublishedEssays(): Promise<NovelProject[]>;
+  getSocialMediaLinks(): Promise<SocialMediaLink[]>;
+  getEnabledSocialMediaLinks(): Promise<SocialMediaLink[]>;
+  upsertSocialMediaLink(data: InsertSocialMediaLink): Promise<SocialMediaLink>;
+  deleteSocialMediaLink(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -739,6 +744,28 @@ export class DatabaseStorage implements IStorage {
         isNotNull(novelProjects.shareToken)
       )
     ).orderBy(desc(novelProjects.updatedAt));
+  }
+
+  async getSocialMediaLinks(): Promise<SocialMediaLink[]> {
+    return db.select().from(socialMediaLinks).orderBy(asc(socialMediaLinks.displayOrder));
+  }
+
+  async getEnabledSocialMediaLinks(): Promise<SocialMediaLink[]> {
+    return db.select().from(socialMediaLinks).where(eq(socialMediaLinks.enabled, true)).orderBy(asc(socialMediaLinks.displayOrder));
+  }
+
+  async upsertSocialMediaLink(data: InsertSocialMediaLink): Promise<SocialMediaLink> {
+    const existing = await db.select().from(socialMediaLinks).where(eq(socialMediaLinks.platform, data.platform));
+    if (existing.length > 0) {
+      const [updated] = await db.update(socialMediaLinks).set({ ...data, updatedAt: new Date() }).where(eq(socialMediaLinks.platform, data.platform)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(socialMediaLinks).values(data).returning();
+    return created;
+  }
+
+  async deleteSocialMediaLink(id: number): Promise<void> {
+    await db.delete(socialMediaLinks).where(eq(socialMediaLinks.id, id));
   }
 }
 

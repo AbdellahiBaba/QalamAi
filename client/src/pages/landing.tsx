@@ -25,6 +25,7 @@ import { useTheme } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MarketingPopup } from "@/components/marketing-popup";
 import { EssaysMarketingPopup } from "@/components/essays-marketing-popup";
+import { SocialMediaIcons } from "@/components/social-media-icons";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
@@ -449,6 +450,7 @@ export default function Landing() {
               </div>
             </div>
           </div>
+          <SocialMediaIcons size="md" className="mb-4" />
           <div className="border-t border-secondary-foreground/20 pt-6 flex flex-wrap items-center justify-between gap-4 text-sm opacity-70">
             <span>QalamAI — منصّة الكتابة الأدبية بالذكاء الاصطناعي</span>
             <span>&copy; {new Date().getFullYear()} QalamAI. جميع الحقوق محفوظة.</span>

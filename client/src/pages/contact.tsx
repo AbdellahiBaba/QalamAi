@@ -5,11 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Feather, Mail, Send, MapPin, Clock, Loader2 } from "lucide-react";
-import { SiX, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SocialMediaIcons } from "@/components/social-media-icons";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -230,17 +230,7 @@ export default function Contact() {
                 <p className="text-muted-foreground text-sm">
                   تابعنا على منصات التواصل الاجتماعي لآخر الأخبار والتحديثات حول QalamAI.
                 </p>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" size="icon" data-testid="button-social-x">
-                    <SiX className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" data-testid="button-social-instagram">
-                    <SiInstagram className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" data-testid="button-social-facebook">
-                    <SiFacebook className="w-4 h-4" />
-                  </Button>
-                </div>
+                <SocialMediaIcons size="md" />
               </CardContent>
             </Card>
 
@@ -258,6 +248,7 @@ export default function Contact() {
 
       <footer className="border-t py-8 px-6">
         <div className="max-w-6xl mx-auto">
+          <SocialMediaIcons size="sm" className="mb-4" />
           <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Feather className="w-4 h-4" />

@@ -486,3 +486,16 @@ export const essayReactions = pgTable("essay_reactions", {
 });
 
 export type EssayReaction = typeof essayReactions.$inferSelect;
+
+export const socialMediaLinks = pgTable("social_media_links", {
+  id: serial("id").primaryKey(),
+  platform: varchar("platform").notNull().unique(),
+  url: text("url").notNull(),
+  enabled: boolean("enabled").default(false),
+  displayOrder: integer("display_order").default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSocialMediaLinkSchema = createInsertSchema(socialMediaLinks).omit({ id: true, updatedAt: true });
+export type InsertSocialMediaLink = z.infer<typeof insertSocialMediaLinkSchema>;
+export type SocialMediaLink = typeof socialMediaLinks.$inferSelect;

@@ -3,10 +3,11 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
+import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
@@ -4862,6 +4863,52 @@ ${ch.content}
       });
     } catch (error) {
       res.status(500).json({ error: "فشل في حفظ بيانات التتبع" });
+    }
+  });
+
+  app.get("/api/public/social-links", async (_req, res) => {
+    try {
+      const links = await storage.getEnabledSocialMediaLinks();
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch social links" });
+    }
+  });
+
+  app.get("/api/admin/social-links", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const links = await storage.getSocialMediaLinks();
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب روابط التواصل" });
+    }
+  });
+
+  app.put("/api/admin/social-links", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const validPlatforms = ["linkedin", "tiktok", "x", "instagram", "facebook", "youtube", "snapchat", "telegram", "whatsapp"];
+      const socialLinkSchema = insertSocialMediaLinkSchema.extend({
+        platform: z.enum(validPlatforms as [string, ...string[]]),
+        url: z.string().url("الرابط غير صالح"),
+      });
+      const parsed = socialLinkSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message || "بيانات غير صالحة" });
+      }
+      const link = await storage.upsertSocialMediaLink(parsed.data);
+      res.json(link);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حفظ رابط التواصل" });
+    }
+  });
+
+  app.delete("/api/admin/social-links/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteSocialMediaLink(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف رابط التواصل" });
     }
   });
 

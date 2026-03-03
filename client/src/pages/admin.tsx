@@ -13,12 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil } from "lucide-react";
+import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { SupportTicket, NovelProject, PromoCode, PlatformReview } from "@shared/schema";
+import type { SupportTicket, NovelProject, PromoCode, PlatformReview, SocialMediaLink } from "@shared/schema";
 import { FREE_ANALYSIS_USES, PAID_ANALYSIS_USES } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
 
@@ -125,7 +126,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "social">("tickets");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -201,6 +202,75 @@ export default function Admin() {
   });
 
   const [essaySortBy, setEssaySortBy] = useState<"views" | "clicks" | "ctr">("clicks");
+
+  const SOCIAL_PLATFORMS = [
+    { value: "linkedin", label: "LinkedIn", icon: SiLinkedin },
+    { value: "tiktok", label: "TikTok", icon: SiTiktok },
+    { value: "x", label: "X / Twitter", icon: SiX },
+    { value: "instagram", label: "Instagram", icon: SiInstagram },
+    { value: "facebook", label: "Facebook", icon: SiFacebook },
+    { value: "youtube", label: "YouTube", icon: SiYoutube },
+    { value: "snapchat", label: "Snapchat", icon: SiSnapchat },
+    { value: "telegram", label: "Telegram", icon: SiTelegram },
+    { value: "whatsapp", label: "WhatsApp", icon: SiWhatsapp },
+  ] as const;
+
+  const getPlatformInfo = (platform: string) => SOCIAL_PLATFORMS.find(p => p.value === platform);
+
+  const { data: socialLinks, isLoading: socialLinksLoading } = useQuery<SocialMediaLink[]>({
+    queryKey: ["/api/admin/social-links"],
+    enabled: activeTab === "social",
+  });
+
+  const [showSocialDialog, setShowSocialDialog] = useState(false);
+  const [editingSocialLink, setEditingSocialLink] = useState<SocialMediaLink | null>(null);
+  const [socialForm, setSocialForm] = useState({ platform: "", url: "", enabled: true, displayOrder: 0 });
+  const [deletingSocialId, setDeletingSocialId] = useState<number | null>(null);
+
+  const upsertSocialLinkMutation = useMutation({
+    mutationFn: async (data: { platform: string; url: string; enabled: boolean; displayOrder: number }) => {
+      await apiRequest("PUT", "/api/admin/social-links", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social-links"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/public/social-links"] });
+      setShowSocialDialog(false);
+      setEditingSocialLink(null);
+      setSocialForm({ platform: "", url: "", enabled: true, displayOrder: 0 });
+      toast({ title: "تم حفظ رابط التواصل الاجتماعي بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في حفظ الرابط", variant: "destructive" });
+    },
+  });
+
+  const deleteSocialLinkMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/admin/social-links/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social-links"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/public/social-links"] });
+      setDeletingSocialId(null);
+      toast({ title: "تم حذف الرابط بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في حذف الرابط", variant: "destructive" });
+    },
+  });
+
+  const openAddSocialDialog = () => {
+    setEditingSocialLink(null);
+    const maxOrder = (socialLinks || []).reduce((max, l) => Math.max(max, l.displayOrder || 0), 0);
+    setSocialForm({ platform: "", url: "", enabled: true, displayOrder: maxOrder + 1 });
+    setShowSocialDialog(true);
+  };
+
+  const openEditSocialDialog = (link: SocialMediaLink) => {
+    setEditingSocialLink(link);
+    setSocialForm({ platform: link.platform, url: link.url, enabled: !!link.enabled, displayOrder: link.displayOrder || 0 });
+    setShowSocialDialog(true);
+  };
 
   const sortedEssayAnalytics = (essayAnalytics || []).slice().sort((a, b) => {
     if (essaySortBy === "views") return b.views - a.views;
@@ -637,6 +707,16 @@ export default function Admin() {
           >
             <FileText className="w-4 h-4 sm:ml-2" />
             <span className="hidden sm:inline">المقالات</span>
+          </Button>
+          <Button
+            variant={activeTab === "social" ? "default" : "outline"}
+            onClick={() => setActiveTab("social")}
+            size="sm"
+            className="shrink-0"
+            data-testid="button-tab-social"
+          >
+            <Share2 className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">وسائل التواصل</span>
           </Button>
         </div>
 
@@ -2060,7 +2140,284 @@ export default function Admin() {
             )}
           </>
         )}
+
+        {activeTab === "social" && (
+          <>
+            <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+              <h2 className="font-medium flex items-center gap-2">
+                <Share2 className="w-5 h-5" />
+                إدارة روابط التواصل الاجتماعي
+              </h2>
+              <Button size="sm" onClick={openAddSocialDialog} data-testid="button-add-social-link">
+                <Plus className="w-4 h-4 ml-1" />
+                إضافة رابط جديد
+              </Button>
+            </div>
+
+            {socialLinksLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}><CardContent className="p-4"><Skeleton className="h-12 w-full" /></CardContent></Card>
+                ))}
+              </div>
+            ) : socialLinks && socialLinks.length > 0 ? (
+              <>
+                <div className="hidden sm:block border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-right p-3 font-medium text-muted-foreground">المنصة</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">الرابط</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">الترتيب</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">الحالة</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...socialLinks].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).map((link) => {
+                          const platformInfo = getPlatformInfo(link.platform);
+                          const PlatformIcon = platformInfo?.icon;
+                          return (
+                            <tr key={link.id} className="border-b last:border-0" data-testid={`row-social-link-${link.id}`}>
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  {PlatformIcon && <PlatformIcon className="w-4 h-4" />}
+                                  <span className="font-medium">{platformInfo?.label || link.platform}</span>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground flex items-center gap-1" dir="ltr" data-testid={`link-social-url-${link.id}`}>
+                                  <span className="truncate max-w-[200px]">{link.url}</span>
+                                  <ExternalLink className="w-3 h-3 shrink-0" />
+                                </a>
+                              </td>
+                              <td className="p-3">
+                                <Badge variant="secondary" data-testid={`text-social-order-${link.id}`}>
+                                  <LtrNum>{link.displayOrder || 0}</LtrNum>
+                                </Badge>
+                              </td>
+                              <td className="p-3">
+                                {link.enabled ? (
+                                  <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400" data-testid={`badge-social-enabled-${link.id}`}>مفعّل</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-muted-foreground" data-testid={`badge-social-disabled-${link.id}`}>معطّل</Badge>
+                                )}
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => openEditSocialDialog(link)}
+                                    data-testid={`button-edit-social-${link.id}`}
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => upsertSocialLinkMutation.mutate({ platform: link.platform, url: link.url, enabled: !link.enabled, displayOrder: link.displayOrder || 0 })}
+                                    disabled={upsertSocialLinkMutation.isPending}
+                                    data-testid={`button-toggle-social-${link.id}`}
+                                  >
+                                    {link.enabled ? <Eye className="w-4 h-4" /> : <Eye className="w-4 h-4 text-muted-foreground" />}
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="text-destructive"
+                                    onClick={() => setDeletingSocialId(link.id)}
+                                    data-testid={`button-delete-social-${link.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="sm:hidden space-y-3">
+                  {[...socialLinks].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).map((link) => {
+                    const platformInfo = getPlatformInfo(link.platform);
+                    const PlatformIcon = platformInfo?.icon;
+                    return (
+                      <Card key={link.id} data-testid={`card-social-link-${link.id}`}>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {PlatformIcon && <PlatformIcon className="w-5 h-5" />}
+                              <span className="font-medium text-sm">{platformInfo?.label || link.platform}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-[10px]"><LtrNum>{link.displayOrder || 0}</LtrNum></Badge>
+                              {link.enabled ? (
+                                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">مفعّل</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] text-muted-foreground">معطّل</Badge>
+                              )}
+                            </div>
+                          </div>
+                          <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground flex items-center gap-1" dir="ltr">
+                            <span className="truncate">{link.url}</span>
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                          </a>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditSocialDialog(link)} data-testid={`button-edit-social-m-${link.id}`}>
+                              <Pencil className="w-3.5 h-3.5 ml-1" />
+                              تعديل
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => upsertSocialLinkMutation.mutate({ platform: link.platform, url: link.url, enabled: !link.enabled, displayOrder: link.displayOrder || 0 })} data-testid={`button-toggle-social-m-${link.id}`}>
+                              {link.enabled ? "تعطيل" : "تفعيل"}
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-destructive" onClick={() => setDeletingSocialId(link.id)} data-testid={`button-delete-social-m-${link.id}`}>
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16">
+                <Share2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground mb-4">لا توجد روابط تواصل اجتماعي بعد</p>
+                <Button variant="outline" onClick={openAddSocialDialog} data-testid="button-add-social-link-empty">
+                  <Plus className="w-4 h-4 ml-1" />
+                  إضافة رابط جديد
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </main>
+
+      <Dialog open={showSocialDialog} onOpenChange={(open) => { if (!open) { setShowSocialDialog(false); setEditingSocialLink(null); } }}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle data-testid="text-social-dialog-title">{editingSocialLink ? "تعديل رابط التواصل" : "إضافة رابط تواصل جديد"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>المنصة</Label>
+              <Select
+                value={socialForm.platform}
+                onValueChange={(v) => setSocialForm(f => ({ ...f, platform: v }))}
+                disabled={!!editingSocialLink}
+              >
+                <SelectTrigger data-testid="select-social-platform">
+                  <SelectValue placeholder="اختر المنصة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOCIAL_PLATFORMS.map((p) => {
+                    const alreadyExists = !editingSocialLink && socialLinks?.some(l => l.platform === p.value);
+                    return (
+                      <SelectItem key={p.value} value={p.value} disabled={alreadyExists}>
+                        <div className="flex items-center gap-2">
+                          <p.icon className="w-4 h-4" />
+                          <span>{p.label}</span>
+                          {alreadyExists && <span className="text-xs text-muted-foreground">(مضاف)</span>}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>الرابط (URL)</Label>
+              <Input
+                value={socialForm.url}
+                onChange={(e) => setSocialForm(f => ({ ...f, url: e.target.value }))}
+                placeholder="https://..."
+                dir="ltr"
+                className="text-left"
+                data-testid="input-social-url"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>ترتيب العرض</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={socialForm.displayOrder}
+                  onChange={(e) => setSocialForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))}
+                  data-testid="input-social-order"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>الحالة</Label>
+                <div className="flex items-center gap-2 h-9">
+                  <Checkbox
+                    checked={socialForm.enabled}
+                    onCheckedChange={(checked) => setSocialForm(f => ({ ...f, enabled: !!checked }))}
+                    data-testid="checkbox-social-enabled"
+                  />
+                  <span className="text-sm">{socialForm.enabled ? "مفعّل" : "معطّل"}</span>
+                </div>
+              </div>
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (!socialForm.platform || !socialForm.url.trim()) {
+                  toast({ title: "يرجى اختيار المنصة وإدخال الرابط", variant: "destructive" });
+                  return;
+                }
+                upsertSocialLinkMutation.mutate({
+                  platform: socialForm.platform,
+                  url: socialForm.url.trim(),
+                  enabled: socialForm.enabled,
+                  displayOrder: socialForm.displayOrder,
+                });
+              }}
+              disabled={upsertSocialLinkMutation.isPending}
+              data-testid="button-save-social-link"
+            >
+              {upsertSocialLinkMutation.isPending ? (
+                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4 ml-2" />
+              )}
+              {editingSocialLink ? "تحديث الرابط" : "إضافة الرابط"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deletingSocialId !== null} onOpenChange={(open) => { if (!open) setDeletingSocialId(null); }}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle data-testid="text-delete-social-title">تأكيد الحذف</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">هل أنت متأكد من حذف هذا الرابط؟ لا يمكن التراجع عن هذا الإجراء.</p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => deletingSocialId && deleteSocialLinkMutation.mutate(deletingSocialId)}
+                disabled={deleteSocialLinkMutation.isPending}
+                data-testid="button-confirm-delete-social"
+              >
+                {deleteSocialLinkMutation.isPending ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Trash2 className="w-4 h-4 ml-1" />}
+                حذف
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => setDeletingSocialId(null)} data-testid="button-cancel-delete-social">
+                إلغاء
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showApiUsageDialog} onOpenChange={(open) => { setShowApiUsageDialog(open); if (!open) setApiUsageDetailUser(null); }}>
         <DialogContent className="max-w-3xl max-h-[80vh]" dir="rtl">

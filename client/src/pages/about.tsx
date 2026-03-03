@@ -4,6 +4,7 @@ import { Feather, Heart, Shield, BookOpen, Cpu, Globe, Eye, Compass, Gem, PenToo
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SocialMediaIcons } from "@/components/social-media-icons";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
@@ -233,19 +234,22 @@ export default function About() {
       </section>
 
       <footer className="border-t py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Feather className="w-4 h-4" />
-            <span>QalamAI — منصّة الكتابة الأدبية العربية بالذكاء الاصطناعي</span>
+        <div className="max-w-6xl mx-auto">
+          <SocialMediaIcons size="sm" className="mb-4" />
+          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Feather className="w-4 h-4" />
+              <span>QalamAI — منصّة الكتابة الأدبية العربية بالذكاء الاصطناعي</span>
+            </div>
+            <div className="hidden md:flex items-center gap-4 flex-wrap">
+              {navLinks.map((link) => (
+                <Link key={link.href} href={link.href}>
+                  <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md">{link.label}</span>
+                </Link>
+              ))}
+            </div>
+            <span>&copy; {new Date().getFullYear()} QalamAI</span>
           </div>
-          <div className="hidden md:flex items-center gap-4 flex-wrap">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md">{link.label}</span>
-              </Link>
-            ))}
-          </div>
-          <span>&copy; {new Date().getFullYear()} QalamAI</span>
         </div>
       </footer>
     </div>
