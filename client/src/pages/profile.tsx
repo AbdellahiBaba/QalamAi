@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -43,6 +43,16 @@ import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Profile() {
   useDocumentTitle("الملف الشخصي — قلم AI");
@@ -59,16 +69,78 @@ export default function Profile() {
   const [avatarStyle, setAvatarStyle] = useState("classic");
   const [showAvatarGenerator, setShowAvatarGenerator] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [, setLocation] = useLocation();
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const initialValuesRef = useRef({ firstName: "", lastName: "", displayName: "", bio: "", publicProfile: false });
 
   useEffect(() => {
     if (user) {
-      setFirstName(user.firstName || "");
-      setLastName(user.lastName || "");
-      setDisplayName((user as any).displayName || "");
-      setBio((user as any).bio || "");
-      setPublicProfile((user as any).publicProfile || false);
+      const vals = {
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        displayName: (user as any).displayName || "",
+        bio: (user as any).bio || "",
+        publicProfile: (user as any).publicProfile || false,
+      };
+      setFirstName(vals.firstName);
+      setLastName(vals.lastName);
+      setDisplayName(vals.displayName);
+      setBio(vals.bio);
+      setPublicProfile(vals.publicProfile);
+      initialValuesRef.current = vals;
     }
   }, [user]);
+
+  const BIO_MAX_LENGTH = 500;
+
+  const hasUnsavedChanges = useCallback(() => {
+    const init = initialValuesRef.current;
+    return (
+      firstName !== init.firstName ||
+      lastName !== init.lastName ||
+      displayName !== init.displayName ||
+      bio !== init.bio ||
+      publicProfile !== init.publicProfile
+    );
+  }, [firstName, lastName, displayName, bio, publicProfile]);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedChanges]);
+
+  const handleNavigation = useCallback((href: string) => {
+    if (hasUnsavedChanges()) {
+      setPendingNavigation(href);
+      setShowUnsavedDialog(true);
+      return false;
+    }
+    return true;
+  }, [hasUnsavedChanges]);
+
+  const confirmNavigation = useCallback(() => {
+    if (pendingNavigation) {
+      setShowUnsavedDialog(false);
+      if (pendingNavigation === "__logout__") {
+        logout();
+      } else {
+        setLocation(pendingNavigation);
+      }
+      setPendingNavigation(null);
+    }
+  }, [pendingNavigation, setLocation, logout]);
+
+  const cancelNavigation = useCallback(() => {
+    setShowUnsavedDialog(false);
+    setPendingNavigation(null);
+  }, []);
 
   const { data: projects, isLoading: projectsLoading } = useQuery<NovelProject[]>({
     queryKey: ["/api/projects"],
@@ -80,6 +152,7 @@ export default function Profile() {
       return res.json();
     },
     onSuccess: () => {
+      initialValuesRef.current = { firstName, lastName, displayName, bio, publicProfile };
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "تم تحديث الملف الشخصي بنجاح" });
     },
@@ -211,28 +284,29 @@ export default function Profile() {
             <span className="font-serif text-lg sm:text-xl font-bold">QalamAI</span>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
-            <Link href="/">
-              <Button variant="ghost" size="sm" data-testid="link-home">
-                <Home className="w-4 h-4 ml-1" />
-                <span className="hidden sm:inline">الرئيسية</span>
-              </Button>
-            </Link>
-            <Link href="/tickets">
-              <Button variant="ghost" size="sm" data-testid="link-tickets">
-                <TicketCheck className="w-4 h-4 ml-1" />
-                <span className="hidden sm:inline">تذاكر الدعم</span>
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" data-testid="link-home" onClick={(e) => { e.preventDefault(); if (handleNavigation("/")) setLocation("/"); }}>
+              <Home className="w-4 h-4 ml-1" />
+              <span className="hidden sm:inline">الرئيسية</span>
+            </Button>
+            <Button variant="ghost" size="sm" data-testid="link-tickets" onClick={(e) => { e.preventDefault(); if (handleNavigation("/tickets")) setLocation("/tickets"); }}>
+              <TicketCheck className="w-4 h-4 ml-1" />
+              <span className="hidden sm:inline">تذاكر الدعم</span>
+            </Button>
             {user?.role === "admin" && (
-              <Link href="/admin">
-                <Button variant="ghost" size="sm" data-testid="link-admin">
-                  <ShieldCheck className="w-4 h-4 ml-1" />
-                  <span className="hidden sm:inline">الإدارة</span>
-                </Button>
-              </Link>
+              <Button variant="ghost" size="sm" data-testid="link-admin" onClick={(e) => { e.preventDefault(); if (handleNavigation("/admin")) setLocation("/admin"); }}>
+                <ShieldCheck className="w-4 h-4 ml-1" />
+                <span className="hidden sm:inline">الإدارة</span>
+              </Button>
             )}
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
+            <Button variant="ghost" size="icon" onClick={() => {
+              if (hasUnsavedChanges()) {
+                setPendingNavigation("__logout__");
+                setShowUnsavedDialog(true);
+              } else {
+                logout();
+              }
+            }} data-testid="button-logout">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -390,11 +464,15 @@ export default function Profile() {
                   <label className="text-sm text-muted-foreground">نبذة عنك</label>
                   <Textarea
                     value={bio}
-                    onChange={(e) => setBio(e.target.value)}
+                    onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX_LENGTH))}
+                    maxLength={BIO_MAX_LENGTH}
                     placeholder="اكتب نبذة مختصرة عن نفسك..."
                     className="min-h-[80px]"
                     data-testid="input-bio"
                   />
+                  <p className="text-xs text-muted-foreground text-left" dir="ltr" data-testid="text-bio-counter">
+                    {bio.length}/{BIO_MAX_LENGTH}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -524,6 +602,25 @@ export default function Profile() {
           </div>
         </div>
       </main>
+
+      <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <AlertDialogContent dir="rtl" data-testid="dialog-unsaved-changes">
+          <AlertDialogHeader>
+            <AlertDialogTitle>تغييرات غير محفوظة</AlertDialogTitle>
+            <AlertDialogDescription>
+              لديك تعديلات لم يتم حفظها. هل تريد المغادرة بدون حفظ؟
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2">
+            <AlertDialogCancel onClick={cancelNavigation} data-testid="button-cancel-navigation">
+              البقاء
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmNavigation} data-testid="button-confirm-navigation">
+              مغادرة بدون حفظ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

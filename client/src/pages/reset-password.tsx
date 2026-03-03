@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Feather, Loader2, Eye, EyeOff, CheckCircle, ArrowRight } from "lucide-react";
+import { Feather, Loader2, Eye, EyeOff, CheckCircle, ArrowRight, AlertTriangle, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -21,6 +21,31 @@ export default function ResetPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+  const [tokenError, setTokenError] = useState("");
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (isSuccess) {
+      setCountdown(3);
+      countdownRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            navigate("/login");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [isSuccess, navigate]);
+
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +61,7 @@ export default function ResetPassword() {
     }
 
     setIsSubmitting(true);
+    setTokenError("");
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
@@ -44,7 +70,12 @@ export default function ResetPassword() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "خطأ", description: data.message, variant: "destructive" });
+        const msg = (data.message || "").toLowerCase();
+        if (msg.includes("expired") || msg.includes("invalid") || msg.includes("token") || msg.includes("منتهي") || msg.includes("غير صالح")) {
+          setTokenError(data.message);
+        } else {
+          toast({ title: "خطأ", description: data.message, variant: "destructive" });
+        }
         return;
       }
       setIsSuccess(true);
@@ -94,11 +125,13 @@ export default function ResetPassword() {
                 </div>
                 <h2 className="font-serif text-xl font-bold" data-testid="text-password-reset-success">تم تغيير كلمة المرور</h2>
                 <p className="text-muted-foreground text-sm">
-                  تم إعادة تعيين كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.
+                  تم إعادة تعيين كلمة المرور بنجاح. سيتم توجيهك لصفحة تسجيل الدخول خلال{" "}
+                  <span className="font-bold text-foreground" data-testid="text-redirect-countdown">{countdown}</span>{" "}
+                  {countdown === 1 ? "ثانية" : "ثوانٍ"}.
                 </p>
                 <Button onClick={() => navigate("/login")} className="mt-4" data-testid="button-go-to-login">
                   <ArrowRight className="w-4 h-4 ml-2" />
-                  تسجيل الدخول
+                  تسجيل الدخول الآن
                 </Button>
               </div>
             ) : (
@@ -148,7 +181,33 @@ export default function ResetPassword() {
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {passwordsMatch && (
+                    <p className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400" data-testid="text-passwords-match">
+                      <Check className="w-3 h-3" />
+                      كلمتا المرور متطابقتان
+                    </p>
+                  )}
+                  {passwordsMismatch && (
+                    <p className="flex items-center gap-1 text-xs text-destructive" data-testid="text-passwords-mismatch">
+                      <X className="w-3 h-3" />
+                      كلمتا المرور غير متطابقتين
+                    </p>
+                  )}
                 </div>
+                {tokenError && (
+                  <div className="flex flex-col items-center gap-3 rounded-md bg-destructive/10 p-4 text-center" data-testid="text-token-error">
+                    <AlertTriangle className="w-6 h-6 text-destructive" />
+                    <p className="text-sm font-medium text-destructive">{tokenError}</p>
+                    <p className="text-xs text-muted-foreground">
+                      قد يكون الرابط منتهي الصلاحية أو تم استخدامه مسبقاً. يمكنك طلب رابط جديد لإعادة تعيين كلمة المرور.
+                    </p>
+                    <Link href="/forgot-password">
+                      <Button variant="outline" size="sm" data-testid="button-request-new-reset-inline">
+                        طلب رابط جديد
+                      </Button>
+                    </Link>
+                  </div>
+                )}
                 <Button type="submit" className="w-full" size="lg" disabled={isSubmitting} data-testid="button-reset-password">
                   {isSubmitting ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}
                   {isSubmitting ? "جاري إعادة التعيين..." : "إعادة تعيين كلمة المرور"}

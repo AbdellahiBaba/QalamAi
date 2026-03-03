@@ -166,7 +166,17 @@ export default function Gallery() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <Skeleton key={i} className="h-72 w-full rounded-md" />
+              <Card key={i} data-testid={`skeleton-gallery-${i}`}>
+                <Skeleton className="aspect-square w-full rounded-t-md rounded-b-none" />
+                <CardContent className="p-3 space-y-2">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-3.5 w-1/3" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : filteredProjects.length === 0 ? (

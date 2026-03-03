@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -5,6 +6,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Feather, LogOut, TicketCheck, ArrowRight, Clock, MessageCircle, Plus } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -25,12 +27,36 @@ const statusColors: Record<string, string> = {
   closed: "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400",
 };
 
+const filterOptions = [
+  { value: "all", label: "الكل" },
+  { value: "open", label: "مفتوح" },
+  { value: "in_progress", label: "قيد المعالجة" },
+  { value: "resolved", label: "تم الحل" },
+  { value: "closed", label: "مغلق" },
+];
+
 export default function Tickets() {
   useDocumentTitle("تذاكر الدعم — قلم AI");
   const { user, logout } = useAuth();
+  const [activeFilter, setActiveFilter] = useState("all");
   const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/tickets"],
   });
+
+  const filteredTickets = useMemo(() => {
+    if (!tickets) return [];
+    if (activeFilter === "all") return tickets;
+    return tickets.filter((t) => t.status === activeFilter);
+  }, [tickets, activeFilter]);
+
+  const filterCounts = useMemo(() => {
+    if (!tickets) return {};
+    const counts: Record<string, number> = { all: tickets.length };
+    for (const t of tickets) {
+      counts[t.status] = (counts[t.status] || 0) + 1;
+    }
+    return counts;
+  }, [tickets]);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -73,7 +99,7 @@ export default function Tickets() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between gap-4 mb-10">
+        <div className="flex items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="font-serif text-3xl font-bold mb-2" data-testid="text-tickets-title">
               تذاكر الدعم
@@ -88,6 +114,23 @@ export default function Tickets() {
           </Link>
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap mb-6" data-testid="filter-tickets-group">
+          {filterOptions.map((opt) => (
+            <Badge
+              key={opt.value}
+              variant={activeFilter === opt.value ? "default" : "outline"}
+              className="cursor-pointer toggle-elevate"
+              onClick={() => setActiveFilter(opt.value)}
+              data-testid={`filter-ticket-${opt.value}`}
+            >
+              {opt.label}
+              {filterCounts[opt.value] !== undefined && (
+                <span className="mr-1 text-xs opacity-70">({filterCounts[opt.value]})</span>
+              )}
+            </Badge>
+          ))}
+        </div>
+
         {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -100,9 +143,9 @@ export default function Tickets() {
               </Card>
             ))}
           </div>
-        ) : tickets && tickets.length > 0 ? (
+        ) : filteredTickets.length > 0 ? (
           <div className="space-y-4">
-            {tickets.map((ticket) => (
+            {filteredTickets.map((ticket) => (
               <Link key={ticket.id} href={`/tickets/${ticket.id}`}>
                 <Card className="cursor-pointer hover-elevate" data-testid={`card-ticket-${ticket.id}`}>
                   <CardContent className="p-6">
@@ -134,6 +177,11 @@ export default function Tickets() {
                 </Card>
               </Link>
             ))}
+          </div>
+        ) : tickets && tickets.length > 0 ? (
+          <div className="text-center py-16">
+            <TicketCheck className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground" data-testid="text-no-filtered-tickets">لا توجد تذاكر بهذه الحالة</p>
           </div>
         ) : (
           <div className="text-center py-20">

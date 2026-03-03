@@ -2974,6 +2974,21 @@ ${glossaryParagraphs}
     }
   });
 
+  app.patch("/api/tickets/:id/resolve", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ticket = await storage.getTicket(id);
+      if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
+      if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
+      if (ticket.status === "closed") return res.status(400).json({ error: "التذكرة مغلقة بالفعل" });
+      const updated = await storage.updateTicketStatus(id, "resolved");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error resolving ticket:", error);
+      res.status(500).json({ error: "فشل في إغلاق التذكرة" });
+    }
+  });
+
   app.get("/api/admin/stats", isAuthenticated, isAdmin, async (_req: any, res) => {
     try {
       const stats = await storage.getTicketStats();

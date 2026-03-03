@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,20 @@ import { queryClient } from "@/lib/queryClient";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
+function getPasswordStrength(pw: string): { level: "weak" | "medium" | "strong"; label: string; color: string; width: string } {
+  if (!pw) return { level: "weak", label: "", color: "", width: "0%" };
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^a-zA-Z0-9]/.test(pw)) score++;
+
+  if (score <= 2) return { level: "weak", label: "ضعيفة", color: "bg-red-500", width: "33%" };
+  if (score <= 3) return { level: "medium", label: "متوسطة", color: "bg-yellow-500", width: "66%" };
+  return { level: "strong", label: "قوية", color: "bg-green-500", width: "100%" };
+}
+
 export default function Register() {
   useDocumentTitle("إنشاء حساب — قلم AI");
   const [, navigate] = useLocation();
@@ -20,7 +34,9 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +53,7 @@ export default function Register() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({ email: email.trim(), password, firstName, lastName }),
         credentials: "include",
       });
       const data = await res.json();
@@ -85,6 +101,7 @@ export default function Register() {
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="الاسم الأول"
                     required
+                    maxLength={50}
                     data-testid="input-first-name"
                   />
                 </div>
@@ -95,6 +112,7 @@ export default function Register() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="اسم العائلة"
+                    maxLength={50}
                     data-testid="input-last-name"
                   />
                 </div>
@@ -133,18 +151,42 @@ export default function Register() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {password && (
+                  <div className="space-y-1" data-testid="password-strength-indicator">
+                    <div className="h-1.5 w-full rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                        style={{ width: passwordStrength.width }}
+                      />
+                    </div>
+                    <p className={`text-xs ${passwordStrength.level === "weak" ? "text-red-500" : passwordStrength.level === "medium" ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400"}`}>
+                      قوة كلمة المرور: {passwordStrength.label}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
-                <Input
-                  id="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="أعد إدخال كلمة المرور"
-                  required
-                  data-testid="input-confirm-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="أعد إدخال كلمة المرور"
+                    required
+                    className="pl-10"
+                    data-testid="input-confirm-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    data-testid="button-toggle-confirm-password"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={isSubmitting} data-testid="button-register">
                 {isSubmitting ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}

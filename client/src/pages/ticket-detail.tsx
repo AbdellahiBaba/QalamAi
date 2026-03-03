@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Feather, LogOut, ArrowRight, Send, Loader2, Clock, ShieldCheck, User } from "lucide-react";
+import { Feather, LogOut, ArrowRight, Send, Loader2, Clock, ShieldCheck, User, CheckCircle2 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -46,11 +46,22 @@ export default function TicketDetail() {
   const [, params] = useRoute("/tickets/:id");
   const ticketId = params?.id ? parseInt(params.id) : 0;
   const [replyMessage, setReplyMessage] = useState("");
+  const repliesEndRef = useRef<HTMLDivElement>(null);
+  const prevReplyCountRef = useRef<number>(0);
 
   const { data: ticket, isLoading } = useQuery<TicketWithReplies>({
     queryKey: ["/api/tickets", ticketId],
     enabled: ticketId > 0,
   });
+
+  useEffect(() => {
+    if (ticket?.replies && ticket.replies.length > prevReplyCountRef.current) {
+      repliesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    if (ticket?.replies) {
+      prevReplyCountRef.current = ticket.replies.length;
+    }
+  }, [ticket?.replies]);
 
   const replyMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -64,6 +75,21 @@ export default function TicketDetail() {
     },
     onError: () => {
       toast({ title: "خطأ", description: "فشل في إرسال الرد", variant: "destructive" });
+    },
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", `/api/tickets/${ticketId}/resolve`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      toast({ title: "تم تحديث حالة التذكرة", description: "تم وضع علامة 'تم الحل' على التذكرة" });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشل في تحديث حالة التذكرة", variant: "destructive" });
     },
   });
 
@@ -127,7 +153,7 @@ export default function TicketDetail() {
         ) : (
           <div className="space-y-8">
             <div>
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <span className="text-sm text-muted-foreground" data-testid="text-ticket-id">#تذكرة-{ticket.id}</span>
                 <span className={`text-xs px-2.5 py-0.5 rounded-full ${statusColors[ticket.status]}`} data-testid="badge-status">
                   {statusLabels[ticket.status]}
@@ -135,6 +161,23 @@ export default function TicketDetail() {
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground" data-testid="badge-priority">
                   {priorityLabels[ticket.priority]}
                 </span>
+                {ticket.status !== "closed" && ticket.status !== "resolved" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => resolveMutation.mutate()}
+                    disabled={resolveMutation.isPending}
+                    className="mr-auto text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
+                    data-testid="button-resolve-ticket"
+                  >
+                    {resolveMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 ml-1 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4 ml-1" />
+                    )}
+                    تم الحل
+                  </Button>
+                )}
               </div>
               <h1 className="font-serif text-2xl font-bold" data-testid="text-ticket-subject">{ticket.subject}</h1>
               <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
@@ -185,10 +228,11 @@ export default function TicketDetail() {
                     </CardContent>
                   </Card>
                 ))}
+                <div ref={repliesEndRef} />
               </div>
             )}
 
-            {ticket.status !== "closed" && (
+            {ticket.status !== "closed" && ticket.status !== "resolved" && (
               <Card>
                 <CardContent className="p-6">
                   <h3 className="font-serif text-lg font-semibold mb-4">إضافة رد</h3>
@@ -213,6 +257,13 @@ export default function TicketDetail() {
                   </form>
                 </CardContent>
               </Card>
+            )}
+
+            {(ticket.status === "closed" || ticket.status === "resolved") && (
+              <div className="text-center py-6 text-sm text-muted-foreground border rounded-lg bg-muted/30" data-testid="text-ticket-closed">
+                <CheckCircle2 className="w-5 h-5 mx-auto mb-2 text-green-500" />
+                هذه التذكرة {ticket.status === "resolved" ? "تم حلها" : "مغلقة"}. لا يمكن إضافة ردود جديدة.
+              </div>
             )}
           </div>
         )}

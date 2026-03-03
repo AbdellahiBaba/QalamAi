@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,6 +33,12 @@ export const footerOnlyLinks = [
 export function SharedNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const [location] = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === "/") return location === "/";
+    return location.startsWith(href);
+  };
 
   return (
     <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
@@ -52,7 +58,11 @@ export function SharedNavbar() {
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href}>
               <span
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className={`text-sm font-medium transition-colors cursor-pointer ${
+                  isActive(link.href)
+                    ? "text-foreground font-semibold border-b-2 border-primary pb-0.5"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
                 data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}
               >
                 {link.label}
@@ -137,7 +147,11 @@ export function SharedNavbar() {
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href}>
               <span
-                className="block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
+                className={`block text-sm font-medium transition-colors cursor-pointer py-1 ${
+                  isActive(link.href)
+                    ? "text-foreground font-semibold border-r-2 border-primary pr-2"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
                 data-testid={`link-mobile-nav-${link.href.replace("/", "") || "home"}`}
               >
@@ -148,16 +162,16 @@ export function SharedNavbar() {
           {isAuthenticated && (
             <div className="border-t pt-3 space-y-2">
               <Link href="/">
-                <span className="block text-sm font-medium text-muted-foreground hover:text-foreground py-1" onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-dashboard">لوحة التحكم</span>
+                <span className={`block text-sm font-medium py-1 ${isActive("/") ? "text-foreground font-semibold border-r-2 border-primary pr-2" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-dashboard">لوحة التحكم</span>
               </Link>
               <Link href="/reviews">
-                <span className="block text-sm font-medium text-muted-foreground hover:text-foreground py-1" onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-reviews">آراء المستخدمين</span>
+                <span className={`block text-sm font-medium py-1 ${isActive("/reviews") ? "text-foreground font-semibold border-r-2 border-primary pr-2" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-reviews">آراء المستخدمين</span>
               </Link>
               <Link href="/tickets">
-                <span className="block text-sm font-medium text-muted-foreground hover:text-foreground py-1" onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-tickets">تذاكر الدعم</span>
+                <span className={`block text-sm font-medium py-1 ${isActive("/tickets") ? "text-foreground font-semibold border-r-2 border-primary pr-2" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-tickets">تذاكر الدعم</span>
               </Link>
               <Link href="/profile">
-                <span className="block text-sm font-medium text-muted-foreground hover:text-foreground py-1" onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-profile">الملف الشخصي</span>
+                <span className={`block text-sm font-medium py-1 ${isActive("/profile") ? "text-foreground font-semibold border-r-2 border-primary pr-2" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-profile">الملف الشخصي</span>
               </Link>
             </div>
           )}
