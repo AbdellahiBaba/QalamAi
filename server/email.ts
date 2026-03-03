@@ -282,3 +282,62 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
     console.error("[Email] Failed to send password reset email:", err);
   }
 }
+
+export async function sendTrialChargeSuccessEmail(email: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const dashboardUrl = `${getBaseUrl()}/`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">تهانينا! تم تفعيل <strong style="color:${BRAND_GOLD};">الخطة الشاملة</strong> بنجاح على حسابك بعد انتهاء الفترة التجريبية.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">يمكنك الآن إنشاء روايات ومقالات وسيناريوهات وقصص قصيرة وخواطر وقصائد بدون حدود.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${dashboardUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+الذهاب إلى لوحة التحكم
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "تم تفعيل الخطة الشاملة بنجاح — QalamAI",
+      html: wrapInTemplate("تم تفعيل خطتك الشاملة!", body),
+    });
+    console.log(`[Email] Sent trial charge success email to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send trial charge success email:", err);
+  }
+}
+
+export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const pricingUrl = `${getBaseUrl()}/pricing`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">انتهت فترتك التجريبية على <strong style="color:${BRAND_GOLD};">قلم AI</strong>.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">للأسف، لم نتمكن من تحصيل المبلغ من بطاقتك المسجلة. تم إرجاع حسابك إلى الخطة المجانية.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">يمكنك الاشتراك في إحدى خططنا يدوياً للاستمتاع بجميع الميزات:</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${pricingUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+اختر خطتك الآن
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "انتهت فترتك التجريبية — QalamAI",
+      html: wrapInTemplate("انتهت الفترة التجريبية", body),
+    });
+    console.log(`[Email] Sent trial charge failed email to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send trial charge failed email:", err);
+  }
+}

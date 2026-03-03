@@ -136,6 +136,10 @@ function AppRouter() {
 
   useEffect(() => {
     if (user && (user as any).plan === "trial" && (user as any).trialActive) {
+      const checkKey = `trial_check_${(user as any).id}`;
+      const lastCheck = sessionStorage.getItem(checkKey);
+      if (lastCheck && Date.now() - parseInt(lastCheck) < 30000) return;
+      sessionStorage.setItem(checkKey, String(Date.now()));
       fetch("/api/trial/check-expiry", { method: "POST", credentials: "include" })
         .then(res => res.json())
         .then(data => {

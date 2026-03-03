@@ -12,6 +12,7 @@ import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
+import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import archiver from "archiver";
@@ -439,65 +440,19 @@ ${pages.map(p => `  <url>
   app.post("/api/trial/check-expiry", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+      const result = await processTrialExpiry(userId, req.ip, req.get("user-agent"));
 
-      if (!user.trialActive || user.plan !== "trial") {
-        return res.json({ trialActive: false, plan: user.plan });
+      if (result.status === "trial_active") {
+        const user = await storage.getUser(userId);
+        return res.json({ trialActive: true, trialEndsAt: user?.trialEndsAt, plan: "trial" });
       }
 
-      if (!isTrialExpired(user.trialEndsAt)) {
-        return res.json({ trialActive: true, trialEndsAt: user.trialEndsAt, plan: "trial" });
-      }
-
-      if (!user.stripeCustomerId || !user.trialStripePaymentMethodId) {
-        console.error("Trial auto-charge: missing stripe data for user", userId);
-        await storage.updateUserTrial(userId, { plan: "free", trialActive: false });
-        return res.json({ trialActive: false, plan: "free", charged: false, chargeFailed: true });
-      }
-
-      const stripe = await getUncachableStripeClient();
-      try {
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: TRIAL_CHARGE_AMOUNT,
-          currency: "usd",
-          customer: user.stripeCustomerId,
-          payment_method: user.trialStripePaymentMethodId,
-          off_session: true,
-          confirm: true,
-          metadata: { userId, type: "trial_auto_charge" },
-        });
-
-        if (paymentIntent.status === "succeeded") {
-          await storage.updateUserTrial(userId, {
-            plan: "all_in_one",
-            trialActive: false,
-            planPurchasedAt: new Date(),
-          });
-
-          trackServerEvent({
-            eventName: "Purchase",
-            userId,
-            value: TRIAL_CHARGE_AMOUNT / 100,
-            currency: "USD",
-            contentType: "plan",
-            contentId: "all_in_one",
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-          });
-
-          return res.json({ trialActive: false, plan: "all_in_one", charged: true });
-        }
-      } catch (chargeError: any) {
-        console.error("Trial auto-charge failed:", chargeError.message);
-      }
-
-      await storage.updateUserTrial(userId, {
-        plan: "free",
-        trialActive: false,
+      res.json({
+        trialActive: result.plan === "trial",
+        plan: result.plan,
+        charged: result.charged,
+        chargeFailed: result.chargeFailed,
       });
-
-      return res.json({ trialActive: false, plan: "free", charged: false, chargeFailed: true });
     } catch (error) {
       console.error("Error checking trial expiry:", error);
       res.status(500).json({ error: "فشل في التحقق من حالة الفترة التجريبية" });
@@ -3119,6 +3074,9 @@ ${glossaryParagraphs}
             role: u.role,
             createdAt: u.createdAt,
             totalProjects: projectCount,
+            trialActive: u.trialActive,
+            trialEndsAt: u.trialEndsAt,
+            trialChargeStatus: u.trialChargeStatus,
           };
         })
       );

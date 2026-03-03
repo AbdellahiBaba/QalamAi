@@ -20,7 +20,7 @@ import {
   platformFeatures, type PlatformFeature,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql, count, isNotNull, avg } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count, isNotNull, avg, lt } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -53,6 +53,7 @@ export interface IStorage {
   getTicketReplies(ticketId: number): Promise<TicketReply[]>;
   getTicketStats(): Promise<{ status: string; count: number }[]>;
   getAllUsers(): Promise<User[]>;
+  getExpiredTrialUsers(): Promise<User[]>;
   getUserProjectCount(userId: string): Promise<number>;
   toggleFavorite(userId: string, projectId: number): Promise<{ favorited: boolean }>;
   getFavoritesByUser(userId: string): Promise<number[]>;
@@ -315,6 +316,16 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async getExpiredTrialUsers(): Promise<User[]> {
+    return db.select().from(users).where(
+      and(
+        eq(users.plan, "trial"),
+        eq(users.trialActive, true),
+        lt(users.trialEndsAt, new Date())
+      )
+    );
   }
 
   async getUserProjectCount(userId: string): Promise<number> {

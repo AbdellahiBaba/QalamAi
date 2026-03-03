@@ -26,7 +26,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Content Type Specifics: Each content type has tailored AI personas, generation parameters, and specific fields.
 - Analysis Tools: Continuity Fix and Literary Style Analysis provide AI-driven improvements with actionable suggestions.
 - Arabic Display Standards: Chapter/section numbers are displayed as Arabic ordinal words, and numeric values are wrapped with an LTR component for BiDi reordering.
-- Free Trial System: 24-hour free trial with Stripe Setup Intent and auto-charge.
+- Free Trial System: 24-hour free trial with Stripe Setup Intent and auto-charge. Server-side background job (`server/trial-processor.ts`) runs every 5 minutes via `setInterval` in `server/index.ts` to process expired trials even if user never returns. `processTrialExpiry()` handles charge with retry (up to 3 attempts, 1-hour delay), `requires_action`/`requires_payment_method` statuses, and sends email notifications on success/failure. Race condition prevented via `trialChargeAttempted`/`trialChargeStatus` fields and sessionStorage throttle on client. Admin panel shows trial charge status badges. DB fields: `trialChargeAttempted`, `trialChargeStatus`, `trialChargeAttempts`, `trialLastChargeAttempt`. Storage has `getExpiredTrialUsers()` for efficient DB-level filtering.
 - Writing Streaks & Daily Goals: Tracks user writing streaks and allows setting daily word goals.
 - Abu Hashim Chat: General and project-contextual AI chat for literary advice and brainstorming.
 - Keyboard Shortcuts: For efficient navigation and editing within the project workspace.

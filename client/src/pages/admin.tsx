@@ -56,6 +56,9 @@ interface AdminUser {
   role: string | null;
   createdAt: string | null;
   totalProjects: number;
+  trialActive: boolean;
+  trialEndsAt: string | null;
+  trialChargeStatus: string | null;
 }
 
 const statusLabels: Record<string, string> = {
@@ -1068,10 +1071,25 @@ export default function Admin() {
                             {u.email || "—"}
                           </td>
                           <td className="p-3" data-testid={`text-plan-${u.id}`}>
-                            <Badge variant={u.plan === "free" ? "outline" : "default"}>
-                              {u.plan === "all_in_one" && <Crown className="w-3 h-3 ml-1" />}
-                              {planLabels[u.plan] || u.plan}
-                            </Badge>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant={u.plan === "free" ? "outline" : "default"}>
+                                {u.plan === "all_in_one" && <Crown className="w-3 h-3 ml-1" />}
+                                {planLabels[u.plan] || u.plan}
+                              </Badge>
+                              {u.plan === "trial" && u.trialChargeStatus && (
+                                <Badge variant="outline" className={`text-[10px] ${
+                                  u.trialChargeStatus === "succeeded" ? "text-green-600 border-green-300" :
+                                  u.trialChargeStatus === "failed" ? "text-red-600 border-red-300" :
+                                  u.trialChargeStatus === "requires_action" ? "text-amber-600 border-amber-300" :
+                                  "text-blue-600 border-blue-300"
+                                }`} data-testid={`badge-trial-charge-${u.id}`}>
+                                  {u.trialChargeStatus === "succeeded" ? "تم التحصيل" :
+                                   u.trialChargeStatus === "failed" ? "فشل التحصيل" :
+                                   u.trialChargeStatus === "requires_action" ? "بانتظار التأكيد" :
+                                   u.trialChargeStatus === "pending" ? "جارٍ التحصيل" : u.trialChargeStatus}
+                                </Badge>
+                              )}
+                            </div>
                           </td>
                           <td className="p-3 text-muted-foreground" data-testid={`text-projects-${u.id}`}>
                             {u.totalProjects}

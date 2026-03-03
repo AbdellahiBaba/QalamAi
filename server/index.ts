@@ -6,6 +6,7 @@ import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
 import { checkSmtpStatus } from "./email";
+import { processAllExpiredTrials } from "./trial-processor";
 
 const app = express();
 const httpServer = createServer(app);
@@ -167,6 +168,14 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
       checkSmtpStatus();
+
+      const TRIAL_CHECK_INTERVAL = 5 * 60 * 1000;
+      setInterval(() => {
+        processAllExpiredTrials().catch((err) =>
+          console.error("[TrialProcessor] Background job error:", err)
+        );
+      }, TRIAL_CHECK_INTERVAL);
+      log("Trial expiry background job started (every 5 minutes)");
     },
   );
 })();
