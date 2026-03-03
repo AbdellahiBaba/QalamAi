@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
@@ -720,6 +720,44 @@ ${pages.map(p => `  <url>
     } catch (error) {
       console.error("Error processing payment:", error);
       res.status(500).json({ error: "Failed to process payment" });
+    }
+  });
+
+  app.post("/api/projects/suggest-full", isAuthenticated, async (req: any, res) => {
+    try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      const { projectType, hint } = req.body;
+      const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media"];
+      const safeType = validTypes.includes(projectType) ? projectType : "novel";
+      const safeHint = typeof hint === "string" ? hint.slice(0, 500) : undefined;
+
+      const { system, user } = buildFullProjectSuggestionPrompt({ projectType: safeType, hint: safeHint });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: 4096,
+      });
+      logApiUsage(req.user.claims.sub, null, "full_project_suggestion", "gpt-5.2", response);
+
+      const content = response.choices[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return res.status(500).json({ error: "فشل في توليد الاقتراح" });
+      }
+
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        res.json(parsed);
+      } catch {
+        return res.status(500).json({ error: "فشل في تحليل الاقتراح" });
+      }
+    } catch (error) {
+      console.error("Error generating full project suggestion:", error);
+      res.status(500).json({ error: "حدث خطأ أثناء توليد الاقتراح" });
     }
   });
 

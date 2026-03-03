@@ -903,6 +903,11 @@ export default function ProjectDetail() {
       data.placeSetting = editPlaceSetting;
       data.narrativePov = editNarrativePov;
       data.narrativeTechnique = editNarrativeTechnique;
+    } else if (pt === "khawater" || pt === "social_media") {
+      data.timeSetting = editTimeSetting;
+      data.placeSetting = editPlaceSetting;
+      data.narrativePov = editNarrativePov;
+      data.narrativeTechnique = editNarrativeTechnique;
     }
     saveSettingsMutation.mutate(data);
   };
@@ -1288,12 +1293,12 @@ export default function ProjectDetail() {
                     <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
                       {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : "تفاصيل الرواية"}
                     </h3>
-                    {["novel", "essay", "scenario", "short_story"].includes(project.projectType) && !editingSettings && (
+                    {!editingSettings && (
                       <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs" data-testid="button-edit-settings">
                         <Pencil className="w-3 h-3" /> تعديل
                       </Button>
                     )}
-                    {["novel", "essay", "scenario", "short_story"].includes(project.projectType) && editingSettings && (
+                    {editingSettings && (
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={handleSaveSettings} disabled={saveSettingsMutation.isPending} className="h-7 gap-1 text-xs" data-testid="button-save-settings">
                           {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} حفظ
@@ -1305,6 +1310,10 @@ export default function ProjectDetail() {
                     )}
                   </div>
                   <div className="space-y-3 text-sm">
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">العنوان:</span>
+                      <span className="font-medium">{project.title}</span>
+                    </div>
                     {project.projectType === "essay" ? (
                       editingSettings ? (
                         <>
@@ -1547,6 +1556,97 @@ export default function ProjectDetail() {
                           </div>
                           <div className="flex justify-between gap-2">
                             <span className="text-muted-foreground">عدد المشاهد:</span>
+                            <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
+                          </div>
+                        </>
+                      )
+                    ) : (project.projectType === "khawater" || project.projectType === "social_media") ? (
+                      editingSettings ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الزمان</Label>
+                            <Input value={editTimeSetting} onChange={(e) => setEditTimeSetting(e.target.value)} data-testid="input-edit-khawater-time" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">المكان</Label>
+                            <Input value={editPlaceSetting} onChange={(e) => setEditPlaceSetting(e.target.value)} data-testid="input-edit-khawater-place" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">نوع السرد</Label>
+                            <Select value={editNarrativePov} onValueChange={setEditNarrativePov}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-khawater-pov">
+                                <SelectValue placeholder="اختر نوع السرد" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="first_person">ضمير المتكلم</SelectItem>
+                                <SelectItem value="third_person">ضمير الغائب</SelectItem>
+                                <SelectItem value="omniscient">الراوي العليم</SelectItem>
+                                <SelectItem value="multiple">تعدد الأصوات</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">التقنية السردية</Label>
+                            <Select value={editNarrativeTechnique} onValueChange={setEditNarrativeTechnique}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-khawater-technique">
+                                <SelectValue placeholder="اختر التقنية" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(TECHNIQUE_LABELS).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الحجم:</span>
+                            <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد الشخصيات:</span>
+                            <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{project.projectType === "khawater" ? "عدد النصوص:" : "عدد المحتوى:"}</span>
+                            <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {project.timeSetting && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الزمان:</span>
+                              <span className="font-medium">{project.timeSetting}</span>
+                            </div>
+                          )}
+                          {project.placeSetting && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">المكان:</span>
+                              <span className="font-medium">{project.placeSetting}</span>
+                            </div>
+                          )}
+                          {project.narrativePov && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">نوع السرد:</span>
+                              <span className="font-medium">{povLabel(project.narrativePov)}</span>
+                            </div>
+                          )}
+                          {project.narrativeTechnique && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">التقنية السردية:</span>
+                              <span className="font-medium">{TECHNIQUE_LABELS[project.narrativeTechnique] || project.narrativeTechnique}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الحجم:</span>
+                            <span className="font-medium"><LtrNum>{project.pageCount}</LtrNum> صفحة</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد الشخصيات:</span>
+                            <span className="font-medium"><LtrNum>{project.characters?.length || 0}</LtrNum></span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{project.projectType === "khawater" ? "عدد النصوص:" : "عدد المحتوى:"}</span>
                             <span className="font-medium"><LtrNum>{project.chapters?.length || 0}</LtrNum></span>
                           </div>
                         </>

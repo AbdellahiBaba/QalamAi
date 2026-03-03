@@ -80,6 +80,9 @@ export default function NewProject() {
   const [expandedChars, setExpandedChars] = useState<Set<number>>(new Set());
   const [suggestingFormat, setSuggestingFormat] = useState(false);
   const [formatSuggestion, setFormatSuggestion] = useState<{ recommendation: string; confidence: string; reasoning: string; shortStoryAdvantages: string; novelAdvantages: string } | null>(null);
+  const [suggestingFullProject, setSuggestingFullProject] = useState(false);
+  const [fullProjectHint, setFullProjectHint] = useState("");
+  const [showHintInput, setShowHintInput] = useState(false);
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
@@ -229,6 +232,38 @@ export default function NewProject() {
     }
   };
 
+  const handleSuggestFullProject = async () => {
+    if (!showHintInput) {
+      setShowHintInput(true);
+      return;
+    }
+    setSuggestingFullProject(true);
+    try {
+      const res = await apiRequest("POST", "/api/projects/suggest-full", {
+        projectType: "novel",
+        hint: fullProjectHint,
+      });
+      const data = await res.json();
+      form.setValue("title", data.title, { shouldValidate: true });
+      form.setValue("mainIdea", data.mainIdea, { shouldValidate: true });
+      form.setValue("timeSetting", data.timeSetting, { shouldValidate: true });
+      form.setValue("placeSetting", data.placeSetting, { shouldValidate: true });
+      form.setValue("narrativePov", data.narrativePov, { shouldValidate: true });
+      form.setValue("narrativeTechnique", data.narrativeTechnique || "", { shouldValidate: true });
+      if (data.characters) {
+        form.setValue("characters", data.characters, { shouldValidate: true });
+      }
+      form.setValue("relationships", data.relationships || [], { shouldValidate: true });
+      toast({ title: "تم اقتراح مشروع كامل — راجع التفاصيل وعدّلها كما تشاء" });
+      setShowHintInput(false);
+      setFullProjectHint("");
+    } catch {
+      toast({ title: "فشل في اقتراح المشروع", description: "حاول مرة أخرى", variant: "destructive" });
+    } finally {
+      setSuggestingFullProject(false);
+    }
+  };
+
   const steps = [
     { title: "تفاصيل الرواية", icon: BookOpen },
     { title: "الشخصيات", icon: Users },
@@ -293,6 +328,53 @@ export default function NewProject() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="mb-6 flex flex-col items-center gap-3">
+              <Button
+                type="button"
+                onClick={handleSuggestFullProject}
+                disabled={suggestingFullProject}
+                className="gap-2 bg-gradient-to-l from-amber-500 to-yellow-400 text-white border-amber-600 font-bold text-base px-6"
+                data-testid="button-suggest-full-project"
+              >
+                {suggestingFullProject ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-5 w-5" />
+                )}
+                {suggestingFullProject ? "أبو هاشم يفكّر..." : "أبو هاشم يقترح لك مشروعاً كاملاً"}
+              </Button>
+              {showHintInput && (
+                <div className="flex items-center gap-2 w-full max-w-md">
+                  <Input
+                    value={fullProjectHint}
+                    onChange={(e) => setFullProjectHint(e.target.value)}
+                    placeholder="أدخل كلمة مفتاحية أو موضوع (اختياري)..."
+                    className="flex-1"
+                    data-testid="input-full-project-hint"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleSuggestFullProject}
+                    disabled={suggestingFullProject}
+                    className="shrink-0 gap-1.5 bg-gradient-to-l from-amber-500 to-yellow-400 text-white"
+                    data-testid="button-confirm-full-project"
+                  >
+                    {suggestingFullProject ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    ابدأ
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => { setShowHintInput(false); setFullProjectHint(""); }}
+                    data-testid="button-cancel-full-project"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {step === 0 && (
               <Card>
                 <CardContent className="p-5 sm:p-8 space-y-6">

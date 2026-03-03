@@ -992,6 +992,150 @@ ${instructions}
   return { system: SYSTEM_PROMPT, user: prompt };
 }
 
+export function buildFullProjectSuggestionPrompt(data: {
+  projectType: string;
+  hint?: string;
+}) {
+  const typeLabels: Record<string, string> = {
+    novel: "رواية عربية",
+    essay: "مقال",
+    scenario: "سيناريو",
+    short_story: "قصة قصيرة",
+    khawater: "خاطرة",
+    social_media: "محتوى سوشيال ميديا",
+  };
+  const typeLabel = typeLabels[data.projectType] || "رواية عربية";
+  const hintNote = data.hint ? `\n\nتلميح من الكاتب: "${data.hint}"\nاستلهم من هذا التلميح لبناء المشروع الكامل.` : "";
+
+  const typeInstructions: Record<string, string> = {
+    novel: `اقترح مشروع رواية عربية كاملة يتضمن:
+{
+  "title": "عنوان الرواية",
+  "mainIdea": "فكرة رئيسية مفصلة (3-5 جمل) تصلح لرواية مشوقة",
+  "timeSetting": "الزمان (حقبة أو فترة زمنية محددة)",
+  "placeSetting": "المكان (مدينة أو منطقة عربية محددة)",
+  "narrativePov": "أحد هذه القيم فقط: first_person أو third_person أو omniscient أو multiple",
+  "narrativeTechnique": "أحد هذه القيم فقط: linear أو temporal_break أو polyphonic أو stream_of_consciousness أو symbolic أو circular أو fragmented أو documentary أو limited أو omniscient_narrator أو first_person_narration أو second_person",
+  "characters": [
+    {
+      "name": "اسم عربي أصيل",
+      "background": "خلفية الشخصية وتاريخها",
+      "role": "أحد: protagonist أو antagonist أو mentor أو sidekick أو love_interest أو comic_relief أو supporting",
+      "motivation": "دافع الشخصية الأساسي",
+      "speechStyle": "أسلوب حديث الشخصية",
+      "physicalDescription": "وصف المظهر الخارجي",
+      "psychologicalTraits": "السمات النفسية",
+      "age": "العمر"
+    }
+  ],
+  "relationships": [
+    {"char1Index": 0, "char2Index": 1, "relationship": "وصف العلاقة بين الشخصيتين"}
+  ]
+}
+
+اقترح 3-5 شخصيات متنوعة الأدوار مع علاقات مترابطة بينها.`,
+
+    essay: `اقترح مشروع مقال عربي كامل يتضمن:
+{
+  "title": "عنوان المقال",
+  "mainIdea": "موضوع المقال مفصلاً (3-5 جمل)",
+  "subject": "أحد هذه التصنيفات: news أو politics أو science أو technology أو economics أو sports أو culture أو health أو education أو environment أو opinion أو travel أو food أو fashion أو entertainment أو history أو philosophy",
+  "essayTone": "أحد هذه الأساليب: formal أو analytical أو investigative أو editorial أو conversational أو narrative أو persuasive أو satirical أو scientific أو literary أو journalistic",
+  "targetAudience": "الجمهور المستهدف",
+  "keyPoints": "النقاط الرئيسية التي يغطيها المقال (مفصولة بفاصلة)",
+  "timeSetting": "السياق الزمني",
+  "placeSetting": "السياق المكاني"
+}`,
+
+    scenario: `اقترح مشروع سيناريو عربي كامل يتضمن:
+{
+  "title": "عنوان العمل الدرامي",
+  "mainIdea": "فكرة السيناريو مفصلة (3-5 جمل)",
+  "genre": "أحد: drama أو comedy أو thriller أو romance أو action أو sci-fi أو horror أو family أو social أو crime أو war",
+  "formatType": "أحد: film أو series",
+  "timeSetting": "الزمان",
+  "placeSetting": "المكان",
+  "characters": [
+    {
+      "name": "اسم عربي",
+      "background": "خلفية الشخصية",
+      "role": "أحد: protagonist أو antagonist أو mentor أو sidekick أو love_interest أو comic_relief أو supporting",
+      "motivation": "الدافع",
+      "speechStyle": "أسلوب الحديث",
+      "physicalDescription": "الوصف الخارجي",
+      "psychologicalTraits": "السمات النفسية",
+      "age": "العمر"
+    }
+  ],
+  "relationships": [
+    {"char1Index": 0, "char2Index": 1, "relationship": "وصف العلاقة"}
+  ]
+}
+
+اقترح 3-5 شخصيات درامية مع علاقات مشوقة بينها.`,
+
+    short_story: `اقترح مشروع قصة قصيرة عربية كامل يتضمن:
+{
+  "title": "عنوان القصة",
+  "mainIdea": "فكرة القصة مفصلة (3-5 جمل)",
+  "genre": "أحد: realistic أو symbolic أو psychological أو social أو fantasy أو horror أو romantic أو historical أو satirical أو philosophical",
+  "timeSetting": "الزمان",
+  "placeSetting": "المكان",
+  "narrativePov": "أحد: first_person أو third_person أو omniscient أو multiple",
+  "narrativeTechnique": "أحد: linear أو temporal_break أو stream_of_consciousness أو symbolic أو circular أو fragmented",
+  "characters": [
+    {
+      "name": "اسم عربي",
+      "background": "خلفية الشخصية",
+      "role": "أحد: protagonist أو antagonist أو supporting",
+      "motivation": "الدافع",
+      "speechStyle": "أسلوب الحديث",
+      "physicalDescription": "الوصف الخارجي",
+      "psychologicalTraits": "السمات النفسية",
+      "age": "العمر"
+    }
+  ],
+  "relationships": [
+    {"char1Index": 0, "char2Index": 1, "relationship": "وصف العلاقة"}
+  ]
+}
+
+اقترح 2-3 شخصيات مع علاقات بينها.`,
+
+    khawater: `اقترح مشروع خاطرة عربية كامل يتضمن:
+{
+  "title": "عنوان الخاطرة",
+  "mainIdea": "فكرة الخاطرة مفصلة (2-3 جمل) — تأملية وعميقة"
+}`,
+
+    social_media: `اقترح مشروع محتوى سوشيال ميديا كامل يتضمن:
+{
+  "title": "عنوان/حملة المحتوى",
+  "mainIdea": "فكرة المحتوى مفصلة (2-3 جمل)"
+}`,
+  };
+
+  const instructions = typeInstructions[data.projectType] || typeInstructions.novel;
+
+  const prompt = `بصفتك أبو هاشم — الوكيل الأدبي الذكي المتخصص في الأدب العربي — الكاتب يريد بدء مشروع ${typeLabel} جديد لكنه لا يملك أفكاراً بعد. ساعده باقتراح مشروع كامل ومبتكر وأصيل.${hintNote}
+
+═══ المطلوب ═══
+
+${instructions}
+
+═══ إرشادات عامة ═══
+- اختر فكرة أصيلة ومبتكرة مستلهمة من الثقافة والمجتمع العربي
+- اجعل الشخصيات (إن وُجدت) عربية أصيلة بأسماء وخلفيات واقعية
+- اجعل الأماكن والأزمنة مرتبطة بالعالم العربي
+- اجعل العمل يحمل عمقاً فكرياً أو اجتماعياً أو إنسانياً
+- تجنب التكرار والأفكار المستهلكة
+
+أجب بصيغة JSON فقط — كائن واحد بالحقول المذكورة أعلاه.
+لا تضف أي نص خارج JSON.`;
+
+  return { system: SYSTEM_PROMPT, user: prompt };
+}
+
 export const NARRATIVE_TECHNIQUE_MAP: Record<string, string> = {
   linear: "السرد الزمني التقليدي (الخطّي) — الأحداث تسير من البداية إلى النهاية دون قفزات زمنية",
   temporal_break: "الانكسار الزمني — استخدام الاسترجاع (Flashback) والاستباق (Flashforward) والتقطيع الزمني بين الماضي والحاضر والمستقبل",
