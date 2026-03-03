@@ -249,7 +249,7 @@ export default function SharedProject() {
       </nav>
 
       {totalChapters > 1 && (
-        <div className="fixed top-1 left-4 right-4 z-40 flex justify-center pointer-events-none">
+        <div className="fixed top-[60px] left-4 right-4 z-40 flex justify-center pointer-events-none">
           <div className="bg-background/90 backdrop-blur-sm border rounded-b-lg px-4 py-1.5 flex items-center gap-3 pointer-events-auto shadow-sm" data-testid="chapter-progress-tracker">
             <span className="text-xs text-muted-foreground">
               <LtrNum>{readCount}</LtrNum>/<LtrNum>{totalChapters}</LtrNum> {chapterLabel}

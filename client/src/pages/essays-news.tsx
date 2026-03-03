@@ -16,9 +16,28 @@ import {
   Feather,
   Heart,
   Clock,
+  Menu,
+  X,
 } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { SocialMediaIcons } from "@/components/social-media-icons";
+
+const navLinks = [
+  { label: "الرئيسية", href: "/" },
+  { label: "المعرض", href: "/gallery" },
+  { label: "المقالات", href: "/essays" },
+  { label: "من نحن", href: "/about" },
+  { label: "المميزات", href: "/features" },
+  { label: "الأسعار", href: "/pricing" },
+  { label: "تواصل معنا", href: "/contact" },
+  { label: "أبو هاشم", href: "/abu-hashim" },
+];
+
+const footerOnlyLinks = [
+  { label: "آراء المستخدمين", href: "/reviews" },
+];
 
 interface PublicEssay {
   id: number;
@@ -44,6 +63,7 @@ export default function EssaysNews() {
   useDocumentTitle("المقالات السياسية والرأي العام — قلم AI");
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: essays, isLoading } = useQuery<PublicEssay[]>({
@@ -69,26 +89,79 @@ export default function EssaysNews() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      <nav className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/">
-              <Button variant="ghost" size="sm" className="gap-1" data-testid="button-back-home">
-                <ArrowRight className="w-4 h-4" />
-                الرئيسية
-              </Button>
+              <div className="flex items-center gap-2 sm:gap-3 cursor-pointer">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
+                  <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
+                </div>
+                <span className="font-serif text-lg sm:text-xl font-bold" data-testid="text-essays-logo">QalamAI</span>
+              </div>
             </Link>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <Feather className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-serif text-lg font-bold" data-testid="text-essays-logo">QalamAI</span>
+
+          <div className="hidden md:flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href}>
+                <span
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}
+                >
+                  {link.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeToggle />
+            <Link href="/login">
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
+            </Link>
+            <Link href="/login">
+              <Button size="sm" className="hidden sm:inline-flex text-xs sm:text-sm" data-testid="button-signup">إنشاء حساب جديد</Button>
+            </Link>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              data-testid="button-mobile-menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t bg-background px-4 sm:px-6 py-4 space-y-3">
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href}>
+                <span
+                  className="block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
+                  onClick={() => setMobileMenuOpen(false)}
+                  data-testid={`link-mobile-nav-${link.href.replace("/", "") || "home"}`}
+                >
+                  {link.label}
+                </span>
+              </Link>
+            ))}
+            <Link href="/login">
+              <span
+                className="block sm:hidden text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer py-1"
+                onClick={() => setMobileMenuOpen(false)}
+                data-testid="link-mobile-nav-signup"
+              >
+                إنشاء حساب جديد
+              </span>
+            </Link>
+          </div>
+        )}
       </nav>
 
-      <section className="py-10 sm:py-16 px-4 sm:px-6 bg-card/50">
+      <section className="pt-24 sm:pt-32 pb-10 sm:pb-16 px-4 sm:px-6 bg-card/50">
         <div className="max-w-6xl mx-auto text-center space-y-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
             <BookOpen className="w-4 h-4 text-primary" />
@@ -240,10 +313,29 @@ export default function EssaysNews() {
         )}
       </div>
 
-      <footer className="border-t py-6 px-4 sm:px-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          جميع الحقوق محفوظة لمنصة QalamAI
-        </p>
+      <footer className="border-t py-8 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <SocialMediaIcons size="sm" className="mb-4" />
+          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Feather className="w-4 h-4" />
+              <span data-testid="text-footer-brand">QalamAI — منصّة الكتابة الأدبية العربية بالذكاء الاصطناعي</span>
+            </div>
+            <div className="hidden md:flex items-center gap-4 flex-wrap">
+              {[...navLinks, ...footerOnlyLinks].map((link) => (
+                <Link key={link.href} href={link.href}>
+                  <span
+                    className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md"
+                    data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}
+                  >
+                    {link.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+            <span data-testid="text-footer-copyright">&copy; {new Date().getFullYear()} QalamAI</span>
+          </div>
+        </div>
       </footer>
     </div>
   );

@@ -3075,7 +3075,7 @@ ${glossaryParagraphs}
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "Project not found" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
-      await storage.updateProject(id, { shareToken: null } as any);
+      await storage.updateProject(id, { shareToken: null, publishedToGallery: false, publishedToNews: false } as any);
       res.json({ success: true });
     } catch (error) {
       console.error("Error revoking share:", error);

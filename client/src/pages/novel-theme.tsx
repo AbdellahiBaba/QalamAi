@@ -23,6 +23,8 @@ export default function NovelTheme() {
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm">
             <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-home">الرئيسية</Link>
+            <Link href="/gallery" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-gallery">المعرض</Link>
+            <Link href="/essays" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-essays">المقالات</Link>
             <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-about">من نحن</Link>
             <Link href="/features" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">المميزات</Link>
             <Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-pricing">الأسعار</Link>
@@ -173,12 +175,15 @@ export default function NovelTheme() {
             <span>QalamAI — منصة كتابة الرواية العربية بالذكاء الاصطناعي</span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <Link href="/" className="hover:text-foreground transition-colors">الرئيسية</Link>
-            <Link href="/about" className="hover:text-foreground transition-colors">من نحن</Link>
-            <Link href="/features" className="hover:text-foreground transition-colors">المميزات</Link>
-            <Link href="/pricing" className="hover:text-foreground transition-colors">الأسعار</Link>
-            <Link href="/contact" className="hover:text-foreground transition-colors">تواصل معنا</Link>
-            <Link href="/abu-hashim" className="hover:text-foreground transition-colors">أبو هاشم</Link>
+            <Link href="/" className="hover:text-foreground transition-colors" data-testid="link-home">الرئيسية</Link>
+            <Link href="/gallery" className="hover:text-foreground transition-colors" data-testid="link-gallery">المعرض</Link>
+            <Link href="/essays" className="hover:text-foreground transition-colors" data-testid="link-essays">المقالات</Link>
+            <Link href="/about" className="hover:text-foreground transition-colors" data-testid="link-about">من نحن</Link>
+            <Link href="/features" className="hover:text-foreground transition-colors" data-testid="link-features">المميزات</Link>
+            <Link href="/pricing" className="hover:text-foreground transition-colors" data-testid="link-pricing">الأسعار</Link>
+            <Link href="/contact" className="hover:text-foreground transition-colors" data-testid="link-contact">تواصل معنا</Link>
+            <Link href="/abu-hashim" className="hover:text-foreground transition-colors" data-testid="link-abu-hashim">أبو هاشم</Link>
+            <Link href="/reviews" className="hover:text-foreground transition-colors" data-testid="link-reviews">آراء المستخدمين</Link>
           </div>
           <span>&copy; {new Date().getFullYear()} QalamAI</span>
         </div>

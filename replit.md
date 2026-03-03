@@ -58,7 +58,9 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Reading Time Estimates: Calculated at ~200 wpm for Arabic, shown on essay cards and shared project pages.
 - Related Essays: "مقالات ذات صلة" section at bottom of shared essays showing up to 3 related essays by subject.
 - Admin Social Media Links: Admin can manage platform social media profile links (LinkedIn, TikTok, X, Instagram, Facebook, YouTube, Snapchat, Telegram, WhatsApp) with enable/disable toggle and display order. Uses `socialMediaLinks` table. Reusable `SocialMediaIcons` component renders enabled links in all public page footers and the contact page.
-- Navigation Structure: All marketing pages (landing, about, features, pricing, contact, abu-hashim) define `navLinks` for header navbar + footer and `footerOnlyLinks` for footer-only links (currently: Reviews). The "المقالات" (Essays) and "المعرض" (Gallery) links appear in both header and footer. "آراء المستخدمين" (Reviews) appears only in footers.
+- Navigation Structure: All marketing pages (landing, about, features, pricing, contact, abu-hashim, essays-news) define `navLinks` for header navbar + footer and `footerOnlyLinks` for footer-only links (currently: Reviews). Novel-theme.tsx uses hardcoded links but includes all standard links. The "المقالات" (Essays) and "المعرض" (Gallery) links appear in both header and footer. "آراء المستخدمين" (Reviews) appears only in footers.
+- Unshare Cleanup: When a user unshares a project (DELETE /api/projects/:id/share), it also resets publishedToGallery and publishedToNews to false.
+- Shared Project Z-Index: Progress bar (z-50, fixed top-0), nav bar (z-30, sticky top-0), chapter tracker (z-40, fixed top-[60px]).
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation.
