@@ -792,7 +792,12 @@ export class DatabaseStorage implements IStorage {
   async isFeatureEnabled(key: string, userId?: string): Promise<boolean> {
     const feature = await this.getFeature(key);
     if (!feature) return true;
-    if (feature.enabled) return true;
+    if (feature.enabled) {
+      if (feature.betaOnly) {
+        return !!(userId && feature.betaUserIds && feature.betaUserIds.includes(userId));
+      }
+      return true;
+    }
     if (userId && feature.betaUserIds && feature.betaUserIds.includes(userId)) return true;
     return false;
   }

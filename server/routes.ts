@@ -2595,67 +2595,74 @@ ${glossaryParagraphs}
         return res.status(404).json({ error: "المشروع غير موجود" });
       }
       const docxChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const projectTypeLabel = project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خواطر" : project.projectType === "social_media" ? "محتوى" : project.projectType === "poetry" ? "شعر" : "رواية";
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
       if (completedChapters.length === 0) {
         return res.status(400).json({ error: "لا توجد فصول مكتملة" });
       }
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak, BorderStyle, TableOfContents, Header, Footer, PageNumber, NumberFormat } = await import("docx");
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Header, Footer, PageNumber, BorderStyle } = await import("docx");
 
-      const titlePage = [
-        new Paragraph({ spacing: { before: 4000 }, alignment: AlignmentType.CENTER, bidirectional: true, children: [] }),
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-          spacing: { after: 400 },
-          children: [
-            new TextRun({ text: project.title, bold: true, size: 56, font: "Traditional Arabic", rightToLeft: true, color: "2C1810" }),
-          ],
-        }),
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-          spacing: { after: 200 },
-          children: [
-            new TextRun({ text: "بقلم أبو هاشم — QalamAI", size: 28, font: "Traditional Arabic", rightToLeft: true, color: "8B7355" }),
-          ],
-        }),
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-          spacing: { after: 200 },
-          children: [
-            new TextRun({ text: new Date().toLocaleDateString("ar-SA"), size: 24, font: "Traditional Arabic", rightToLeft: true, color: "6B5B4F" }),
-          ],
-        }),
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          bidirectional: true,
-          spacing: { before: 1000 },
-          children: [
-            new TextRun({ text: "جميع الحقوق محفوظة © 2026", size: 20, font: "Traditional Arabic", rightToLeft: true, color: "6B5B4F" }),
-          ],
-        }),
-      ];
+      const mainFont = "Sakkal Majalla";
+      const accentColor = "8B4513";
+      const subtleColor = "6B5B4F";
+      const bodyColor = "1A1A1A";
+      const decorColor = "C4975A";
+      const authorName = (docxExportUser as any)?.displayName || (docxExportUser as any)?.firstName || docxExportUser?.email?.split("@")[0] || "المؤلف";
 
-      const chapterSections: any[] = [];
-      for (const ch of completedChapters) {
-        chapterSections.push(
+      const parseFormattedText = (text: string, defaultSize: number, defaultColor: string): any[] => {
+        const runs: any[] = [];
+        const parts = text.split(/(\*\*[^*]+\*\*)/g);
+        for (const part of parts) {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            runs.push(new TextRun({ text: part.slice(2, -2), bold: true, size: defaultSize, font: mainFont, rightToLeft: true, color: defaultColor }));
+          } else if (part.trim()) {
+            runs.push(new TextRun({ text: part, size: defaultSize, font: mainFont, rightToLeft: true, color: defaultColor }));
+          }
+        }
+        return runs.length > 0 ? runs : [new TextRun({ text, size: defaultSize, font: mainFont, rightToLeft: true, color: defaultColor })];
+      };
+
+      const decoratorLine = (spacing?: { before?: number; after?: number }) => new Paragraph({
+        alignment: AlignmentType.CENTER,
+        bidirectional: true,
+        spacing: spacing || { after: 300 },
+        children: [
+          new TextRun({ text: "✦  ━━━━━━━━━━━━━━━  ✦", color: decorColor, size: 20, font: mainFont }),
+        ],
+      });
+
+      const titleSection = {
+        properties: {
+          page: {
+            margin: { top: 2160, bottom: 2160, right: 1800, left: 1800 },
+          },
+        },
+        children: [
+          new Paragraph({ spacing: { before: 3000 }, alignment: AlignmentType.CENTER, bidirectional: true, children: [] }),
+          decoratorLine({ after: 600 }),
           new Paragraph({
-            pageBreakBefore: true,
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 300 },
+            children: [
+              new TextRun({ text: projectTypeLabel, size: 24, font: mainFont, rightToLeft: true, color: subtleColor, italics: true }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 400 },
+            children: [
+              new TextRun({ text: project.title, bold: true, size: 64, font: mainFont, rightToLeft: true, color: accentColor }),
+            ],
+          }),
+          decoratorLine({ before: 200, after: 600 }),
+          new Paragraph({
             alignment: AlignmentType.CENTER,
             bidirectional: true,
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: `${docxChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`, size: 22, font: "Traditional Arabic", rightToLeft: true, color: "8B7355" }),
-            ],
-          }),
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            bidirectional: true,
-            spacing: { after: 400 },
-            heading: HeadingLevel.HEADING_1,
-            children: [
-              new TextRun({ text: ch.title, bold: true, size: 36, font: "Traditional Arabic", rightToLeft: true, color: "8B4513" }),
+              new TextRun({ text: "تأليف", size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
             ],
           }),
           new Paragraph({
@@ -2663,64 +2670,237 @@ ${glossaryParagraphs}
             bidirectional: true,
             spacing: { after: 400 },
             children: [
-              new TextRun({ text: "═══════════════", color: "D4A574", size: 20 }),
+              new TextRun({ text: authorName, bold: true, size: 36, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { before: 600, after: 200 },
+            children: [
+              new TextRun({ text: "بمساعدة أبو هاشم — QalamAI", size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 200 },
+            children: [
+              new TextRun({ text: new Date().toLocaleDateString("ar-SA", { year: "numeric", month: "long" }), size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
+            ],
+          }),
+          new Paragraph({ spacing: { before: 2000 }, alignment: AlignmentType.CENTER, bidirectional: true, children: [] }),
+          decoratorLine({ before: 200, after: 200 }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            children: [
+              new TextRun({ text: `جميع الحقوق محفوظة © ${new Date().getFullYear()}`, size: 18, font: mainFont, rightToLeft: true, color: subtleColor }),
+            ],
+          }),
+        ],
+      };
+
+      const tocChildren: any[] = [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { before: 1000, after: 600 },
+          children: [
+            new TextRun({ text: "المحتويات", bold: true, size: 44, font: mainFont, rightToLeft: true, color: accentColor }),
+          ],
+        }),
+        decoratorLine({ after: 400 }),
+      ];
+      for (const ch of completedChapters) {
+        tocChildren.push(
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            bidirectional: true,
+            spacing: { after: 200 },
+            indent: { right: 400 },
+            children: [
+              new TextRun({ text: `${docxChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: `, size: 26, font: mainFont, rightToLeft: true, color: subtleColor }),
+              new TextRun({ text: ch.title, bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
             ],
           }),
         );
-
-        const paragraphs = (ch.content || "").split("\n").filter((p: string) => p.trim());
-        for (const p of paragraphs) {
-          chapterSections.push(
-            new Paragraph({
-              alignment: AlignmentType.BOTH,
-              bidirectional: true,
-              spacing: { after: 200, line: 480 },
-              indent: { firstLine: 720 },
-              children: [
-                new TextRun({ text: p.trim(), size: 26, font: "Traditional Arabic", rightToLeft: true, color: "2C1810" }),
-              ],
-            }),
-          );
-        }
+      }
+      if (project.glossary) {
+        tocChildren.push(
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            bidirectional: true,
+            spacing: { after: 200 },
+            indent: { right: 400 },
+            children: [
+              new TextRun({ text: "المسرد", bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }),
+        );
       }
 
-      if (project.glossary) {
-        chapterSections.push(
+      const tocSection = {
+        properties: {
+          page: {
+            margin: { top: 1800, bottom: 1440, right: 1800, left: 1800 },
+          },
+        },
+        children: tocChildren,
+      };
+
+      const contentChildren: any[] = [];
+      for (let ci = 0; ci < completedChapters.length; ci++) {
+        const ch = completedChapters[ci];
+        contentChildren.push(
           new Paragraph({
             pageBreakBefore: true,
             alignment: AlignmentType.CENTER,
             bidirectional: true,
-            spacing: { after: 400 },
-            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 1200, after: 200 },
             children: [
-              new TextRun({ text: "المسرد", bold: true, size: 36, font: "Traditional Arabic", rightToLeft: true, color: "8B4513" }),
+              new TextRun({ text: `${docxChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`, size: 24, font: mainFont, rightToLeft: true, color: subtleColor, italics: true }),
             ],
           }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 300 },
+            heading: HeadingLevel.HEADING_1,
+            children: [
+              new TextRun({ text: ch.title, bold: true, size: 44, font: mainFont, rightToLeft: true, color: accentColor }),
+            ],
+          }),
+          decoratorLine({ after: 500 }),
         );
-        const glossaryParas = project.glossary.split("\n").filter((p: string) => p.trim());
-        for (const p of glossaryParas) {
-          chapterSections.push(
-            new Paragraph({
+
+        const lines = (ch.content || "").split("\n");
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          if (trimmed.startsWith("### ")) {
+            contentChildren.push(new Paragraph({
               alignment: AlignmentType.RIGHT,
               bidirectional: true,
-              spacing: { after: 150, line: 400 },
-              children: [
-                new TextRun({ text: p.trim(), size: 24, font: "Traditional Arabic", rightToLeft: true, color: "2C1810" }),
-              ],
-            }),
-          );
+              spacing: { before: 400, after: 200 },
+              heading: HeadingLevel.HEADING_3,
+              children: [new TextRun({ text: trimmed.slice(4), bold: true, size: 30, font: mainFont, rightToLeft: true, color: accentColor })],
+            }));
+          } else if (trimmed.startsWith("## ")) {
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              bidirectional: true,
+              spacing: { before: 500, after: 250 },
+              heading: HeadingLevel.HEADING_2,
+              children: [new TextRun({ text: trimmed.slice(3), bold: true, size: 34, font: mainFont, rightToLeft: true, color: accentColor })],
+            }));
+          } else if (trimmed.startsWith("# ")) {
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              bidirectional: true,
+              spacing: { before: 600, after: 300 },
+              heading: HeadingLevel.HEADING_1,
+              children: [new TextRun({ text: trimmed.slice(2), bold: true, size: 38, font: mainFont, rightToLeft: true, color: accentColor })],
+            }));
+          } else if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
+            contentChildren.push(decoratorLine({ before: 300, after: 300 }));
+          } else {
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.BOTH,
+              bidirectional: true,
+              spacing: { after: 180, line: 360 },
+              indent: { firstLine: 720 },
+              children: parseFormattedText(trimmed, 28, bodyColor),
+            }));
+          }
         }
       }
 
-      const doc = new Document({
-        sections: [{
-          properties: {
-            page: {
-              margin: { top: 1440, bottom: 1440, right: 1440, left: 1440 },
-            },
+      if (project.glossary) {
+        contentChildren.push(
+          new Paragraph({
+            pageBreakBefore: true,
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { before: 1200, after: 300 },
+            heading: HeadingLevel.HEADING_1,
+            children: [
+              new TextRun({ text: "المسرد", bold: true, size: 44, font: mainFont, rightToLeft: true, color: accentColor }),
+            ],
+          }),
+          decoratorLine({ after: 400 }),
+        );
+        const glossaryLines = project.glossary.split("\n").filter((p: string) => p.trim());
+        for (const line of glossaryLines) {
+          const trimmed = line.trim();
+          if (trimmed.includes(":") || trimmed.includes("：")) {
+            const sepIdx = trimmed.indexOf(":") !== -1 ? trimmed.indexOf(":") : trimmed.indexOf("：");
+            const term = trimmed.slice(0, sepIdx).trim();
+            const def = trimmed.slice(sepIdx + 1).trim();
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              bidirectional: true,
+              spacing: { after: 150, line: 360 },
+              indent: { right: 200 },
+              children: [
+                new TextRun({ text: term, bold: true, size: 26, font: mainFont, rightToLeft: true, color: accentColor }),
+                new TextRun({ text: `: ${def}`, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+              ],
+            }));
+          } else {
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              bidirectional: true,
+              spacing: { after: 150, line: 360 },
+              children: [new TextRun({ text: trimmed, size: 26, font: mainFont, rightToLeft: true, color: bodyColor })],
+            }));
+          }
+        }
+      }
+
+      const contentSection = {
+        properties: {
+          page: {
+            margin: { top: 1440, bottom: 1440, right: 1600, left: 1600 },
           },
-          children: [...titlePage, ...chapterSections],
-        }],
+        },
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                bidirectional: true,
+                spacing: { after: 100 },
+                children: [
+                  new TextRun({ text: `${project.title}  —  ${authorName}`, size: 18, font: mainFont, rightToLeft: true, color: subtleColor, italics: true }),
+                ],
+                border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: decorColor, space: 4 } },
+              }),
+            ],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                bidirectional: true,
+                border: { top: { style: BorderStyle.SINGLE, size: 1, color: decorColor, space: 4 } },
+                children: [
+                  new TextRun({ text: "— ", size: 18, font: mainFont, color: subtleColor }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 18, font: mainFont, color: subtleColor }),
+                  new TextRun({ text: " —", size: 18, font: mainFont, color: subtleColor }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children: contentChildren,
+      };
+
+      const doc = new Document({
+        sections: [titleSection, tocSection, contentSection],
       });
 
       const buffer = await Packer.toBuffer(doc);
@@ -5033,9 +5213,10 @@ ${ch.content}
   app.patch("/api/admin/features/:key", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const { key } = req.params;
-      const { enabled, disabledMessage, betaUserIds } = req.body;
+      const { enabled, betaOnly, disabledMessage, betaUserIds } = req.body;
       const updateData: any = {};
       if (typeof enabled === "boolean") updateData.enabled = enabled;
+      if (typeof betaOnly === "boolean") updateData.betaOnly = betaOnly;
       if (typeof disabledMessage === "string") updateData.disabledMessage = disabledMessage;
       if (Array.isArray(betaUserIds)) updateData.betaUserIds = betaUserIds;
       const updated = await storage.updateFeature(key, updateData);
@@ -5049,13 +5230,25 @@ ${ch.content}
     try {
       const features = await storage.getAllFeatures();
       const userId = req.user?.claims?.sub;
-      const result = features.map(f => ({
-        featureKey: f.featureKey,
-        name: f.name,
-        description: f.description,
-        enabled: f.enabled || (userId && f.betaUserIds?.includes(userId)) || false,
-        disabledMessage: f.disabledMessage,
-      }));
+      const result = features.map(f => {
+        let effectiveEnabled = false;
+        if (f.enabled) {
+          if (f.betaOnly) {
+            effectiveEnabled = !!(userId && f.betaUserIds?.includes(userId));
+          } else {
+            effectiveEnabled = true;
+          }
+        } else if (userId && f.betaUserIds?.includes(userId)) {
+          effectiveEnabled = true;
+        }
+        return {
+          featureKey: f.featureKey,
+          name: f.name,
+          description: f.description,
+          enabled: effectiveEnabled,
+          disabledMessage: f.disabledMessage,
+        };
+      });
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب المميزات" });

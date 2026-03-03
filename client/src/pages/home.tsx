@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -366,6 +366,18 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
             <ThemeToggle />
+            <Link href="/gallery">
+              <Button variant="ghost" size="sm" data-testid="link-gallery">
+                <ImageIcon className="w-4 h-4 ml-1" />
+                <span className="hidden sm:inline">المعرض</span>
+              </Button>
+            </Link>
+            <Link href="/essays-news">
+              <Button variant="ghost" size="sm" data-testid="link-essays">
+                <Newspaper className="w-4 h-4 ml-1" />
+                <span className="hidden sm:inline">المقالات</span>
+              </Button>
+            </Link>
             <Popover open={notifOpen} onOpenChange={setNotifOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">

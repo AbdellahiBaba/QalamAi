@@ -518,6 +518,7 @@ export const platformFeatures = pgTable("platform_features", {
   name: varchar("name").notNull(),
   description: text("description"),
   enabled: boolean("enabled").default(true).notNull(),
+  betaOnly: boolean("beta_only").default(false).notNull(),
   betaUserIds: text("beta_user_ids").array().default([]),
   disabledMessage: text("disabled_message").default("هذه الميزة قيد التطوير وستكون متاحة قريباً"),
 });

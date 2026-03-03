@@ -243,7 +243,7 @@ export default function Admin() {
   };
 
   const updateFeatureMutation = useMutation({
-    mutationFn: async ({ key, data }: { key: string; data: { enabled?: boolean; disabledMessage?: string; betaUserIds?: string[] } }) => {
+    mutationFn: async ({ key, data }: { key: string; data: { enabled?: boolean; betaOnly?: boolean; disabledMessage?: string; betaUserIds?: string[] } }) => {
       await apiRequest("PATCH", `/api/admin/features/${key}`, data);
     },
     onSuccess: (_d, variables) => {
@@ -2861,35 +2861,53 @@ export default function Admin() {
             ) : (
               <div className="grid gap-4">
                 {(adminFeatures || []).map((feature) => (
-                  <Card key={feature.featureKey} className={`transition-all ${!feature.enabled ? 'opacity-70 border-destructive/30' : ''}`} data-testid={`card-feature-${feature.featureKey}`}>
+                  <Card key={feature.featureKey} className={`transition-all ${!feature.enabled ? 'opacity-70 border-destructive/30' : feature.betaOnly ? 'border-amber-400/50' : ''}`} data-testid={`card-feature-${feature.featureKey}`}>
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {feature.enabled ? (
-                            <ToggleRight className="w-5 h-5 text-green-500" />
-                          ) : (
+                          {!feature.enabled ? (
                             <ToggleLeft className="w-5 h-5 text-muted-foreground" />
+                          ) : feature.betaOnly ? (
+                            <Users className="w-5 h-5 text-amber-500" />
+                          ) : (
+                            <ToggleRight className="w-5 h-5 text-green-500" />
                           )}
                           <div>
                             <h3 className="font-semibold" data-testid={`text-feature-name-${feature.featureKey}`}>{feature.name}</h3>
                             <p className="text-xs text-muted-foreground">{feature.description}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor={`switch-${feature.featureKey}`} className="text-xs text-muted-foreground">
-                            {feature.enabled ? "مفعّلة" : "معطّلة"}
-                          </Label>
-                          <Switch
-                            id={`switch-${feature.featureKey}`}
-                            checked={feature.enabled}
-                            onCheckedChange={(checked) => {
-                              updateFeatureMutation.mutate({ key: feature.featureKey, data: { enabled: checked } });
-                            }}
-                            data-testid={`switch-feature-${feature.featureKey}`}
-                          />
+                        <div className="flex gap-1" data-testid={`feature-mode-${feature.featureKey}`}>
+                          <Button
+                            size="sm"
+                            variant={feature.enabled && !feature.betaOnly ? "default" : "outline"}
+                            onClick={() => updateFeatureMutation.mutate({ key: feature.featureKey, data: { enabled: true, betaOnly: false } })}
+                            disabled={updateFeatureMutation.isPending}
+                            data-testid={`button-mode-all-${feature.featureKey}`}
+                          >
+                            للجميع
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={feature.enabled && feature.betaOnly ? "secondary" : "outline"}
+                            onClick={() => updateFeatureMutation.mutate({ key: feature.featureKey, data: { enabled: true, betaOnly: true } })}
+                            disabled={updateFeatureMutation.isPending}
+                            data-testid={`button-mode-beta-${feature.featureKey}`}
+                          >
+                            بيتا فقط
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={!feature.enabled ? "destructive" : "outline"}
+                            onClick={() => updateFeatureMutation.mutate({ key: feature.featureKey, data: { enabled: false, betaOnly: false } })}
+                            disabled={updateFeatureMutation.isPending}
+                            data-testid={`button-mode-disabled-${feature.featureKey}`}
+                          >
+                            معطّلة
+                          </Button>
                         </div>
                       </div>
-                      {!feature.enabled && (() => {
+                      {(!feature.enabled || feature.betaOnly) && (() => {
                         const edit = getFeatureEdit(feature.featureKey, feature);
                         const searchQ = (betaSearchQuery[feature.featureKey] || "").toLowerCase();
                         const filteredUsers = searchQ.length >= 2 && adminUsers
@@ -2905,16 +2923,18 @@ export default function Admin() {
                         const hasChanges = edit.disabledMessage !== origMsg || edit.betaUserIds.join(",") !== origIds;
                         return (
                           <div className="space-y-3 border-t pt-3">
-                            <div>
-                              <Label className="text-xs">رسالة التعطيل</Label>
-                              <Textarea
-                                value={edit.disabledMessage}
-                                onChange={(e) => setFeatureEdit(feature.featureKey, { disabledMessage: e.target.value }, feature)}
-                                className="mt-1 text-sm"
-                                rows={2}
-                                data-testid={`input-disabled-message-${feature.featureKey}`}
-                              />
-                            </div>
+                            {!feature.enabled && (
+                              <div>
+                                <Label className="text-xs">رسالة التعطيل</Label>
+                                <Textarea
+                                  value={edit.disabledMessage}
+                                  onChange={(e) => setFeatureEdit(feature.featureKey, { disabledMessage: e.target.value }, feature)}
+                                  className="mt-1 text-sm"
+                                  rows={2}
+                                  data-testid={`input-disabled-message-${feature.featureKey}`}
+                                />
+                              </div>
+                            )}
                             <div>
                               <Label className="text-xs">مستخدمو البيتا</Label>
                               {edit.betaUserIds.length > 0 && (
