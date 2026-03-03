@@ -84,16 +84,16 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
         >
           <Sparkles className="w-3.5 h-3.5" />
         </button>
-      ) : mode === "general" ? (
+      ) : mode === "general" && !chatOpen ? (
         <div className="fixed top-20 left-0 z-[9999] flex items-center">
           <button
             className="flex items-center gap-2 bg-gradient-to-l from-amber-500 to-amber-600 text-white shadow-xl rounded-r-full pl-2 sm:pl-3 pr-3 sm:pr-5 py-2 sm:py-3 transition-all duration-300 group"
-            onClick={() => setChatOpen(!chatOpen)}
+            onClick={() => setChatOpen(true)}
             data-testid="button-toggle-chat"
             aria-label="تحدث مع أبو هاشم — مستشارك الأدبي"
           >
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-              {chatOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
+              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="text-right">
               <span className="block text-xs sm:text-sm font-bold leading-tight">أبو هاشم</span>
@@ -110,15 +110,15 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
             ×
           </button>
         </div>
-      ) : (
+      ) : mode === "project" && !chatOpen ? (
         <div className="fixed bottom-6 left-6 z-[9999] flex items-end gap-1">
           <Button
             className="rounded-full w-12 h-12 sm:w-16 sm:h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
-            onClick={() => setChatOpen(!chatOpen)}
+            onClick={() => setChatOpen(true)}
             data-testid="button-toggle-chat"
             title="تحدث مع أبو هاشم"
           >
-            {chatOpen ? <X className="w-5 h-5 sm:w-7 sm:h-7" /> : <Sparkles className="w-5 h-5 sm:w-7 sm:h-7" />}
+            <Sparkles className="w-5 h-5 sm:w-7 sm:h-7" />
           </Button>
           <button
             className="w-5 h-5 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center text-[10px] leading-none mb-1 transition-colors"
@@ -129,10 +129,10 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
             ×
           </button>
         </div>
-      )}
+      ) : null}
 
       <div
-        className={`fixed top-0 left-0 h-full w-[380px] max-w-[90vw] bg-background border-r shadow-2xl z-40 transition-transform duration-300 flex flex-col ${chatOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed top-0 left-0 h-full w-[380px] max-w-[90vw] bg-background border-r shadow-2xl z-[10000] transition-transform duration-300 flex flex-col ${chatOpen ? "translate-x-0" : "-translate-x-full"}`}
         dir="rtl"
       >
         <div className="p-4 border-b bg-gradient-to-l from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 flex items-center gap-3">
