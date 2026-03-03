@@ -137,6 +137,25 @@ function getTypeLabels(projectType?: string) {
       allDone: "تم الانتهاء من إنشاء المحتوى!",
     };
   }
+  if (projectType === "poetry") {
+    return {
+      chaptersLabel: "القصيدة",
+      chapterSingular: "القصيدة",
+      outlineLabel: "—",
+      typeLabel: "قصيدة عمودية",
+      writeAll: "انظم القصيدة",
+      writeOne: "انظم القصيدة",
+      createOutline: "",
+      outlineCreating: "",
+      approveOutline: "",
+      noOutline: "",
+      mustApprove: "",
+      mustApproveDesc: "",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من نظم القصيدة.",
+      paymentDesc: "إتمام الدفع للبدء بنظم القصيدة",
+      allDone: "تم الانتهاء من نظم القصيدة!",
+    };
+  }
   return {
     chaptersLabel: "الفصول",
     chapterSingular: "الفصل",
@@ -1465,7 +1484,7 @@ export default function ProjectDetail() {
                 <span className="hidden sm:inline">نظرة عامة</span>
                 <span className="sm:hidden">عام</span>
               </TabsTrigger>
-              {project.projectType !== "essay" && project.projectType !== "khawater" && project.projectType !== "social_media" && (
+              {project.projectType !== "essay" && project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
                 <TabsTrigger value="characters" data-testid="tab-characters" className="flex-shrink-0">
                   <Users className="w-4 h-4 ml-1.5" />
                   <span className="hidden sm:inline">الشخصيات</span>
@@ -1476,13 +1495,13 @@ export default function ProjectDetail() {
                 <FileText className="w-4 h-4 ml-1.5" />
                 {labels.chaptersLabel}
               </TabsTrigger>
-              {project.projectType !== "khawater" && project.projectType !== "social_media" && (
+              {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
                 <TabsTrigger value="glossary" data-testid="tab-glossary" className="flex-shrink-0">
                   <List className="w-4 h-4 ml-1.5" />
                   الفهرس
                 </TabsTrigger>
               )}
-              {project.projectType !== "khawater" && project.projectType !== "social_media" && (
+              {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
                 <TabsTrigger value="continuity" data-testid="tab-continuity" className="flex-shrink-0">
                   <Shield className="w-4 h-4 ml-1.5" />
                   <span className="hidden sm:inline">الاستمرارية</span>
@@ -1532,7 +1551,7 @@ export default function ProjectDetail() {
                 <CardContent className="p-4 sm:p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
-                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : "تفاصيل الرواية"}
+                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : project.projectType === "poetry" ? "تفاصيل القصيدة" : "تفاصيل الرواية"}
                     </h3>
                     {!editingSettings && (
                       <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs edit-btn-pulse" data-testid="button-edit-settings">
@@ -1801,6 +1820,57 @@ export default function ProjectDetail() {
                           </div>
                         </>
                       )
+                    ) : project.projectType === "poetry" ? (
+                      <>
+                        {(project as any).poetryMeter && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">البحر الشعري:</span>
+                            <span className="font-medium">{(project as any).poetryMeter}</span>
+                          </div>
+                        )}
+                        {(project as any).poetryRhyme && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">حرف الروي:</span>
+                            <span className="font-medium">{(project as any).poetryRhyme}</span>
+                          </div>
+                        )}
+                        {(project as any).poetryEra && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">العصر الأدبي:</span>
+                            <span className="font-medium">{{jahili: "جاهلي", umawi: "أموي", abbasi: "عباسي", andalusi: "أندلسي", hadith: "حديث"}[(project as any).poetryEra] || (project as any).poetryEra}</span>
+                          </div>
+                        )}
+                        {(project as any).poetryTheme && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">الغرض الشعري:</span>
+                            <span className="font-medium">{{ghazal: "غزل", fakhr: "فخر", madh: "مدح", hija: "هجاء", ritha: "رثاء", hikma: "حكمة", wasf: "وصف", hamasa: "حماسة", zuhd: "زهد", itab: "عتاب", hanin: "حنين", watani: "وطني", ijtimaii: "اجتماعي", falsafi: "فلسفي"}[(project as any).poetryTheme] || (project as any).poetryTheme}</span>
+                          </div>
+                        )}
+                        {(project as any).poetryTone && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">النغمة:</span>
+                            <span className="font-medium">{{romantic: "رومانسي", epic: "ملحمي", mystical: "صوفي", melancholic: "حزين", triumphant: "انتصاري", contemplative: "تأملي", passionate: "متوهج", satirical: "ساخر", nostalgic: "حنيني", solemn: "مهيب"}[(project as any).poetryTone] || (project as any).poetryTone}</span>
+                          </div>
+                        )}
+                        {(project as any).poetryVerseCount && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">عدد الأبيات:</span>
+                            <span className="font-medium"><LtrNum>{(project as any).poetryVerseCount}</LtrNum></span>
+                          </div>
+                        )}
+                        {(project as any).poetryImageryLevel != null && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">مستوى التصوير:</span>
+                            <span className="font-medium"><LtrNum>{(project as any).poetryImageryLevel}</LtrNum>/10</span>
+                          </div>
+                        )}
+                        {(project as any).poetryEmotionLevel != null && (
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">شدة العاطفة:</span>
+                            <span className="font-medium"><LtrNum>{(project as any).poetryEmotionLevel}</LtrNum>/10</span>
+                          </div>
+                        )}
+                      </>
                     ) : (project.projectType === "khawater" || project.projectType === "social_media") ? (
                       editingSettings ? (
                         <>
@@ -2041,7 +2111,7 @@ export default function ProjectDetail() {
               </Card>
             </div>
 
-            {project.projectType !== "khawater" && project.projectType !== "social_media" && (
+            {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between gap-4">
@@ -2506,7 +2576,7 @@ export default function ProjectDetail() {
                               data-testid={`button-write-chapter-${chapter.id}`}
                             >
                               <Feather className="w-3.5 h-3.5 ml-1" />
-                              {chapter.content ? "أكمل الكتابة" : "اكتب الفصل"}
+                              {chapter.content ? "أكمل الكتابة" : labels.writeOne}
                             </Button>
                           )}
                           {isGenerating && (
@@ -2561,9 +2631,29 @@ export default function ProjectDetail() {
                           ) : (
                             <>
                               <ScrollArea className="max-h-[60vh] sm:max-h-[600px]" ref={contentRef}>
-                                <div className="p-4 sm:p-8 font-serif text-sm sm:text-base leading-[2] sm:leading-[2.2] whitespace-pre-wrap" dir="rtl">
-                                  {displayContent}
-                                </div>
+                                {project.projectType === "poetry" ? (
+                                  <div className="p-4 sm:p-8 font-serif text-sm sm:text-lg leading-[2.5] sm:leading-[3] text-center" dir="rtl" data-testid={`poetry-content-${chapter.id}`}>
+                                    {displayContent?.split("\n").map((line: string, idx: number) => {
+                                      const trimmed = line.trim();
+                                      if (!trimmed) return <div key={idx} className="h-4" />;
+                                      const parts = trimmed.split(/\s{3,}|\t+|—{2,}|={2,}|\|/);
+                                      if (parts.length >= 2) {
+                                        return (
+                                          <div key={idx} className="flex justify-center items-center gap-8 sm:gap-16 py-1 border-b border-border/30 last:border-b-0">
+                                            <span className="flex-1 text-left">{parts[0].trim()}</span>
+                                            <span className="text-muted-foreground/40 select-none">★</span>
+                                            <span className="flex-1 text-right">{parts.slice(1).join(" ").trim()}</span>
+                                          </div>
+                                        );
+                                      }
+                                      return <div key={idx} className="py-1">{trimmed}</div>;
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="p-4 sm:p-8 font-serif text-sm sm:text-base leading-[2] sm:leading-[2.2] whitespace-pre-wrap" dir="rtl">
+                                    {displayContent}
+                                  </div>
+                                )}
                               </ScrollArea>
                               {chapter.status === "completed" && !isGenerating && (
                                 <div className="border-t p-3 flex items-center justify-end gap-2 flex-wrap">

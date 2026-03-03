@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -14,7 +14,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
-import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp, LayoutTemplate, Search, Heart, Crosshair, Landmark, Wand2, FileText } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp, LayoutTemplate, Search, Heart, Crosshair, Landmark, Wand2, FileText, PenLine } from "lucide-react";
 import { Link } from "wouter";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -38,6 +39,74 @@ const NARRATIVE_TECHNIQUE_OPTIONS = [
   { value: "stream_of_consciousness", label: "تيار الوعي" },
   { value: "symbolic", label: "السرد الرمزي أو الأسطوري" },
   { value: "circular", label: "السرد الدائري" },
+];
+
+const POETRY_METERS = [
+  { id: "taweel", name: "الطويل", description: "أكثر البحور شيوعاً — فعولن مفاعيلن فعولن مفاعيلن" },
+  { id: "kamel", name: "الكامل", description: "غني بالإيقاع — متفاعلن متفاعلن متفاعلن" },
+  { id: "baseet", name: "البسيط", description: "ثاني أكثرها استعمالاً — مستفعلن فاعلن مستفعلن فاعلن" },
+  { id: "wafer", name: "الوافر", description: "بحر حيوي — مفاعلتن مفاعلتن مفاعلتن" },
+  { id: "rajaz", name: "الرجز", description: "مرن وكثير الاستعمال — مستفعلن مستفعلن مستفعلن" },
+  { id: "ramal", name: "الرمل", description: "غنائي رقيق — فاعلاتن فاعلاتن فاعلاتن" },
+  { id: "hazaj", name: "الهزج", description: "مجزوء غالباً — مفاعيلن مفاعيلن" },
+  { id: "saree", name: "السريع", description: "مستفعلن مستفعلن فاعلن" },
+  { id: "munsarih", name: "المنسرح", description: "مستفعلن مفعولاتُ مستفعلن" },
+  { id: "khafeef", name: "الخفيف", description: "رشيق ومرن — فاعلاتن مستفعِلن فاعلاتن" },
+  { id: "mudarei", name: "المضارع", description: "مجزوء قليل الاستعمال — مفاعيلن فاعلاتن" },
+  { id: "muqtadab", name: "المقتضب", description: "مجزوء — مفعولاتُ مستفعلن" },
+  { id: "mujtath", name: "المجتث", description: "مجزوء — مستفعِلن فاعلاتن" },
+  { id: "mutaqareb", name: "المتقارب", description: "سيّال وموسيقي — فعولن فعولن فعولن فعولن" },
+  { id: "mutadarek", name: "المتدارك", description: "بحر الخبب — فاعلن فاعلن فاعلن فاعلن" },
+];
+
+const POETRY_RHYME_LETTERS = [
+  "ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش",
+  "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ي",
+];
+
+const POETRY_ERA_OPTIONS = [
+  { id: "jahili", name: "جاهلي", description: "عصر المعلقات والفحولة الشعرية" },
+  { id: "umawi", name: "أموي", description: "الشعر السياسي والنقائض والغزل العذري" },
+  { id: "abbasi", name: "عباسي", description: "عصر التجديد والبديع والفلسفة" },
+  { id: "andalusi", name: "أندلسي", description: "الموشحات ووصف الطبيعة والحنين" },
+  { id: "hadith", name: "حديث", description: "من عصر النهضة إلى المعاصر" },
+];
+
+const POETRY_TONE_OPTIONS = [
+  { id: "romantic", name: "رومانسي" },
+  { id: "epic", name: "ملحمي" },
+  { id: "mystical", name: "صوفي" },
+  { id: "melancholic", name: "حزين" },
+  { id: "triumphant", name: "انتصاري" },
+  { id: "contemplative", name: "تأملي" },
+  { id: "passionate", name: "متوهج" },
+  { id: "satirical", name: "ساخر" },
+  { id: "nostalgic", name: "حنيني" },
+  { id: "solemn", name: "مهيب" },
+];
+
+const POETRY_THEME_OPTIONS = [
+  { id: "ghazal", name: "غزل" },
+  { id: "fakhr", name: "فخر" },
+  { id: "madh", name: "مدح" },
+  { id: "hija", name: "هجاء" },
+  { id: "ritha", name: "رثاء" },
+  { id: "hikma", name: "حكمة" },
+  { id: "wasf", name: "وصف" },
+  { id: "hamasa", name: "حماسة" },
+  { id: "zuhd", name: "زهد" },
+  { id: "itab", name: "عتاب" },
+  { id: "hanin", name: "حنين" },
+  { id: "watani", name: "وطني" },
+  { id: "ijtimaii", name: "اجتماعي" },
+  { id: "falsafi", name: "فلسفي" },
+];
+
+const POETRY_VERSE_OPTIONS = [
+  { value: 6, label: "٦ أبيات — قصيدة قصيرة" },
+  { value: 10, label: "١٠ أبيات — قصيدة متوسطة" },
+  { value: 14, label: "١٤ أبيات — قصيدة طويلة" },
+  { value: 20, label: "٢٠ بيتاً — قصيدة مطوّلة" },
 ];
 
 interface ProjectTemplate {
@@ -179,29 +248,57 @@ const PROJECT_TEMPLATES: ProjectTemplate[] = [
 ];
 
 const projectFormSchema = z.object({
-  title: z.string().min(1, "عنوان الرواية مطلوب"),
+  projectType: z.enum(["novel", "poetry"]).default("novel"),
+  title: z.string().min(1, "العنوان مطلوب"),
   mainIdea: z.string().min(10, "يجب أن تكون الفكرة الرئيسية 10 أحرف على الأقل"),
-  timeSetting: z.string().min(1, "الزمن مطلوب"),
-  placeSetting: z.string().min(1, "المكان مطلوب"),
-  narrativePov: z.string().min(1, "نوع السرد مطلوب"),
+  timeSetting: z.string().default(""),
+  placeSetting: z.string().default(""),
+  narrativePov: z.string().default(""),
   narrativeTechnique: z.string().optional(),
   allowDialect: z.boolean().default(false),
-  pageCount: z.number().min(150).max(300),
+  pageCount: z.number().default(150),
   characters: z.array(z.object({
-    name: z.string().min(1, "اسم الشخصية مطلوب"),
-    background: z.string().min(1, "خلفية الشخصية مطلوبة"),
-    role: z.string().min(1, "دور الشخصية مطلوب"),
+    name: z.string(),
+    background: z.string(),
+    role: z.string(),
     motivation: z.string().optional(),
     speechStyle: z.string().optional(),
     physicalDescription: z.string().optional(),
     psychologicalTraits: z.string().optional(),
     age: z.string().optional(),
-  })).min(1, "يجب إضافة شخصية واحدة على الأقل"),
+  })).default([]),
   relationships: z.array(z.object({
     char1Index: z.number(),
     char2Index: z.number(),
     relationship: z.string().min(1, "وصف العلاقة مطلوب"),
-  })),
+  })).default([]),
+  poetryMeter: z.string().optional(),
+  poetryRhyme: z.string().optional(),
+  poetryEra: z.string().optional(),
+  poetryTone: z.string().optional(),
+  poetryTheme: z.string().optional(),
+  poetryVerseCount: z.number().optional(),
+  poetryImageryLevel: z.number().min(0).max(10).optional(),
+  poetryEmotionLevel: z.number().min(0).max(10).optional(),
+}).superRefine((data, ctx) => {
+  if (data.projectType === "novel") {
+    if (!data.timeSetting) ctx.addIssue({ code: "custom", path: ["timeSetting"], message: "الزمن مطلوب" });
+    if (!data.placeSetting) ctx.addIssue({ code: "custom", path: ["placeSetting"], message: "المكان مطلوب" });
+    if (!data.narrativePov) ctx.addIssue({ code: "custom", path: ["narrativePov"], message: "نوع السرد مطلوب" });
+    if (!data.characters || data.characters.length === 0) {
+      ctx.addIssue({ code: "custom", path: ["characters"], message: "يجب إضافة شخصية واحدة على الأقل" });
+    } else {
+      data.characters.forEach((c, i) => {
+        if (!c.name) ctx.addIssue({ code: "custom", path: ["characters", i, "name"], message: "اسم الشخصية مطلوب" });
+        if (!c.background) ctx.addIssue({ code: "custom", path: ["characters", i, "background"], message: "خلفية الشخصية مطلوبة" });
+        if (!c.role) ctx.addIssue({ code: "custom", path: ["characters", i, "role"], message: "دور الشخصية مطلوب" });
+      });
+    }
+  } else if (data.projectType === "poetry") {
+    if (!data.poetryMeter) ctx.addIssue({ code: "custom", path: ["poetryMeter"], message: "البحر الشعري مطلوب" });
+    if (!data.poetryRhyme) ctx.addIssue({ code: "custom", path: ["poetryRhyme"], message: "حرف الروي مطلوب" });
+    if (!data.poetryVerseCount) ctx.addIssue({ code: "custom", path: ["poetryVerseCount"], message: "عدد الأبيات مطلوب" });
+  }
 });
 
 type ProjectFormData = z.infer<typeof projectFormSchema>;
@@ -211,6 +308,7 @@ export default function NewProject() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [step, setStep] = useState(-1);
+  const [projectType, setProjectType] = useState<"novel" | "poetry">("novel");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [titleSuggestions, setTitleSuggestions] = useState<Array<{ title: string; reason: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -223,10 +321,15 @@ export default function NewProject() {
   const [suggestingFullProject, setSuggestingFullProject] = useState(false);
   const [fullProjectHint, setFullProjectHint] = useState("");
   const [showHintInput, setShowHintInput] = useState(false);
+  const [selectedPoetryRhyme, setSelectedPoetryRhyme] = useState<string>("");
+
+  const urlType = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("type") : null;
+  const isPoetryFromUrl = urlType === "poetry";
 
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
+      projectType: "novel",
       title: "",
       mainIdea: "",
       timeSetting: "",
@@ -237,6 +340,14 @@ export default function NewProject() {
       pageCount: 150,
       characters: [{ name: "", background: "", role: "protagonist", motivation: "", speechStyle: "", physicalDescription: "", psychologicalTraits: "", age: "" }],
       relationships: [],
+      poetryMeter: undefined,
+      poetryRhyme: undefined,
+      poetryEra: undefined,
+      poetryTone: undefined,
+      poetryTheme: undefined,
+      poetryVerseCount: undefined,
+      poetryImageryLevel: 5,
+      poetryEmotionLevel: 5,
     },
   });
 
@@ -252,7 +363,13 @@ export default function NewProject() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
-      const res = await apiRequest("POST", "/api/projects", data);
+      const payload: Record<string, unknown> = { ...data };
+      if (data.projectType === "poetry") {
+        payload.timeSetting = "poetry";
+        payload.placeSetting = "poetry";
+        payload.narrativePov = "poetry";
+      }
+      const res = await apiRequest("POST", "/api/projects", payload);
       const project = await res.json();
       const checkoutRes = await apiRequest("POST", `/api/projects/${project.id}/create-checkout`);
       const checkoutData = await checkoutRes.json();
@@ -380,7 +497,7 @@ export default function NewProject() {
     setSuggestingFullProject(true);
     try {
       const res = await apiRequest("POST", "/api/projects/suggest-full", {
-        projectType: "novel",
+        projectType: projectType,
         hint: fullProjectHint,
       });
       const data = await res.json();
@@ -406,6 +523,8 @@ export default function NewProject() {
 
   const handleSelectTemplate = (template: ProjectTemplate) => {
     setSelectedTemplate(template.id);
+    setProjectType("novel");
+    form.setValue("projectType", "novel", { shouldValidate: false });
     form.setValue("title", template.prefill.title, { shouldValidate: false });
     form.setValue("mainIdea", template.prefill.mainIdea, { shouldValidate: false });
     form.setValue("timeSetting", template.prefill.timeSetting, { shouldValidate: false });
@@ -417,16 +536,46 @@ export default function NewProject() {
     setStep(0);
   };
 
-  const steps = [
+  const handleSelectPoetryType = () => {
+    setProjectType("poetry");
+    setSelectedTemplate("poetry");
+    form.setValue("projectType", "poetry", { shouldValidate: false });
+    form.setValue("title", "", { shouldValidate: false });
+    form.setValue("mainIdea", "", { shouldValidate: false });
+    form.setValue("characters", [], { shouldValidate: false });
+    form.setValue("relationships", [], { shouldValidate: false });
+    form.setValue("poetryImageryLevel", 5, { shouldValidate: false });
+    form.setValue("poetryEmotionLevel", 5, { shouldValidate: false });
+    setSelectedPoetryRhyme("");
+    setStep(0);
+  };
+
+  useEffect(() => {
+    if (isPoetryFromUrl) {
+      handleSelectPoetryType();
+    }
+  }, []);
+
+  const novelSteps = [
     { title: "القالب", icon: LayoutTemplate },
     { title: "تفاصيل الرواية", icon: BookOpen },
     { title: "الشخصيات", icon: Users },
     { title: "العلاقات والمكان", icon: MapPin },
   ];
 
+  const poetrySteps = [
+    { title: "النوع", icon: LayoutTemplate },
+    { title: "تفاصيل القصيدة", icon: PenLine },
+  ];
+
+  const steps = projectType === "poetry" ? poetrySteps : novelSteps;
+
   const characters = form.watch("characters");
 
   const canNextStep = () => {
+    if (projectType === "poetry") {
+      return form.watch("title") && form.watch("mainIdea") && form.watch("poetryMeter") && form.watch("poetryRhyme") && form.watch("poetryVerseCount");
+    }
     if (step === 0) {
       return form.watch("title") && form.watch("mainIdea");
     }
@@ -489,8 +638,37 @@ export default function NewProject() {
         {step === -1 && (
           <div>
             <div className="text-center mb-8">
-              <h2 className="font-serif text-xl sm:text-2xl font-bold mb-2">اختر قالباً لروايتك</h2>
-              <p className="text-sm text-muted-foreground">اختر نوع الرواية لتعبئة الحقول تلقائياً، أو ابدأ من مشروع فارغ</p>
+              <h2 className="font-serif text-xl sm:text-2xl font-bold mb-2">اختر نوع المشروع</h2>
+              <p className="text-sm text-muted-foreground">اختر نوع العمل الأدبي الذي تريد إنشاءه</p>
+            </div>
+
+            <Card
+              className={`cursor-pointer transition-colors hover-elevate mb-6 ${selectedTemplate === "poetry" ? "border-primary ring-1 ring-primary" : ""}`}
+              data-testid="template-card-poetry"
+            >
+              <CardContent className="p-5">
+                <button
+                  type="button"
+                  onClick={handleSelectPoetryType}
+                  className="w-full text-right"
+                  data-testid="button-template-poetry"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10 text-primary shrink-0">
+                      <PenLine className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-serif font-bold text-base">قصيدة عمودية (الشعر العمودي)</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">٤٩.٩٩ دولار</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">اكتب قصيدة عمودية كلاسيكية بجميع البحور الشعرية والأوزان العروضية مع اختيار حرف الروي والعصر الأدبي</p>
+                </button>
+              </CardContent>
+            </Card>
+
+            <div className="text-center mb-4">
+              <p className="text-sm text-muted-foreground font-medium">أو اختر قالباً لروايتك</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {PROJECT_TEMPLATES.map((template) => (
@@ -523,7 +701,7 @@ export default function NewProject() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            {step >= 0 && (
+            {step >= 0 && projectType === "novel" && (
               <div className="mb-6 flex flex-col items-center gap-3">
                 <Button
                   type="button"
@@ -572,7 +750,239 @@ export default function NewProject() {
               </div>
             )}
 
-            {step === 0 && (
+            {step === 0 && projectType === "poetry" && (
+              <Card>
+                <CardContent className="p-5 sm:p-8 space-y-6">
+                  <div className="space-y-2 mb-6">
+                    <h2 className="font-serif text-xl sm:text-2xl font-bold">تفاصيل القصيدة</h2>
+                    <p className="text-sm text-muted-foreground">أدخل المعلومات الأساسية لقصيدتك العمودية</p>
+                  </div>
+
+                  <FormField control={form.control} name="title" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>عنوان القصيدة</FormLabel>
+                      <FormControl>
+                        <Input placeholder="مثال: قصيدة في مدح الوطن" {...field} data-testid="input-poetry-title" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="mainIdea" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>موضوع القصيدة</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="صف موضوع القصيدة والمشاعر والأفكار التي تريد التعبير عنها..."
+                          className="min-h-[100px]"
+                          {...field}
+                          data-testid="input-poetry-topic"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="space-y-3">
+                    <FormField control={form.control} name="poetryMeter" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>البحر الشعري</FormLabel>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {POETRY_METERS.map((meter) => (
+                            <button
+                              key={meter.id}
+                              type="button"
+                              onClick={() => field.onChange(meter.id)}
+                              className={`text-right p-3 rounded-md border transition-colors ${
+                                field.value === meter.id
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border hover-elevate"
+                              }`}
+                              data-testid={`button-meter-${meter.id}`}
+                            >
+                              <div className="font-serif font-bold text-sm">{meter.name}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{meter.description}</div>
+                            </button>
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <FormField control={form.control} name="poetryRhyme" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>حرف الروي (القافية)</FormLabel>
+                        <div className="grid grid-cols-7 sm:grid-cols-14 gap-1.5">
+                          {POETRY_RHYME_LETTERS.map((letter) => (
+                            <button
+                              key={letter}
+                              type="button"
+                              onClick={() => {
+                                field.onChange(letter);
+                                setSelectedPoetryRhyme(letter);
+                              }}
+                              className={`flex items-center justify-center rounded-md border text-lg font-serif transition-colors aspect-square ${
+                                field.value === letter
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border hover-elevate"
+                              }`}
+                              data-testid={`button-rhyme-${letter}`}
+                            >
+                              {letter}
+                            </button>
+                          ))}
+                        </div>
+                        {selectedPoetryRhyme && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            حرف الروي المختار: <span className="font-bold text-foreground">{selectedPoetryRhyme}</span> — سينتهي كل بيت بهذا الحرف
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="poetryEra" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>العصر الأدبي (اختياري)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-poetry-era">
+                              <SelectValue placeholder="اختر العصر الأدبي" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {POETRY_ERA_OPTIONS.map((era) => (
+                              <SelectItem key={era.id} value={era.id}>
+                                {era.name} — {era.description}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="poetryVerseCount" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>عدد الأبيات</FormLabel>
+                        <Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value ? String(field.value) : ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-poetry-verse-count">
+                              <SelectValue placeholder="اختر عدد الأبيات" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {POETRY_VERSE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="poetryTheme" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>الغرض الشعري (اختياري)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-poetry-theme">
+                              <SelectValue placeholder="اختر الغرض الشعري" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {POETRY_THEME_OPTIONS.map((theme) => (
+                              <SelectItem key={theme.id} value={theme.id}>{theme.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="poetryTone" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>النغمة (اختياري)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-poetry-tone">
+                              <SelectValue placeholder="اختر النغمة" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {POETRY_TONE_OPTIONS.map((tone) => (
+                              <SelectItem key={tone.id} value={tone.id}>{tone.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="space-y-4">
+                    <FormField control={form.control} name="poetryImageryLevel" render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between gap-4">
+                          <FormLabel>مستوى التصوير البلاغي</FormLabel>
+                          <span className="text-sm font-medium text-muted-foreground" data-testid="text-imagery-level">{field.value ?? 5}/10</span>
+                        </div>
+                        <FormControl>
+                          <Slider
+                            min={0}
+                            max={10}
+                            step={1}
+                            value={[field.value ?? 5]}
+                            onValueChange={(vals) => field.onChange(vals[0])}
+                            data-testid="slider-poetry-imagery"
+                          />
+                        </FormControl>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>مباشر وبسيط</span>
+                          <span>بلاغة كثيفة وصور غنية</span>
+                        </div>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="poetryEmotionLevel" render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between gap-4">
+                          <FormLabel>شدة العاطفة</FormLabel>
+                          <span className="text-sm font-medium text-muted-foreground" data-testid="text-emotion-level">{field.value ?? 5}/10</span>
+                        </div>
+                        <FormControl>
+                          <Slider
+                            min={0}
+                            max={10}
+                            step={1}
+                            value={[field.value ?? 5]}
+                            onValueChange={(vals) => field.onChange(vals[0])}
+                            data-testid="slider-poetry-emotion"
+                          />
+                        </FormControl>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>هادئ ورزين</span>
+                          <span>عاطفة متوهجة ومشتعلة</span>
+                        </div>
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="rounded-md bg-primary/5 border border-primary/10 p-4 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">قصيدة عمودية — {POETRY_VERSE_OPTIONS.find(v => v.value === form.watch("poetryVerseCount"))?.label || "اختر عدد الأبيات"}</p>
+                    <p>سيقوم أبو هاشم بنظم قصيدة ملتزمة بالوزن العروضي والقافية وفق أصول علم العروض والشعر العربي الكلاسيكي.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {step === 0 && projectType === "novel" && (
               <Card>
                 <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="space-y-2 mb-6">
@@ -829,7 +1239,7 @@ export default function NewProject() {
               </Card>
             )}
 
-            {step === 1 && (
+            {step === 1 && projectType === "novel" && (
               <Card>
                 <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
@@ -1047,7 +1457,7 @@ export default function NewProject() {
               </Card>
             )}
 
-            {step === 2 && (
+            {step === 2 && projectType === "novel" && (
               <div className="space-y-6">
                 <Card>
                   <CardContent className="p-5 sm:p-8 space-y-6">
@@ -1175,13 +1585,18 @@ export default function NewProject() {
                 ) : (
                   <Button
                     type="submit"
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isPending || (projectType === "poetry" && !canNextStep())}
                     data-testid="button-create-project"
                   >
                     {createMutation.isPending ? (
                       <>
                         <Loader2 className="w-4 h-4 ml-2 animate-spin" />
                         جارٍ الإنشاء والتوجيه للدفع...
+                      </>
+                    ) : projectType === "poetry" ? (
+                      <>
+                        <PenLine className="w-4 h-4 ml-2" />
+                        أنشئ القصيدة وادفع
                       </>
                     ) : (
                       <>

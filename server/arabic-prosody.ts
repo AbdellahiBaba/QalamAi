@@ -1,0 +1,659 @@
+export interface TafIlaRule {
+  base: string;
+  allowedZihafat: string[];
+  allowedIlal: string[];
+  positions: string[];
+}
+
+export interface MeterInfo {
+  id: string;
+  name: string;
+  key: string;
+  basePattern: string[];
+  basePatternSadr: string[];
+  basePatternAjuz: string[];
+  tafIlaRules: Record<string, TafIlaRule>;
+  notes: string;
+  example: string;
+}
+
+export interface EraInfo {
+  id: string;
+  name: string;
+  description: string;
+  styleNotes: string;
+  prominentPoets: string[];
+}
+
+export interface PoetryTheme {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface PoetryTone {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface RhymeLetterInfo {
+  letter: string;
+  name: string;
+}
+
+export const METERS: Record<string, MeterInfo> = {
+  taweel: {
+    id: "taweel",
+    name: "الطويل",
+    key: "طويل",
+    basePattern: ["فعولن", "مفاعيلن", "فعولن", "مفاعيلن"],
+    basePatternSadr: ["فعولن", "مفاعيلن", "فعولن", "مفاعيلن"],
+    basePatternAjuz: ["فعولن", "مفاعيلن", "فعولن", "مفاعلن"],
+    tafIlaRules: {
+      "فعولن": {
+        base: "فعولن",
+        allowedZihafat: ["القبض (حذف الخامس الساكن): فعولن ← فعولُ"],
+        allowedIlal: [],
+        positions: ["حشو", "عروض"],
+      },
+      "مفاعيلن": {
+        base: "مفاعيلن",
+        allowedZihafat: ["القبض (حذف الخامس الساكن): مفاعيلن ← مفاعلن"],
+        allowedIlal: ["الحذف (حذف السبب الأخير): مفاعيلن ← مفاعي (فعولن)"],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+      "مفاعلن": {
+        base: "مفاعلن",
+        allowedZihafat: [],
+        allowedIlal: [],
+        positions: ["عروض (لازم)", "ضرب"],
+      },
+    },
+    notes: "أكثر البحور شيوعاً في الشعر العربي. عروضه واحدة مقبوضة (مفاعلن). ضربه ثلاثة: صحيح (مفاعيلن)، مقبوض (مفاعلن)، محذوف (فعولن). القبض في فعولن حسن في الحشو. القبض في مفاعيلن جائز في الحشو قبيح في العروض.",
+    example: "قفا نبكِ من ذكرى حبيبٍ ومنزلِ *** بسقطِ اللوى بين الدخولِ فحوملِ",
+  },
+  kamel: {
+    id: "kamel",
+    name: "الكامل",
+    key: "كامل",
+    basePattern: ["متفاعلن", "متفاعلن", "متفاعلن"],
+    basePatternSadr: ["متفاعلن", "متفاعلن", "متفاعلن"],
+    basePatternAjuz: ["متفاعلن", "متفاعلن", "متفاعلن"],
+    tafIlaRules: {
+      "متفاعلن": {
+        base: "متفاعلن",
+        allowedZihafat: [
+          "الإضمار (تسكين الثاني المتحرك): متفاعلن ← مُتْفاعلن (مستفعلن)",
+          "الوقص (حذف الثاني المتحرك): متفاعلن ← مُفاعلن (مفاعلن)",
+        ],
+        allowedIlal: [
+          "الحذذ (حذف الوتد وتسكين ما قبله): متفاعلن ← متفا (فَعْلن) — في الضرب",
+          "القطع (حذف ساكن الوتد وتسكين ما قبله): متفاعلن ← متفاعلْ (فعِلاتن) — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "بحر غني بالإيقاع. الإضمار كثير الورود ومستحسن. الوقص جائز لكنه قليل. العروض صحيحة أو حذّاء. الضرب: صحيح، مذيّل، أحذّ، مقطوع.",
+    example: "وإذا صحوتُ فما أقصّرُ عن ندى *** وكما علمتِ شمائلي وتكرّمي",
+  },
+  baseet: {
+    id: "baseet",
+    name: "البسيط",
+    key: "بسيط",
+    basePattern: ["مستفعلن", "فاعلن", "مستفعلن", "فاعلن"],
+    basePatternSadr: ["مستفعلن", "فاعلن", "مستفعلن", "فاعلن"],
+    basePatternAjuz: ["مستفعلن", "فاعلن", "مستفعلن", "فعِلن"],
+    tafIlaRules: {
+      "مستفعلن": {
+        base: "مستفعلن",
+        allowedZihafat: [
+          "الخبن (حذف الثاني الساكن): مستفعلن ← مُتَفعلن (مفاعلن)",
+          "الطيّ (حذف الرابع الساكن): مستفعلن ← مسْتَعِلن (مفتعلن)",
+          "الخبل (خبن + طيّ): مستفعلن ← مُتَعِلن (فعلتن)",
+        ],
+        allowedIlal: ["القطع: مستفعلن ← مستفعلْ (مفعولن) — في الضرب"],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+      "فاعلن": {
+        base: "فاعلن",
+        allowedZihafat: [
+          "الخبن (حذف الثاني الساكن): فاعلن ← فَعِلن",
+        ],
+        allowedIlal: [
+          "القطع: فاعلن ← فاعلْ (فعْلن) — في العروض والضرب",
+          "التشعيث: فاعلن ← فالن (فعْلن) — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "ثاني أكثر البحور استعمالاً. عروضه مخبونة (فعِلن). ضربه: مخبون (فعِلن)، مقطوع (فعْلن). الخبن كثير في مستفعلن وفاعلن. الطيّ جائز لكنه أقل.",
+    example: "يا دارَ ميّةَ بالعلياءِ فالسندِ *** أقوتْ وطالَ عليها سالفُ الأبدِ",
+  },
+  wafer: {
+    id: "wafer",
+    name: "الوافر",
+    key: "وافر",
+    basePattern: ["مفاعلتن", "مفاعلتن", "مفاعلتن"],
+    basePatternSadr: ["مفاعلتن", "مفاعلتن", "مفاعلتن"],
+    basePatternAjuz: ["مفاعلتن", "مفاعلتن", "فعولن"],
+    tafIlaRules: {
+      "مفاعلتن": {
+        base: "مفاعلتن",
+        allowedZihafat: [
+          "العصب (تسكين الخامس المتحرك): مفاعلتن ← مفاعلْتن (مفاعيلن)",
+        ],
+        allowedIlal: [
+          "القطف (عصب + حذف): مفاعلتن ← مفاعلْ (فعولن) — لازم في العروض والضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "عروضه واحدة مقطوفة (فعولن). ضربه مقطوف (فعولن). العصب كثير في الحشو ومستحسن. النقص (عصب + كفّ) قليل.",
+    example: "سلامٌ على الدنيا إذا لم يكن بها *** صديقٌ صدوقٌ صادقُ الوعدِ منصفا",
+  },
+  rajaz: {
+    id: "rajaz",
+    name: "الرجز",
+    key: "رجز",
+    basePattern: ["مستفعلن", "مستفعلن", "مستفعلن"],
+    basePatternSadr: ["مستفعلن", "مستفعلن", "مستفعلن"],
+    basePatternAjuz: ["مستفعلن", "مستفعلن", "مستفعلن"],
+    tafIlaRules: {
+      "مستفعلن": {
+        base: "مستفعلن",
+        allowedZihafat: [
+          "الخبن: مستفعلن ← مُتَفعلن (مفاعلن)",
+          "الطيّ: مستفعلن ← مسْتَعِلن (مفتعلن)",
+          "الخبل: مستفعلن ← مُتَعِلن (فعلتن) — قليل",
+        ],
+        allowedIlal: [
+          "القطع: مستفعلن ← مستفعلْ (مفعولن) — في العروض والضرب",
+          "الحذف: مستفعلن ← مستفْ (فعْلن) — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "بحر مرن وكثير الاستعمال في الأراجيز والشعر التعليمي. يجوز فيه المشطور (ثلاث تفعيلات فقط) والمنهوك (تفعيلتان). الخبن فيه حسن.",
+    example: "دارٌ لسلمى إذ سليمى جارةٌ *** قفرٌ ترى آياتها مثلَ الزُّبُرْ",
+  },
+  ramal: {
+    id: "ramal",
+    name: "الرمل",
+    key: "رمل",
+    basePattern: ["فاعلاتن", "فاعلاتن", "فاعلاتن"],
+    basePatternSadr: ["فاعلاتن", "فاعلاتن", "فاعلاتن"],
+    basePatternAjuz: ["فاعلاتن", "فاعلاتن", "فاعلاتن"],
+    tafIlaRules: {
+      "فاعلاتن": {
+        base: "فاعلاتن",
+        allowedZihafat: [
+          "الخبن (حذف الثاني الساكن): فاعلاتن ← فَعِلاتن",
+          "الكفّ (حذف السابع الساكن): فاعلاتن ← فاعلاتُ — قليل ومقبول في الحشو",
+          "الشكل (خبن + كفّ): فاعلاتن ← فَعِلاتُ — قبيح",
+        ],
+        allowedIlal: [
+          "الحذف: فاعلاتن ← فاعلا (فعولن) — في العروض والضرب",
+          "القصر: فاعلاتن ← فاعلاتْ (فاعلان) — في العروض والضرب",
+          "التسبيغ: فاعلاتن ← فاعلاتان — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "بحر غنائي رقيق. العروض محذوفة (فاعلن) أو صحيحة. الضرب: محذوف، مقصور، مسبّغ، أو صحيح. الخبن كثير وحسن.",
+    example: "غيرَ مجدٍ في ملّتي واعتقادي *** نوحُ باكٍ ولا ترنّمُ شادِ",
+  },
+  hazaj: {
+    id: "hazaj",
+    name: "الهزج",
+    key: "هزج",
+    basePattern: ["مفاعيلن", "مفاعيلن", "مفاعيلن"],
+    basePatternSadr: ["مفاعيلن", "مفاعيلن"],
+    basePatternAjuz: ["مفاعيلن", "مفاعيلن"],
+    tafIlaRules: {
+      "مفاعيلن": {
+        base: "مفاعيلن",
+        allowedZihafat: [
+          "القبض: مفاعيلن ← مفاعلن",
+          "الكفّ: مفاعيلن ← مفاعيلُ — قليل",
+        ],
+        allowedIlal: [
+          "الحذف: مفاعيلن ← مفاعي (فعولن) — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "يستعمل مجزوءاً غالباً (تفعيلتان في كل شطر). القبض حسن في الحشو. العروض والضرب صحيحان أو محذوفان.",
+    example: "لقد هاجَ الفؤادَ بلابلُه *** وعاودهُ هواهُ ووائلُهُ",
+  },
+  saree: {
+    id: "saree",
+    name: "السريع",
+    key: "سريع",
+    basePattern: ["مستفعلن", "مستفعلن", "فاعلن"],
+    basePatternSadr: ["مستفعلن", "مستفعلن", "فاعلن"],
+    basePatternAjuz: ["مستفعلن", "مستفعلن", "فاعلن"],
+    tafIlaRules: {
+      "مستفعلن": {
+        base: "مستفعلن",
+        allowedZihafat: [
+          "الخبن: مستفعلن ← مُتفعلن",
+          "الطيّ: مستفعلن ← مسْتعلن",
+          "الخبل: مستفعلن ← مُتَعلن — قليل",
+        ],
+        allowedIlal: [],
+        positions: ["حشو"],
+      },
+      "فاعلن": {
+        base: "فاعلن",
+        allowedZihafat: ["الخبن: فاعلن ← فَعِلن"],
+        allowedIlal: [
+          "الوقف (تسكين الأخير): فاعلن ← فاعلْن (فاعلان) — في الضرب",
+          "الكشف: فاعلن ← فاعلْ (فعْلن) — في العروض والضرب",
+          "التشعيث: فاعلن ← فالن (فعْلن) — نادر",
+        ],
+        positions: ["عروض", "ضرب"],
+      },
+    },
+    notes: "العروض مطوية مكشوفة (فعِلن) أو مخبولة مكشوفة (فعْلن). الضرب مكشوف أو موقوف أو أصلم. الطيّ فيه كثير.",
+    example: "مِنْ بعدِ ما وبعدَ ما وبعدَ ما *** صارتْ عظامُ الشاعرينَ رميما",
+  },
+  munsarih: {
+    id: "munsarih",
+    name: "المنسرح",
+    key: "منسرح",
+    basePattern: ["مستفعلن", "مفعولاتُ", "مستفعلن"],
+    basePatternSadr: ["مستفعلن", "مفعولاتُ", "مستفعلن"],
+    basePatternAjuz: ["مستفعلن", "مفعولاتُ", "مستفعلن"],
+    tafIlaRules: {
+      "مستفعلن": {
+        base: "مستفعلن",
+        allowedZihafat: [
+          "الخبن: مستفعلن ← مُتفعلن",
+          "الطيّ: مستفعلن ← مسْتعلن",
+        ],
+        allowedIlal: [],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+      "مفعولاتُ": {
+        base: "مفعولاتُ",
+        allowedZihafat: [
+          "الطيّ: مفعولاتُ ← مفعلاتُ",
+          "العصف (حذف الأخير): مفعولاتُ ← مفعولا (مفعولن) — لازم غالباً",
+        ],
+        allowedIlal: [],
+        positions: ["حشو"],
+      },
+    },
+    notes: "مفعولاتُ في الحشو تأتي غالباً مطوية (مفعلاتُ). العروض صحيحة. الضرب صحيح أو مطويّ.",
+    example: "إنّ ابنَ زيدٍ لا زالَ مستعملاً *** للخيرِ يُفشي في مصرِهِ العرفا",
+  },
+  khafeef: {
+    id: "khafeef",
+    name: "الخفيف",
+    key: "خفيف",
+    basePattern: ["فاعلاتن", "مستفعِلن", "فاعلاتن"],
+    basePatternSadr: ["فاعلاتن", "مستفعِلن", "فاعلاتن"],
+    basePatternAjuz: ["فاعلاتن", "مستفعِلن", "فاعلاتن"],
+    tafIlaRules: {
+      "فاعلاتن": {
+        base: "فاعلاتن",
+        allowedZihafat: [
+          "الخبن: فاعلاتن ← فَعِلاتن",
+          "الكفّ: فاعلاتن ← فاعلاتُ — قليل",
+        ],
+        allowedIlal: [
+          "الحذف: فاعلاتن ← فاعلا (فعولن) — في الضرب",
+          "القصر: فاعلاتن ← فاعلاتْ — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+      "مستفعِلن": {
+        base: "مستفعِلن",
+        allowedZihafat: [
+          "الخبن: مستفعِلن ← مُتفعِلن (مفاعلن)",
+          "الكفّ: مستفعِلن ← مستفعلُ — نادر",
+        ],
+        allowedIlal: [],
+        positions: ["حشو"],
+      },
+    },
+    notes: "بحر رشيق ومرن. الخبن في فاعلاتن ومستفعلن حسن. العروض صحيحة أو محذوفة. الضرب صحيح أو محذوف أو مقصور.",
+    example: "لكلّ شيءٍ إذا ما تمّ نقصانُ *** فلا يُغرّ بطيبِ العيشِ إنسانُ",
+  },
+  mudarei: {
+    id: "mudarei",
+    name: "المضارع",
+    key: "مضارع",
+    basePattern: ["مفاعيلن", "فاعلاتن", "مفاعيلن"],
+    basePatternSadr: ["مفاعيلن", "فاعلاتن"],
+    basePatternAjuz: ["مفاعيلن", "فاعلاتن"],
+    tafIlaRules: {
+      "مفاعيلن": {
+        base: "مفاعيلن",
+        allowedZihafat: [
+          "القبض: مفاعيلن ← مفاعلن",
+        ],
+        allowedIlal: [],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+      "فاعلاتن": {
+        base: "فاعلاتن",
+        allowedZihafat: [
+          "الخبن: فاعلاتن ← فَعِلاتن",
+        ],
+        allowedIlal: [],
+        positions: ["عروض", "ضرب"],
+      },
+    },
+    notes: "يستعمل مجزوءاً فقط (تفعيلتان في كل شطر). قليل الاستعمال.",
+    example: "دعاني إلى سعادٍ *** دواعي هوى سعادِ",
+  },
+  muqtadab: {
+    id: "muqtadab",
+    name: "المقتضب",
+    key: "مقتضب",
+    basePattern: ["مفعولاتُ", "مستفعلن", "مستفعلن"],
+    basePatternSadr: ["مفعولاتُ", "مستفعلن"],
+    basePatternAjuz: ["مفعولاتُ", "مستفعلن"],
+    tafIlaRules: {
+      "مفعولاتُ": {
+        base: "مفعولاتُ",
+        allowedZihafat: [
+          "الطيّ: مفعولاتُ ← مفعلاتُ — لازم غالباً",
+        ],
+        allowedIlal: [],
+        positions: ["حشو"],
+      },
+      "مستفعلن": {
+        base: "مستفعلن",
+        allowedZihafat: [
+          "الخبن: مستفعلن ← مُتفعلن",
+          "الطيّ: مستفعلن ← مسْتعلن",
+        ],
+        allowedIlal: [],
+        positions: ["عروض", "ضرب"],
+      },
+    },
+    notes: "يستعمل مجزوءاً. قليل الاستعمال في الشعر العربي.",
+    example: "أقبلتْ فلاحَ لها *** عارضانِ كالبَرَدِ",
+  },
+  mujtath: {
+    id: "mujtath",
+    name: "المجتث",
+    key: "مجتث",
+    basePattern: ["مستفعِلن", "فاعلاتن", "فاعلاتن"],
+    basePatternSadr: ["مستفعِلن", "فاعلاتن"],
+    basePatternAjuz: ["مستفعِلن", "فاعلاتن"],
+    tafIlaRules: {
+      "مستفعِلن": {
+        base: "مستفعِلن",
+        allowedZihafat: [
+          "الخبن: مستفعِلن ← مُتفعِلن",
+        ],
+        allowedIlal: [],
+        positions: ["حشو"],
+      },
+      "فاعلاتن": {
+        base: "فاعلاتن",
+        allowedZihafat: [
+          "الخبن: فاعلاتن ← فَعِلاتن",
+        ],
+        allowedIlal: [
+          "الحذف: فاعلاتن ← فاعلا (فعولن) — في الضرب",
+        ],
+        positions: ["عروض", "ضرب"],
+      },
+    },
+    notes: "يستعمل مجزوءاً. العروض صحيحة. الضرب صحيح أو محذوف.",
+    example: "من أجلكِ يا التي *** تيّمتَ قلبي بالهوى",
+  },
+  mutaqareb: {
+    id: "mutaqareb",
+    name: "المتقارب",
+    key: "متقارب",
+    basePattern: ["فعولن", "فعولن", "فعولن", "فعولن"],
+    basePatternSadr: ["فعولن", "فعولن", "فعولن", "فعولن"],
+    basePatternAjuz: ["فعولن", "فعولن", "فعولن", "فعولن"],
+    tafIlaRules: {
+      "فعولن": {
+        base: "فعولن",
+        allowedZihafat: [
+          "القبض: فعولن ← فعولُ",
+          "الحذف (حذف السبب): فعولن ← فعو (فعَلْ) — في العروض والضرب",
+        ],
+        allowedIlal: [
+          "القصر: فعولن ← فعولْ (فعال) — في العروض والضرب",
+          "البتر (حذف + قطع): فعولن ← فعْ — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "بحر سيّال وموسيقي. العروض صحيحة أو محذوفة أو مقصورة. الضرب صحيح أو محذوف أو مقصور أو أبتر. القبض في الحشو كثير.",
+    example: "فأمّا تريني ولي لِمّةٌ *** فإنّ الحوادثَ أودى بها",
+  },
+  mutadarek: {
+    id: "mutadarek",
+    name: "المتدارك",
+    key: "متدارك",
+    basePattern: ["فاعلن", "فاعلن", "فاعلن", "فاعلن"],
+    basePatternSadr: ["فاعلن", "فاعلن", "فاعلن", "فاعلن"],
+    basePatternAjuz: ["فاعلن", "فاعلن", "فاعلن", "فاعلن"],
+    tafIlaRules: {
+      "فاعلن": {
+        base: "فاعلن",
+        allowedZihafat: [
+          "الخبن: فاعلن ← فَعِلن — كثير جداً حتى يكاد يكون أصلاً",
+        ],
+        allowedIlal: [
+          "القطع: فاعلن ← فاعلْ (فعْلن) — في العروض والضرب",
+          "التشعيث: فاعلن ← فالن (فعْلن) — جائز في الضرب",
+          "الترفيل: فاعلن ← فاعلاتن — في الضرب",
+        ],
+        positions: ["حشو", "عروض", "ضرب"],
+      },
+    },
+    notes: "يسمى أيضاً بحر الخبب عند كثرة الخبن. العروض صحيحة أو مقطوعة. الضرب صحيح أو مقطوع أو مرفّل. كثيراً ما يخبن فيصير كله (فعِلن) ويسمى الخبب.",
+    example: "جاءنا عامرٌ سالماً صالحاً *** بعدَما كانَ ما كانَ من عامرِ",
+  },
+};
+
+export const ERAS: Record<string, EraInfo> = {
+  jahili: {
+    id: "jahili",
+    name: "جاهلي",
+    description: "شعر ما قبل الإسلام — عصر المعلقات والفحولة الشعرية",
+    styleNotes: "لغة فخمة جزلة، ألفاظ بدوية قوية، تشبيهات حسية من البيئة الصحراوية (الناقة، الطلل، الغزال)، بناء القصيدة التقليدي (وقوف على الأطلال ← رحلة ← غرض)، موسيقى قوية ومتماسكة، بلاغة مباشرة وصريحة",
+    prominentPoets: ["امرؤ القيس", "زهير بن أبي سلمى", "طرفة بن العبد", "عنترة بن شداد", "النابغة الذبياني", "لبيد بن ربيعة"],
+  },
+  umawi: {
+    id: "umawi",
+    name: "أموي",
+    description: "شعر العصر الأموي — عصر الشعر السياسي والنقائض والغزل العذري",
+    styleNotes: "تأثر بالبيئة الحضرية الجديدة مع الحفاظ على قوة اللغة الجاهلية، ظهور الشعر السياسي والمذهبي، الغزل العذري الطاهر والغزل الحضري، النقائض الشعرية، لغة أقرب للسهولة مع الحفاظ على الجزالة",
+    prominentPoets: ["جرير", "الفرزدق", "الأخطل", "عمر بن أبي ربيعة", "جميل بثينة", "قيس بن الملوّح"],
+  },
+  abbasi: {
+    id: "abbasi",
+    name: "عباسي",
+    description: "شعر العصر العباسي — عصر التجديد والبديع والفلسفة",
+    styleNotes: "تجديد في الأساليب والمعاني، كثرة المحسنات البديعية (طباق، جناس، تورية)، تأثر بالفلسفة والمنطق والثقافات الفارسية واليونانية، رقة الألفاظ وعمق المعاني، شعر الخمريات والزهد والحكمة، ظهور الموشحات في أواخره",
+    prominentPoets: ["أبو نواس", "المتنبي", "أبو تمام", "البحتري", "أبو العلاء المعري", "المعتمد بن عباد"],
+  },
+  andalusi: {
+    id: "andalusi",
+    name: "أندلسي",
+    description: "شعر الأندلس — عصر الموشحات ووصف الطبيعة والحنين",
+    styleNotes: "عشق الطبيعة ووصفها بتفصيل (الأنهار، الحدائق، الزهور)، رقة العاطفة وحنين الغربة، تأثر بالبيئة الأندلسية المتعددة الثقافات، ظهور الموشحات والأزجال، لغة موسيقية رقيقة مع عمق وجداني، شعر الحنين إلى الوطن (رثاء الممالك)",
+    prominentPoets: ["ابن زيدون", "ولادة بنت المستكفي", "ابن خفاجة", "لسان الدين بن الخطيب", "أبو البقاء الرندي"],
+  },
+  hadith: {
+    id: "hadith",
+    name: "حديث",
+    description: "الشعر العربي الحديث — من عصر النهضة إلى المعاصر (مع الالتزام بالعمودي)",
+    styleNotes: "تجديد في الموضوعات (الوطنية، الاجتماعية، الوجودية) مع الحفاظ على البنية العمودية، لغة أقرب للمعاصرة مع الفصاحة، صور شعرية مبتكرة ومتأثرة بالشعر العالمي، عمق فكري وفلسفي، التزام اجتماعي وسياسي، موسيقى متقنة مع تجديد في القافية",
+    prominentPoets: ["أحمد شوقي", "حافظ إبراهيم", "بدر شاكر السياب", "نزار قباني", "محمود درويش", "أمل دنقل"],
+  },
+};
+
+export const POETRY_THEMES: PoetryTheme[] = [
+  { id: "ghazal", name: "غزل", description: "شعر الحب والعشق والوصف" },
+  { id: "fakhr", name: "فخر", description: "شعر الاعتزاز بالنفس والقبيلة والقومية" },
+  { id: "madh", name: "مدح", description: "شعر الثناء والإشادة" },
+  { id: "hija", name: "هجاء", description: "شعر الذم والسخرية" },
+  { id: "ritha", name: "رثاء", description: "شعر الحزن على فقدان عزيز أو وطن" },
+  { id: "hikma", name: "حكمة", description: "شعر الحكم والمواعظ والتأمل" },
+  { id: "wasf", name: "وصف", description: "شعر وصف الطبيعة والأماكن والمشاهد" },
+  { id: "hamasa", name: "حماسة", description: "شعر الشجاعة والبطولة والنضال" },
+  { id: "zuhd", name: "زهد", description: "شعر التقشف والتقرب والورع" },
+  { id: "itab", name: "عتاب", description: "شعر اللوم والعتاب الرقيق" },
+  { id: "hanin", name: "حنين", description: "شعر الشوق والاشتياق والغربة" },
+  { id: "watani", name: "وطني", description: "شعر الوطنية والانتماء والتحرر" },
+  { id: "ijtimaii", name: "اجتماعي", description: "شعر النقد الاجتماعي والإصلاح" },
+  { id: "falsafi", name: "فلسفي", description: "شعر التأمل الفلسفي والوجودي" },
+];
+
+export const POETRY_TONES: PoetryTone[] = [
+  { id: "romantic", name: "رومانسي", description: "عاطفي رقيق ودافئ" },
+  { id: "epic", name: "ملحمي", description: "قوي وفخم وبطولي" },
+  { id: "mystical", name: "صوفي", description: "روحاني عميق ورمزي" },
+  { id: "melancholic", name: "حزين", description: "كئيب ومؤثر وشجي" },
+  { id: "triumphant", name: "انتصاري", description: "مفعم بالفخر والنصر" },
+  { id: "contemplative", name: "تأملي", description: "هادئ وعميق ومتأمل" },
+  { id: "passionate", name: "متوهج", description: "حار وعاطفي ومشتعل" },
+  { id: "satirical", name: "ساخر", description: "لاذع وذكي ومرح" },
+  { id: "nostalgic", name: "حنيني", description: "مفعم بالشوق والحنين" },
+  { id: "solemn", name: "مهيب", description: "جليل ووقور ومؤثر" },
+];
+
+export const RHYME_LETTERS: RhymeLetterInfo[] = [
+  { letter: "ا", name: "ألف" },
+  { letter: "ب", name: "باء" },
+  { letter: "ت", name: "تاء" },
+  { letter: "ث", name: "ثاء" },
+  { letter: "ج", name: "جيم" },
+  { letter: "ح", name: "حاء" },
+  { letter: "خ", name: "خاء" },
+  { letter: "د", name: "دال" },
+  { letter: "ذ", name: "ذال" },
+  { letter: "ر", name: "راء" },
+  { letter: "ز", name: "زاي" },
+  { letter: "س", name: "سين" },
+  { letter: "ش", name: "شين" },
+  { letter: "ص", name: "صاد" },
+  { letter: "ض", name: "ضاد" },
+  { letter: "ط", name: "طاء" },
+  { letter: "ظ", name: "ظاء" },
+  { letter: "ع", name: "عين" },
+  { letter: "غ", name: "غين" },
+  { letter: "ف", name: "فاء" },
+  { letter: "ق", name: "قاف" },
+  { letter: "ك", name: "كاف" },
+  { letter: "ل", name: "لام" },
+  { letter: "م", name: "ميم" },
+  { letter: "ن", name: "نون" },
+  { letter: "ه", name: "هاء" },
+  { letter: "و", name: "واو" },
+  { letter: "ي", name: "ياء" },
+];
+
+export const VERSE_COUNT_OPTIONS = [
+  { value: 6, label: "٦ أبيات — قصيدة قصيرة" },
+  { value: 10, label: "١٠ أبيات — قصيدة متوسطة" },
+  { value: 14, label: "١٤ أبيات — قصيدة طويلة" },
+  { value: 20, label: "٢٠ بيتاً — قصيدة مطوّلة" },
+];
+
+export function getMeterInfo(meterId: string): MeterInfo | undefined {
+  return METERS[meterId];
+}
+
+export function getAvailableMeters(): { id: string; name: string; key: string; notes: string }[] {
+  return Object.values(METERS).map(m => ({
+    id: m.id,
+    name: m.name,
+    key: m.key,
+    notes: m.notes,
+  }));
+}
+
+export function getAvailableRhymes(): RhymeLetterInfo[] {
+  return RHYME_LETTERS;
+}
+
+export function getEras(): EraInfo[] {
+  return Object.values(ERAS);
+}
+
+export function getPoetryThemes(): PoetryTheme[] {
+  return POETRY_THEMES;
+}
+
+export function getPoetryTones(): PoetryTone[] {
+  return POETRY_TONES;
+}
+
+export function buildProsodyPromptSection(meterId: string): string {
+  const meter = METERS[meterId];
+  if (!meter) return "";
+
+  let section = `═══ قواعد العروض للبحر ${meter.name} ═══\n\n`;
+  section += `التفعيلات الأصلية (الصدر): ${meter.basePatternSadr.join(" ")}\n`;
+  section += `التفعيلات الأصلية (العجز): ${meter.basePatternAjuz.join(" ")}\n\n`;
+
+  section += `المفتاح العروضي: ${meter.basePattern.join(" ")} | ${meter.basePattern.join(" ")}\n\n`;
+
+  section += `═══ الزحافات والعلل المسموح بها ═══\n\n`;
+  for (const [tafIla, rules] of Object.entries(meter.tafIlaRules)) {
+    section += `▸ ${tafIla} (مواضعها: ${rules.positions.join("، ")}):\n`;
+    if (rules.allowedZihafat.length > 0) {
+      section += `  الزحافات الجائزة:\n`;
+      for (const z of rules.allowedZihafat) {
+        section += `    - ${z}\n`;
+      }
+    }
+    if (rules.allowedIlal.length > 0) {
+      section += `  العلل الجائزة:\n`;
+      for (const i of rules.allowedIlal) {
+        section += `    - ${i}\n`;
+      }
+    }
+    section += `\n`;
+  }
+
+  section += `ملاحظات أكاديمية: ${meter.notes}\n`;
+  section += `مثال: ${meter.example}\n`;
+
+  return section;
+}
+
+export function buildEraStyleSection(eraId: string): string {
+  const era = ERAS[eraId];
+  if (!era) return "";
+
+  let section = `═══ الأسلوب الأدبي — العصر ${era.name} ═══\n\n`;
+  section += `${era.description}\n\n`;
+  section += `سمات الأسلوب:\n${era.styleNotes}\n\n`;
+  section += `من أبرز شعراء هذا العصر: ${era.prominentPoets.join("، ")}\n`;
+  section += `\nاكتب بأسلوب يحاكي روح هذا العصر في اختيار الألفاظ والصور والتراكيب.\n`;
+
+  return section;
+}
+
+export function buildRhymeRulesSection(rhymeLetter: string): string {
+  const rhymeInfo = RHYME_LETTERS.find(r => r.letter === rhymeLetter);
+  const letterName = rhymeInfo ? rhymeInfo.name : rhymeLetter;
+
+  let section = `═══ قواعد القافية والروي ═══\n\n`;
+  section += `حرف الروي المطلوب: ${rhymeLetter} (${letterName})\n\n`;
+  section += `القواعد:\n`;
+  section += `- الروي هو الحرف الذي تُبنى عليه القافية ويلتزم في كل أبيات القصيدة\n`;
+  section += `- يجب أن ينتهي كل بيت (في العجز) بحرف ${rhymeLetter} كروي\n`;
+  section += `- يمكن أن يلي الروي حرف وصل (ألف، واو، ياء، هاء) أو حرف خروج\n`;
+  section += `- يجب أن تكون حركة الروي متّسقة في جميع الأبيات (مضمومة أو مفتوحة أو مكسورة أو ساكنة)\n`;
+  section += `- الرِّدف (حرف مدّ أو لين قبل الروي) إن وُجد يلتزم في جميع الأبيات\n`;
+  section += `- التأسيس (ألف قبل الروي بحرف واحد) إن وُجد يلتزم\n`;
+  section += `- تجنّب عيوب القافية: الإقواء (اختلاف حركة الروي)، الإكفاء (اختلاف حرف الروي)، السِّناد\n`;
+
+  return section;
+}

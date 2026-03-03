@@ -18,10 +18,11 @@ export const SCENARIO_PRICE = 20000;
 export const SHORT_STORY_PRICE = 8000;
 export const KHAWATER_PRICE = 999;
 export const SOCIAL_MEDIA_PRICE = 1999;
+export const POETRY_PRICE = 4999;
 export const ALL_IN_ONE_PRICE = 50000;
 
 export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
-export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story", "khawater", "social_media"] as const;
+export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry"] as const;
 export type ProjectType = (typeof PROJECT_TYPES)[number];
 
 export const ESSAY_SUBJECTS = [
@@ -91,6 +92,7 @@ export function getProjectPriceByType(projectType: string, pageCount?: number): 
   if (projectType === "short_story") return SHORT_STORY_PRICE;
   if (projectType === "khawater") return KHAWATER_PRICE;
   if (projectType === "social_media") return SOCIAL_MEDIA_PRICE;
+  if (projectType === "poetry") return POETRY_PRICE;
   return getProjectPrice(pageCount || 150);
 }
 
@@ -103,6 +105,7 @@ export const PLAN_PRICES: Record<string, number> = {
   short_story: SHORT_STORY_PRICE,
   khawater: KHAWATER_PRICE,
   social_media: SOCIAL_MEDIA_PRICE,
+  poetry: POETRY_PRICE,
   all_in_one: ALL_IN_ONE_PRICE,
 };
 
@@ -162,6 +165,14 @@ export const novelProjects = pgTable("novel_projects", {
   targetWordCount: integer("target_word_count"),
   publishedToNews: boolean("published_to_news").default(false),
   publishedToGallery: boolean("published_to_gallery").default(false),
+  poetryMeter: text("poetry_meter"),
+  poetryRhyme: text("poetry_rhyme"),
+  poetryEra: text("poetry_era"),
+  poetryTone: text("poetry_tone"),
+  poetryTheme: text("poetry_theme"),
+  poetryVerseCount: integer("poetry_verse_count"),
+  poetryImageryLevel: integer("poetry_imagery_level"),
+  poetryEmotionLevel: integer("poetry_emotion_level"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

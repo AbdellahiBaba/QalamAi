@@ -216,8 +216,8 @@ export default function SharedProject() {
     );
   }
 
-  const typeLabel = project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : "رواية";
-  const chapterLabel = project.projectType === "essay" ? "قسم" : project.projectType === "scenario" ? "مشهد" : project.projectType === "short_story" ? "مقطع" : "فصل";
+  const typeLabel = project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خاطرة" : project.projectType === "social_media" ? "سوشيال ميديا" : project.projectType === "poetry" ? "قصيدة" : "رواية";
+  const chapterLabel = project.projectType === "essay" ? "قسم" : project.projectType === "scenario" ? "مشهد" : project.projectType === "short_story" ? "مقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "فصل";
   const visibleChapters = project.chapters.filter(ch => ch.content).sort((a, b) => a.chapterNumber - b.chapterNumber);
   const readCount = visibleChapters.filter(ch => readChapters.has(ch.chapterNumber)).length;
   const totalChapters = visibleChapters.length;

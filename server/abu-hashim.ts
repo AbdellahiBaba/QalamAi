@@ -1,4 +1,5 @@
 import type { Character, CharacterRelationship, NovelProject, Chapter } from "@shared/schema";
+import { getMeterInfo, ERAS, POETRY_THEMES, POETRY_TONES, buildProsodyPromptSection, buildEraStyleSection, buildRhymeRulesSection } from "./arabic-prosody";
 
 function buildDialectInstruction(allowDialect: boolean, projectType: string): string {
   if (allowDialect) {
@@ -903,6 +904,7 @@ export function buildTitleSuggestionPrompt(data: {
     short_story: "قصة قصيرة",
     khawater: "خاطرة",
     social_media: "محتوى سوشيال ميديا",
+    poetry: "قصيدة عمودية",
   };
   const typeLabel = typeLabels[data.projectType || "novel"] || "عمل أدبي";
 
@@ -969,6 +971,13 @@ export function buildTitleSuggestionPrompt(data: {
 3. عنوان استفهامي — يدفع للتفاعل
 4. عنوان عاطفي — يلمس المشاعر
 5. عنوان حر — أي أسلوب تراه الأنسب`,
+    poetry: `اقترح 5 عناوين مختلفة لقصيدة عمودية عربية:
+
+1. عنوان شعري — يحمل إيقاعاً موسيقياً وصورة بلاغية (مثل: "رسالة من الظل"، "عتاب النجوم")
+2. عنوان رمزي — يلمّح للمعنى بعمق (مثل: "مرايا الروح"، "طوفان الحنين")
+3. عنوان كلاسيكي — على نمط العناوين العربية التراثية (مثل: "لامية العرب"، "نونية ابن زيدون")
+4. عنوان وجداني — يعبّر عن المشاعر بقوة (مثل: "نزيف القلب"، "وجع المسافات")
+5. عنوان حر — أي أسلوب تراه الأنسب`,
   };
 
   const instructions = typeInstructions[data.projectType || "novel"] || typeInstructions.novel;
@@ -1003,6 +1012,7 @@ export function buildFullProjectSuggestionPrompt(data: {
     short_story: "قصة قصيرة",
     khawater: "خاطرة",
     social_media: "محتوى سوشيال ميديا",
+    poetry: "قصيدة عمودية",
   };
   const typeLabel = typeLabels[data.projectType] || "رواية عربية";
   const hintNote = data.hint ? `\n\nتلميح من الكاتب: "${data.hint}"\nاستلهم من هذا التلميح لبناء المشروع الكامل.` : "";
@@ -1112,6 +1122,16 @@ export function buildFullProjectSuggestionPrompt(data: {
 {
   "title": "عنوان/حملة المحتوى",
   "mainIdea": "فكرة المحتوى مفصلة (2-3 جمل)"
+}`,
+    poetry: `اقترح مشروع قصيدة عمودية عربية كامل يتضمن:
+{
+  "title": "عنوان القصيدة",
+  "mainIdea": "موضوع القصيدة مفصلاً (2-3 جمل)",
+  "poetryMeter": "أحد هذه القيم فقط: taweel أو kamel أو baseet أو wafer أو rajaz أو ramal أو hazaj أو saree أو munsarih أو khafeef أو mudarei أو muqtadab أو mujtath أو mutaqareb أو mutadarek",
+  "poetryRhyme": "حرف عربي واحد للقافية",
+  "poetryEra": "أحد هذه القيم فقط: jahili أو umawi أو abbasi أو andalusi أو hadith",
+  "poetryTone": "أحد هذه القيم فقط: romantic أو epic أو mystical أو melancholic أو triumphant أو contemplative أو passionate أو satirical أو nostalgic أو solemn",
+  "poetryTheme": "أحد هذه القيم فقط: ghazal أو fakhr أو madh أو hija أو ritha أو hikma أو wasf أو hamasa أو zuhd أو itab أو hanin أو watani أو ijtimaii أو falsafi"
 }`,
   };
 
@@ -2677,6 +2697,8 @@ export function buildCoverPrompt(project: NovelProject): string {
     ? { label: "Arabic cinematic screenplay/film cover", style: "Cinematic, dramatic poster-style design suitable for an Arabic screenplay or film project" }
     : project.projectType === "short_story"
     ? { label: "Arabic short story book cover", style: "Artistic, intimate book cover suitable for an Arabic short story collection — evocative, minimalist, literary" }
+    : project.projectType === "poetry"
+    ? { label: "Arabic classical poetry diwan cover", style: "Majestic, ornate cover with Islamic geometric patterns, Arabic calligraphy motifs, and gold leaf accents — suitable for a classical Arabic poetry collection (ديوان شعر)" }
     : { label: "Arabic novel book cover", style: "Elegant, literary book cover suitable for an Arabic novel" };
 
   return `Design an artistic ${typeConfig.label}.
@@ -3046,13 +3068,174 @@ ${chapterContent.substring(0, 8000)}
   return { system, user };
 }
 
+const POETRY_SYSTEM_PROMPT = `أنت أبو هاشم — شاعر وعروضي ضليع، وكيل أدبي ذكي متخصص في نظم الشعر العربي العمودي الأصيل.
+تمتلك معرفة أكاديمية عميقة بعلم العروض على مستوى الخليل بن أحمد الفراهيدي والأخفش الأوسط وابن جني وحازم القرطاجني.
+
+═══════════════════════════════════════
+المكتبة الشعرية — أساتذة الشعر العربي
+═══════════════════════════════════════
+
+أنت تحمل في ذاكرتك الأدبية معرفة عميقة بأساليب عمالقة الشعر العربي عبر العصور:
+
+● امرؤ القيس — أمير الشعراء الجاهليين:
+  - قوة التصوير الحسي والبصري، وصف الخيل والصيد والطبيعة الصحراوية
+  - التشبيهات المتتالية المبتكرة والاستعارات الجريئة
+  - فخامة اللغة وجزالة الألفاظ مع سلاسة التعبير
+
+● المتنبي — شاعر الحكمة والفخر:
+  - الجمع بين الفخر والحكمة في بيت واحد
+  - الألفاظ القوية الجزلة التي تحمل ثقل المعنى
+  - الصور الشعرية المركبة التي تجمع بين الحسي والمعنوي
+  - الموسيقى الداخلية القوية
+
+● أبو تمام — رائد البديع:
+  - المحسنات البديعية المبتكرة (الطباق، الجناس، التورية)
+  - المعاني العميقة المغلفة بالصنعة الأدبية الرفيعة
+  - الصور الذهنية المركبة التي تحتاج تأملاً
+
+● أبو نواس — شاعر التجديد العباسي:
+  - كسر القوالب التقليدية مع الحفاظ على الوزن والقافية
+  - السخرية الذكية والمرح الأدبي الرفيع
+  - الجمع بين الخمريات والزهد والحكمة
+
+● ابن زيدون — شاعر الأندلس:
+  - رقة العاطفة وعذوبة الألفاظ
+  - وصف الطبيعة الأندلسية بتفاصيل حسية دقيقة
+  - الحنين والشوق المنسوجان في نسيج موسيقي رقيق
+
+● أحمد شوقي — أمير الشعراء:
+  - الجمع بين التراث الشعري الكلاسيكي والتجديد المعاصر
+  - المسرح الشعري والقصيدة الوطنية
+  - فخامة الأسلوب مع وضوح المعنى
+
+● محمود درويش — شاعر المقاومة:
+  - تحويل الهمّ الوطني إلى تجربة إنسانية كونية
+  - الصور الشعرية المبتكرة التي تمزج الحسي بالرمزي
+  - الموسيقى الداخلية الغنية مع الالتزام بالعمودي عند نظمه
+
+═══════════════════════════════════════
+القواعد العروضية الأساسية
+═══════════════════════════════════════
+
+أنت تلتزم التزاماً مطلقاً بقواعد علم العروض والقافية:
+- الوزن العروضي الصحيح وفقاً للبحر المختار — لا يجوز أي خلل في الوزن
+- التفعيلات الصحيحة مع جوازات الزحاف والعلل المسموح بها فقط في كل تفعيلة وكل موضع
+- القافية والروي وفق قواعد القافية الكاملة — الروي ثابت، حركته متّسقة، بلا إقواء ولا إكفاء ولا سناد
+- موسيقى البيت متوازنة بين الصدر والعجز
+- كل بيت مستقل المعنى مع ارتباطه بالسياق العام للقصيدة
+
+═══════════════════════════════════════
+قواعد اللغة والأسلوب
+═══════════════════════════════════════
+
+- اكتب بالعربية الفصحى حصراً — لغة الشعر الرفيعة
+- التزم بسلامة النحو والصرف والإعراب
+- استخدم همزة القطع والوصل بشكل صحيح
+- استخدم علامات الترقيم العربية
+- تجنب الألفاظ المعاصرة الدخيلة التي تتنافر مع روح القصيدة
+- اجعل كل بيت على سطر مستقل بصيغة: الصدر *** العجز
+- لا تُرقّم الأبيات ولا تضف عناوين فرعية`;
+
+export function buildPoetryPrompt(project: any): { system: string; user: string } {
+  const meter = getMeterInfo(project.poetryMeter || "taweel");
+  const meterName = meter?.name || "الطويل";
+  const era = ERAS[project.poetryEra || "abbasi"];
+  const eraName = era?.name || "عباسي";
+  const theme = POETRY_THEMES.find(t => t.id === (project.poetryTheme || "ghazal"));
+  const themeName = theme?.name || "غزل";
+  const themeDesc = theme?.description || "";
+  const tone = POETRY_TONES.find(t => t.id === (project.poetryTone || "romantic"));
+  const toneName = tone?.name || "رومانسي";
+  const toneDesc = tone?.description || "";
+  const rhymeLetter = project.poetryRhyme || "ن";
+  const verseCount = project.poetryVerseCount || 10;
+  const imageryLevel = project.poetryImageryLevel ?? 5;
+  const emotionLevel = project.poetryEmotionLevel ?? 7;
+
+  let prompt = `انظم قصيدة عمودية بعنوان "${project.title || "بدون عنوان"}".
+
+═══ المعطيات الأساسية ═══
+
+الموضوع: ${project.mainIdea}
+الغرض الشعري: ${themeName} — ${themeDesc}
+النغمة: ${toneName} — ${toneDesc}
+العصر الأدبي: ${eraName}
+عدد الأبيات المطلوب: ${verseCount} بيتاً
+البحر: ${meterName}
+حرف الروي: ${rhymeLetter}
+مستوى التصوير البلاغي: ${imageryLevel}/10
+شدة العاطفة: ${emotionLevel}/10
+
+`;
+
+  if (project.poetryMeter && meter) {
+    prompt += buildProsodyPromptSection(project.poetryMeter);
+    prompt += "\n";
+  }
+
+  if (project.poetryEra && era) {
+    prompt += buildEraStyleSection(project.poetryEra);
+    prompt += "\n";
+  }
+
+  prompt += buildRhymeRulesSection(rhymeLetter);
+
+  const imageryInstructions = imageryLevel <= 3
+    ? "استخدم صوراً بلاغية بسيطة ومباشرة — تشبيهات واضحة بلا تعقيد"
+    : imageryLevel <= 6
+    ? "استخدم صوراً بلاغية متوسطة — مزج بين التشبيه والاستعارة والكناية"
+    : "أغرق في الصور البلاغية المركبة — استعارات مكنية وتصريحية، تشبيهات ضمنية، كنايات متعددة الطبقات، مجازات مرسلة";
+
+  const emotionInstructions = emotionLevel <= 3
+    ? "نبرة هادئة رزينة — عاطفة مكبوتة تظهر في التلميح لا التصريح"
+    : emotionLevel <= 6
+    ? "عاطفة متوسطة — توازن بين العقل والوجدان"
+    : "عاطفة جيّاشة متدفقة — اجعل كل بيت ينبض بالمشاعر الحارة";
+
+  prompt += `
+═══ تعليمات التصوير والعاطفة ═══
+
+${imageryInstructions}
+${emotionInstructions}
+
+═══ تعليمات النظم ═══
+
+- انظم ${verseCount} بيتاً من البحر ${meterName}
+- التزم بحرف الروي "${rhymeLetter}" في نهاية كل بيت (العجز) التزاماً تاماً
+- اكتب كل بيت بصيغة: الصدر *** العجز (الصدر ثم ثلاث نجمات ثم العجز)
+- اجعل المطلع (البيت الأول) قوياً ومؤثراً يشدّ القارئ
+- اجعل الخاتمة (البيت الأخير) مؤثرة وخالدة
+- نوّع في المعاني بين الأبيات — لا تكرر نفس المعنى بصياغات مختلفة
+- اجعل كل بيت مستقل المعنى قدر الإمكان مع ارتباطه بالسياق العام
+- حافظ على التوازن الموسيقي بين الصدر والعجز
+- استخدم الزحافات المسموح بها فقط في حدود ما يحتمله البحر ${meterName}
+- لا تستخدم زحافاً أو علة ممنوعة في هذا البحر
+
+═══ قائمة مراجعة الجودة ═══
+
+قبل تسليم القصيدة، تحقق من:
+
+□ عدد الأبيات يساوي ${verseCount} بالضبط
+□ كل بيت موزون وفق البحر ${meterName} بلا خلل
+□ الروي "${rhymeLetter}" ثابت في جميع الأبيات
+□ حركة الروي متّسقة في كل الأبيات
+□ لا إقواء ولا إكفاء ولا سناد
+□ المطلع قوي والخاتمة مؤثرة
+□ سلامة النحو والصرف والإعراب
+□ الأسلوب يتناسب مع العصر ${eraName}
+□ كل بيت على سطر مستقل بصيغة: الصدر *** العجز
+□ لا أرقام ولا عناوين فرعية — نص القصيدة فقط`;
+
+  return { system: POETRY_SYSTEM_PROMPT, user: prompt };
+}
+
 export function buildGeneralChatPrompt(userMessage: string): { system: string; user: string } {
   const system = `أنت أبو هاشم — الوكيل الأدبي الافتراضي في منصة QalamAI.
 أنت مستشار أدبي محترف ومتمرس، مُلهم من عمالقة الأدب العربي: نجيب محفوظ، غسان كنفاني، أحلام مستغانمي، عبد الرحمن منيف، الطيب صالح.
 
 ═══ مهامك ═══
 - تقديم نصائح أدبية عامة للكتّاب العرب
-- المساعدة في العصف الذهني وتوليد أفكار لمشاريع جديدة (روايات، مقالات، سيناريوهات، قصص قصيرة، خواطر، محتوى رقمي)
+- المساعدة في العصف الذهني وتوليد أفكار لمشاريع جديدة (روايات، مقالات، سيناريوهات، قصص قصيرة، خواطر، قصائد عمودية، محتوى رقمي)
 - شرح تقنيات السرد والكتابة الإبداعية
 - المساعدة في التغلب على حصار الكاتب (Writer's Block)
 - تقديم إرشادات حول بناء الشخصيات والحبكة والحوار

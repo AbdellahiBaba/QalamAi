@@ -550,6 +550,12 @@ export default function Home() {
                   محتوى سوشيال ميديا
                 </DropdownMenuItem>
               </Link>
+              <Link href="/project/new?type=poetry">
+                <DropdownMenuItem data-testid="menu-new-poetry">
+                  <BookMarked className="w-4 h-4 ml-2" />
+                  قصيدة عمودية
+                </DropdownMenuItem>
+              </Link>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -777,7 +783,7 @@ export default function Home() {
                     <div className="space-y-3">
                       {writingStats.projectBreakdown.slice(0, 8).map((proj) => {
                         const maxWords = Math.max(...writingStats.projectBreakdown.map(p => p.words), 1);
-                        const typeLabel = proj.type === "essay" ? "مقال" : proj.type === "scenario" ? "سيناريو" : proj.type === "short_story" ? "قصة قصيرة" : proj.type === "khawater" ? "خاطرة" : proj.type === "social_media" ? "سوشيال ميديا" : "رواية";
+                        const typeLabel = proj.type === "essay" ? "مقال" : proj.type === "scenario" ? "سيناريو" : proj.type === "short_story" ? "قصة قصيرة" : proj.type === "khawater" ? "خاطرة" : proj.type === "social_media" ? "سوشيال ميديا" : proj.type === "poetry" ? "قصيدة" : "رواية";
                         return (
                           <div key={proj.projectId} data-testid={`breakdown-project-${proj.projectId}`}>
                             <div className="flex items-center justify-between gap-2 mb-1">
@@ -842,6 +848,7 @@ export default function Home() {
                       <SelectItem value="short_story">قصة قصيرة</SelectItem>
                       <SelectItem value="khawater">خاطرة</SelectItem>
                       <SelectItem value="social_media">سوشيال ميديا</SelectItem>
+                      <SelectItem value="poetry">قصيدة</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -941,6 +948,7 @@ export default function Home() {
                       <div className="flex items-center gap-2">
                         {(project.projectType === "essay") && <Newspaper className="w-4 h-4 text-blue-500 shrink-0" />}
                         {(project.projectType === "scenario") && <Film className="w-4 h-4 text-purple-500 shrink-0" />}
+                        {(project.projectType === "poetry") && <BookMarked className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                         {(!project.projectType || project.projectType === "novel") && <BookOpen className="w-4 h-4 text-primary shrink-0" />}
                         <h3 className="font-serif text-lg font-semibold line-clamp-2" data-testid={`text-project-title-${project.id}`}>
                           {project.title}
@@ -952,7 +960,7 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خاطرة" : project.projectType === "social_media" ? "سوشيال ميديا" : "رواية"}
+                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خاطرة" : project.projectType === "social_media" ? "سوشيال ميديا" : project.projectType === "poetry" ? "قصيدة" : "رواية"}
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {project.mainIdea}
@@ -1063,7 +1071,7 @@ export default function Home() {
             </div>
             <h2 className="font-serif text-2xl font-semibold mb-3">لا توجد مشاريع بعد</h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              ابدأ بإنشاء مشروعك الأول — رواية، مقال، سيناريو، خاطرة، أو محتوى سوشيال ميديا. وسيساعدك أبو هاشم في الكتابة بأسلوب احترافي
+              ابدأ بإنشاء مشروعك الأول — رواية، مقال، سيناريو، خاطرة، قصيدة، أو محتوى سوشيال ميديا. وسيساعدك أبو هاشم في الكتابة بأسلوب احترافي
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href="/project/new">
@@ -1100,6 +1108,12 @@ export default function Home() {
                 <Button size="lg" variant="outline" data-testid="button-empty-new-social-media">
                   <Share2 className="w-4 h-4 ml-2" />
                   محتوى سوشيال ميديا
+                </Button>
+              </Link>
+              <Link href="/project/new?type=poetry">
+                <Button size="lg" variant="outline" data-testid="button-empty-new-poetry">
+                  <BookMarked className="w-4 h-4 ml-2" />
+                  قصيدة عمودية
                 </Button>
               </Link>
             </div>
@@ -1238,6 +1252,19 @@ export default function Home() {
                     </div>
                     <h4 className="font-semibold text-sm">سوشيال ميديا</h4>
                     <p className="text-xs text-muted-foreground">محتوى منصات التواصل الاجتماعي</p>
+                  </CardContent>
+                </Card>
+                <Card
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "poetry" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("poetry")}
+                  data-testid="card-project-type-poetry"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
+                      <BookMarked className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <h4 className="font-semibold text-sm">قصيدة</h4>
+                    <p className="text-xs text-muted-foreground">شعر عمودي بأوزان وقوافٍ</p>
                   </CardContent>
                 </Card>
               </div>
@@ -1380,6 +1407,7 @@ export default function Home() {
                         short_story: "/project/new/short-story",
                         khawater: "/project/new/khawater",
                         social_media: "/project/new/social-media",
+                        poetry: "/project/new?type=poetry",
                       };
                       navigate(routes[selectedProjectType]);
                     }

@@ -120,6 +120,25 @@ export function getTypeLabels(projectType?: string): TypeLabels {
       allDone: "تم الانتهاء من إنشاء المحتوى!",
     };
   }
+  if (projectType === "poetry") {
+    return {
+      chaptersLabel: "القصيدة",
+      chapterSingular: "القصيدة",
+      outlineLabel: "—",
+      typeLabel: "قصيدة",
+      writeAll: "انظم القصيدة",
+      writeOne: "انظم القصيدة",
+      createOutline: "",
+      outlineCreating: "",
+      approveOutline: "",
+      noOutline: "",
+      mustApprove: "",
+      mustApproveDesc: "",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من نظم القصيدة.",
+      paymentDesc: "إتمام الدفع للبدء بنظم القصيدة",
+      allDone: "تم الانتهاء من نظم القصيدة!",
+    };
+  }
   return {
     chaptersLabel: "الفصول",
     chapterSingular: "الفصل",
