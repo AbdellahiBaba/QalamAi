@@ -3,22 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Feather, BookOpen, Sparkles, Heart, Shield, PenTool, Quote, Users } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { ThemeToggle } from "@/components/theme-toggle";
-
-const navLinks = [
-  { label: "الرئيسية", href: "/" },
-  { label: "المعرض", href: "/gallery" },
-  { label: "المقالات", href: "/essays" },
-  { label: "من نحن", href: "/about" },
-  { label: "المميزات", href: "/features" },
-  { label: "الأسعار", href: "/pricing" },
-  { label: "تواصل معنا", href: "/contact" },
-  { label: "أبو هاشم", href: "/abu-hashim" },
-];
-
-const footerOnlyLinks = [
-  { label: "آراء المستخدمين", href: "/reviews" },
-];
+import { SharedNavbar, navLinks, footerOnlyLinks } from "@/components/shared-navbar";
 
 const inspirations = [
   {
@@ -61,33 +46,7 @@ export default function AbuHashim() {
   useDocumentTitle("أبو هاشم — وكيلك الأدبي الذكي");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-              <Feather className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <Link href="/">
-              <span className="font-serif text-xl font-bold cursor-pointer" data-testid="text-logo">QalamAI</span>
-            </Link>
-          </div>
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <span className="text-sm text-muted-foreground cursor-pointer hover-elevate px-2 py-1 rounded-md" data-testid={`link-nav-${link.href.slice(1) || "home"}`}>
-                  {link.label}
-                </span>
-              </Link>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link href="/login">
-              <Button data-testid="button-login">تسجيل الدخول</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SharedNavbar />
 
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-4xl mx-auto text-center space-y-8">

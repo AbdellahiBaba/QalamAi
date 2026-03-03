@@ -14,33 +14,12 @@ import {
   MessageSquareQuote,
   Star,
   ChevronLeft,
-  Menu,
-  X,
-  Sun,
-  Moon,
 } from "lucide-react";
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useTheme } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { MarketingPopup } from "@/components/marketing-popup";
 import { EssaysMarketingPopup } from "@/components/essays-marketing-popup";
 import { SocialMediaIcons } from "@/components/social-media-icons";
-
-const navLinks = [
-  { label: "الرئيسية", href: "/" },
-  { label: "المعرض", href: "/gallery" },
-  { label: "المقالات", href: "/essays" },
-  { label: "من نحن", href: "/about" },
-  { label: "المميزات", href: "/features" },
-  { label: "الأسعار", href: "/pricing" },
-  { label: "تواصل معنا", href: "/contact" },
-  { label: "أبو هاشم", href: "/abu-hashim" },
-];
-
-const footerOnlyLinks = [
-  { label: "آراء المستخدمين", href: "/reviews" },
-];
+import { SharedNavbar, navLinks, footerOnlyLinks } from "@/components/shared-navbar";
 
 interface LandingReview {
   id: number;
@@ -52,8 +31,6 @@ interface LandingReview {
 
 export default function Landing() {
   useDocumentTitle("QalamAI — حيث تتحوّل الفكرة إلى رواية");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
   const { data: realReviews } = useQuery<LandingReview[]>({
     queryKey: ["/api/reviews"],
   });
@@ -94,72 +71,7 @@ export default function Landing() {
       />
       <MarketingPopup />
       <EssaysMarketingPopup />
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
-              <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
-            </div>
-            <span className="font-serif text-lg sm:text-xl font-bold" data-testid="text-logo">QalamAI</span>
-          </div>
-
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <span
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}
-                >
-                  {link.label}
-                </span>
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeToggle />
-            <Link href="/login">
-              <Button variant="outline" size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
-            </Link>
-            <Link href="/login">
-              <Button size="sm" className="hidden sm:inline-flex text-xs sm:text-sm" data-testid="button-signup">إنشاء حساب جديد</Button>
-            </Link>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              data-testid="button-mobile-menu"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t bg-background px-4 sm:px-6 py-4 space-y-3">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <span
-                  className="block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-1"
-                  onClick={() => setMobileMenuOpen(false)}
-                  data-testid={`link-mobile-nav-${link.href.replace("/", "") || "home"}`}
-                >
-                  {link.label}
-                </span>
-              </Link>
-            ))}
-            <Link href="/login">
-              <span
-                className="block sm:hidden text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer py-1"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                إنشاء حساب جديد
-              </span>
-            </Link>
-          </div>
-        )}
-      </nav>
+      <SharedNavbar />
 
       <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 sm:gap-16 items-center">

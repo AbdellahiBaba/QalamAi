@@ -10,8 +10,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { SocialMediaIcons } from "@/components/social-media-icons";
+import { SharedNavbar, navLinks, footerOnlyLinks } from "@/components/shared-navbar";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
@@ -169,21 +169,6 @@ const faqItems = [
     q: "هل تُحفظ مشاريعي بأمان؟",
     a: "بالتأكيد، جميع مشاريعك محفوظة بأمان ويمكنك الوصول إليها في أي وقت من لوحة التحكم.",
   },
-];
-
-const navLinks = [
-  { label: "الرئيسية", href: "/" },
-  { label: "المعرض", href: "/gallery" },
-  { label: "المقالات", href: "/essays" },
-  { label: "من نحن", href: "/about" },
-  { label: "المميزات", href: "/features" },
-  { label: "الأسعار", href: "/pricing" },
-  { label: "تواصل معنا", href: "/contact" },
-  { label: "أبو هاشم", href: "/abu-hashim" },
-];
-
-const footerOnlyLinks = [
-  { label: "آراء المستخدمين", href: "/reviews" },
 ];
 
 function isPlanActive(userPlan: string | null | undefined, planKey: string): boolean {
@@ -470,35 +455,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/">
-              <div className="flex items-center gap-2 sm:gap-3 cursor-pointer">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
-                  <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
-                </div>
-                <span className="font-serif text-lg sm:text-xl font-bold" data-testid="text-logo">QalamAI</span>
-              </div>
-            </Link>
-          </div>
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <span className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors" data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}>
-                  {link.label}
-                </span>
-              </Link>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link href="/login">
-              <Button size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SharedNavbar />
 
       <section className="pt-24 sm:pt-32 pb-12 sm:pb-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto text-center">

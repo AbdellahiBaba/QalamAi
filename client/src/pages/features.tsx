@@ -3,8 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { SocialMediaIcons } from "@/components/social-media-icons";
+import { SharedNavbar, navLinks, footerOnlyLinks } from "@/components/shared-navbar";
 import {
   Feather,
   BookOpen,
@@ -28,21 +28,6 @@ import {
   Crown,
   CheckCircle2,
 } from "lucide-react";
-
-const navLinks = [
-  { title: "الرئيسية", href: "/" },
-  { title: "المعرض", href: "/gallery" },
-  { title: "المقالات", href: "/essays" },
-  { title: "من نحن", href: "/about" },
-  { title: "المميزات", href: "/features" },
-  { title: "الأسعار", href: "/pricing" },
-  { title: "تواصل معنا", href: "/contact" },
-  { title: "أبو هاشم", href: "/abu-hashim" },
-];
-
-const footerOnlyLinks = [
-  { title: "آراء المستخدمين", href: "/reviews" },
-];
 
 const novelFeatures = [
   {
@@ -232,35 +217,7 @@ export default function Features() {
   useDocumentTitle("مميزات قلم AI — أدوات الكتابة الإبداعية");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link href="/">
-              <div className="flex items-center gap-3 cursor-pointer">
-                <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-                  <Feather className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="font-serif text-xl font-bold" data-testid="text-logo">QalamAI</span>
-              </div>
-            </Link>
-          </div>
-          <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <span className="text-sm text-muted-foreground cursor-pointer hover-elevate px-2 py-1 rounded-md" data-testid={`link-nav-${link.href.replace("/", "") || "home"}`}>
-                  {link.title}
-                </span>
-              </Link>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link href="/login">
-              <Button data-testid="button-login">تسجيل الدخول</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SharedNavbar />
 
       <section className="pt-32 pb-16 px-6">
         <div className="max-w-6xl mx-auto text-center">
@@ -358,7 +315,7 @@ export default function Features() {
               {[...navLinks, ...footerOnlyLinks].map((link) => (
                 <Link key={link.href} href={link.href}>
                   <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md" data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}>
-                    {link.title}
+                    {link.label}
                   </span>
                 </Link>
               ))}

@@ -201,11 +201,11 @@ ${pages.map(p => `  <url>
   app.get("/api/user/plan", isAuthenticated, async (req: any, res) => {
     try {
       const user = await storage.getUser(req.user.claims.sub);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
       res.json({ plan: user.plan || "free", planPurchasedAt: user.planPurchasedAt });
     } catch (error) {
       console.error("Error fetching plan:", error);
-      res.status(500).json({ error: "Failed to fetch plan" });
+      res.status(500).json({ error: "فشل في جلب الخطة" });
     }
   });
 
@@ -219,7 +219,7 @@ ${pages.map(p => `  <url>
       }
 
       const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
 
       if (user.plan === plan || user.plan === "all_in_one") {
         return res.json({ message: "الخطة مفعّلة بالفعل", alreadyActive: true });
@@ -298,7 +298,7 @@ ${pages.map(p => `  <url>
       }
 
       const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
 
       if (user.plan === plan || user.plan === "all_in_one") {
         return res.json({ success: true, plan: user.plan });
@@ -526,7 +526,7 @@ ${pages.map(p => `  <url>
       res.json(projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
-      res.status(500).json({ error: "Failed to fetch projects" });
+      res.status(500).json({ error: "فشل في جلب المشاريع" });
     }
   });
 
@@ -555,7 +555,7 @@ ${pages.map(p => `  <url>
       res.json(statsMap);
     } catch (error) {
       console.error("Error fetching project stats:", error);
-      res.status(500).json({ error: "Failed to fetch project stats" });
+      res.status(500).json({ error: "فشل في جلب إحصائيات المشروع" });
     }
   });
 
@@ -566,7 +566,7 @@ ${pages.map(p => `  <url>
       res.json(favoriteIds);
     } catch (error) {
       console.error("Error fetching favorites:", error);
-      res.status(500).json({ error: "Failed to fetch favorites" });
+      res.status(500).json({ error: "فشل في جلب المفضّلات" });
     }
   });
 
@@ -582,7 +582,7 @@ ${pages.map(p => `  <url>
       res.json(result);
     } catch (error) {
       console.error("Error toggling favorite:", error);
-      res.status(500).json({ error: "Failed to toggle favorite" });
+      res.status(500).json({ error: "فشل في تعديل المفضّلة" });
     }
   });
 
@@ -640,7 +640,7 @@ ${pages.map(p => `  <url>
       });
     } catch (error) {
       console.error("Error fetching writing stats:", error);
-      res.status(500).json({ error: "Failed to fetch writing stats" });
+      res.status(500).json({ error: "فشل في جلب إحصائيات الكتابة" });
     }
   });
 
@@ -648,7 +648,7 @@ ${pages.map(p => `  <url>
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
 
       const today = new Date().toISOString().split("T")[0];
       const projects = await storage.getProjectsByUser(userId);
@@ -675,7 +675,7 @@ ${pages.map(p => `  <url>
       });
     } catch (error) {
       console.error("Error fetching writing streak:", error);
-      res.status(500).json({ error: "Failed to fetch writing streak" });
+      res.status(500).json({ error: "فشل في جلب سلسلة الكتابة" });
     }
   });
 
@@ -690,7 +690,7 @@ ${pages.map(p => `  <url>
       res.json({ dailyWordGoal });
     } catch (error) {
       console.error("Error updating daily goal:", error);
-      res.status(500).json({ error: "Failed to update daily goal" });
+      res.status(500).json({ error: "فشل في تحديث الهدف اليومي" });
     }
   });
 
@@ -698,12 +698,12 @@ ${pages.map(p => `  <url>
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       res.json(project);
     } catch (error) {
       console.error("Error fetching project:", error);
-      res.status(500).json({ error: "Failed to fetch project" });
+      res.status(500).json({ error: "فشل في جلب المشروع" });
     }
   });
 
@@ -712,8 +712,8 @@ ${pages.map(p => `  <url>
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (project.paid) return res.json({ message: "المشروع مدفوع بالفعل", alreadyPaid: true });
 
       const user = await storage.getUser(userId);
@@ -770,7 +770,7 @@ ${pages.map(p => `  <url>
       res.json({ checkoutUrl: session.url });
     } catch (error) {
       console.error("Error creating checkout:", error);
-      res.status(500).json({ error: "Failed to create checkout" });
+      res.status(500).json({ error: "فشل في إنشاء عملية الدفع" });
     }
   });
 
@@ -779,8 +779,8 @@ ${pages.map(p => `  <url>
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (project.paid) return res.json(project);
 
       const { sessionId } = req.body;
@@ -796,7 +796,7 @@ ${pages.map(p => `  <url>
       res.json(updated);
     } catch (error) {
       console.error("Error processing payment:", error);
-      res.status(500).json({ error: "Failed to process payment" });
+      res.status(500).json({ error: "فشل في معالجة الدفع" });
     }
   });
 
@@ -1283,7 +1283,7 @@ ${pages.map(p => `  <url>
       res.status(201).json(project);
     } catch (error) {
       console.error("Error creating project:", error);
-      res.status(500).json({ error: "Failed to create project" });
+      res.status(500).json({ error: "فشل في إنشاء المشروع" });
     }
   });
 
@@ -1292,8 +1292,8 @@ ${pages.map(p => `  <url>
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const userId = req.user.claims.sub;
       const isFreeUser = FREE_ACCESS_USER_IDS.includes(userId);
@@ -1467,7 +1467,7 @@ ${pages.map(p => `  <url>
       res.json(updated);
     } catch (error) {
       console.error("Error generating outline:", error);
-      res.status(500).json({ error: "Failed to generate outline" });
+      res.status(500).json({ error: "فشل في توليد المخطط" });
     }
   });
 
@@ -1475,14 +1475,14 @@ ${pages.map(p => `  <url>
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const updated = await storage.updateProject(id, { outlineApproved: 1, status: "writing" });
       res.json(updated);
     } catch (error) {
       console.error("Error approving outline:", error);
-      res.status(500).json({ error: "Failed to approve outline" });
+      res.status(500).json({ error: "فشل في اعتماد المخطط" });
     }
   });
 
@@ -1490,8 +1490,8 @@ ${pages.map(p => `  <url>
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (project.outlineApproved) return res.status(400).json({ error: "لا يمكن تعديل المخطط بعد الموافقة عليه" });
 
       const { outline } = req.body;
@@ -1510,8 +1510,8 @@ ${pages.map(p => `  <url>
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (project.outlineApproved) return res.status(400).json({ error: "لا يمكن تعديل المخطط بعد الموافقة عليه" });
 
       const { instruction } = req.body;
@@ -1556,8 +1556,8 @@ ${pages.map(p => `  <url>
       const chapterId = parseInt(req.params.chapterId);
 
       const project = await storage.getProject(projectId);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const isFreeUser = FREE_ACCESS_USER_IDS.includes(req.user.claims.sub);
       const chapterUser = await storage.getUser(req.user.claims.sub);
@@ -1578,7 +1578,7 @@ ${pages.map(p => `  <url>
       }
 
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
 
       let oldWordCount = 0;
       if (chapter.status === "completed" && chapter.content) {
@@ -1703,10 +1703,10 @@ ${pages.map(p => `  <url>
         }
       } catch {}
       if (res.headersSent) {
-        res.write(`data: ${JSON.stringify({ error: "Failed to generate chapter" })}\n\n`);
+        res.write(`data: ${JSON.stringify({ error: "فشل في توليد الفصل" })}\n\n`);
         res.end();
       } else {
-        res.status(500).json({ error: "Failed to generate chapter" });
+        res.status(500).json({ error: "فشل في توليد الفصل" });
       }
     }
   });
@@ -1715,8 +1715,8 @@ ${pages.map(p => `  <url>
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const { name, role, background, motivation, speechStyle, physicalDescription, psychologicalTraits, age } = req.body;
       if (!name || !role || !background) return res.status(400).json({ error: "جميع الحقول مطلوبة" });
@@ -1732,7 +1732,7 @@ ${pages.map(p => `  <url>
       res.status(201).json(character);
     } catch (error) {
       console.error("Error adding character:", error);
-      res.status(500).json({ error: "Failed to add character" });
+      res.status(500).json({ error: "فشل في إضافة الشخصية" });
     }
   });
 
@@ -1741,11 +1741,11 @@ ${pages.map(p => `  <url>
       const projectId = parseInt(req.params.projectId);
       const chapterId = parseInt(req.params.chapterId);
       const project = await storage.getProject(projectId);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter || chapter.projectId !== projectId) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter || chapter.projectId !== projectId) return res.status(404).json({ error: "الفصل غير موجود" });
 
       const { content } = req.body;
       if (typeof content !== "string") return res.status(400).json({ error: "المحتوى مطلوب" });
@@ -1768,7 +1768,7 @@ ${pages.map(p => `  <url>
       res.json(updated);
     } catch (error) {
       console.error("Error updating chapter:", error);
-      res.status(500).json({ error: "Failed to update chapter" });
+      res.status(500).json({ error: "فشل في تحديث الفصل" });
     }
   });
 
@@ -1857,8 +1857,8 @@ ${pages.map(p => `  <url>
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const existingChars = await storage.getCharactersByProject(id);
       const { system, user } = buildCharacterSuggestionPrompt(project, existingChars);
@@ -1901,8 +1901,8 @@ ${pages.map(p => `  <url>
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const coverUser = await storage.getUser(req.user.claims.sub);
       if (coverUser?.plan === "trial" && coverUser.trialActive) {
@@ -2301,8 +2301,8 @@ ${pages.map(p => `  <url>
         return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
       }
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
@@ -2727,9 +2727,9 @@ ${glossaryParagraphs}
 
   const isAdmin = async (req: any, res: any, next: any) => {
     const userId = req.user?.claims?.sub;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    if (!userId) return res.status(401).json({ error: "غير مسجّل الدخول" });
     const user = await storage.getUser(userId);
-    if (!user || user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+    if (!user || user.role !== "admin") return res.status(403).json({ error: "غير مصرّح بالوصول" });
     next();
   };
 
@@ -2748,11 +2748,11 @@ ${glossaryParagraphs}
       }
 
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
 
       const project = await storage.getProject(chapter.projectId);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const { system, user } = buildRewritePrompt(content, tone, project.projectType || "novel");
 
@@ -2789,7 +2789,7 @@ ${glossaryParagraphs}
       res.status(201).json(ticket);
     } catch (error) {
       console.error("Error creating ticket:", error);
-      res.status(500).json({ error: "Failed to create ticket" });
+      res.status(500).json({ error: "فشل في إنشاء التذكرة" });
     }
   });
 
@@ -2800,7 +2800,7 @@ ${glossaryParagraphs}
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
-      res.status(500).json({ error: "Failed to fetch tickets" });
+      res.status(500).json({ error: "فشل في جلب التذاكر" });
     }
   });
 
@@ -2808,13 +2808,13 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const ticket = await storage.getTicket(id);
-      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
-      if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
+      if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       const replies = await storage.getTicketReplies(id);
       res.json({ ...ticket, replies });
     } catch (error) {
       console.error("Error fetching ticket:", error);
-      res.status(500).json({ error: "Failed to fetch ticket" });
+      res.status(500).json({ error: "فشل في جلب التذكرة" });
     }
   });
 
@@ -2822,15 +2822,15 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const ticket = await storage.getTicket(id);
-      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
-      if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
+      if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       const { message } = req.body;
       if (!message) return res.status(400).json({ error: "الرسالة مطلوبة" });
       const reply = await storage.createTicketReply({ ticketId: id, userId: req.user.claims.sub, message, isAdmin: false });
       res.status(201).json(reply);
     } catch (error) {
       console.error("Error creating reply:", error);
-      res.status(500).json({ error: "Failed to create reply" });
+      res.status(500).json({ error: "فشل في إرسال الرد" });
     }
   });
 
@@ -2840,7 +2840,7 @@ ${glossaryParagraphs}
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);
-      res.status(500).json({ error: "Failed to fetch stats" });
+      res.status(500).json({ error: "فشل في جلب الإحصائيات" });
     }
   });
 
@@ -2851,7 +2851,7 @@ ${glossaryParagraphs}
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
-      res.status(500).json({ error: "Failed to fetch tickets" });
+      res.status(500).json({ error: "فشل في جلب التذاكر" });
     }
   });
 
@@ -2859,12 +2859,12 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const ticket = await storage.getTicket(id);
-      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       const replies = await storage.getTicketReplies(id);
       res.json({ ...ticket, replies });
     } catch (error) {
       console.error("Error fetching ticket:", error);
-      res.status(500).json({ error: "Failed to fetch ticket" });
+      res.status(500).json({ error: "فشل في جلب التذكرة" });
     }
   });
 
@@ -2878,13 +2878,13 @@ ${glossaryParagraphs}
       if (status && !VALID_STATUSES.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
       if (priority && !VALID_PRIORITIES.includes(priority)) return res.status(400).json({ error: "أولوية غير صالحة" });
       let ticket = await storage.getTicket(id);
-      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       if (status) ticket = await storage.updateTicketStatus(id, status);
       if (priority) ticket = await storage.updateTicketPriority(id, priority);
       res.json(ticket);
     } catch (error) {
       console.error("Error updating ticket:", error);
-      res.status(500).json({ error: "Failed to update ticket" });
+      res.status(500).json({ error: "فشل في تحديث التذكرة" });
     }
   });
 
@@ -2892,7 +2892,7 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const ticket = await storage.getTicket(id);
-      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       const { message } = req.body;
       if (!message) return res.status(400).json({ error: "الرسالة مطلوبة" });
       const reply = await storage.createTicketReply({ ticketId: id, userId: req.user.claims.sub, message, isAdmin: true });
@@ -2911,7 +2911,7 @@ ${glossaryParagraphs}
       res.status(201).json(reply);
     } catch (error) {
       console.error("Error creating reply:", error);
-      res.status(500).json({ error: "Failed to create reply" });
+      res.status(500).json({ error: "فشل في إرسال الرد" });
     }
   });
 
@@ -2937,7 +2937,7 @@ ${glossaryParagraphs}
       res.json(usersWithStats);
     } catch (error) {
       console.error("Error fetching users:", error);
-      res.status(500).json({ error: "Failed to fetch users" });
+      res.status(500).json({ error: "فشل في جلب المستخدمين" });
     }
   });
 
@@ -2948,7 +2948,7 @@ ${glossaryParagraphs}
       res.json(projects);
     } catch (error) {
       console.error("Error fetching user projects:", error);
-      res.status(500).json({ error: "Failed to fetch user projects" });
+      res.status(500).json({ error: "فشل في جلب مشاريع المستخدم" });
     }
   });
 
@@ -2961,7 +2961,7 @@ ${glossaryParagraphs}
         return res.status(400).json({ error: "خطة غير صالحة" });
       }
       const user = await storage.getUser(userId);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
 
       if (plan === "free") {
         const [updated] = await db.update(users).set({
@@ -2982,7 +2982,7 @@ ${glossaryParagraphs}
       res.json(updated);
     } catch (error) {
       console.error("Error updating user plan:", error);
-      res.status(500).json({ error: "Failed to update user plan" });
+      res.status(500).json({ error: "فشل في تحديث خطة المستخدم" });
     }
   });
 
@@ -3056,14 +3056,14 @@ ${glossaryParagraphs}
     try {
       const chapterId = parseInt(req.params.id);
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
       const project = await storage.getProject(chapter.projectId);
-      if (!project || project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project || project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       const versions = await storage.getChapterVersions(chapterId);
       res.json(versions);
     } catch (error) {
       console.error("Error fetching chapter versions:", error);
-      res.status(500).json({ error: "Failed to fetch versions" });
+      res.status(500).json({ error: "فشل في جلب النسخ" });
     }
   });
 
@@ -3072,14 +3072,14 @@ ${glossaryParagraphs}
       const chapterId = parseInt(req.params.id);
       const versionId = parseInt(req.params.versionId);
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
       const project = await storage.getProject(chapter.projectId);
-      if (!project || project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project || project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       const restored = await storage.restoreChapterVersion(chapterId, versionId);
       res.json(restored);
     } catch (error) {
       console.error("Error restoring version:", error);
-      res.status(500).json({ error: "Failed to restore version" });
+      res.status(500).json({ error: "فشل في استعادة النسخة" });
     }
   });
 
@@ -3087,15 +3087,15 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       const crypto = await import("crypto");
       const token = crypto.randomBytes(16).toString("hex");
       const updated = await storage.updateProject(id, { shareToken: token } as any);
       res.json({ shareToken: updated.shareToken });
     } catch (error) {
       console.error("Error sharing project:", error);
-      res.status(500).json({ error: "Failed to share project" });
+      res.status(500).json({ error: "فشل في مشاركة المشروع" });
     }
   });
 
@@ -3103,13 +3103,13 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       await storage.updateProject(id, { shareToken: null, publishedToGallery: false, publishedToNews: false } as any);
       res.json({ success: true });
     } catch (error) {
       console.error("Error revoking share:", error);
-      res.status(500).json({ error: "Failed to revoke share" });
+      res.status(500).json({ error: "فشل في إلغاء المشاركة" });
     }
   });
 
@@ -3117,9 +3117,9 @@ ${glossaryParagraphs}
     try {
       const { token } = req.params;
       const project = await storage.getProjectByShareToken(token);
-      if (!project) return res.status(404).json({ error: "Not found" });
+      if (!project) return res.status(404).json({ error: "غير موجود" });
       const details = await storage.getProjectWithDetails(project.id);
-      if (!details) return res.status(404).json({ error: "Not found" });
+      if (!details) return res.status(404).json({ error: "غير موجود" });
       res.json({
         id: project.id,
         title: details.title,
@@ -3136,7 +3136,7 @@ ${glossaryParagraphs}
       });
     } catch (error) {
       console.error("Error fetching shared project:", error);
-      res.status(500).json({ error: "Failed to fetch shared project" });
+      res.status(500).json({ error: "فشل في جلب المشروع المشترك" });
     }
   });
 
@@ -3146,7 +3146,7 @@ ${glossaryParagraphs}
       res.json(analytics);
     } catch (error) {
       console.error("Error fetching analytics:", error);
-      res.status(500).json({ error: "Failed to fetch analytics" });
+      res.status(500).json({ error: "فشل في جلب التحليلات" });
     }
   });
 
@@ -3158,7 +3158,7 @@ ${glossaryParagraphs}
       res.json(notifs);
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      res.status(500).json({ error: "Failed to fetch notifications" });
+      res.status(500).json({ error: "فشل في جلب الإشعارات" });
     }
   });
 
@@ -3168,7 +3168,7 @@ ${glossaryParagraphs}
       const count = await storage.getUnreadNotificationCount(userId);
       res.json({ count });
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch count" });
+      res.status(500).json({ error: "فشل في جلب العدد" });
     }
   });
 
@@ -3177,11 +3177,11 @@ ${glossaryParagraphs}
       const id = parseInt(req.params.id);
       const notifs = await storage.getNotificationsByUser(req.user.claims.sub, 1000);
       const owned = notifs.find(n => n.id === id);
-      if (!owned) return res.status(403).json({ error: "Forbidden" });
+      if (!owned) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       const updated = await storage.markNotificationRead(id);
       res.json(updated);
     } catch (error) {
-      res.status(500).json({ error: "Failed to mark as read" });
+      res.status(500).json({ error: "فشل في تعيين كمقروء" });
     }
   });
 
@@ -3191,7 +3191,7 @@ ${glossaryParagraphs}
       await storage.markAllNotificationsRead(userId);
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Failed to mark all as read" });
+      res.status(500).json({ error: "فشل في تعيين الكل كمقروء" });
     }
   });
 
@@ -3207,7 +3207,7 @@ ${glossaryParagraphs}
       if (promo.applicableTo !== "all" && planType && planType !== "" && promo.applicableTo !== planType) return res.status(400).json({ error: "الرمز غير قابل للتطبيق على هذه الخطة" });
       res.json({ valid: true, discountPercent: promo.discountPercent, code: promo.code, applicableTo: promo.applicableTo });
     } catch (error) {
-      res.status(500).json({ error: "Failed to validate promo" });
+      res.status(500).json({ error: "فشل في التحقق من العرض" });
     }
   });
 
@@ -3216,7 +3216,7 @@ ${glossaryParagraphs}
       const promos = await storage.getAllPromoCodes();
       res.json(promos);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch promos" });
+      res.status(500).json({ error: "فشل في جلب العروض" });
     }
   });
 
@@ -3233,7 +3233,7 @@ ${glossaryParagraphs}
       });
       res.status(201).json(promo);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create promo" });
+      res.status(500).json({ error: "فشل في إنشاء العرض" });
     }
   });
 
@@ -3246,7 +3246,7 @@ ${glossaryParagraphs}
       const progress = await storage.upsertReadingProgress(userId, projectId, lastChapterId, scrollPosition);
       res.json(progress);
     } catch (error) {
-      res.status(500).json({ error: "Failed to save progress" });
+      res.status(500).json({ error: "فشل في حفظ التقدم" });
     }
   });
 
@@ -3257,7 +3257,7 @@ ${glossaryParagraphs}
       const progress = await storage.getReadingProgress(userId, projectId);
       res.json(progress || null);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch progress" });
+      res.status(500).json({ error: "فشل في جلب التقدم" });
     }
   });
 
@@ -3266,11 +3266,11 @@ ${glossaryParagraphs}
       const userId = req.user.claims.sub;
       const projectId = parseInt(req.params.id);
       const { chapterId, note } = req.body;
-      if (!chapterId) return res.status(400).json({ error: "chapterId required" });
+      if (!chapterId) return res.status(400).json({ error: "معرّف الفصل مطلوب" });
       const bookmark = await storage.createBookmark({ userId, projectId, chapterId, note });
       res.status(201).json(bookmark);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create bookmark" });
+      res.status(500).json({ error: "فشل في إنشاء الإشارة المرجعية" });
     }
   });
 
@@ -3281,7 +3281,7 @@ ${glossaryParagraphs}
       const bmarks = await storage.getBookmarksByProject(userId, projectId);
       res.json(bmarks);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch bookmarks" });
+      res.status(500).json({ error: "فشل في جلب الإشارات المرجعية" });
     }
   });
 
@@ -3291,12 +3291,12 @@ ${glossaryParagraphs}
       const userId = req.user.claims.sub;
       const allBookmarks = await db.select().from(bookmarks).where(eq(bookmarks.id, id));
       if (!allBookmarks.length || allBookmarks[0].userId !== userId) {
-        return res.status(403).json({ error: "Forbidden" });
+        return res.status(403).json({ error: "غير مصرّح بالوصول" });
       }
       await storage.deleteBookmark(id);
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete bookmark" });
+      res.status(500).json({ error: "فشل في حذف الإشارة المرجعية" });
     }
   });
 
@@ -3305,7 +3305,7 @@ ${glossaryParagraphs}
     try {
       const userId = req.params.id;
       const data = await storage.getPublicAuthor(userId);
-      if (!data) return res.status(404).json({ error: "Author not found" });
+      if (!data) return res.status(404).json({ error: "المؤلف غير موجود" });
       const ratingData = await storage.getAuthorAverageRating(userId);
       res.json({
         id: data.user.id,
@@ -3324,7 +3324,7 @@ ${glossaryParagraphs}
         })),
       });
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch author" });
+      res.status(500).json({ error: "فشل في جلب بيانات المؤلف" });
     }
   });
 
@@ -3369,7 +3369,7 @@ ${glossaryParagraphs}
         authorAverageRating: p.authorAverageRating,
       })));
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch gallery" });
+      res.status(500).json({ error: "فشل في جلب المعرض" });
     }
   });
 
@@ -3404,7 +3404,7 @@ ${glossaryParagraphs}
       essaysWithStats.sort((a, b) => b.clicks - a.clicks);
       res.json(essaysWithStats);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch essays" });
+      res.status(500).json({ error: "فشل في جلب المقالات" });
     }
   });
 
@@ -3416,7 +3416,7 @@ ${glossaryParagraphs}
       await storage.recordEssayView(id, visitorIp, referrer as string | undefined);
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Failed to record view" });
+      res.status(500).json({ error: "فشل في تسجيل المشاهدة" });
     }
   });
 
@@ -3427,7 +3427,7 @@ ${glossaryParagraphs}
       await storage.recordEssayClick(id, visitorIp);
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Failed to record click" });
+      res.status(500).json({ error: "فشل في تسجيل النقرة" });
     }
   });
 
@@ -3492,18 +3492,18 @@ ${glossaryParagraphs}
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
       if (!project || project.projectType !== "essay" || !project.publishedToNews || !project.shareToken) {
-        return res.status(404).json({ error: "Not found" });
+        return res.status(404).json({ error: "غير موجود" });
       }
       const { reactionType } = req.body;
       if (!["like", "love", "insightful", "thoughtful"].includes(reactionType)) {
-        return res.status(400).json({ error: "Invalid reaction type" });
+        return res.status(400).json({ error: "نوع التفاعل غير صالح" });
       }
       const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
       await storage.upsertEssayReaction(id, visitorIp, reactionType);
       const counts = await storage.getEssayReactionCounts(id);
       res.json(counts);
     } catch (error) {
-      res.status(500).json({ error: "Failed to record reaction" });
+      res.status(500).json({ error: "فشل في تسجيل التفاعل" });
     }
   });
 
@@ -3512,12 +3512,12 @@ ${glossaryParagraphs}
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
       if (!project || project.projectType !== "essay" || !project.publishedToNews || !project.shareToken) {
-        return res.status(404).json({ error: "Not found" });
+        return res.status(404).json({ error: "غير موجود" });
       }
       const counts = await storage.getEssayReactionCounts(id);
       res.json(counts);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch reactions" });
+      res.status(500).json({ error: "فشل في جلب التفاعلات" });
     }
   });
 
@@ -3525,7 +3525,7 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project || project.projectType !== "essay") return res.status(404).json({ error: "Not found" });
+      if (!project || project.projectType !== "essay") return res.status(404).json({ error: "غير موجود" });
       const allPublished = await storage.getPublishedEssays();
       const others = allPublished.filter((p: any) => p.id !== id);
       let related = others.filter((p: any) => p.subject && p.subject === project.subject);
@@ -3550,7 +3550,7 @@ ${glossaryParagraphs}
       }));
       res.json(result);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch related essays" });
+      res.status(500).json({ error: "فشل في جلب المقالات ذات الصلة" });
     }
   });
 
@@ -3559,7 +3559,7 @@ ${glossaryParagraphs}
       const analytics = await storage.getEssayAnalytics();
       res.json(analytics);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch essay analytics" });
+      res.status(500).json({ error: "فشل في جلب تحليلات المقال" });
     }
   });
 
@@ -3571,7 +3571,7 @@ ${glossaryParagraphs}
       const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted });
       res.json(updated);
     } catch (error) {
-      res.status(500).json({ error: "Failed to update profile" });
+      res.status(500).json({ error: "فشل في تحديث الملف الشخصي" });
     }
   });
 
@@ -3645,11 +3645,11 @@ ${glossaryParagraphs}
     try {
       const id = parseInt(req.params.id);
       const details = await storage.getProjectWithDetails(id);
-      if (!details) return res.status(404).json({ error: "Project not found" });
+      if (!details) return res.status(404).json({ error: "المشروع غير موجود" });
       const { chapters: chaps, characters: chars, relationships: rels, ...projectData } = details;
       res.json({ project: projectData, chapters: chaps, characters: chars, relationships: rels });
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch project content" });
+      res.status(500).json({ error: "فشل في جلب محتوى المشروع" });
     }
   });
 
@@ -3660,7 +3660,7 @@ ${glossaryParagraphs}
       const updated = await storage.updateProject(id, { flagged: !!flagged, flagReason: flagReason || null } as any);
       res.json(updated);
     } catch (error) {
-      res.status(500).json({ error: "Failed to flag project" });
+      res.status(500).json({ error: "فشل في الإبلاغ عن المشروع" });
     }
   });
 
@@ -3678,7 +3678,7 @@ ${glossaryParagraphs}
       res.setHeader("Content-Disposition", "attachment; filename=users.csv");
       res.send("\uFEFF" + rows.join("\n"));
     } catch (error) {
-      res.status(500).json({ error: "Failed to export users" });
+      res.status(500).json({ error: "فشل في تصدير المستخدمين" });
     }
   });
 
@@ -3702,7 +3702,7 @@ ${glossaryParagraphs}
       }
       res.json({ success: true, updated: userIds.length });
     } catch (error) {
-      res.status(500).json({ error: "Failed to update plans" });
+      res.status(500).json({ error: "فشل في تحديث الخطط" });
     }
   });
 
@@ -3712,7 +3712,7 @@ ${glossaryParagraphs}
       const data = await storage.getAggregatedApiUsage();
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch API usage data" });
+      res.status(500).json({ error: "فشل في جلب بيانات استخدام الواجهة" });
     }
   });
 
@@ -3721,7 +3721,7 @@ ${glossaryParagraphs}
       const logs = await storage.getUserApiUsageLogs(req.params.userId);
       res.json(logs);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch user API logs" });
+      res.status(500).json({ error: "فشل في جلب سجلّات المستخدم" });
     }
   });
 
@@ -3729,12 +3729,12 @@ ${glossaryParagraphs}
     try {
       const { suspended } = req.body;
       if (typeof suspended !== "boolean") {
-        return res.status(400).json({ error: "suspended must be a boolean" });
+        return res.status(400).json({ error: "قيمة التعليق يجب أن تكون صح أو خطأ" });
       }
       const user = await storage.setUserApiSuspended(req.params.id, suspended);
       res.json({ success: true, apiSuspended: user.apiSuspended });
     } catch (error) {
-      res.status(500).json({ error: "Failed to update suspension status" });
+      res.status(500).json({ error: "فشل في تحديث حالة التعليق" });
     }
   });
 
@@ -3745,9 +3745,9 @@ ${glossaryParagraphs}
       const chapterId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
       const project = await storage.getProject(chapter.projectId);
-      if (!project || project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (!chapter.content) return res.status(400).json({ error: "لا يوجد محتوى للفحص" });
 
       const { system, user: userMsg } = buildOriginalityCheckPrompt(chapter.content);
@@ -3791,9 +3791,9 @@ ${glossaryParagraphs}
       const cleanFlagged = flaggedPhrases.filter((s: any) => typeof s === "string").slice(0, 20);
 
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
       const project = await storage.getProject(chapter.projectId);
-      if (!project || project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (!chapter.content) return res.status(400).json({ error: "لا يوجد محتوى للتحسين" });
 
       await storage.saveChapterVersion(chapterId, chapter.content, "before_enhance");
@@ -3837,8 +3837,8 @@ ${glossaryParagraphs}
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const allContent = project.chapters
         .filter((ch: any) => ch.content)
@@ -3878,8 +3878,8 @@ ${glossaryParagraphs}
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const contUser = await storage.getUser(userId);
       if (contUser?.plan === "trial" && contUser.trialActive) {
@@ -3983,8 +3983,8 @@ ${allContent}
       const { issueIndex } = req.body;
 
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       if (!project.continuityCheckResult) {
         return res.status(400).json({ error: "لا توجد نتائج فحص محفوظة" });
@@ -4016,8 +4016,8 @@ ${allContent}
       }
 
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       if (!project.continuityCheckResult) {
         return res.status(400).json({ error: "لا توجد نتائج فحص محفوظة" });
@@ -4060,9 +4060,9 @@ ${allContent}
       if (issue.chapter && typeof issue.chapter !== "number") issue.chapter = parseInt(issue.chapter) || null;
 
       const chapter = await storage.getChapter(chapterId);
-      if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
       const project = await storage.getProject(chapter.projectId);
-      if (!project || project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (!chapter.content) return res.status(400).json({ error: "لا يوجد محتوى للإصلاح" });
 
       const allChapters = await storage.getChaptersByProject(chapter.projectId);
@@ -4153,8 +4153,8 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       const id = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const styleUser = await storage.getUser(userId);
       if (styleUser?.plan === "trial" && styleUser.trialActive) {
@@ -4230,8 +4230,8 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       }
 
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const completedChapters = project.chapters
         .filter((ch: any) => ch.content && ch.status === "completed")
@@ -4371,8 +4371,8 @@ ${ch.content}
       const { issueIndex } = req.body;
 
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       if (!project.styleAnalysisResult) {
         return res.status(400).json({ error: "لا توجد نتائج تحليل محفوظة" });
@@ -4404,8 +4404,8 @@ ${ch.content}
       }
 
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       if (!project.styleAnalysisResult) {
         return res.status(400).json({ error: "لا توجد نتائج تحليل محفوظة" });
@@ -4438,8 +4438,8 @@ ${ch.content}
       const userId = req.user.claims.sub;
 
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       if (!project.continuityCheckResult) {
         return res.status(400).json({ error: "لا توجد نتائج فحص محفوظة" });
@@ -4563,8 +4563,8 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       const userId = req.user.claims.sub;
 
       const project = await storage.getProjectWithDetails(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== userId) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       if (!project.styleAnalysisResult) {
         return res.status(400).json({ error: "لا توجد نتائج تحليل محفوظة" });
@@ -4719,7 +4719,7 @@ ${ch.content}
       const updated = await storage.updateUserProfileExtended(userId, { onboardingCompleted: true });
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Failed to update onboarding" });
+      res.status(500).json({ error: "فشل في تحديث الإعداد الأولي" });
     }
   });
 
@@ -4727,8 +4727,8 @@ ${ch.content}
     try {
       const id = parseInt(req.params.id);
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const continuityUsed = project.continuityCheckCount || 0;
       const continuityPaid = project.continuityCheckPaidCount || 0;
@@ -4745,7 +4745,7 @@ ${ch.content}
         style: { used: styleUsed, remaining: Math.max(0, styleRemaining), total: styleTotal },
       });
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch analysis usage" });
+      res.status(500).json({ error: "فشل في جلب استخدام التحليل" });
     }
   });
 
@@ -4754,12 +4754,12 @@ ${ch.content}
       const id = parseInt(req.params.id);
       const { feature } = req.body;
       if (!feature || !["continuity", "style"].includes(feature)) {
-        return res.status(400).json({ error: "Feature must be 'continuity' or 'style'" });
+        return res.status(400).json({ error: "نوع التحليل يجب أن يكون 'continuity' أو 'style'" });
       }
 
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const stripe = await getUncachableStripeClient();
       const featureLabel = feature === "continuity" ? "فحص الاستمرارية" : "تحليل الأسلوب الأدبي";
@@ -4800,12 +4800,12 @@ ${ch.content}
       const id = parseInt(req.params.id);
       const { sessionId, feature } = req.body;
       if (!sessionId || !feature || !["continuity", "style"].includes(feature)) {
-        return res.status(400).json({ error: "Missing sessionId or feature" });
+        return res.status(400).json({ error: "معرّف الجلسة أو نوع التحليل مفقود" });
       }
 
       const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "Forbidden" });
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const stripe = await getUncachableStripeClient();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -4972,7 +4972,7 @@ ${ch.content}
       const links = await storage.getEnabledSocialMediaLinks();
       res.json(links);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch social links" });
+      res.status(500).json({ error: "فشل في جلب روابط التواصل" });
     }
   });
 

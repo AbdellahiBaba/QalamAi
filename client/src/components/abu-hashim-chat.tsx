@@ -18,6 +18,21 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const [visible, setVisible] = useState(() => {
+    try {
+      const saved = localStorage.getItem("abu-hashim-visible");
+      return saved === null ? true : saved === "true";
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("abu-hashim-visible", String(visible));
+    } catch {}
+  }, [visible]);
+
   const handleSendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const userMsg = chatInput.trim();
@@ -48,33 +63,72 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
   const subtitle = mode === "project" ? "مستشارك الأدبي لهذا المشروع" : "مستشارك الأدبي — اسأله أي شيء عن الكتابة";
   const emptyText = mode === "project" ? "اسأل أبو هاشم أي سؤال عن مشروعك" : "اسأل أبو هاشم أي سؤال عن الكتابة والأدب";
 
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVisible(false);
+    setChatOpen(false);
+  };
+
+  const handleRestore = () => {
+    setVisible(true);
+  };
+
   return (
     <>
-      {mode === "general" ? (
+      {!visible ? (
         <button
-          className="fixed top-20 left-0 z-[9999] flex items-center gap-2 bg-gradient-to-l from-amber-500 to-amber-600 text-white shadow-xl rounded-r-full pl-3 pr-5 py-3 transition-all duration-300 group"
-          onClick={() => setChatOpen(!chatOpen)}
-          data-testid="button-toggle-chat"
-          aria-label="تحدث مع أبو هاشم — مستشارك الأدبي"
+          className="fixed bottom-4 left-4 z-[9999] w-8 h-8 rounded-full bg-amber-500/80 hover:bg-amber-500 text-white shadow-md flex items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100"
+          onClick={handleRestore}
+          data-testid="button-restore-abu-hashim"
+          aria-label="إظهار أبو هاشم"
         >
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-            {chatOpen ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
-          </div>
-          <div className="text-right">
-            <span className="block text-sm font-bold leading-tight">أبو هاشم</span>
-            <span className="block text-[10px] opacity-80 leading-tight">مستشارك الأدبي</span>
-          </div>
-          <Sparkles className="w-4 h-4 opacity-60 animate-pulse" />
+          <Sparkles className="w-3.5 h-3.5" />
         </button>
+      ) : mode === "general" ? (
+        <div className="fixed top-20 left-0 z-[9999] flex items-center">
+          <button
+            className="flex items-center gap-2 bg-gradient-to-l from-amber-500 to-amber-600 text-white shadow-xl rounded-r-full pl-2 sm:pl-3 pr-3 sm:pr-5 py-2 sm:py-3 transition-all duration-300 group"
+            onClick={() => setChatOpen(!chatOpen)}
+            data-testid="button-toggle-chat"
+            aria-label="تحدث مع أبو هاشم — مستشارك الأدبي"
+          >
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              {chatOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
+            </div>
+            <div className="text-right">
+              <span className="block text-xs sm:text-sm font-bold leading-tight">أبو هاشم</span>
+              <span className="block text-[9px] sm:text-[10px] opacity-80 leading-tight">مستشارك الأدبي</span>
+            </div>
+            <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 opacity-60 animate-pulse" />
+          </button>
+          <button
+            className="w-5 h-5 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center text-[10px] leading-none -mr-1 transition-colors"
+            onClick={handleDismiss}
+            data-testid="button-dismiss-abu-hashim"
+            aria-label="إخفاء أبو هاشم"
+          >
+            ×
+          </button>
+        </div>
       ) : (
-        <Button
-          className="fixed bottom-6 left-6 z-[9999] rounded-full w-16 h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
-          onClick={() => setChatOpen(!chatOpen)}
-          data-testid="button-toggle-chat"
-          title="تحدث مع أبو هاشم"
-        >
-          {chatOpen ? <X className="w-7 h-7" /> : <Sparkles className="w-7 h-7" />}
-        </Button>
+        <div className="fixed bottom-6 left-6 z-[9999] flex items-end gap-1">
+          <Button
+            className="rounded-full w-12 h-12 sm:w-16 sm:h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
+            onClick={() => setChatOpen(!chatOpen)}
+            data-testid="button-toggle-chat"
+            title="تحدث مع أبو هاشم"
+          >
+            {chatOpen ? <X className="w-5 h-5 sm:w-7 sm:h-7" /> : <Sparkles className="w-5 h-5 sm:w-7 sm:h-7" />}
+          </Button>
+          <button
+            className="w-5 h-5 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center text-[10px] leading-none mb-1 transition-colors"
+            onClick={handleDismiss}
+            data-testid="button-dismiss-abu-hashim"
+            aria-label="إخفاء أبو هاشم"
+          >
+            ×
+          </button>
+        </div>
       )}
 
       <div
