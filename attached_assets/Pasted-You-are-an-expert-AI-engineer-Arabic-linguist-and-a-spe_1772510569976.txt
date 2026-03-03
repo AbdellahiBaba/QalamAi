@@ -1,0 +1,247 @@
+You are an expert AI engineer, Arabic linguist, and a specialist in classical Arabic prosody (علم العروض) at the level of الخليل بن أحمد الفراهيدي and major later scholars.
+
+Your task: Build the complete poetry-generation engine for my platform “QalamAI”.
+
+Your output must include architecture, code, data formats, and generation logic.
+
+The system must generate authentic Arabic classical poetry (الشعر العمودي) that follows the FULL rules of:
+- علم العروض (academic + practical)
+- البحور الشعرية كلها المستعملة
+- التفعيلات الأصلية
+- الزحافات والعلل
+- جوازات كل تفعيلة في كل بحر، ومتى تجوز ومتى تمنع
+- القافية والروي
+- الموسيقى الشعرية
+- الصور البلاغية
+- الأسلوب الأدبي المناسب للحقبة (جاهلي، عباسي، أموي، أندلسي، حديث)
+
+IMPORTANT: You must internally encode and use the FULL academic knowledge of Arabic prosody, including:
+- All 15 commonly used البحور (الطويل، الكامل، البسيط، الوافر، الرجز، الرمل، الهزج، السريع، المنسرح، الخفيف، المضارع، المقتضب، المجتث، المتقارب، المتدارك)
+- For EACH بحر:
+  - The original تفعيلات pattern in الحشو والعروض والضرب
+  - All allowed زحافات مفردة ومركبة
+  - All allowed علل (جارية ولازمة) في العروض والضرب
+  - All جوازات التفعيلات: what is allowed, what is rare, what is forbidden
+  - Where each زحاف or علّة is allowed (الحشو فقط، العروض، الضرب، أو مواضع خاصة)
+  - Examples of correct verses for each بحر with different جوازات
+- قواعد التقطيع العروضي
+- قواعد القافية والروي (حركات الروي، الوصل، الخروج، الردف، التأسيس، الدخيل…)
+- قواعد الإيقاع والموسيقى الداخلية
+- قواعد الأسلوب عبر العصور (جاهلي، عباسي، أموي، أندلسي، حديث)
+
+You must not just mention these concepts—you must DESIGN THE SYSTEM so that it can USE them:
+- In data representation
+- In training
+- In generation
+- In validation
+- In evaluation
+
+========================================================
+1) CORE OBJECTIVE
+========================================================
+Build a poetry-generation pipeline that produces ONLY:
+- Classical Arabic vertical poetry (الشعر العمودي)
+
+The system must allow the user to choose:
+- Theme (love, longing, pride, wisdom, grief…)
+- Tone (romantic, epic, mystical, melancholic…)
+- Poetic era/style:
+  • جاهلي  
+  • عباسي  
+  • أموي  
+  • أندلسي  
+  • حديث  
+- بحر الشعر (user-selectable from the full list)
+- قافية وروي (user-selectable)
+- Number of verses
+- Imagery level (0–10)
+- Emotion intensity (0–10)
+
+The generated poem must respect:
+- الوزن العروضي الصحيح وفقًا للبحر المختار
+- التفعيلات الصحيحة مع جوازات الزحاف والعلل المسموح بها فقط
+- القافية والروي وفق قواعد القافية الكاملة
+- الأسلوب الأدبي للحقبة المختارة
+- الصور البلاغية المناسبة
+- التراكيب العربية السليمة
+- موسيقى البيت من حيث الإيقاع والتوازن
+
+========================================================
+2) DATASET DESIGN
+========================================================
+Design a dataset schema that supports:
+- verse text
+- meter (بحر)
+- taf3ilat (تفعيلات) in full detail
+- allowed and applied زحافات وعلل for that verse
+- rhyme (قافية)
+- rawi (روي)
+- era/style (جاهلي، عباسي، أموي، أندلسي، حديث)
+- tone (عاطفي، ملحمي، وجداني…)
+- imagery type (تشبيه، استعارة، كناية…)
+- emotion intensity (0–10)
+- keywords (semantic tags)
+
+Provide:
+- JSONL schema
+- Example entries
+- Python preprocessing scripts:
+  • Normalize Arabic text  
+  • Remove tatweel  
+  • Unify alef/ya  
+  • Optional diacritics removal  
+  • Split verses  
+  • Validate rhyme consistency  
+  • Validate meter using taf3ilat patterns AND allowed جوازات  
+  • Tag style/era heuristically  
+  • Tag imagery types  
+
+========================================================
+3) FULL ARŪḌ KNOWLEDGE (ACADEMIC + PRACTICAL)
+========================================================
+You must:
+- Explicitly define, in code comments and/or data structures, for EACH بحر:
+  - The base taf3ilat pattern
+  - All allowed زحافات and علل for each تفعيلة
+  - Whether each زحاف/علّة is:
+    • جائز في الحشو  
+    • جائز في العروض  
+    • جائز في الضرب  
+    • لازم في بعض صور البحر  
+    • ممنوع في مواضع معينة  
+- Provide a data structure (e.g., Python dict) like:
+
+  METERS = {
+    "الطويل": {
+      "base_pattern": ["فعولن", "مفاعيلن", "فعولن", "مفاعلن"],
+      "taf3ila_rules": {
+        "فعولن": {
+          "allowed_zihaf": [...],
+          "allowed_illa": [...],
+          "positions": ["حشو", "عروض", "ضرب"],
+          "examples": [...]
+        },
+        ...
+      },
+      "notes": "شرح أكاديمي مختصر عن البحر الطويل وجوازاته."
+    },
+    ...
+  }
+
+- This structure must be rich enough to:
+  • Validate generated verses  
+  • Guide generation prompts  
+  • Be extended later with more scholarly detail  
+
+========================================================
+4) MODEL TRAINING PIPELINE
+========================================================
+Assume we will fine-tune an Arabic-capable LLM (Falcon, LLaMA Arabic, Mistral Arabic, etc.).
+
+Provide:
+- LoRA / QLoRA training script outline
+- Dataset loading + tokenization
+- Instruction–response formatting
+- Training loop or HF Trainer config
+
+Training samples must include:
+- user-selected meter
+- user-selected rhyme
+- user-selected era/style
+- user-selected tone
+- imagery level
+- emotion intensity
+
+Example training sample:
+
+{
+  "instruction": "اكتب قصيدة عمودية من البحر الكامل بأسلوب عباسي عن الشوق، بقافية النون، مع الالتزام بجوازات البحر الكامل فقط.",
+  "output": "… أبيات موزونة …"
+}
+
+========================================================
+5) GENERATION ENGINE
+========================================================
+Implement a Python module with a function:
+
+generate_poem(
+    theme,
+    tone,
+    era,
+    length,
+    meter,
+    rhyme,
+    imagery_level=5,
+    emotion_intensity=7
+)
+
+This function must:
+- Construct a detailed Arabic prompt that:
+  • Specifies the chosen بحر  
+  • Mentions its taf3ilat pattern  
+  • Instructs the model to respect ONLY the allowed جوازات for that بحر  
+  • Specifies القافية والروي  
+  • Specifies the era/style (جاهلي، عباسي، أموي، أندلسي، حديث)  
+  • Specifies tone, imagery level, and emotion intensity  
+- Call the model’s generate() method
+- Return the poem as a list of verses
+
+========================================================
+6) POST-PROCESSING
+========================================================
+Implement post-processing steps:
+- Ensure rhyme consistency (rawi check)
+- Remove duplicate lines
+- Enforce verse length similarity
+- Validate meter using:
+  • taf3ilat patterns  
+  • allowed زحافات وعلل for the chosen بحر  
+- Clean spacing and punctuation
+
+========================================================
+7) QUALITY EVALUATION MODULE
+========================================================
+Add a simple evaluation script that scores:
+- Rhyme consistency
+- Meter correctness (including جوازات)
+- Emotional coherence
+- Imagery richness
+- Style alignment (جاهلي/عباسي/أموي/أندلسي/حديث)
+- Linguistic correctness
+
+========================================================
+8) API FOR QALAMAI
+========================================================
+Provide a minimal FastAPI or Flask backend with:
+
+POST /api/generate_poem
+{
+  "theme": "...",
+  "tone": "...",
+  "era": "...",
+  "length": 6,
+  "meter": "الكامل",
+  "rhyme": "م",
+  "imagery_level": 7,
+  "emotion_intensity": 8
+}
+
+Response:
+{
+  "poem": ["...", "...", ...],
+  "metadata": {...}
+}
+
+========================================================
+9) OUTPUT FORMAT
+========================================================
+Your response must include:
+- Architecture overview
+- Python code snippets
+- JSONL examples
+- API examples
+- The METERS data structure with taf3ilat + جوازات
+- Prompt templates
+- Clear comments explaining how each part contributes to generating human-like Arabic poetry that respects FULL academic + practical عروض.
+
+Begin now.
