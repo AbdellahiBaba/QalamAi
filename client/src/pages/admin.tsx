@@ -48,6 +48,9 @@ interface AdminUser {
   email: string | null;
   firstName: string | null;
   lastName: string | null;
+  displayName: string | null;
+  bio: string | null;
+  publicProfile: boolean;
   profileImageUrl: string | null;
   plan: string;
   role: string | null;
@@ -399,6 +402,38 @@ export default function Admin() {
     },
     onError: () => {
       toast({ title: "فشل في تحديث حالة التعليق", variant: "destructive" });
+    },
+  });
+
+  const [showEditUserDialog, setShowEditUserDialog] = useState(false);
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [editUserForm, setEditUserForm] = useState({ displayName: "", firstName: "", lastName: "", bio: "", publicProfile: false });
+
+  const handleEditUser = (u: AdminUser) => {
+    setEditUser(u);
+    setEditUserForm({
+      displayName: u.displayName || "",
+      firstName: u.firstName || "",
+      lastName: u.lastName || "",
+      bio: u.bio || "",
+      publicProfile: u.publicProfile || false,
+    });
+    setShowEditUserDialog(true);
+  };
+
+  const editUserMutation = useMutation({
+    mutationFn: async ({ userId, data }: { userId: string; data: typeof editUserForm }) => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${userId}/profile`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setShowEditUserDialog(false);
+      setEditUser(null);
+      toast({ title: "تم تحديث بيانات المستخدم بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث بيانات المستخدم", variant: "destructive" });
     },
   });
 
@@ -1052,6 +1087,15 @@ export default function Admin() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => handleEditUser(u)}
+                                data-testid={`button-edit-user-${u.id}`}
+                              >
+                                <Pencil className="w-4 h-4 ml-1" />
+                                تعديل
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleViewProjects(u.id)}
                                 data-testid={`button-view-projects-${u.id}`}
                               >
@@ -1121,16 +1165,20 @@ export default function Admin() {
                           {u.createdAt ? new Date(u.createdAt).toLocaleDateString("ar-EG") : "—"}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleViewProjects(u.id)} data-testid={`button-view-projects-mobile-${u.id}`}>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditUser(u)} data-testid={`button-edit-user-mobile-${u.id}`}>
+                          <Pencil className="w-3.5 h-3.5 ml-1" />
+                          تعديل
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleViewProjects(u.id)} data-testid={`button-view-projects-mobile-${u.id}`}>
                           <FolderOpen className="w-3.5 h-3.5 ml-1" />
                           المشاريع
                         </Button>
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleChangePlan(u)} data-testid={`button-change-plan-mobile-${u.id}`}>
+                        <Button variant="outline" size="sm" onClick={() => handleChangePlan(u)} data-testid={`button-change-plan-mobile-${u.id}`}>
                           <Crown className="w-3.5 h-3.5 ml-1" />
                           تغيير الخطة
                         </Button>
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleGrantAnalysis(u)} data-testid={`button-grant-analysis-mobile-${u.id}`}>
+                        <Button variant="outline" size="sm" onClick={() => handleGrantAnalysis(u)} data-testid={`button-grant-analysis-mobile-${u.id}`}>
                           <BarChart3 className="w-3.5 h-3.5 ml-1" />
                           منح تحليل
                         </Button>
@@ -2570,6 +2618,77 @@ export default function Admin() {
             <div className="text-center py-8">
               <FolderOpen className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">لا توجد مشاريع لهذا المستخدم</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات المستخدم</DialogTitle>
+          </DialogHeader>
+          {editUser && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                {editUser.email || editUser.id}
+              </div>
+              <div className="space-y-2">
+                <Label>اسم العرض العام</Label>
+                <Input
+                  value={editUserForm.displayName}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, displayName: e.target.value })}
+                  placeholder="اسم العرض"
+                  data-testid="input-edit-displayName"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>الاسم الأول</Label>
+                  <Input
+                    value={editUserForm.firstName}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, firstName: e.target.value })}
+                    placeholder="الاسم الأول"
+                    data-testid="input-edit-firstName"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>الاسم الأخير</Label>
+                  <Input
+                    value={editUserForm.lastName}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, lastName: e.target.value })}
+                    placeholder="الاسم الأخير"
+                    data-testid="input-edit-lastName"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>نبذة</Label>
+                <Textarea
+                  value={editUserForm.bio}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, bio: e.target.value })}
+                  placeholder="نبذة عن المستخدم"
+                  rows={3}
+                  data-testid="input-edit-bio"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label>تفعيل الملف الشخصي العام</Label>
+                <Switch
+                  checked={editUserForm.publicProfile}
+                  onCheckedChange={(checked) => setEditUserForm({ ...editUserForm, publicProfile: checked })}
+                  data-testid="switch-edit-publicProfile"
+                />
+              </div>
+              <Button
+                className="w-full"
+                disabled={editUserMutation.isPending}
+                onClick={() => editUserMutation.mutate({ userId: editUser.id, data: editUserForm })}
+                data-testid="button-save-edit-user"
+              >
+                {editUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : null}
+                حفظ التعديلات
+              </Button>
             </div>
           )}
         </DialogContent>

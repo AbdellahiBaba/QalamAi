@@ -16,6 +16,8 @@ import { useTheme } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { NovelProject, Notification } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
@@ -133,6 +135,7 @@ export default function Home() {
   });
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [, navigate] = useLocation();
 
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -357,25 +360,25 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md bg-primary flex items-center justify-center">
               <Feather className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
             </div>
-            <span className="font-serif text-lg sm:text-xl font-bold">QalamAI</span>
+            <span className="font-serif text-base sm:text-xl font-bold">QalamAI</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-3">
+          <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
             <Link href="/gallery">
               <Button variant="ghost" size="sm" data-testid="link-gallery">
                 <ImageIcon className="w-4 h-4 ml-1" />
-                <span className="hidden sm:inline">المعرض</span>
+                المعرض
               </Button>
             </Link>
             <Link href="/essays-news">
               <Button variant="ghost" size="sm" data-testid="link-essays">
                 <Newspaper className="w-4 h-4 ml-1" />
-                <span className="hidden sm:inline">المقالات</span>
+                المقالات
               </Button>
             </Link>
             <Popover open={notifOpen} onOpenChange={setNotifOpen}>
@@ -437,20 +440,20 @@ export default function Home() {
             <Link href="/reviews">
               <Button variant="ghost" size="sm" data-testid="link-reviews">
                 <MessageSquareQuote className="w-4 h-4 ml-1" />
-                <span className="hidden sm:inline">آراء المستخدمين</span>
+                آراء المستخدمين
               </Button>
             </Link>
             <Link href="/tickets">
               <Button variant="ghost" size="sm" data-testid="link-tickets">
                 <TicketCheck className="w-4 h-4 ml-1" />
-                <span className="hidden sm:inline">تذاكر الدعم</span>
+                تذاكر الدعم
               </Button>
             </Link>
             {user?.role === "admin" && (
               <Link href="/admin">
                 <Button variant="ghost" size="sm" data-testid="link-admin">
                   <ShieldCheck className="w-4 h-4 ml-1" />
-                  <span className="hidden sm:inline">الإدارة</span>
+                  الإدارة
                 </Button>
               </Link>
             )}
@@ -462,7 +465,7 @@ export default function Home() {
                     {user?.firstName?.[0] || user?.email?.[0] || "م"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium hidden sm:inline" data-testid="text-username">
+                <span className="text-sm font-medium" data-testid="text-username">
                   {user?.firstName || user?.email || "مستخدم"}
                 </span>
               </div>
@@ -470,6 +473,115 @@ export default function Home() {
             <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
               <LogOut className="w-4 h-4" />
             </Button>
+          </div>
+          <div className="flex md:hidden items-center gap-1">
+            <ThemeToggle />
+            <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications-mobile">
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5" data-testid="badge-unread-count-mobile">
+                      {unreadCount > 99 ? "٩٩+" : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" dir="rtl" className="w-72 p-0" data-testid="dropdown-notifications-mobile">
+                <div className="flex items-center justify-between gap-2 p-3 border-b">
+                  <span className="font-semibold text-sm">الإشعارات</span>
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={() => markAllReadMutation.mutate()} disabled={markAllReadMutation.isPending} data-testid="button-mark-all-read-mobile">
+                      <CheckCheck className="w-3.5 h-3.5 ml-1" />
+                      مقروء
+                    </Button>
+                  )}
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications && notifications.length > 0 ? notifications.map((notif) => (
+                    <a key={notif.id} href={notif.link || "#"} className={`block p-3 border-b last:border-b-0 ${!notif.read ? "bg-primary/5" : ""}`} data-testid={`notification-item-mobile-${notif.id}`}>
+                      <span className="font-medium text-sm line-clamp-1">{notif.title}</span>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{notif.message}</p>
+                    </a>
+                  )) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">لا توجد إشعارات</div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-mobile-menu">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" dir="rtl" className="w-64 p-0">
+                <div className="flex flex-col h-full">
+                  <div className="p-4 border-b">
+                    <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
+                      <div className="flex items-center gap-3 cursor-pointer" data-testid="link-profile-mobile">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={user?.profileImageUrl || undefined} />
+                          <AvatarFallback className="text-sm">
+                            {user?.firstName?.[0] || user?.email?.[0] || "م"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">{user?.firstName || user?.email || "مستخدم"}</div>
+                          <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                  <nav className="flex-1 p-2 space-y-1">
+                    <Link href="/gallery" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-gallery-mobile">
+                        <ImageIcon className="w-4 h-4" />
+                        المعرض
+                      </Button>
+                    </Link>
+                    <Link href="/essays-news" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-essays-mobile">
+                        <Newspaper className="w-4 h-4" />
+                        المقالات
+                      </Button>
+                    </Link>
+                    <Link href="/reviews" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-reviews-mobile">
+                        <MessageSquareQuote className="w-4 h-4" />
+                        آراء المستخدمين
+                      </Button>
+                    </Link>
+                    <Link href="/tickets" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-tickets-mobile">
+                        <TicketCheck className="w-4 h-4" />
+                        تذاكر الدعم
+                      </Button>
+                    </Link>
+                    {user?.role === "admin" && (
+                      <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin-mobile">
+                          <ShieldCheck className="w-4 h-4" />
+                          الإدارة
+                        </Button>
+                      </Link>
+                    )}
+                    <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-profile-mobile-nav">
+                        <Feather className="w-4 h-4" />
+                        الملف الشخصي
+                      </Button>
+                    </Link>
+                  </nav>
+                  <div className="p-3 border-t">
+                    <Button variant="ghost" className="w-full justify-start gap-2 text-destructive" onClick={() => { setMobileMenuOpen(false); logout(); }} data-testid="button-logout-mobile">
+                      <LogOut className="w-4 h-4" />
+                      تسجيل الخروج
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
@@ -818,7 +930,7 @@ export default function Home() {
                     <Activity className="w-4 h-4 text-primary" />
                     نشاط الكتابة — آخر ١٤ يوماً
                   </h3>
-                  <div className="flex items-end gap-1 h-24" data-testid="chart-daily-words">
+                  <div className="flex items-end gap-0.5 sm:gap-1 h-20 sm:h-24 overflow-x-auto" data-testid="chart-daily-words">
                     {writingStats.dailyWordCounts.map((day, i) => {
                       const maxWords = Math.max(...writingStats.dailyWordCounts.map(d => d.words), 1);
                       const height = day.words > 0 ? Math.max(4, (day.words / maxWords) * 100) : 0;
@@ -903,9 +1015,9 @@ export default function Home() {
                   data-testid="input-search-projects"
                 />
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <SlidersHorizontal className="w-4 h-4 text-muted-foreground shrink-0" />
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 sm:flex-wrap">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
                   <Select value={filterType} onValueChange={setFilterType}>
                     <SelectTrigger className="w-full sm:w-[140px]" data-testid="select-filter-type">
                       <SelectValue placeholder="النوع" />
@@ -922,7 +1034,7 @@ export default function Home() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2">
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-full sm:w-[140px]" data-testid="select-filter-status">
                       <SelectValue placeholder="الحالة" />
@@ -937,8 +1049,8 @@ export default function Home() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <ArrowUpDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
                   <Select value={sortBy} onValueChange={setSortBy}>
                     <SelectTrigger className="w-full sm:w-[160px]" data-testid="select-sort-by">
                       <SelectValue placeholder="ترتيب حسب" />
@@ -1046,21 +1158,21 @@ export default function Home() {
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-2 sm:gap-4 pt-2 text-[11px] sm:text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1" data-testid={`text-words-written-${project.id}`}>
-                        <PenTool className="w-3.5 h-3.5" />
+                        <PenTool className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         <LtrNum>{(projectStats?.[project.id]?.realWordCount ?? project.usedWords).toLocaleString()}</LtrNum> كلمة
                       </span>
                       <span className="flex items-center gap-1" data-testid={`text-pages-${project.id}`}>
-                        <FileText className="w-3.5 h-3.5" />
+                        <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         {projectStats?.[project.id] !== undefined
                           ? projectStats[project.id].realPageCount > 0
-                            ? <><LtrNum>{projectStats[project.id].realPageCount}</LtrNum> صفحة فعلية</>
+                            ? <><LtrNum>{projectStats[project.id].realPageCount}</LtrNum> صفحة</>
                             : "٠ صفحة"
                           : <><LtrNum>{project.pageCount}</LtrNum> صفحة</>}
                       </span>
                       {(projectStats?.[project.id]?.realWordCount ?? project.usedWords) > 0 && (
-                        <span className="flex items-center gap-1" data-testid={`text-reading-time-${project.id}`}>
+                        <span className="flex items-center gap-1 hidden sm:flex" data-testid={`text-reading-time-${project.id}`}>
                           <Clock className="w-3.5 h-3.5" />
                           <LtrNum>{estimateReadingTime(projectStats?.[project.id]?.realWordCount ?? project.usedWords)}</LtrNum> د قراءة
                         </span>

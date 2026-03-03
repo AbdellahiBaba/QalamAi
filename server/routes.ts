@@ -1964,12 +1964,14 @@ ${pages.map(p => `  <url>
       const fontPath = path.join(process.cwd(), "server", "fonts", "Amiri-Regular.ttf");
       const boldFontPath = path.join(process.cwd(), "server", "fonts", "Amiri-Bold.ttf");
 
+      const pdfAuthorName = (exportUser as any)?.displayName || (exportUser as any)?.firstName || exportUser?.email?.split("@")[0] || "المؤلف";
+
       const doc = new PDFDocument({
         size: "A4",
         margins: { top: 72, bottom: 0, left: 72, right: 72 },
         info: {
           Title: project.title,
-          Author: "QalamAI - أبو هاشم",
+          Author: pdfAuthorName,
         },
         autoFirstPage: false,
       });
@@ -2030,14 +2032,9 @@ ${pages.map(p => `  <url>
           .fontSize(14)
           .fillColor("#6B5B4F");
         const coverSubY = coverTitleY + coverTitleH + 30;
-        const subAr = "بقلم أبو هاشم — ";
-        const subEn = "QalamAI";
-        const subArW = doc.widthOfString(subAr, { features: ["rtla"] });
-        const subEnW = doc.widthOfString(subEn);
-        const subTotalW = subArW + subEnW;
-        const subStartX = (fullPageWidth - subTotalW) / 2;
-        doc.text(subEn, subStartX, coverSubY, { width: subEnW + 2, lineBreak: false });
-        doc.text(subAr, subStartX + subEnW, coverSubY, { width: subArW + 2, align: "right", features: ["rtla"], lineBreak: false });
+        const coverAuthorAr = `تأليف ${pdfAuthorName}`;
+        const coverAuthorW = doc.widthOfString(coverAuthorAr, { features: ["rtla"] });
+        doc.text(coverAuthorAr, (fullPageWidth - coverAuthorW) / 2, coverSubY, { width: coverAuthorW + 2, features: ["rtla"], lineBreak: false });
       }
 
       doc.addPage();
@@ -2050,29 +2047,25 @@ ${pages.map(p => `  <url>
 
       const authLineY = cpTitleY + cpTitleH + 30;
       doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
-      const authAr = "كُتب بمساعدة أبو هاشم — ";
-      const authEn = "QalamAI";
-      const authArW = doc.widthOfString(authAr, { features: ["rtla"] });
-      const authEnW = doc.widthOfString(authEn);
-      const authTotalW = authArW + authEnW;
-      const authStartX = (fullPageWidth - authTotalW) / 2;
-      doc.text(authEn, authStartX, authLineY, { width: authEnW + 2, lineBreak: false });
-      doc.text(authAr, authStartX + authEnW, authLineY, { width: authArW + 2, align: "right", features: ["rtla"], lineBreak: false });
+      const cpAuthorLine = `تأليف ${pdfAuthorName}`;
+      const cpAuthorW = doc.widthOfString(cpAuthorLine, { features: ["rtla"] });
+      doc.text(cpAuthorLine, (fullPageWidth - cpAuthorW) / 2, authLineY, { width: cpAuthorW + 2, features: ["rtla"], lineBreak: false });
+
+      const cpAssistLine = "بمساعدة أبو هاشم — QalamAI";
+      doc.fontSize(12).fillColor("#8B7355");
+      const cpAssistW = doc.widthOfString(cpAssistLine, { features: ["rtla"] });
+      doc.text(cpAssistLine, (fullPageWidth - cpAssistW) / 2, authLineY + 28, { width: cpAssistW + 2, features: ["rtla"], lineBreak: false });
 
       const dateLine = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
       const dateW = doc.widthOfString(dateLine);
-      doc.text(dateLine, (fullPageWidth - dateW) / 2, authLineY + 40, { lineBreak: false });
+      doc.text(dateLine, (fullPageWidth - dateW) / 2, authLineY + 60, { lineBreak: false });
 
       doc.font("Arabic").fontSize(13).fillColor("#8B7355");
-      const rightsAr = "جميع الحقوق محفوظة ";
-      const rightsEn = "\u00A9 2026";
+      const currentYear = new Date().getFullYear();
+      const rightsAr = `جميع الحقوق محفوظة © ${currentYear} ${pdfAuthorName}`;
       const rightsArW = doc.widthOfString(rightsAr, { features: ["rtla"] });
-      const rightsEnW = doc.widthOfString(rightsEn);
-      const rightsTotalW = rightsArW + rightsEnW;
-      const rightsStartX = (fullPageWidth - rightsTotalW) / 2;
-      const rightsY = authLineY + 80;
-      doc.text(rightsEn, rightsStartX, rightsY, { width: rightsEnW + 2, lineBreak: false });
-      doc.text(rightsAr, rightsStartX + rightsEnW, rightsY, { width: rightsArW + 2, align: "right", features: ["rtla"], lineBreak: false });
+      const rightsY = authLineY + 100;
+      doc.text(rightsAr, (fullPageWidth - rightsArW) / 2, rightsY, { width: rightsArW + 2, features: ["rtla"], lineBreak: false });
 
       const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
 
@@ -2312,6 +2305,7 @@ ${pages.map(p => `  <url>
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
+      const epubAuthorName = (epubExportUser as any)?.displayName || (epubExportUser as any)?.firstName || epubExportUser?.email?.split("@")[0] || "المؤلف";
       const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
       if (completedChapters.length === 0) return res.status(400).json({ error: "لا توجد فصول مكتملة" });
@@ -2387,7 +2381,7 @@ ${pages.map(p => `  <url>
     <dc:identifier id="bookid">qalamai-${id}</dc:identifier>
     <dc:title>${project.title}</dc:title>
     <dc:language>ar</dc:language>
-    <dc:creator>QalamAI</dc:creator>
+    <dc:creator>${epubAuthorName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</dc:creator>
     <meta property="dcterms:modified">${new Date().toISOString().split(".")[0]}Z</meta>
   </metadata>
   <manifest>
@@ -2424,10 +2418,11 @@ ${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
 <body>
   <div style="text-align: center; padding-top: 40%; line-height: 2.5;">
     <h1>${safeTitle}</h1>
-    <p style="text-indent: 0; font-size: 1.1em; color: #8B7355;">\u0643\u064F\u062A\u0628 \u0628\u0645\u0633\u0627\u0639\u062F\u0629 \u0623\u0628\u0648 \u0647\u0627\u0634\u0645 \u2014 QalamAI</p>
+    <p style="text-indent: 0; font-size: 1.2em; color: #2C1810;">تأليف ${epubAuthorName.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>
+    <p style="text-indent: 0; font-size: 0.95em; color: #8B7355;">بمساعدة أبو هاشم — QalamAI</p>
     <p style="text-indent: 0; color: #8B7355;">${epubDate}</p>
     <hr/>
-    <p style="text-indent: 0; font-size: 0.9em; color: #6B5B4F;">\u062C\u0645\u064A\u0639 \u0627\u0644\u062D\u0642\u0648\u0642 \u0645\u062D\u0641\u0648\u0638\u0629 \u00A9 2026</p>
+    <p style="text-indent: 0; font-size: 0.9em; color: #6B5B4F;">جميع الحقوق محفوظة © ${new Date().getFullYear()} ${epubAuthorName.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>
   </div>
 </body>
 </html>`, { name: "OEBPS/colophon.xhtml" });
@@ -2695,7 +2690,7 @@ ${glossaryParagraphs}
             alignment: AlignmentType.CENTER,
             bidirectional: true,
             children: [
-              new TextRun({ text: `جميع الحقوق محفوظة © ${new Date().getFullYear()}`, size: 18, font: mainFont, rightToLeft: true, color: subtleColor }),
+              new TextRun({ text: `جميع الحقوق محفوظة © ${new Date().getFullYear()} ${authorName}`, size: 18, font: mainFont, rightToLeft: true, color: subtleColor }),
             ],
           }),
         ],
@@ -2900,6 +2895,8 @@ ${glossaryParagraphs}
       };
 
       const doc = new Document({
+        creator: authorName,
+        title: project.title,
         sections: [titleSection, tocSection, contentSection],
       });
 
@@ -3114,6 +3111,9 @@ ${glossaryParagraphs}
             email: u.email,
             firstName: u.firstName,
             lastName: u.lastName,
+            displayName: u.displayName,
+            bio: u.bio,
+            publicProfile: u.publicProfile,
             profileImageUrl: u.profileImageUrl,
             plan: u.plan || "free",
             role: u.role,
@@ -3923,6 +3923,22 @@ ${glossaryParagraphs}
       res.json({ success: true, apiSuspended: user.apiSuspended });
     } catch (error) {
       res.status(500).json({ error: "فشل في تحديث حالة التعليق" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/profile", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { firstName, lastName, displayName, bio, publicProfile } = req.body;
+      const updateData: any = {};
+      if (typeof firstName === "string") updateData.firstName = firstName;
+      if (typeof lastName === "string") updateData.lastName = lastName;
+      if (typeof displayName === "string") updateData.displayName = displayName;
+      if (typeof bio === "string") updateData.bio = bio;
+      if (typeof publicProfile === "boolean") updateData.publicProfile = publicProfile;
+      const updated = await storage.updateUserProfileExtended(req.params.id, updateData);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث بيانات المستخدم" });
     }
   });
 
