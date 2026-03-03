@@ -240,6 +240,14 @@ export default function ProjectDetail() {
   const [editFormatType, setEditFormatType] = useState("");
   const [editEpisodeCount, setEditEpisodeCount] = useState("");
   const [editNarrativePov, setEditNarrativePov] = useState("");
+  const [editPoetryMeter, setEditPoetryMeter] = useState("");
+  const [editPoetryRhyme, setEditPoetryRhyme] = useState("");
+  const [editPoetryEra, setEditPoetryEra] = useState("");
+  const [editPoetryTone, setEditPoetryTone] = useState("");
+  const [editPoetryTheme, setEditPoetryTheme] = useState("");
+  const [editPoetryVerseCount, setEditPoetryVerseCount] = useState("");
+  const [editPoetryImageryLevel, setEditPoetryImageryLevel] = useState(5);
+  const [editPoetryEmotionLevel, setEditPoetryEmotionLevel] = useState(7);
   const [editingMainIdea, setEditingMainIdea] = useState(false);
   const [editMainIdeaValue, setEditMainIdeaValue] = useState("");
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
@@ -995,6 +1003,14 @@ export default function ProjectDetail() {
     setEditFormatType(project.formatType || "");
     setEditEpisodeCount(String(project.episodeCount || ""));
     setEditNarrativePov(project.narrativePov || "");
+    setEditPoetryMeter((project as any).poetryMeter || "");
+    setEditPoetryRhyme((project as any).poetryRhyme || "");
+    setEditPoetryEra((project as any).poetryEra || "");
+    setEditPoetryTone((project as any).poetryTone || "");
+    setEditPoetryTheme((project as any).poetryTheme || "");
+    setEditPoetryVerseCount(String((project as any).poetryVerseCount || ""));
+    setEditPoetryImageryLevel((project as any).poetryImageryLevel ?? 5);
+    setEditPoetryEmotionLevel((project as any).poetryEmotionLevel ?? 7);
     setEditingSettings(true);
   };
 
@@ -1027,6 +1043,15 @@ export default function ProjectDetail() {
       data.placeSetting = editPlaceSetting;
       data.narrativePov = editNarrativePov;
       data.narrativeTechnique = editNarrativeTechnique;
+    } else if (pt === "poetry") {
+      data.poetryMeter = editPoetryMeter;
+      data.poetryRhyme = editPoetryRhyme;
+      data.poetryEra = editPoetryEra;
+      data.poetryTone = editPoetryTone;
+      data.poetryTheme = editPoetryTheme;
+      data.poetryVerseCount = editPoetryVerseCount ? parseInt(editPoetryVerseCount) : null;
+      data.poetryImageryLevel = editPoetryImageryLevel;
+      data.poetryEmotionLevel = editPoetryEmotionLevel;
     }
     saveSettingsMutation.mutate(data);
   };
@@ -1821,56 +1846,168 @@ export default function ProjectDetail() {
                         </>
                       )
                     ) : project.projectType === "poetry" ? (
-                      <>
-                        {(project as any).poetryMeter && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">البحر الشعري:</span>
-                            <span className="font-medium">{(project as any).poetryMeter}</span>
+                      editingSettings ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">البحر الشعري</Label>
+                            <Select value={editPoetryMeter} onValueChange={setEditPoetryMeter}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-meter">
+                                <SelectValue placeholder="اختر البحر" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  { id: "taweel", name: "الطويل" }, { id: "kamel", name: "الكامل" }, { id: "baseet", name: "البسيط" },
+                                  { id: "wafer", name: "الوافر" }, { id: "rajaz", name: "الرجز" }, { id: "ramal", name: "الرمل" },
+                                  { id: "hazaj", name: "الهزج" }, { id: "saree", name: "السريع" }, { id: "munsarih", name: "المنسرح" },
+                                  { id: "khafeef", name: "الخفيف" }, { id: "mudarei", name: "المضارع" }, { id: "muqtadab", name: "المقتضب" },
+                                  { id: "mujtath", name: "المجتث" }, { id: "mutaqareb", name: "المتقارب" }, { id: "mutadarek", name: "المتدارك" },
+                                ].map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {(project as any).poetryRhyme && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">حرف الروي:</span>
-                            <span className="font-medium">{(project as any).poetryRhyme}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">حرف الروي</Label>
+                            <Select value={editPoetryRhyme} onValueChange={setEditPoetryRhyme}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-rhyme">
+                                <SelectValue placeholder="اختر حرف الروي" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {["ا","ب","ت","ث","ج","ح","خ","د","ذ","ر","ز","س","ش","ص","ض","ط","ظ","ع","غ","ف","ق","ك","ل","م","ن","ه","و","ي"].map((l) => (
+                                  <SelectItem key={l} value={l}>{l}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {(project as any).poetryEra && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">العصر الأدبي:</span>
-                            <span className="font-medium">{{jahili: "جاهلي", umawi: "أموي", abbasi: "عباسي", andalusi: "أندلسي", hadith: "حديث"}[(project as any).poetryEra] || (project as any).poetryEra}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">العصر الأدبي</Label>
+                            <Select value={editPoetryEra} onValueChange={setEditPoetryEra}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-era">
+                                <SelectValue placeholder="اختر العصر" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  { id: "jahili", name: "جاهلي" }, { id: "umawi", name: "أموي" }, { id: "abbasi", name: "عباسي" },
+                                  { id: "andalusi", name: "أندلسي" }, { id: "hadith", name: "حديث" },
+                                ].map((e) => (
+                                  <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {(project as any).poetryTheme && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">الغرض الشعري:</span>
-                            <span className="font-medium">{{ghazal: "غزل", fakhr: "فخر", madh: "مدح", hija: "هجاء", ritha: "رثاء", hikma: "حكمة", wasf: "وصف", hamasa: "حماسة", zuhd: "زهد", itab: "عتاب", hanin: "حنين", watani: "وطني", ijtimaii: "اجتماعي", falsafi: "فلسفي"}[(project as any).poetryTheme] || (project as any).poetryTheme}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الغرض الشعري</Label>
+                            <Select value={editPoetryTheme} onValueChange={setEditPoetryTheme}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-theme">
+                                <SelectValue placeholder="اختر الغرض" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  { id: "ghazal", name: "غزل" }, { id: "fakhr", name: "فخر" }, { id: "madh", name: "مدح" },
+                                  { id: "hija", name: "هجاء" }, { id: "ritha", name: "رثاء" }, { id: "hikma", name: "حكمة" },
+                                  { id: "wasf", name: "وصف" }, { id: "hamasa", name: "حماسة" }, { id: "zuhd", name: "زهد" },
+                                  { id: "itab", name: "عتاب" }, { id: "hanin", name: "حنين" }, { id: "watani", name: "وطني" },
+                                  { id: "ijtimaii", name: "اجتماعي" }, { id: "falsafi", name: "فلسفي" },
+                                ].map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {(project as any).poetryTone && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">النغمة:</span>
-                            <span className="font-medium">{{romantic: "رومانسي", epic: "ملحمي", mystical: "صوفي", melancholic: "حزين", triumphant: "انتصاري", contemplative: "تأملي", passionate: "متوهج", satirical: "ساخر", nostalgic: "حنيني", solemn: "مهيب"}[(project as any).poetryTone] || (project as any).poetryTone}</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">النغمة</Label>
+                            <Select value={editPoetryTone} onValueChange={setEditPoetryTone}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-tone">
+                                <SelectValue placeholder="اختر النغمة" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  { id: "romantic", name: "رومانسي" }, { id: "epic", name: "ملحمي" }, { id: "mystical", name: "صوفي" },
+                                  { id: "melancholic", name: "حزين" }, { id: "triumphant", name: "انتصاري" }, { id: "contemplative", name: "تأملي" },
+                                  { id: "passionate", name: "متوهج" }, { id: "satirical", name: "ساخر" }, { id: "nostalgic", name: "حنيني" },
+                                  { id: "solemn", name: "مهيب" },
+                                ].map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {(project as any).poetryVerseCount && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">عدد الأبيات:</span>
-                            <span className="font-medium"><LtrNum>{(project as any).poetryVerseCount}</LtrNum></span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">عدد الأبيات</Label>
+                            <Select value={editPoetryVerseCount} onValueChange={setEditPoetryVerseCount}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-verse-count">
+                                <SelectValue placeholder="اختر العدد" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="6">٦ أبيات</SelectItem>
+                                <SelectItem value="10">١٠ أبيات</SelectItem>
+                                <SelectItem value="14">١٤ بيتاً</SelectItem>
+                                <SelectItem value="20">٢٠ بيتاً</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        )}
-                        {(project as any).poetryImageryLevel != null && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">مستوى التصوير:</span>
-                            <span className="font-medium"><LtrNum>{(project as any).poetryImageryLevel}</LtrNum>/10</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">مستوى التصوير: <LtrNum>{editPoetryImageryLevel}</LtrNum>/10</Label>
+                            <input type="range" min={1} max={10} value={editPoetryImageryLevel} onChange={(e) => setEditPoetryImageryLevel(Number(e.target.value))} className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary" data-testid="slider-edit-poetry-imagery" />
                           </div>
-                        )}
-                        {(project as any).poetryEmotionLevel != null && (
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">شدة العاطفة:</span>
-                            <span className="font-medium"><LtrNum>{(project as any).poetryEmotionLevel}</LtrNum>/10</span>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">شدة العاطفة: <LtrNum>{editPoetryEmotionLevel}</LtrNum>/10</Label>
+                            <input type="range" min={1} max={10} value={editPoetryEmotionLevel} onChange={(e) => setEditPoetryEmotionLevel(Number(e.target.value))} className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary" data-testid="slider-edit-poetry-emotion" />
                           </div>
-                        )}
-                      </>
+                        </>
+                      ) : (
+                        <>
+                          {(project as any).poetryMeter && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">البحر الشعري:</span>
+                              <span className="font-medium">{({"taweel": "الطويل", "kamel": "الكامل", "baseet": "البسيط", "wafer": "الوافر", "rajaz": "الرجز", "ramal": "الرمل", "hazaj": "الهزج", "saree": "السريع", "munsarih": "المنسرح", "khafeef": "الخفيف", "mudarei": "المضارع", "muqtadab": "المقتضب", "mujtath": "المجتث", "mutaqareb": "المتقارب", "mutadarek": "المتدارك"} as Record<string,string>)[(project as any).poetryMeter] || (project as any).poetryMeter}</span>
+                            </div>
+                          )}
+                          {(project as any).poetryRhyme && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">حرف الروي:</span>
+                              <span className="font-medium">{(project as any).poetryRhyme}</span>
+                            </div>
+                          )}
+                          {(project as any).poetryEra && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">العصر الأدبي:</span>
+                              <span className="font-medium">{({"jahili": "جاهلي", "umawi": "أموي", "abbasi": "عباسي", "andalusi": "أندلسي", "hadith": "حديث"} as Record<string,string>)[(project as any).poetryEra] || (project as any).poetryEra}</span>
+                            </div>
+                          )}
+                          {(project as any).poetryTheme && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الغرض الشعري:</span>
+                              <span className="font-medium">{({"ghazal": "غزل", "fakhr": "فخر", "madh": "مدح", "hija": "هجاء", "ritha": "رثاء", "hikma": "حكمة", "wasf": "وصف", "hamasa": "حماسة", "zuhd": "زهد", "itab": "عتاب", "hanin": "حنين", "watani": "وطني", "ijtimaii": "اجتماعي", "falsafi": "فلسفي"} as Record<string,string>)[(project as any).poetryTheme] || (project as any).poetryTheme}</span>
+                            </div>
+                          )}
+                          {(project as any).poetryTone && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">النغمة:</span>
+                              <span className="font-medium">{({"romantic": "رومانسي", "epic": "ملحمي", "mystical": "صوفي", "melancholic": "حزين", "triumphant": "انتصاري", "contemplative": "تأملي", "passionate": "متوهج", "satirical": "ساخر", "nostalgic": "حنيني", "solemn": "مهيب"} as Record<string,string>)[(project as any).poetryTone] || (project as any).poetryTone}</span>
+                            </div>
+                          )}
+                          {(project as any).poetryVerseCount && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">عدد الأبيات:</span>
+                              <span className="font-medium"><LtrNum>{(project as any).poetryVerseCount}</LtrNum></span>
+                            </div>
+                          )}
+                          {(project as any).poetryImageryLevel != null && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">مستوى التصوير:</span>
+                              <span className="font-medium"><LtrNum>{(project as any).poetryImageryLevel}</LtrNum>/10</span>
+                            </div>
+                          )}
+                          {(project as any).poetryEmotionLevel != null && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">شدة العاطفة:</span>
+                              <span className="font-medium"><LtrNum>{(project as any).poetryEmotionLevel}</LtrNum>/10</span>
+                            </div>
+                          )}
+                        </>
+                      )
                     ) : (project.projectType === "khawater" || project.projectType === "social_media") ? (
                       editingSettings ? (
                         <>
