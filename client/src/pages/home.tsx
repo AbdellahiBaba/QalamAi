@@ -6,22 +6,39 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { NovelProject, Notification } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
+import { estimateReadingTime } from "@shared/utils";
 import { useMemo, useState, useEffect, useRef } from "react";
 import LtrNum from "@/components/ui/ltr-num";
 import { Crown } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
+import { Progress } from "@/components/ui/progress";
 import { TrialPromptPopup } from "@/components/trial-prompt-popup";
+
+interface WritingStreakData {
+  streak: number;
+  lastWritingDate: string | null;
+  dailyWordGoal: number;
+  todayWords: number;
+}
+
+const STREAK_MILESTONES = [
+  { days: 3, label: "٣ أيام", icon: Flame },
+  { days: 7, label: "أسبوع", icon: Trophy },
+  { days: 14, label: "أسبوعان", icon: Award },
+  { days: 30, label: "شهر", icon: Crown },
+];
 
 export default function Home() {
   useDocumentTitle("مشاريعي — قلم AI");
@@ -51,6 +68,24 @@ export default function Home() {
 
   const { data: favorites } = useQuery<number[]>({
     queryKey: ["/api/favorites"],
+  });
+
+  const { data: streakData } = useQuery<WritingStreakData>({
+    queryKey: ["/api/writing-streak"],
+  });
+
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
+
+  const updateGoalMutation = useMutation({
+    mutationFn: async (dailyWordGoal: number) => {
+      const res = await apiRequest("PATCH", "/api/writing-streak/goal", { dailyWordGoal });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/writing-streak"] });
+      setGoalDialogOpen(false);
+    },
   });
 
   const favoritesSet = useMemo(() => new Set(favorites || []), [favorites]);
@@ -290,9 +325,7 @@ export default function Home() {
             <span className="font-serif text-lg sm:text-xl font-bold">QalamAI</span>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
+            <ThemeToggle />
             <Popover open={notifOpen} onOpenChange={setNotifOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
@@ -480,6 +513,119 @@ export default function Home() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {streakData && (
+          <Card className="mb-6" data-testid="card-writing-streak">
+            <CardContent className="p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-md flex items-center justify-center shrink-0 ${streakData.streak > 0 ? "bg-amber-100 dark:bg-amber-900/30" : "bg-muted"}`}>
+                    <Flame className={`w-6 h-6 ${streakData.streak > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-2xl font-bold" data-testid="text-streak-count">
+                        <LtrNum>{streakData.streak}</LtrNum>
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {streakData.streak === 1 ? "يوم متتالي" : "أيام متتالية"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">حافظ على الكتابة يومياً لزيادة سلسلتك</p>
+                  </div>
+                </div>
+                <Popover open={goalDialogOpen} onOpenChange={(open) => {
+                  setGoalDialogOpen(open);
+                  if (open) setGoalInput(String(streakData.dailyWordGoal));
+                }}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" data-testid="button-set-daily-goal">
+                      <Target className="w-3.5 h-3.5 ml-1" />
+                      تعديل الهدف اليومي
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" dir="rtl" className="w-64" data-testid="popover-daily-goal">
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-sm">الهدف اليومي (كلمات)</h4>
+                      <Input
+                        type="number"
+                        min={100}
+                        max={10000}
+                        step={100}
+                        value={goalInput}
+                        onChange={(e) => setGoalInput(e.target.value)}
+                        data-testid="input-daily-goal"
+                      />
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {[200, 500, 1000, 2000].map((v) => (
+                          <Button
+                            key={v}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setGoalInput(String(v))}
+                            data-testid={`button-goal-preset-${v}`}
+                          >
+                            <LtrNum>{v}</LtrNum>
+                          </Button>
+                        ))}
+                      </div>
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        disabled={updateGoalMutation.isPending || !goalInput || Number(goalInput) < 100 || Number(goalInput) > 10000}
+                        onClick={() => updateGoalMutation.mutate(Number(goalInput))}
+                        data-testid="button-save-daily-goal"
+                      >
+                        {updateGoalMutation.isPending ? "جارٍ الحفظ..." : "حفظ الهدف"}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">تقدم اليوم</span>
+                  <span className="font-medium" data-testid="text-today-progress">
+                    <LtrNum>{streakData.todayWords.toLocaleString("ar-EG")}</LtrNum> / <LtrNum>{streakData.dailyWordGoal.toLocaleString("ar-EG")}</LtrNum> كلمة
+                  </span>
+                </div>
+                <Progress
+                  value={Math.min((streakData.todayWords / streakData.dailyWordGoal) * 100, 100)}
+                  className="h-2.5 bg-amber-100 dark:bg-amber-900/30"
+                  data-testid="progress-daily-words"
+                />
+                {streakData.todayWords >= streakData.dailyWordGoal && (
+                  <p className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1" data-testid="text-goal-achieved">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    أحسنت! لقد حققت هدفك اليومي
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap" data-testid="milestone-badges">
+                {STREAK_MILESTONES.map((milestone) => {
+                  const achieved = streakData.streak >= milestone.days;
+                  const MilestoneIcon = milestone.icon;
+                  return (
+                    <div
+                      key={milestone.days}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                        achieved
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                      data-testid={`badge-milestone-${milestone.days}`}
+                    >
+                      <MilestoneIcon className="w-3 h-3" />
+                      {milestone.label}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           {statCards.map((stat) => (
@@ -795,6 +941,12 @@ export default function Home() {
                             : "٠ صفحة"
                           : <><LtrNum>{project.pageCount}</LtrNum> صفحة</>}
                       </span>
+                      {(projectStats?.[project.id]?.realWordCount ?? project.usedWords) > 0 && (
+                        <span className="flex items-center gap-1" data-testid={`text-reading-time-${project.id}`}>
+                          <Clock className="w-3.5 h-3.5" />
+                          <LtrNum>{estimateReadingTime(projectStats?.[project.id]?.realWordCount ?? project.usedWords)}</LtrNum> د قراءة
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">

@@ -10,6 +10,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { ThemeToggle } from "@/components/theme-toggle";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
@@ -483,9 +484,12 @@ export default function Pricing() {
               </Link>
             ))}
           </div>
-          <Link href="/login">
-            <Button size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link href="/login">
+              <Button size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
+            </Link>
+          </div>
         </div>
       </nav>
 

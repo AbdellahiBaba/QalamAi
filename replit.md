@@ -64,8 +64,35 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Checks `localStorage.getItem("qalamai_visited")`, shows after 3s delay, tracks with TikTok ViewContent event.
 - CSS animations scoped with `marketing-` prefix in `client/src/index.css`.
 
+## Writing Streaks & Daily Goals
+- Users table has `writingStreak` (integer), `lastWritingDate` (varchar), `dailyWordGoal` (integer, default 500).
+- `GET /api/writing-streak` returns streak, daily goal, and today's word count.
+- `PATCH /api/writing-streak/goal` updates daily word goal (100-10000 range).
+- Streak auto-updates when chapters are generated or manually edited.
+- Home page shows streak card with flame icon, progress bar, settable goal popover, and milestone badges (3/7/14/30 days).
+
+## Abu Hashim Project Chat
+- `POST /api/projects/:id/chat` — contextual AI chat about a specific project.
+- `buildProjectChatPrompt` in `server/abu-hashim.ts` builds system prompt with project context (title, idea, characters, chapter summaries).
+- Floating chat sidebar in project-detail.tsx: toggle button (bottom-left), quick question suggestions, message history, RTL chat UI.
+- Toggle via Ctrl+/ keyboard shortcut.
+
+## Keyboard Shortcuts (project-detail.tsx)
+- `useKeyboardShortcuts` hook in `client/src/hooks/use-keyboard-shortcuts.ts`.
+- Ctrl+S (save), Ctrl+→/← (next/prev chapter), Ctrl+G (generate next), Ctrl+/ (toggle chat), Escape (close editing).
+- Help dialog via keyboard icon button in header.
+
+## Reading Time Estimates
+- `estimateReadingTime(wordCount)` in `shared/utils.ts` — Arabic reading speed ~180 words/min.
+- Shown per-chapter and per-project in project-detail.tsx and home.tsx project cards.
+
+## Dark Mode
+- `ThemeToggle` component at `client/src/components/theme-toggle.tsx`.
+- Added to all pages with headers/navbars.
+
 ## SEO & Performance
-- **Dynamic Page Titles**: Each page uses `useDocumentTitle` hook (`client/src/hooks/use-document-title.ts`) to set unique Arabic `<title>` and OG meta tags.
+- **Dynamic Page Titles**: Each page uses `useDocumentTitle` hook (`client/src/hooks/use-document-title.ts`) to set unique Arabic `<title>`, OG meta tags, og:type, and og:url.
+- **JSON-LD Structured Data**: Organization + WebApplication schemas in `client/index.html`. Dynamic SoftwareApplication with AggregateRating on landing page. ItemList schema on gallery page.
 - **Sitemap**: `GET /sitemap.xml` route in `server/routes.ts` generates XML sitemap with all public pages pointing to `qalamai.net`.
 - **robots.txt**: Static file in `client/public/robots.txt` allows all crawlers, blocks admin/profile/project paths, points to sitemap.
 - **Code Splitting**: All 25+ pages in `client/src/App.tsx` are lazily loaded via `React.lazy()` + `<Suspense>` with Arabic loading fallback.

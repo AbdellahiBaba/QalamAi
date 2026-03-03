@@ -22,6 +22,7 @@ import {
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { MarketingPopup } from "@/components/marketing-popup";
 
 const navLinks = [
@@ -51,8 +52,40 @@ export default function Landing() {
     queryKey: ["/api/reviews"],
   });
 
+  const averageRating = realReviews && realReviews.length > 0
+    ? (realReviews.reduce((sum, r) => sum + r.rating, 0) / realReviews.length).toFixed(1)
+    : "5";
+  const reviewCount = realReviews ? realReviews.length + 3 : 3;
+
+  const softwareAppJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "QalamAI",
+    "applicationCategory": "LifestyleApplication",
+    "operatingSystem": "Web",
+    "url": "https://qalamai.com",
+    "description": "منصّة الكتابة الروائية العربية بالذكاء الاصطناعي. اكتب روايتك بأسلوب أدبي رفيع بمساعدة أبو هاشم.",
+    "inLanguage": "ar",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": averageRating,
+      "reviewCount": reviewCount,
+      "bestRating": "5",
+      "worstRating": "1",
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
+      />
       <MarketingPopup />
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
@@ -77,9 +110,7 @@ export default function Landing() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} data-testid="button-theme-toggle">
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
+            <ThemeToggle />
             <Link href="/login">
               <Button variant="outline" size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
             </Link>

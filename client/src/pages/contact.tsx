@@ -9,6 +9,7 @@ import { SiX, SiInstagram, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -72,15 +73,18 @@ export default function Contact() {
               </Link>
             ))}
           </div>
-          {user ? (
-            <Link href="/">
-              <Button variant="outline" data-testid="button-dashboard">لوحة التحكم</Button>
-            </Link>
-          ) : (
-            <Link href="/login">
-              <Button data-testid="button-login">تسجيل الدخول</Button>
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {user ? (
+              <Link href="/">
+                <Button variant="outline" data-testid="button-dashboard">لوحة التحكم</Button>
+              </Link>
+            ) : (
+              <Link href="/login">
+                <Button data-testid="button-login">تسجيل الدخول</Button>
+              </Link>
+            )}
+          </div>
         </div>
       </nav>
 

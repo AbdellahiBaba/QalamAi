@@ -17,6 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Switch } from "@/components/ui/switch";
 import { ArrowRight, Plus, Trash2, Clapperboard, Users, MapPin, Loader2, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SCENARIO_GENRES } from "@shared/schema";
 
 const GENRE_LABELS: Record<string, string> = {
@@ -268,6 +269,7 @@ export default function NewScenario() {
               <span className="font-serif text-lg font-bold">سيناريو جديد</span>
             </div>
           </div>
+          <ThemeToggle />
         </div>
       </header>
 

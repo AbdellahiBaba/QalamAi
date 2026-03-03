@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Switch } from "@/components/ui/switch";
 import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "wouter";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const PAGE_OPTIONS = [
   { value: 150, label: "١٥٠ صفحة — ٣٠٠ دولار" },
@@ -297,6 +298,7 @@ export default function NewProject() {
               <span className="font-serif text-lg font-bold">مشروع جديد</span>
             </div>
           </div>
+          <ThemeToggle />
         </div>
       </header>
 

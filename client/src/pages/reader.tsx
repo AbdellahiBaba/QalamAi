@@ -5,6 +5,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface Chapter {
   id: number;
@@ -153,6 +154,7 @@ export default function Reader() {
           </h1>
 
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="sm"

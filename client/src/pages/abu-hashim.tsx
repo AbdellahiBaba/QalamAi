@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Feather, BookOpen, Sparkles, Heart, Shield, PenTool, Quote, Users } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
@@ -73,9 +74,12 @@ export default function AbuHashim() {
               </Link>
             ))}
           </div>
-          <Link href="/login">
-            <Button data-testid="button-login">تسجيل الدخول</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link href="/login">
+              <Button data-testid="button-login">تسجيل الدخول</Button>
+            </Link>
+          </div>
         </div>
       </nav>
 

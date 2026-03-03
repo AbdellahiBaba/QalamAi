@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildProjectChatPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
@@ -31,6 +31,31 @@ async function checkApiSuspension(userId: string, res: any): Promise<boolean> {
     return true;
   }
   return false;
+}
+
+async function updateWritingStreak(userId: string) {
+  try {
+    const user = await storage.getUser(userId);
+    if (!user) return;
+    const today = new Date().toISOString().split("T")[0];
+    if (user.lastWritingDate === today) return;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    let newStreak = 1;
+    if (user.lastWritingDate === yesterdayStr) {
+      newStreak = (user.writingStreak || 0) + 1;
+    }
+
+    await db.update(users).set({
+      writingStreak: newStreak,
+      lastWritingDate: today,
+    }).where(eq(users.id, userId));
+  } catch (e) {
+    console.error("Error updating writing streak:", e);
+  }
 }
 
 try {
@@ -614,6 +639,56 @@ ${pages.map(p => `  <url>
     } catch (error) {
       console.error("Error fetching writing stats:", error);
       res.status(500).json({ error: "Failed to fetch writing stats" });
+    }
+  });
+
+  app.get("/api/writing-streak", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const today = new Date().toISOString().split("T")[0];
+      const projects = await storage.getProjectsByUser(userId);
+      let todayWords = 0;
+      for (const project of projects) {
+        const full = await storage.getProjectWithDetails(project.id);
+        if (!full) continue;
+        for (const ch of full.chapters) {
+          if (ch.content && ch.updatedAt) {
+            const updatedDate = new Date(ch.updatedAt).toISOString().split("T")[0];
+            const createdDate = ch.createdAt ? new Date(ch.createdAt).toISOString().split("T")[0] : null;
+            if (updatedDate === today || createdDate === today) {
+              todayWords += ch.content.split(/\s+/).filter((w: string) => w.trim()).length;
+            }
+          }
+        }
+      }
+
+      res.json({
+        streak: user.writingStreak || 0,
+        lastWritingDate: user.lastWritingDate || null,
+        dailyWordGoal: user.dailyWordGoal || 500,
+        todayWords,
+      });
+    } catch (error) {
+      console.error("Error fetching writing streak:", error);
+      res.status(500).json({ error: "Failed to fetch writing streak" });
+    }
+  });
+
+  app.patch("/api/writing-streak/goal", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { dailyWordGoal } = req.body;
+      if (typeof dailyWordGoal !== "number" || dailyWordGoal < 100 || dailyWordGoal > 10000) {
+        return res.status(400).json({ error: "الهدف اليومي يجب أن يكون بين 100 و 10,000 كلمة" });
+      }
+      await db.update(users).set({ dailyWordGoal }).where(eq(users.id, userId));
+      res.json({ dailyWordGoal });
+    } catch (error) {
+      console.error("Error updating daily goal:", error);
+      res.status(500).json({ error: "Failed to update daily goal" });
     }
   });
 
@@ -1557,6 +1632,8 @@ ${pages.map(p => `  <url>
         await storage.saveChapterVersion(chapterId, fullContent, "ai_generated");
       }
 
+      updateWritingStreak(req.user.claims.sub).catch(() => {});
+
       const estCompletionTokens = Math.ceil(fullContent.length / 3);
       logApiUsage(req.user.claims.sub, projectId, "chapter", "gpt-5.2", { usage: { prompt_tokens: 2000, completion_tokens: estCompletionTokens, total_tokens: 2000 + estCompletionTokens } });
 
@@ -1655,10 +1732,54 @@ ${pages.map(p => `  <url>
         await storage.incrementUsedWords(projectId, netWords);
       }
 
+      updateWritingStreak(req.user.claims.sub).catch(() => {});
+
       res.json(updated);
     } catch (error) {
       console.error("Error updating chapter:", error);
       res.status(500).json({ error: "Failed to update chapter" });
+    }
+  });
+
+  app.post("/api/projects/:id/chat", isAuthenticated, async (req: any, res) => {
+    try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      const id = parseInt(req.params.id);
+      const project = await storage.getProjectWithDetails(id);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
+
+      const { message } = req.body;
+      if (!message || typeof message !== "string") return res.status(400).json({ error: "الرسالة مطلوبة" });
+
+      const characters = await storage.getCharactersByProject(id);
+      const { system, user: userMsg } = buildProjectChatPrompt({
+        project,
+        characters,
+        chapters: project.chapters.map((ch: any) => ({
+          chapterNumber: ch.chapterNumber,
+          title: ch.title,
+          content: ch.content,
+          status: ch.status,
+        })),
+        userMessage: message,
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userMsg },
+        ],
+        max_completion_tokens: 2000,
+        temperature: 0.7,
+      });
+
+      const reply = response.choices[0]?.message?.content || "عذراً، لم أتمكن من الرد.";
+      res.json({ reply });
+    } catch (error) {
+      console.error("Error in project chat:", error);
+      res.status(500).json({ error: "فشل في الحصول على رد من أبو هاشم" });
     }
   });
 

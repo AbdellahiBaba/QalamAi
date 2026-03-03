@@ -89,8 +89,37 @@ export default function Gallery() {
     });
   }, [projects, searchQuery, activeFilter]);
 
+  const itemListJsonLd = useMemo(() => {
+    if (!filteredProjects || filteredProjects.length === 0) return null;
+    return {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "معرض الأعمال الأدبية — QalamAI",
+      "description": "مجموعة من الأعمال الأدبية العربية المنشورة على منصة QalamAI",
+      "numberOfItems": filteredProjects.length,
+      "itemListElement": filteredProjects.slice(0, 50).map((project, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "item": {
+          "@type": "CreativeWork",
+          "name": project.title,
+          "description": project.mainIdea || "",
+          "author": project.authorName ? { "@type": "Person", "name": project.authorName } : undefined,
+          "inLanguage": "ar",
+          "url": project.shareToken ? `${window.location.origin}/shared/${project.shareToken}` : undefined,
+        },
+      })),
+    };
+  }, [filteredProjects]);
+
   return (
     <div className="min-h-screen bg-background p-4 sm:p-6" dir="rtl">
+      {itemListJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        />
+      )}
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-start">
           <Link href="/">

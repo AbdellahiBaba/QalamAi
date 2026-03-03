@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Feather, LogOut, TicketCheck, ArrowRight, Clock, MessageCircle, Plus } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { SupportTicket } from "@shared/schema";
 
 const statusLabels: Record<string, string> = {
@@ -62,6 +63,7 @@ export default function Tickets() {
                 {user?.firstName || user?.email || "مستخدم"}
               </span>
             </div>
+            <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
               <LogOut className="w-4 h-4" />
             </Button>

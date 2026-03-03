@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Feather, LogOut, ArrowRight, Send, Loader2, Clock, ShieldCheck, User } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { SupportTicket, TicketReply } from "@shared/schema";
@@ -100,6 +101,7 @@ export default function TicketDetail() {
                 </AvatarFallback>
               </Avatar>
             </div>
+            <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
               <LogOut className="w-4 h-4" />
             </Button>

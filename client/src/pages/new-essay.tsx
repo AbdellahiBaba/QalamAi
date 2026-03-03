@@ -18,6 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Switch } from "@/components/ui/switch";
 import { ArrowRight, FileText, Globe, Loader2, Newspaper, CheckCircle2, Sparkles, X } from "lucide-react";
 import { Link } from "wouter";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const SUBJECT_LABELS: Record<string, string> = {
   news: "أخبار",
@@ -272,6 +273,7 @@ export default function NewEssay() {
               <span className="font-serif text-lg font-bold">مقال جديد</span>
             </div>
           </div>
+          <ThemeToggle />
         </div>
       </header>
 

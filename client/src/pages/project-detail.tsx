@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -18,17 +18,19 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { generateChapterPreviewPDF } from "@/lib/pdf-generator";
 import { useAuth } from "@/hooks/use-auth";
+import { useKeyboardShortcuts, type KeyboardShortcut } from "@/hooks/use-keyboard-shortcuts";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { NovelProject, Character, Chapter, CharacterRelationship, ChapterVersion, Bookmark as BookmarkType } from "@shared/schema";
 import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
-import { toArabicOrdinal } from "@shared/utils";
+import { toArabicOrdinal, estimateReadingTime } from "@shared/utils";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -218,6 +220,12 @@ export default function ProjectDetail() {
   const [editNarrativePov, setEditNarrativePov] = useState("");
   const [editingMainIdea, setEditingMainIdea] = useState(false);
   const [editMainIdeaValue, setEditMainIdeaValue] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -734,6 +742,88 @@ export default function ProjectDetail() {
     }
   }, [streamedContent]);
 
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatLoading]);
+
+  const handleCtrlSave = useCallback(() => {
+    if (editingSettings) {
+      handleSaveSettings();
+    } else if (editingTitle && editTitleValue.trim()) {
+      handleSaveTitle();
+    } else if (editingMainIdea && editMainIdeaValue.trim()) {
+      saveSettingsMutation.mutate({ mainIdea: editMainIdeaValue.trim() });
+    } else if (editingOutline && editOutlineText.trim()) {
+      saveOutlineMutation.mutate(editOutlineText);
+    } else if (editingChapter !== null && editContent.trim()) {
+      saveChapterMutation.mutate({ chapterId: editingChapter, content: editContent });
+    }
+  }, [editingSettings, editingTitle, editTitleValue, editingMainIdea, editMainIdeaValue, editingOutline, editOutlineText, editingChapter, editContent]);
+
+  const handleNextChapter = useCallback(() => {
+    if (!project?.chapters?.length) return;
+    const sorted = [...project.chapters].sort((a, b) => a.chapterNumber - b.chapterNumber);
+    if (expandedChapter === null) {
+      setExpandedChapter(sorted[0].id);
+      setActiveTab("chapters");
+      return;
+    }
+    const currentIdx = sorted.findIndex(c => c.id === expandedChapter);
+    if (currentIdx < sorted.length - 1) {
+      setExpandedChapter(sorted[currentIdx + 1].id);
+      setActiveTab("chapters");
+    }
+  }, [project?.chapters, expandedChapter]);
+
+  const handlePrevChapter = useCallback(() => {
+    if (!project?.chapters?.length) return;
+    const sorted = [...project.chapters].sort((a, b) => a.chapterNumber - b.chapterNumber);
+    if (expandedChapter === null) {
+      setExpandedChapter(sorted[sorted.length - 1].id);
+      setActiveTab("chapters");
+      return;
+    }
+    const currentIdx = sorted.findIndex(c => c.id === expandedChapter);
+    if (currentIdx > 0) {
+      setExpandedChapter(sorted[currentIdx - 1].id);
+      setActiveTab("chapters");
+    }
+  }, [project?.chapters, expandedChapter]);
+
+  const handleGenerateNext = useCallback(() => {
+    if (!project?.chapters?.length || generatingChapter) return;
+    const nextPending = project.chapters
+      .filter(c => c.status !== "completed")
+      .sort((a, b) => a.chapterNumber - b.chapterNumber)[0];
+    if (nextPending && hasAccess) {
+      generateChapter(nextPending.id);
+    }
+  }, [project?.chapters, generatingChapter, hasAccess]);
+
+  const handleEscapeClose = useCallback(() => {
+    if (editingChapter !== null) { setEditingChapter(null); return; }
+    if (editingSettings) { setEditingSettings(false); return; }
+    if (editingTitle) { setEditingTitle(false); setTitleSuggestions([]); return; }
+    if (editingMainIdea) { setEditingMainIdea(false); return; }
+    if (editingOutline) { setEditingOutline(false); return; }
+    if (showRefineInput) { setShowRefineInput(false); return; }
+    if (showShortcutsDialog) { setShowShortcutsDialog(false); return; }
+    if (rewriteChapterId !== null) { setRewriteChapterId(null); setRewrittenResult(null); return; }
+    if (versionHistoryChapterId !== null) { setVersionHistoryChapterId(null); return; }
+    if (originalityChapterId !== null) { setOriginalityChapterId(null); setOriginalityResult(null); return; }
+  }, [editingChapter, editingSettings, editingTitle, editingMainIdea, editingOutline, showRefineInput, showShortcutsDialog, rewriteChapterId, versionHistoryChapterId, originalityChapterId]);
+
+  const keyboardShortcuts: KeyboardShortcut[] = useMemo(() => [
+    { key: "s", ctrl: true, handler: handleCtrlSave, description: "حفظ التعديلات الحالية", label: "Ctrl + S" },
+    { key: "ArrowRight", ctrl: true, handler: handleNextChapter, description: "الانتقال للفصل التالي", label: "Ctrl + \u2192" },
+    { key: "ArrowLeft", ctrl: true, handler: handlePrevChapter, description: "الانتقال للفصل السابق", label: "Ctrl + \u2190" },
+    { key: "g", ctrl: true, handler: handleGenerateNext, description: "كتابة الفصل التالي", label: "Ctrl + G" },
+    { key: "/", ctrl: true, handler: () => setChatOpen(prev => !prev), description: "فتح/إغلاق محادثة أبو هاشم", label: "Ctrl + /" },
+    { key: "Escape", handler: handleEscapeClose, description: "إغلاق وضع التحرير", label: "Escape" },
+  ], [handleCtrlSave, handleNextChapter, handlePrevChapter, handleGenerateNext, handleEscapeClose]);
+
+  useKeyboardShortcuts(keyboardShortcuts);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background" dir="rtl">
@@ -935,6 +1025,30 @@ export default function ProjectDetail() {
     setIsSuggestingTitles(false);
   };
 
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg = chatInput.trim();
+    setChatInput("");
+    setChatMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setChatLoading(true);
+    try {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/chat`, { message: userMsg });
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: "assistant", content: "عذراً، حدث خطأ. حاول مرة أخرى." }]);
+    }
+    setChatLoading(false);
+  };
+
+  const chatQuickQuestions = [
+    "كيف أنهي هذا الفصل؟",
+    "اقترح تطوراً درامياً",
+    "ما رأيك في هذه الشخصية؟",
+    "اقترح حواراً مؤثراً",
+    "كيف أُحسّن الوصف؟",
+  ];
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
@@ -1088,8 +1202,108 @@ export default function ProjectDetail() {
               </Button>
             </div>
           )}
+          <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowShortcutsDialog(true)}
+            title="اختصارات لوحة المفاتيح"
+            data-testid="button-show-shortcuts"
+          >
+            <Keyboard className="w-4 h-4" />
+          </Button>
         </div>
       </header>
+
+      <Button
+        className="fixed bottom-6 left-6 z-50 rounded-full w-14 h-14 shadow-lg bg-amber-500 hover:bg-amber-600 text-white"
+        onClick={() => setChatOpen(!chatOpen)}
+        data-testid="button-toggle-chat"
+      >
+        {chatOpen ? <X className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+      </Button>
+
+      <div
+        className={`fixed top-0 left-0 h-full w-[380px] max-w-[90vw] bg-background border-r shadow-2xl z-40 transition-transform duration-300 flex flex-col ${chatOpen ? "translate-x-0" : "-translate-x-full"}`}
+        dir="rtl"
+      >
+        <div className="p-4 border-b bg-gradient-to-l from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm">اسأل أبو هاشم</h3>
+            <p className="text-xs text-muted-foreground">مستشارك الأدبي لهذا المشروع</p>
+          </div>
+          <Button variant="ghost" size="icon" className="mr-auto" onClick={() => setChatOpen(false)} data-testid="button-close-chat">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1 p-4">
+          {chatMessages.length === 0 && !chatLoading && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground text-center mb-4">اسأل أبو هاشم أي سؤال عن مشروعك</p>
+              <div className="space-y-2">
+                {chatQuickQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    className="w-full text-right text-sm px-3 py-2 rounded-lg border border-border hover:border-amber-300 dark:hover:border-amber-600 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors"
+                    onClick={() => { setChatInput(q); }}
+                    data-testid={`button-quick-question-${i}`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {chatMessages.map((msg, i) => (
+            <div key={i} className={`mb-3 flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
+              <div
+                className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-tr-none"
+                    : "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-foreground rounded-tl-none"
+                }`}
+                data-testid={`chat-message-${msg.role}-${i}`}
+              >
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {chatLoading && (
+            <div className="flex justify-end mb-3">
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl rounded-tl-none px-4 py-3">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+              </div>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </ScrollArea>
+
+        <div className="p-3 border-t bg-background">
+          <div className="flex gap-2">
+            <Textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="اكتب سؤالك هنا..."
+              className="resize-none min-h-[44px] max-h-[120px] text-sm"
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
+              data-testid="input-chat-message"
+            />
+            <Button
+              size="icon"
+              className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white h-[44px] w-[44px]"
+              onClick={handleSendChat}
+              disabled={chatLoading || !chatInput.trim()}
+              data-testid="button-send-chat"
+            >
+              <ArrowRight className="w-4 h-4 rotate-180" />
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {!hasAccess && (
@@ -1162,6 +1376,11 @@ export default function ProjectDetail() {
                 <PenTool className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium" data-testid="text-words-counter">
                   عدد الكلمات المكتوبة: <LtrNum>{project.usedWords.toLocaleString()}</LtrNum> كلمة
+                </span>
+                <span className="mx-2 text-muted-foreground">|</span>
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground" data-testid="text-reading-time">
+                  وقت القراءة: <LtrNum>{estimateReadingTime(project.usedWords)}</LtrNum> دقيقة
                 </span>
               </div>
             </CardContent>
@@ -2179,9 +2398,17 @@ export default function ProjectDetail() {
                           </span>
                           <div className="text-right">
                             <h4 className="font-serif font-semibold">{chapter.title}</h4>
-                            {chapter.summary && (
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{chapter.summary}</p>
-                            )}
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {chapter.content && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-chapter-reading-time-${chapter.id}`}>
+                                  <Clock className="w-3 h-3" />
+                                  <LtrNum>{estimateReadingTime(chapter.content.trim().split(/\s+/).length)}</LtrNum> د
+                                </span>
+                              )}
+                              {chapter.summary && (
+                                <p className="text-xs text-muted-foreground line-clamp-1">{chapter.summary}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -3707,6 +3934,35 @@ export default function ProjectDetail() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2" data-testid="text-shortcuts-title">
+                <Keyboard className="w-5 h-5" />
+                اختصارات لوحة المفاتيح
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 mt-2">
+              {keyboardShortcuts.map((shortcut, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between py-2 border-b last:border-0"
+                  data-testid={`row-shortcut-${idx}`}
+                >
+                  <span className="text-sm" data-testid={`text-shortcut-desc-${idx}`}>{shortcut.description}</span>
+                  <kbd
+                    className="px-2 py-1 text-xs font-mono rounded-md bg-muted border text-muted-foreground"
+                    dir="ltr"
+                    data-testid={`text-shortcut-key-${idx}`}
+                  >
+                    {shortcut.label}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

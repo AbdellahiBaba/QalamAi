@@ -2969,3 +2969,56 @@ ${platformGuide}
 
   return { system: SOCIAL_MEDIA_SYSTEM_PROMPT, user };
 }
+
+export function buildProjectChatPrompt(data: {
+  project: NovelProject;
+  characters: Character[];
+  chapters: { chapterNumber: number; title: string; content?: string | null; status: string }[];
+  userMessage: string;
+}): { system: string; user: string } {
+  const { project, characters, chapters, userMessage } = data;
+
+  const projectTypeLabels: Record<string, string> = {
+    novel: "رواية",
+    essay: "مقال",
+    scenario: "سيناريو",
+    short_story: "قصة قصيرة",
+    khawater: "خواطر",
+    social_media: "محتوى سوشيال ميديا",
+  };
+  const typeLabel = projectTypeLabels[project.projectType || "novel"] || "مشروع";
+
+  const charSummary = characters.length > 0
+    ? characters.map(c => `• ${c.name}: ${c.role || ""} — ${c.description || ""}`).join("\n")
+    : "لا توجد شخصيات محددة بعد";
+
+  const completedChapters = chapters.filter(ch => ch.content && ch.status === "completed");
+  const chapterSummary = completedChapters.length > 0
+    ? completedChapters.map(ch => `الفصل ${ch.chapterNumber} (${ch.title}): ${(ch.content || "").substring(0, 500)}...`).join("\n")
+    : "لم تُكتب فصول بعد";
+
+  const system = `أنت أبو هاشم — الوكيل الأدبي الافتراضي في منصة QalamAI.
+أنت تعمل الآن كمستشار أدبي مخصص لهذا المشروع بالذات.
+
+═══ معلومات المشروع ═══
+النوع: ${typeLabel}
+العنوان: ${project.title || "بدون عنوان"}
+الفكرة الرئيسية: ${project.mainIdea || "غير محددة"}
+عدد الفصول: ${chapters.length} (مكتمل: ${completedChapters.length})
+
+═══ الشخصيات ═══
+${charSummary}
+
+═══ ملخص الفصول المكتوبة ═══
+${chapterSummary}
+
+═══ تعليمات المحادثة ═══
+- أجب بالعربية الفصحى الحديثة
+- كن مختصراً وعملياً — لا تكرر ما يعرفه الكاتب
+- قدم نصائح أدبية محددة تتعلق بهذا المشروع
+- إذا سُئلت عن تطوير الأحداث، اقترح خيارات متعددة
+- لا تكتب فصولاً كاملة — اقترح أفكاراً وتوجيهات
+- شجّع الكاتب وادعمه بأسلوب دافئ ومهني`;
+
+  return { system, user: userMessage };
+}

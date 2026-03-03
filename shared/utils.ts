@@ -38,3 +38,8 @@ export function toArabicOrdinal(n: number): string {
   }
   return String(n);
 }
+
+export function estimateReadingTime(wordCount: number): number {
+  const ARABIC_WPM = 180;
+  return Math.max(1, Math.ceil(wordCount / ARABIC_WPM));
+}

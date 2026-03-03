@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Feather, BookOpen, Heart, Users, Scale, ShieldCheck, Brain, BookMarked } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function NovelTheme() {
   useDocumentTitle("سمات الرواية — قلم AI");
@@ -28,9 +29,12 @@ export default function NovelTheme() {
             <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-contact">تواصل معنا</Link>
             <Link href="/abu-hashim" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-abu-hashim">أبو هاشم</Link>
           </div>
-          <Link href="/login">
-            <Button data-testid="button-login">تسجيل الدخول</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link href="/login">
+              <Button data-testid="button-login">تسجيل الدخول</Button>
+            </Link>
+          </div>
         </div>
       </nav>
 
