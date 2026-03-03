@@ -8,11 +8,17 @@ import { SocialMediaIcons } from "@/components/social-media-icons";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
+  { label: "المعرض", href: "/gallery" },
+  { label: "المقالات", href: "/essays" },
   { label: "من نحن", href: "/about" },
   { label: "المميزات", href: "/features" },
   { label: "الأسعار", href: "/pricing" },
   { label: "تواصل معنا", href: "/contact" },
   { label: "أبو هاشم", href: "/abu-hashim" },
+];
+
+const footerOnlyLinks = [
+  { label: "آراء المستخدمين", href: "/reviews" },
 ];
 
 const values = [
@@ -242,7 +248,7 @@ export default function About() {
               <span>QalamAI — منصّة الكتابة الأدبية العربية بالذكاء الاصطناعي</span>
             </div>
             <div className="hidden md:flex items-center gap-4 flex-wrap">
-              {navLinks.map((link) => (
+              {[...navLinks, ...footerOnlyLinks].map((link) => (
                 <Link key={link.href} href={link.href}>
                   <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md">{link.label}</span>
                 </Link>

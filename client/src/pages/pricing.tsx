@@ -173,11 +173,17 @@ const faqItems = [
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
+  { label: "المعرض", href: "/gallery" },
+  { label: "المقالات", href: "/essays" },
   { label: "من نحن", href: "/about" },
   { label: "المميزات", href: "/features" },
   { label: "الأسعار", href: "/pricing" },
   { label: "تواصل معنا", href: "/contact" },
   { label: "أبو هاشم", href: "/abu-hashim" },
+];
+
+const footerOnlyLinks = [
+  { label: "آراء المستخدمين", href: "/reviews" },
 ];
 
 function isPlanActive(userPlan: string | null | undefined, planKey: string): boolean {
@@ -972,7 +978,7 @@ export default function Pricing() {
               <span>QalamAI — منصة الكتابة العربية بالذكاء الاصطناعي</span>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-              {navLinks.map((link) => (
+              {[...navLinks, ...footerOnlyLinks].map((link) => (
                 <Link key={link.href} href={link.href}>
                   <span className="cursor-pointer hover:text-foreground transition-colors" data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}>
                     {link.label}

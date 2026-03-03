@@ -494,7 +494,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGalleryProjects(): Promise<(NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]> {
-    const projects = await db.select().from(novelProjects).where(isNotNull(novelProjects.shareToken)).orderBy(desc(novelProjects.updatedAt));
+    const projects = await db.select().from(novelProjects).where(and(isNotNull(novelProjects.shareToken), eq(novelProjects.publishedToGallery, true))).orderBy(desc(novelProjects.updatedAt));
     const result: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[] = [];
     for (const p of projects) {
       const [user] = await db.select().from(users).where(eq(users.id, p.userId));

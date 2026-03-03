@@ -3430,6 +3430,33 @@ ${glossaryParagraphs}
     }
   });
 
+  app.post("/api/projects/:id/publish-to-gallery", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المشروع أولاً" });
+      await storage.updateProject(projectId, { publishedToGallery: true } as any);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "حدث خطأ" });
+    }
+  });
+
+  app.delete("/api/projects/:id/publish-to-gallery", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      await storage.updateProject(projectId, { publishedToGallery: false } as any);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "حدث خطأ" });
+    }
+  });
+
   app.post("/api/public/essays/:id/react", async (req, res) => {
     try {
       const id = parseInt(req.params.id);

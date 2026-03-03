@@ -30,12 +30,16 @@ import { SocialMediaIcons } from "@/components/social-media-icons";
 const navLinks = [
   { label: "الرئيسية", href: "/" },
   { label: "المعرض", href: "/gallery" },
-  { label: "آراء المستخدمين", href: "/reviews" },
+  { label: "المقالات", href: "/essays" },
   { label: "من نحن", href: "/about" },
   { label: "المميزات", href: "/features" },
   { label: "الأسعار", href: "/pricing" },
   { label: "تواصل معنا", href: "/contact" },
   { label: "أبو هاشم", href: "/abu-hashim" },
+];
+
+const footerOnlyLinks = [
+  { label: "آراء المستخدمين", href: "/reviews" },
 ];
 
 interface LandingReview {
@@ -423,6 +427,16 @@ export default function Landing() {
               <h4 className="font-semibold text-sm" data-testid="text-footer-links-heading">روابط سريعة</h4>
               <div className="flex flex-col gap-2">
                 {navLinks.map((link) => (
+                  <Link key={link.href} href={link.href}>
+                    <span
+                      className="text-sm opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+                      data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}
+                    >
+                      {link.label}
+                    </span>
+                  </Link>
+                ))}
+                {footerOnlyLinks.map((link) => (
                   <Link key={link.href} href={link.href}>
                     <span
                       className="text-sm opacity-80 hover:opacity-100 transition-opacity cursor-pointer"

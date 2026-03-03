@@ -1204,6 +1204,37 @@ export default function ProjectDetail() {
                   <><Share2 className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">مشاركة</span></>
                 )}
               </Button>
+              {project.shareToken && (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="publish-to-gallery"
+                    checked={!!project.publishedToGallery}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        if (checked) {
+                          await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
+                          toast({ title: "تم نشر المشروع في المعرض" });
+                        } else {
+                          await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
+                          toast({ title: "تم إلغاء النشر من المعرض" });
+                        }
+                        queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                      } catch {
+                        toast({ title: "حدث خطأ", variant: "destructive" });
+                      }
+                    }}
+                    data-testid="switch-publish-to-gallery"
+                  />
+                  <Label
+                    htmlFor="publish-to-gallery"
+                    className="text-xs cursor-pointer whitespace-nowrap"
+                    data-testid="label-publish-to-gallery"
+                    title="عند التفعيل، سيظهر مشروعك في المعرض العام ليقرأه الجميع"
+                  >
+                    نشر في المعرض
+                  </Label>
+                </div>
+              )}
               {project.projectType === "essay" && project.shareToken && (
                 <div className="flex items-center gap-2">
                   <Switch

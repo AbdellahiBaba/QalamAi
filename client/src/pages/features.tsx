@@ -31,11 +31,17 @@ import {
 
 const navLinks = [
   { title: "الرئيسية", href: "/" },
+  { title: "المعرض", href: "/gallery" },
+  { title: "المقالات", href: "/essays" },
   { title: "من نحن", href: "/about" },
   { title: "المميزات", href: "/features" },
   { title: "الأسعار", href: "/pricing" },
   { title: "تواصل معنا", href: "/contact" },
   { title: "أبو هاشم", href: "/abu-hashim" },
+];
+
+const footerOnlyLinks = [
+  { title: "آراء المستخدمين", href: "/reviews" },
 ];
 
 const novelFeatures = [
@@ -349,7 +355,7 @@ export default function Features() {
               <span>QalamAI — منصة الكتابة الإبداعية والمهنية بالذكاء الاصطناعي</span>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-              {navLinks.map((link) => (
+              {[...navLinks, ...footerOnlyLinks].map((link) => (
                 <Link key={link.href} href={link.href}>
                   <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md" data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}>
                     {link.title}

@@ -7,11 +7,17 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const navLinks = [
   { label: "الرئيسية", href: "/" },
+  { label: "المعرض", href: "/gallery" },
+  { label: "المقالات", href: "/essays" },
   { label: "من نحن", href: "/about" },
   { label: "المميزات", href: "/features" },
   { label: "الأسعار", href: "/pricing" },
   { label: "تواصل معنا", href: "/contact" },
   { label: "أبو هاشم", href: "/abu-hashim" },
+];
+
+const footerOnlyLinks = [
+  { label: "آراء المستخدمين", href: "/reviews" },
 ];
 
 const inspirations = [
@@ -271,7 +277,7 @@ export default function AbuHashim() {
             <span>QalamAI — منصة كتابة الرواية العربية بالذكاء الاصطناعي</span>
           </div>
           <div className="hidden md:flex items-center gap-4">
-            {navLinks.map((link) => (
+            {[...navLinks, ...footerOnlyLinks].map((link) => (
               <Link key={link.href} href={link.href}>
                 <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md" data-testid={`link-footer-${link.href.slice(1) || "home"}`}>
                   {link.label}

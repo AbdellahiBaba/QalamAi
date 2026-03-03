@@ -161,6 +161,7 @@ export const novelProjects = pgTable("novel_projects", {
   styleAnalysisPaidCount: integer("style_analysis_paid_count").notNull().default(0),
   targetWordCount: integer("target_word_count"),
   publishedToNews: boolean("published_to_news").default(false),
+  publishedToGallery: boolean("published_to_gallery").default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

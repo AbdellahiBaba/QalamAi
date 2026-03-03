@@ -44,6 +44,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Marketing Popup: Displays an animated popup for first-time visitors.
 - Tracking Pixels (TikTok & Facebook): Admin-managed pixel tracking with client and server-side event tracking.
 - Political Essays & News Page: Public page at `/essays` showing published essays sorted by popularity with view/click tracking. Authors must opt-in via `publishedToNews` toggle.
+- Publish Destination Choice: Authors can independently choose to publish to the gallery (`publishedToGallery`) and/or the essays page (`publishedToNews` for essays only). Both toggles appear in the project-detail share section when shareToken exists. Gallery now filters by `publishedToGallery = true` instead of just `shareToken IS NOT NULL`.
 - Publish to News Toggle: Essay authors can choose to publish their essays to the public news page via a switch in the project detail share section. Requires shareToken.
 - Essays Marketing Popup: Animated popup on landing page promoting the political essays section.
 - Admin Essay Analytics: "المقالات" tab in admin panel with views, clicks, CTR, and sorting.
@@ -57,6 +58,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Reading Time Estimates: Calculated at ~200 wpm for Arabic, shown on essay cards and shared project pages.
 - Related Essays: "مقالات ذات صلة" section at bottom of shared essays showing up to 3 related essays by subject.
 - Admin Social Media Links: Admin can manage platform social media profile links (LinkedIn, TikTok, X, Instagram, Facebook, YouTube, Snapchat, Telegram, WhatsApp) with enable/disable toggle and display order. Uses `socialMediaLinks` table. Reusable `SocialMediaIcons` component renders enabled links in all public page footers and the contact page.
+- Navigation Structure: All marketing pages (landing, about, features, pricing, contact, abu-hashim) define `navLinks` for header navbar + footer and `footerOnlyLinks` for footer-only links (currently: Reviews). The "المقالات" (Essays) and "المعرض" (Gallery) links appear in both header and footer. "آراء المستخدمين" (Reviews) appears only in footers.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation.
