@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
@@ -32,6 +33,7 @@ import type { NovelProject, Character, Chapter, CharacterRelationship, ChapterVe
 import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
 import { toArabicOrdinal, estimateReadingTime } from "@shared/utils";
+import { AbuHashimChat } from "@/components/abu-hashim-chat";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -221,14 +223,9 @@ export default function ProjectDetail() {
   const [editNarrativePov, setEditNarrativePov] = useState("");
   const [editingMainIdea, setEditingMainIdea] = useState(false);
   const [editMainIdeaValue, setEditMainIdeaValue] = useState("");
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
   const [targetWordCountDialogOpen, setTargetWordCountDialogOpen] = useState(false);
   const [targetWordCountInput, setTargetWordCountInput] = useState("");
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: project, isLoading } = useQuery<ProjectData>({
@@ -760,10 +757,6 @@ export default function ProjectDetail() {
     }
   }, [streamedContent]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, chatLoading]);
-
   const handleCtrlSave = useCallback(() => {
     if (editingSettings) {
       handleSaveSettings();
@@ -836,7 +829,6 @@ export default function ProjectDetail() {
     { key: "ArrowRight", ctrl: true, handler: handleNextChapter, description: "الانتقال للفصل التالي", label: "Ctrl + \u2192" },
     { key: "ArrowLeft", ctrl: true, handler: handlePrevChapter, description: "الانتقال للفصل السابق", label: "Ctrl + \u2190" },
     { key: "g", ctrl: true, handler: handleGenerateNext, description: "كتابة الفصل التالي", label: "Ctrl + G" },
-    { key: "/", ctrl: true, handler: () => setChatOpen(prev => !prev), description: "فتح/إغلاق محادثة أبو هاشم", label: "Ctrl + /" },
     { key: "Escape", handler: handleEscapeClose, description: "إغلاق وضع التحرير", label: "Escape" },
   ], [handleCtrlSave, handleNextChapter, handlePrevChapter, handleGenerateNext, handleEscapeClose]);
 
@@ -1043,23 +1035,7 @@ export default function ProjectDetail() {
     setIsSuggestingTitles(false);
   };
 
-  const handleSendChat = async () => {
-    if (!chatInput.trim() || chatLoading) return;
-    const userMsg = chatInput.trim();
-    setChatInput("");
-    setChatMessages(prev => [...prev, { role: "user", content: userMsg }]);
-    setChatLoading(true);
-    try {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/chat`, { message: userMsg });
-      const data = await res.json();
-      setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
-    } catch {
-      setChatMessages(prev => [...prev, { role: "assistant", content: "عذراً، حدث خطأ. حاول مرة أخرى." }]);
-    }
-    setChatLoading(false);
-  };
-
-  const chatQuickQuestions = [
+  const projectQuickQuestions = [
     "كيف أنهي هذا الفصل؟",
     "اقترح تطوراً درامياً",
     "ما رأيك في هذه الشخصية؟",
@@ -1228,6 +1204,37 @@ export default function ProjectDetail() {
                   <><Share2 className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">مشاركة</span></>
                 )}
               </Button>
+              {project.projectType === "essay" && project.shareToken && (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="publish-to-news"
+                    checked={!!project.publishedToNews}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        if (checked) {
+                          await apiRequest("POST", `/api/projects/${projectId}/publish-to-news`);
+                          toast({ title: "تم نشر المقال في صفحة المقالات" });
+                        } else {
+                          await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-news`);
+                          toast({ title: "تم إلغاء النشر من صفحة المقالات" });
+                        }
+                        queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                      } catch {
+                        toast({ title: "حدث خطأ", variant: "destructive" });
+                      }
+                    }}
+                    data-testid="switch-publish-to-news"
+                  />
+                  <Label
+                    htmlFor="publish-to-news"
+                    className="text-xs cursor-pointer whitespace-nowrap"
+                    data-testid="label-publish-to-news"
+                    title="عند التفعيل، سيظهر مقالك في صفحة المقالات العامة ليقرأه الجميع"
+                  >
+                    نشر في صفحة المقالات
+                  </Label>
+                </div>
+              )}
             </div>
           )}
           <ThemeToggle />
@@ -1243,96 +1250,7 @@ export default function ProjectDetail() {
         </div>
       </header>
 
-      <Button
-        className="fixed bottom-6 left-6 z-[9999] rounded-full w-16 h-16 shadow-2xl bg-amber-500 hover:bg-amber-600 text-white animate-pulse hover:animate-none ring-4 ring-amber-300/30"
-        onClick={() => setChatOpen(!chatOpen)}
-        data-testid="button-toggle-chat"
-        title="تحدث مع أبو هاشم"
-      >
-        {chatOpen ? <X className="w-7 h-7" /> : <Sparkles className="w-7 h-7" />}
-      </Button>
-
-      <div
-        className={`fixed top-0 left-0 h-full w-[380px] max-w-[90vw] bg-background border-r shadow-2xl z-40 transition-transform duration-300 flex flex-col ${chatOpen ? "translate-x-0" : "-translate-x-full"}`}
-        dir="rtl"
-      >
-        <div className="p-4 border-b bg-gradient-to-l from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm">اسأل أبو هاشم</h3>
-            <p className="text-xs text-muted-foreground">مستشارك الأدبي لهذا المشروع</p>
-          </div>
-          <Button variant="ghost" size="icon" className="mr-auto" onClick={() => setChatOpen(false)} data-testid="button-close-chat">
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <ScrollArea className="flex-1 p-4">
-          {chatMessages.length === 0 && !chatLoading && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground text-center mb-4">اسأل أبو هاشم أي سؤال عن مشروعك</p>
-              <div className="space-y-2">
-                {chatQuickQuestions.map((q, i) => (
-                  <button
-                    key={i}
-                    className="w-full text-right text-sm px-3 py-2 rounded-lg border border-border hover:border-amber-300 dark:hover:border-amber-600 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors"
-                    onClick={() => { setChatInput(q); }}
-                    data-testid={`button-quick-question-${i}`}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {chatMessages.map((msg, i) => (
-            <div key={i} className={`mb-3 flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
-              <div
-                className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-none"
-                    : "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-foreground rounded-tl-none"
-                }`}
-                data-testid={`chat-message-${msg.role}-${i}`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {chatLoading && (
-            <div className="flex justify-end mb-3">
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl rounded-tl-none px-4 py-3">
-                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
-              </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </ScrollArea>
-
-        <div className="p-3 border-t bg-background">
-          <div className="flex gap-2">
-            <Textarea
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="اكتب سؤالك هنا..."
-              className="resize-none min-h-[44px] max-h-[120px] text-sm"
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
-              data-testid="input-chat-message"
-            />
-            <Button
-              size="icon"
-              className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white h-[44px] w-[44px]"
-              onClick={handleSendChat}
-              disabled={chatLoading || !chatInput.trim()}
-              data-testid="button-send-chat"
-            >
-              <ArrowRight className="w-4 h-4 rotate-180" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <AbuHashimChat mode="project" projectId={projectId} quickQuestions={projectQuickQuestions} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {!hasAccess && (

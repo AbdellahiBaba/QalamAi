@@ -43,11 +43,17 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - Admin Grant Analysis Uses: Allows administrators to grant additional analysis uses to users.
 - Marketing Popup: Displays an animated popup for first-time visitors.
 - Tracking Pixels (TikTok & Facebook): Admin-managed pixel tracking with client and server-side event tracking.
-- Political Essays & News Page: Public page at `/essays` showing shared essays sorted by popularity with view/click tracking.
+- Political Essays & News Page: Public page at `/essays` showing published essays sorted by popularity with view/click tracking. Authors must opt-in via `publishedToNews` toggle.
+- Publish to News Toggle: Essay authors can choose to publish their essays to the public news page via a switch in the project detail share section. Requires shareToken.
 - Essays Marketing Popup: Animated popup on landing page promoting the political essays section.
 - Admin Essay Analytics: "المقالات" tab in admin panel with views, clicks, CTR, and sorting.
 - Password Reset Flow: Forgot-password email with reset token, reset-password page. Uses `passwordResetTokens` table.
 - Welcome Popup: Warm welcome dialog for new signups and returning users with personalized stats.
+- Social Sharing: Sticky bar on shared project pages with X/Twitter, Facebook, WhatsApp, Telegram, and copy link buttons.
+- Reader Reactions: Essay readers can react with like/love/insightful/thoughtful. Counts shown on essay cards and shared view. Uses `essayReactions` table.
+- Abu Hashim Chat Component: Reusable `abu-hashim-chat.tsx` component used in both home and project-detail pages.
+- Reading Time Estimates: Calculated at ~200 wpm for Arabic, shown on essay cards and shared project pages.
+- Related Essays: "مقالات ذات صلة" section at bottom of shared essays showing up to 3 related essays by subject.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Integrated via Replit AI for AI-powered content generation.

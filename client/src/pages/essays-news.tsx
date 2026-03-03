@@ -14,6 +14,8 @@ import {
   MousePointerClick,
   Image as ImageIcon,
   Feather,
+  Heart,
+  Clock,
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
@@ -27,7 +29,13 @@ interface PublicEssay {
   authorId: string | null;
   views: number;
   clicks: number;
+  reactions: { like: number; love: number; insightful: number; thoughtful: number } | null;
+  totalWords: number;
   createdAt: string | null;
+}
+
+function calcReadingTime(wordCount: number): number {
+  return Math.max(1, Math.ceil(wordCount / 200));
 }
 
 export default function EssaysNews() {
@@ -182,6 +190,18 @@ export default function EssaysNews() {
                         <MousePointerClick className="w-3.5 h-3.5" />
                         {essay.clicks}
                       </span>
+                      {essay.totalWords > 0 && (
+                        <span className="flex items-center gap-1" data-testid={`stat-reading-time-${essay.id}`}>
+                          <Clock className="w-3.5 h-3.5" />
+                          {calcReadingTime(essay.totalWords)} {calcReadingTime(essay.totalWords) === 1 ? "دقيقة" : "دقائق"}
+                        </span>
+                      )}
+                      {essay.reactions && (essay.reactions.like + essay.reactions.love + essay.reactions.insightful + essay.reactions.thoughtful) > 0 && (
+                        <span className="flex items-center gap-1" data-testid={`stat-reactions-${essay.id}`}>
+                          <Heart className="w-3.5 h-3.5" />
+                          {essay.reactions.like + essay.reactions.love + essay.reactions.insightful + essay.reactions.thoughtful}
+                        </span>
+                      )}
                       {essay.createdAt && (
                         <span data-testid={`stat-date-${essay.id}`}>
                           {new Date(essay.createdAt).toLocaleDateString("ar-EG", {

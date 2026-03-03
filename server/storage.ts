@@ -15,6 +15,7 @@ import {
   type InsertPlatformReview, type PlatformReview, type AuthorRating,
   type InsertTrackingPixel, type TrackingPixel,
   type EssayView, type EssayClick, type PasswordResetToken,
+  essayReactions, type EssayReaction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, avg } from "drizzle-orm";
@@ -79,6 +80,9 @@ export interface IStorage {
   markPasswordResetTokenUsed(token: string): Promise<void>;
   getUserByEmail(email: string): Promise<User | undefined>;
   updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
+  upsertEssayReaction(projectId: number, visitorIp: string, reactionType: string): Promise<void>;
+  getEssayReactionCounts(projectId: number): Promise<Record<string, number>>;
+  getPublishedEssays(): Promise<NovelProject[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -692,6 +696,49 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {
     await db.update(users).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  async upsertEssayReaction(projectId: number, visitorIp: string, reactionType: string): Promise<void> {
+    const existing = await db.select().from(essayReactions).where(
+      and(
+        eq(essayReactions.projectId, projectId),
+        eq(essayReactions.visitorIp, visitorIp),
+        eq(essayReactions.reactionType, reactionType)
+      )
+    );
+    if (existing.length > 0) {
+      await db.delete(essayReactions).where(
+        and(
+          eq(essayReactions.projectId, projectId),
+          eq(essayReactions.visitorIp, visitorIp),
+          eq(essayReactions.reactionType, reactionType)
+        )
+      );
+    } else {
+      await db.insert(essayReactions).values({ projectId, visitorIp, reactionType });
+    }
+  }
+
+  async getEssayReactionCounts(projectId: number): Promise<Record<string, number>> {
+    const rows = await db.select({
+      reactionType: essayReactions.reactionType,
+      count: count(),
+    }).from(essayReactions).where(eq(essayReactions.projectId, projectId)).groupBy(essayReactions.reactionType);
+    const result: Record<string, number> = {};
+    for (const row of rows) {
+      result[row.reactionType] = row.count;
+    }
+    return result;
+  }
+
+  async getPublishedEssays(): Promise<NovelProject[]> {
+    return db.select().from(novelProjects).where(
+      and(
+        eq(novelProjects.projectType, "essay"),
+        eq(novelProjects.publishedToNews, true),
+        isNotNull(novelProjects.shareToken)
+      )
+    ).orderBy(desc(novelProjects.updatedAt));
   }
 }
 

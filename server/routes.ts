@@ -3090,6 +3090,7 @@ ${glossaryParagraphs}
       const details = await storage.getProjectWithDetails(project.id);
       if (!details) return res.status(404).json({ error: "Not found" });
       res.json({
+        id: project.id,
         title: details.title,
         projectType: details.projectType,
         coverImageUrl: details.coverImageUrl,
@@ -3343,21 +3344,27 @@ ${glossaryParagraphs}
 
   app.get("/api/public/essays", async (_req, res) => {
     try {
-      const allProjects = await storage.getGalleryProjects();
-      const essays = allProjects.filter((p: any) => p.projectType === "essay");
-      const essaysWithStats = await Promise.all(essays.map(async (p: any) => {
+      const publishedEssays = await storage.getPublishedEssays();
+      const essaysWithStats = await Promise.all(publishedEssays.map(async (p: any) => {
         const views = await storage.getEssayViewCount(p.id);
         const clicks = await storage.getEssayClickCount(p.id);
+        const reactions = await storage.getEssayReactionCounts(p.id);
+        const chapters = await storage.getChaptersByProject(p.id);
+        const totalWords = chapters.reduce((sum: number, ch: any) => sum + (ch.content ? ch.content.split(/\s+/).length : 0), 0);
+        const [user] = await db.select().from(users).where(eq(users.id, p.userId));
         return {
           id: p.id,
           title: p.title,
           mainIdea: p.mainIdea?.slice(0, 300),
           coverImageUrl: p.coverImageUrl,
           shareToken: p.shareToken,
-          authorName: p.authorName,
-          authorId: p.authorId,
+          authorName: user?.firstName || user?.email || "مؤلف",
+          authorId: p.userId,
+          subject: p.subject,
           views,
           clicks,
+          reactions,
+          totalWords,
           createdAt: (p as any).createdAt,
         };
       }));
@@ -3388,6 +3395,102 @@ ${glossaryParagraphs}
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to record click" });
+    }
+  });
+
+  app.post("/api/projects/:id/publish-to-news", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      if (project.projectType !== "essay") return res.status(400).json({ error: "هذا الخيار متاح للمقالات فقط" });
+      if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المقال أولاً" });
+      await storage.updateProject(projectId, { publishedToNews: true } as any);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "حدث خطأ" });
+    }
+  });
+
+  app.delete("/api/projects/:id/publish-to-news", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      if (project.projectType !== "essay") return res.status(400).json({ error: "هذا الخيار متاح للمقالات فقط" });
+      await storage.updateProject(projectId, { publishedToNews: false } as any);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "حدث خطأ" });
+    }
+  });
+
+  app.post("/api/public/essays/:id/react", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project || project.projectType !== "essay" || !project.publishedToNews || !project.shareToken) {
+        return res.status(404).json({ error: "Not found" });
+      }
+      const { reactionType } = req.body;
+      if (!["like", "love", "insightful", "thoughtful"].includes(reactionType)) {
+        return res.status(400).json({ error: "Invalid reaction type" });
+      }
+      const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+      await storage.upsertEssayReaction(id, visitorIp, reactionType);
+      const counts = await storage.getEssayReactionCounts(id);
+      res.json(counts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to record reaction" });
+    }
+  });
+
+  app.get("/api/public/essays/:id/reactions", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project || project.projectType !== "essay" || !project.publishedToNews || !project.shareToken) {
+        return res.status(404).json({ error: "Not found" });
+      }
+      const counts = await storage.getEssayReactionCounts(id);
+      res.json(counts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch reactions" });
+    }
+  });
+
+  app.get("/api/public/essays/:id/related", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project || project.projectType !== "essay") return res.status(404).json({ error: "Not found" });
+      const allPublished = await storage.getPublishedEssays();
+      const others = allPublished.filter((p: any) => p.id !== id);
+      let related = others.filter((p: any) => p.subject && p.subject === project.subject);
+      if (related.length < 3) {
+        const remaining = others.filter((p: any) => !related.some((r: any) => r.id === p.id));
+        related = [...related, ...remaining].slice(0, 3);
+      } else {
+        related = related.slice(0, 3);
+      }
+      const result = await Promise.all(related.map(async (p: any) => {
+        const [user] = await db.select().from(users).where(eq(users.id, p.userId));
+        const chapters = await storage.getChaptersByProject(p.id);
+        const totalWords = chapters.reduce((sum: number, ch: any) => sum + (ch.content ? ch.content.split(/\s+/).length : 0), 0);
+        return {
+          id: p.id,
+          title: p.title,
+          shareToken: p.shareToken,
+          coverImageUrl: p.coverImageUrl,
+          authorName: user?.firstName || user?.email || "مؤلف",
+          totalWords,
+        };
+      }));
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch related essays" });
     }
   });
 

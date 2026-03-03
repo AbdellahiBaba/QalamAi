@@ -160,6 +160,7 @@ export const novelProjects = pgTable("novel_projects", {
   styleAnalysisCount: integer("style_analysis_count").notNull().default(0),
   styleAnalysisPaidCount: integer("style_analysis_paid_count").notNull().default(0),
   targetWordCount: integer("target_word_count"),
+  publishedToNews: boolean("published_to_news").default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
@@ -475,3 +476,13 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 });
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+export const essayReactions = pgTable("essay_reactions", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  visitorIp: varchar("visitor_ip").notNull(),
+  reactionType: varchar("reaction_type").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type EssayReaction = typeof essayReactions.$inferSelect;
