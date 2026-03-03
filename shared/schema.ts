@@ -511,3 +511,17 @@ export const socialMediaLinks = pgTable("social_media_links", {
 export const insertSocialMediaLinkSchema = createInsertSchema(socialMediaLinks).omit({ id: true, updatedAt: true });
 export type InsertSocialMediaLink = z.infer<typeof insertSocialMediaLinkSchema>;
 export type SocialMediaLink = typeof socialMediaLinks.$inferSelect;
+
+export const platformFeatures = pgTable("platform_features", {
+  id: serial("id").primaryKey(),
+  featureKey: varchar("feature_key").notNull().unique(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  enabled: boolean("enabled").default(true).notNull(),
+  betaUserIds: text("beta_user_ids").array().default([]),
+  disabledMessage: text("disabled_message").default("هذه الميزة قيد التطوير وستكون متاحة قريباً"),
+});
+
+export const insertPlatformFeatureSchema = createInsertSchema(platformFeatures).omit({ id: true });
+export type InsertPlatformFeature = z.infer<typeof insertPlatformFeatureSchema>;
+export type PlatformFeature = typeof platformFeatures.$inferSelect;

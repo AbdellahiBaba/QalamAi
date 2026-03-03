@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +19,7 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -177,6 +177,7 @@ function getTypeLabels(projectType?: string) {
 
 export default function ProjectDetail() {
   const [, params] = useRoute("/project/:id");
+  const [, setLocation] = useLocation();
   const projectId = params?.id;
   useDocumentTitle("تفاصيل المشروع — قلم AI");
   const { toast } = useToast();
@@ -225,6 +226,7 @@ export default function ProjectDetail() {
   const [editOutlineText, setEditOutlineText] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
   const [showRefineInput, setShowRefineInput] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingSettings, setEditingSettings] = useState(false);
   const [editTimeSetting, setEditTimeSetting] = useState("");
   const [editPlaceSetting, setEditPlaceSetting] = useState("");
@@ -346,6 +348,20 @@ export default function ProjectDetail() {
     },
     onError: () => {
       toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/projects/${projectId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "تم حذف المشروع بنجاح" });
+      setLocation("/");
+    },
+    onError: () => {
+      toast({ title: "فشل في حذف المشروع", variant: "destructive" });
     },
   });
 
@@ -1321,6 +1337,16 @@ export default function ProjectDetail() {
             data-testid="button-show-shortcuts"
           >
             <Keyboard className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDeleteDialog(true)}
+            title="حذف المشروع"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            data-testid="button-delete-project"
+          >
+            <Trash2 className="w-4 h-4" />
           </Button>
         </div>
       </header>
@@ -4281,6 +4307,29 @@ export default function ProjectDetail() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle data-testid="text-delete-dialog-title">حذف المشروع</AlertDialogTitle>
+              <AlertDialogDescription data-testid="text-delete-dialog-description">
+                هل أنت متأكد من حذف هذا المشروع؟ سيتم حذف جميع الفصول والشخصيات والبيانات المرتبطة نهائياً. لا يمكن التراجع عن هذا الإجراء.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel data-testid="button-cancel-delete">إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteProjectMutation.mutate()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteProjectMutation.isPending}
+                data-testid="button-confirm-delete"
+              >
+                {deleteProjectMutation.isPending ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Trash2 className="w-4 h-4 ml-2" />}
+                حذف المشروع
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

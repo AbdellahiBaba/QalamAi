@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { SupportTicket, TicketReply } from "@shared/schema";
+import { SharedFooter } from "@/components/shared-footer";
 
 const statusLabels: Record<string, string> = {
   open: "مفتوح",
@@ -216,6 +217,7 @@ export default function TicketDetail() {
           </div>
         )}
       </main>
+      <SharedFooter />
     </div>
   );
 }

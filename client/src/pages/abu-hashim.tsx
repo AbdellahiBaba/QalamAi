@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Feather, BookOpen, Sparkles, Heart, Shield, PenTool, Quote, Users } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { SharedNavbar, navLinks, footerOnlyLinks } from "@/components/shared-navbar";
+import { SharedNavbar } from "@/components/shared-navbar";
+import { SharedFooter } from "@/components/shared-footer";
 
 const inspirations = [
   {
@@ -229,24 +230,7 @@ export default function AbuHashim() {
         </div>
       </section>
 
-      <footer className="border-t py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Feather className="w-4 h-4" />
-            <span>QalamAI — منصة كتابة الرواية العربية بالذكاء الاصطناعي</span>
-          </div>
-          <div className="hidden md:flex items-center gap-4">
-            {[...navLinks, ...footerOnlyLinks].map((link) => (
-              <Link key={link.href} href={link.href}>
-                <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded-md" data-testid={`link-footer-${link.href.slice(1) || "home"}`}>
-                  {link.label}
-                </span>
-              </Link>
-            ))}
-          </div>
-          <span>&copy; {new Date().getFullYear()} QalamAI</span>
-        </div>
-      </footer>
+      <SharedFooter />
     </div>
   );
 }

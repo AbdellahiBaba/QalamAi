@@ -167,6 +167,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+  await storage.seedDefaultFeatures();
 
   app.get("/sitemap.xml", (_req, res) => {
     const baseUrl = "https://qalamai.net";
@@ -1181,6 +1182,13 @@ ${pages.map(p => `  <url>
       const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect, poetryMeter, poetryRhyme, poetryEra, poetryTone, poetryTheme, poetryVerseCount, poetryImageryLevel, poetryEmotionLevel } = req.body;
 
       const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story" || projectType === "khawater" || projectType === "social_media" || projectType === "poetry") ? projectType : "novel";
+
+      const featureEnabled = await storage.isFeatureEnabled(type, userId);
+      if (!featureEnabled) {
+        const feature = await storage.getFeature(type);
+        return res.status(403).json({ error: feature?.disabledMessage || "هذه الميزة قيد التطوير وستكون متاحة قريباً" });
+      }
+
       const validPageCount = type === "novel" ? (VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150) : (pageCount || 10);
       const price = getProjectPriceByType(type, validPageCount);
 
@@ -5010,6 +5018,64 @@ ${ch.content}
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "فشل في حذف رابط التواصل" });
+    }
+  });
+
+  app.get("/api/admin/features", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const features = await storage.getAllFeatures();
+      res.json(features);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المميزات" });
+    }
+  });
+
+  app.patch("/api/admin/features/:key", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { key } = req.params;
+      const { enabled, disabledMessage, betaUserIds } = req.body;
+      const updateData: any = {};
+      if (typeof enabled === "boolean") updateData.enabled = enabled;
+      if (typeof disabledMessage === "string") updateData.disabledMessage = disabledMessage;
+      if (Array.isArray(betaUserIds)) updateData.betaUserIds = betaUserIds;
+      const updated = await storage.updateFeature(key, updateData);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث الميزة" });
+    }
+  });
+
+  app.get("/api/features", async (req: any, res) => {
+    try {
+      const features = await storage.getAllFeatures();
+      const userId = req.user?.claims?.sub;
+      const result = features.map(f => ({
+        featureKey: f.featureKey,
+        name: f.name,
+        description: f.description,
+        enabled: f.enabled || (userId && f.betaUserIds?.includes(userId)) || false,
+        disabledMessage: f.disabledMessage,
+      }));
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المميزات" });
+    }
+  });
+
+  app.delete("/api/projects/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      if (project.userId !== req.user.claims.sub) {
+        return res.status(403).json({ error: "غير مصرّح بحذف هذا المشروع" });
+      }
+      await storage.deleteProject(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف المشروع" });
     }
   });
 

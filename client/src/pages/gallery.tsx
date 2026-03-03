@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { SharedFooter } from "@/components/shared-footer";
 
 interface GalleryProject {
   id: number;
@@ -239,6 +240,7 @@ export default function Gallery() {
           </div>
         )}
       </div>
+      <SharedFooter />
     </div>
   );
 }

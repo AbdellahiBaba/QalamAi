@@ -13,13 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { SupportTicket, NovelProject, PromoCode, PlatformReview, SocialMediaLink } from "@shared/schema";
+import type { SupportTicket, NovelProject, PromoCode, PlatformReview, SocialMediaLink, PlatformFeature } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { FREE_ANALYSIS_USES, PAID_ANALYSIS_USES } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
 
@@ -126,7 +128,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "social">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "social" | "features">("tickets");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -220,6 +222,22 @@ export default function Admin() {
   const { data: socialLinks, isLoading: socialLinksLoading } = useQuery<SocialMediaLink[]>({
     queryKey: ["/api/admin/social-links"],
     enabled: activeTab === "social",
+  });
+
+  const { data: adminFeatures, isLoading: featuresLoading } = useQuery<PlatformFeature[]>({
+    queryKey: ["/api/admin/features"],
+    enabled: activeTab === "features",
+  });
+
+  const updateFeatureMutation = useMutation({
+    mutationFn: async ({ key, data }: { key: string; data: { enabled?: boolean; disabledMessage?: string; betaUserIds?: string[] } }) => {
+      await apiRequest("PATCH", `/api/admin/features/${key}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/features"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/features"] });
+      toast({ title: "تم تحديث الميزة بنجاح" });
+    },
   });
 
   const [showSocialDialog, setShowSocialDialog] = useState(false);
@@ -717,6 +735,16 @@ export default function Admin() {
           >
             <Share2 className="w-4 h-4 sm:ml-2" />
             <span className="hidden sm:inline">وسائل التواصل</span>
+          </Button>
+          <Button
+            variant={activeTab === "features" ? "default" : "outline"}
+            onClick={() => setActiveTab("features")}
+            size="sm"
+            className="shrink-0"
+            data-testid="button-tab-features"
+          >
+            <Settings className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">المميزات</span>
           </Button>
         </div>
 
@@ -2805,6 +2833,87 @@ export default function Admin() {
           )}
         </DialogContent>
       </Dialog>
+
+        {activeTab === "features" && (
+          <div className="space-y-4" data-testid="features-panel">
+            <h2 className="text-xl font-serif font-bold" data-testid="text-features-heading">إدارة المميزات</h2>
+            <p className="text-sm text-muted-foreground">يمكنك تفعيل أو تعطيل أي ميزة في المنصة. الميزات المعطّلة ستظهر للمستخدمين مع رسالة "قيد التطوير".</p>
+            {featuresLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {(adminFeatures || []).map((feature) => (
+                  <Card key={feature.featureKey} className={`transition-all ${!feature.enabled ? 'opacity-70 border-destructive/30' : ''}`} data-testid={`card-feature-${feature.featureKey}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {feature.enabled ? (
+                            <ToggleRight className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <ToggleLeft className="w-5 h-5 text-muted-foreground" />
+                          )}
+                          <div>
+                            <h3 className="font-semibold" data-testid={`text-feature-name-${feature.featureKey}`}>{feature.name}</h3>
+                            <p className="text-xs text-muted-foreground">{feature.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={`switch-${feature.featureKey}`} className="text-xs text-muted-foreground">
+                            {feature.enabled ? "مفعّلة" : "معطّلة"}
+                          </Label>
+                          <Switch
+                            id={`switch-${feature.featureKey}`}
+                            checked={feature.enabled}
+                            onCheckedChange={(checked) => {
+                              updateFeatureMutation.mutate({ key: feature.featureKey, data: { enabled: checked } });
+                            }}
+                            data-testid={`switch-feature-${feature.featureKey}`}
+                          />
+                        </div>
+                      </div>
+                      {!feature.enabled && (
+                        <div className="space-y-2 border-t pt-3">
+                          <div>
+                            <Label className="text-xs">رسالة التعطيل</Label>
+                            <Textarea
+                              defaultValue={feature.disabledMessage || ""}
+                              onBlur={(e) => {
+                                if (e.target.value !== (feature.disabledMessage || "")) {
+                                  updateFeatureMutation.mutate({ key: feature.featureKey, data: { disabledMessage: e.target.value } });
+                                }
+                              }}
+                              className="mt-1 text-sm"
+                              rows={2}
+                              data-testid={`input-disabled-message-${feature.featureKey}`}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">مستخدمو البيتا (معرّفات المستخدمين، مفصولة بفواصل)</Label>
+                            <Input
+                              defaultValue={(feature.betaUserIds || []).join(", ")}
+                              onBlur={(e) => {
+                                const ids = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+                                updateFeatureMutation.mutate({ key: feature.featureKey, data: { betaUserIds: ids } });
+                              }}
+                              placeholder="مثال: user123, user456"
+                              className="mt-1 text-sm"
+                              dir="ltr"
+                              data-testid={`input-beta-users-${feature.featureKey}`}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       <Dialog open={showBulkPlanDialog} onOpenChange={setShowBulkPlanDialog}>
         <DialogContent dir="rtl">

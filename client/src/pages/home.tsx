@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useFeatures } from "@/hooks/use-features";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,7 @@ export default function Home() {
   useDocumentTitle("مشاريعي — قلم AI");
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { isEnabled, getDisabledMessage } = useFeatures();
   const { data: projects, isLoading } = useQuery<NovelProject[]>({
     queryKey: ["/api/projects"],
   });
@@ -514,48 +516,104 @@ export default function Home() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" dir="rtl">
-              <Link href="/project/new">
-                <DropdownMenuItem data-testid="menu-new-novel">
-                  <BookOpen className="w-4 h-4 ml-2" />
-                  رواية جديدة
+              {isEnabled("novel") ? (
+                <Link href="/project/new">
+                  <DropdownMenuItem data-testid="menu-new-novel">
+                    <BookOpen className="w-4 h-4 ml-2" />
+                    رواية جديدة
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled data-testid="menu-new-novel" title={getDisabledMessage("novel")}>
+                  <BookOpen className="w-4 h-4 ml-2 opacity-50" />
+                  <span className="opacity-50">رواية جديدة</span>
+                  <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
-              </Link>
-              <Link href="/project/new/essay">
-                <DropdownMenuItem data-testid="menu-new-essay">
-                  <Newspaper className="w-4 h-4 ml-2" />
-                  مقال جديد
+              )}
+              {isEnabled("essay") ? (
+                <Link href="/project/new/essay">
+                  <DropdownMenuItem data-testid="menu-new-essay">
+                    <Newspaper className="w-4 h-4 ml-2" />
+                    مقال جديد
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled data-testid="menu-new-essay" title={getDisabledMessage("essay")}>
+                  <Newspaper className="w-4 h-4 ml-2 opacity-50" />
+                  <span className="opacity-50">مقال جديد</span>
+                  <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
-              </Link>
-              <Link href="/project/new/scenario">
-                <DropdownMenuItem data-testid="menu-new-scenario">
-                  <Film className="w-4 h-4 ml-2" />
-                  سيناريو جديد
+              )}
+              {isEnabled("scenario") ? (
+                <Link href="/project/new/scenario">
+                  <DropdownMenuItem data-testid="menu-new-scenario">
+                    <Film className="w-4 h-4 ml-2" />
+                    سيناريو جديد
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled data-testid="menu-new-scenario" title={getDisabledMessage("scenario")}>
+                  <Film className="w-4 h-4 ml-2 opacity-50" />
+                  <span className="opacity-50">سيناريو جديد</span>
+                  <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
-              </Link>
-              <Link href="/project/new/short-story">
-                <DropdownMenuItem data-testid="menu-new-short-story">
-                  <PenTool className="w-4 h-4 ml-2" />
-                  قصة قصيرة جديدة
+              )}
+              {isEnabled("short_story") ? (
+                <Link href="/project/new/short-story">
+                  <DropdownMenuItem data-testid="menu-new-short-story">
+                    <PenTool className="w-4 h-4 ml-2" />
+                    قصة قصيرة جديدة
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled data-testid="menu-new-short-story" title={getDisabledMessage("short_story")}>
+                  <PenTool className="w-4 h-4 ml-2 opacity-50" />
+                  <span className="opacity-50">قصة قصيرة جديدة</span>
+                  <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
-              </Link>
-              <Link href="/project/new/khawater">
-                <DropdownMenuItem data-testid="menu-new-khawater">
-                  <Feather className="w-4 h-4 ml-2" />
-                  خاطرة جديدة
+              )}
+              {isEnabled("khawater") ? (
+                <Link href="/project/new/khawater">
+                  <DropdownMenuItem data-testid="menu-new-khawater">
+                    <Feather className="w-4 h-4 ml-2" />
+                    خاطرة جديدة
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled data-testid="menu-new-khawater" title={getDisabledMessage("khawater")}>
+                  <Feather className="w-4 h-4 ml-2 opacity-50" />
+                  <span className="opacity-50">خاطرة جديدة</span>
+                  <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
-              </Link>
-              <Link href="/project/new/social-media">
-                <DropdownMenuItem data-testid="menu-new-social-media">
-                  <Share2 className="w-4 h-4 ml-2" />
-                  محتوى سوشيال ميديا
+              )}
+              {isEnabled("social_media") ? (
+                <Link href="/project/new/social-media">
+                  <DropdownMenuItem data-testid="menu-new-social-media">
+                    <Share2 className="w-4 h-4 ml-2" />
+                    محتوى سوشيال ميديا
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled data-testid="menu-new-social-media" title={getDisabledMessage("social_media")}>
+                  <Share2 className="w-4 h-4 ml-2 opacity-50" />
+                  <span className="opacity-50">محتوى سوشيال ميديا</span>
+                  <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
-              </Link>
-              <Link href="/project/new?type=poetry">
-                <DropdownMenuItem data-testid="menu-new-poetry">
-                  <BookMarked className="w-4 h-4 ml-2" />
-                  قصيدة عمودية
+              )}
+              {isEnabled("poetry") ? (
+                <Link href="/project/new?type=poetry">
+                  <DropdownMenuItem data-testid="menu-new-poetry">
+                    <BookMarked className="w-4 h-4 ml-2" />
+                    قصيدة عمودية
+                  </DropdownMenuItem>
+                </Link>
+              ) : (
+                <DropdownMenuItem disabled data-testid="menu-new-poetry" title={getDisabledMessage("poetry")}>
+                  <BookMarked className="w-4 h-4 ml-2 opacity-50" />
+                  <span className="opacity-50">قصيدة عمودية</span>
+                  <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
-              </Link>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

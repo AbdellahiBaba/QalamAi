@@ -5,7 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, BookOpen, Image as ImageIcon } from "lucide-react";
+import { User, BookOpen, Image as ImageIcon, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { SharedNavbar } from "@/components/shared-navbar";
+import { SharedFooter } from "@/components/shared-footer";
 import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -86,8 +89,9 @@ export default function AuthorProfile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6" dir="rtl">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <div className="min-h-screen bg-background" dir="rtl">
+        <SharedNavbar />
+        <div className="max-w-5xl mx-auto p-6 pt-24 space-y-6">
           <div className="flex items-center gap-4">
             <Skeleton className="h-20 w-20 rounded-full" />
             <div className="space-y-2">
@@ -107,19 +111,31 @@ export default function AuthorProfile() {
 
   if (error || !author) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
-        <div className="text-center space-y-4" data-testid="author-not-found">
-          <User className="w-16 h-16 text-muted-foreground mx-auto" />
-          <h1 className="text-2xl font-serif font-bold" data-testid="text-author-not-found-title">الكاتب غير موجود</h1>
-          <p className="text-muted-foreground" data-testid="text-author-not-found-message">هذا الملف الشخصي غير متاح</p>
+      <div className="min-h-screen bg-background" dir="rtl">
+        <SharedNavbar />
+        <div className="pt-24 px-6">
+          <Button variant="ghost" onClick={() => window.history.back()} className="mb-4" data-testid="button-back">
+            <ArrowRight className="w-4 h-4 ml-2" />
+            العودة
+          </Button>
         </div>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center space-y-4" data-testid="author-not-found">
+            <User className="w-16 h-16 text-muted-foreground mx-auto" />
+            <h1 className="text-2xl font-serif font-bold" data-testid="text-author-not-found-title">الكاتب غير موجود</h1>
+            <p className="text-muted-foreground" data-testid="text-author-not-found-message">هذا الملف الشخصي غير متاح</p>
+          </div>
+        </div>
+        <SharedFooter />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6" dir="rtl">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background" dir="rtl">
+      <SharedNavbar />
+      <div className="max-w-5xl mx-auto p-6 pt-24 space-y-8">
+        <Button variant="ghost" onClick={() => window.history.back()} className="mb-4" data-testid="button-back"><ArrowRight className="w-4 h-4 ml-2" />العودة</Button>
         <div className="flex items-center gap-4" data-testid="author-header">
           <Avatar className="h-20 w-20" data-testid="img-author-avatar">
             {author.profileImageUrl ? (
@@ -197,6 +213,7 @@ export default function AuthorProfile() {
           )}
         </div>
       </div>
+      <SharedFooter />
     </div>
   );
 }

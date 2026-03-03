@@ -10,8 +10,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { SocialMediaIcons } from "@/components/social-media-icons";
-import { SharedNavbar, navLinks, footerOnlyLinks } from "@/components/shared-navbar";
+import { SharedNavbar } from "@/components/shared-navbar";
+import { SharedFooter } from "@/components/shared-footer";
 import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
@@ -926,27 +926,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      <footer className="border-t py-8 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
-          <SocialMediaIcons size="sm" className="mb-4" />
-          <div className="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Feather className="w-4 h-4" />
-              <span>QalamAI — منصة الكتابة العربية بالذكاء الاصطناعي</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              {[...navLinks, ...footerOnlyLinks].map((link) => (
-                <Link key={link.href} href={link.href}>
-                  <span className="cursor-pointer hover:text-foreground transition-colors" data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}>
-                    {link.label}
-                  </span>
-                </Link>
-              ))}
-            </div>
-            <span>&copy; {new Date().getFullYear()} QalamAI</span>
-          </div>
-        </div>
-      </footer>
+      <SharedFooter />
     </div>
   );
 }

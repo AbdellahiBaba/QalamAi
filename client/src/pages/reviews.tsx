@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { SharedFooter } from "@/components/shared-footer";
 import {
   Dialog,
   DialogContent,
@@ -313,6 +314,7 @@ export default function Reviews() {
           )}
         </section>
       </div>
+      <SharedFooter />
     </div>
   );
 }

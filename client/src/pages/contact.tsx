@@ -4,14 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Feather, Mail, Send, MapPin, Clock, Loader2 } from "lucide-react";
+import { Mail, Send, MapPin, Clock, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { SocialMediaIcons } from "@/components/social-media-icons";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { SharedNavbar, navLinks, footerOnlyLinks } from "@/components/shared-navbar";
+import { SharedNavbar } from "@/components/shared-navbar";
+import { SharedFooter } from "@/components/shared-footer";
 
 export default function Contact() {
   useDocumentTitle("تواصل معنا — قلم AI");
@@ -203,29 +204,7 @@ export default function Contact() {
         </div>
       </section>
 
-      <footer className="border-t py-8 px-6">
-        <div className="max-w-6xl mx-auto">
-          <SocialMediaIcons size="sm" className="mb-4" />
-          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Feather className="w-4 h-4" />
-              <span>QalamAI — منصة كتابة الرواية العربية بالذكاء الاصطناعي</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              {[...navLinks, ...footerOnlyLinks].map((link) => (
-                <Link key={link.href} href={link.href}>
-                  <span className="cursor-pointer hover-elevate px-1 py-0.5 rounded" data-testid={`link-footer-${link.href.replace("/", "") || "home"}`}>
-                    {link.label}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="text-center text-sm text-muted-foreground mt-4">
-            &copy; {new Date().getFullYear()} QalamAI. جميع الحقوق محفوظة.
-          </div>
-        </div>
-      </footer>
+      <SharedFooter />
     </div>
   );
 }

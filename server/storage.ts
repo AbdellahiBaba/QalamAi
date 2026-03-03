@@ -17,6 +17,7 @@ import {
   type EssayView, type EssayClick, type PasswordResetToken,
   essayReactions, type EssayReaction,
   socialMediaLinks, type SocialMediaLink, type InsertSocialMediaLink,
+  platformFeatures, type PlatformFeature,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, avg } from "drizzle-orm";
@@ -88,6 +89,12 @@ export interface IStorage {
   getEnabledSocialMediaLinks(): Promise<SocialMediaLink[]>;
   upsertSocialMediaLink(data: InsertSocialMediaLink): Promise<SocialMediaLink>;
   deleteSocialMediaLink(id: number): Promise<void>;
+  getAllFeatures(): Promise<PlatformFeature[]>;
+  getFeature(key: string): Promise<PlatformFeature | undefined>;
+  updateFeature(key: string, data: Partial<PlatformFeature>): Promise<PlatformFeature>;
+  isFeatureEnabled(key: string, userId?: string): Promise<boolean>;
+  seedDefaultFeatures(): Promise<void>;
+  deleteProject(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -766,6 +773,81 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSocialMediaLink(id: number): Promise<void> {
     await db.delete(socialMediaLinks).where(eq(socialMediaLinks.id, id));
+  }
+
+  async getAllFeatures(): Promise<PlatformFeature[]> {
+    return db.select().from(platformFeatures).orderBy(asc(platformFeatures.id));
+  }
+
+  async getFeature(key: string): Promise<PlatformFeature | undefined> {
+    const [feature] = await db.select().from(platformFeatures).where(eq(platformFeatures.featureKey, key));
+    return feature;
+  }
+
+  async updateFeature(key: string, data: Partial<PlatformFeature>): Promise<PlatformFeature> {
+    const [updated] = await db.update(platformFeatures).set(data).where(eq(platformFeatures.featureKey, key)).returning();
+    return updated;
+  }
+
+  async isFeatureEnabled(key: string, userId?: string): Promise<boolean> {
+    const feature = await this.getFeature(key);
+    if (!feature) return true;
+    if (feature.enabled) return true;
+    if (userId && feature.betaUserIds && feature.betaUserIds.includes(userId)) return true;
+    return false;
+  }
+
+  async seedDefaultFeatures(): Promise<void> {
+    const existing = await this.getAllFeatures();
+    if (existing.length > 0) return;
+
+    const defaults = [
+      { featureKey: "novel", name: "رواية", description: "كتابة الروايات بالذكاء الاصطناعي" },
+      { featureKey: "essay", name: "مقال", description: "كتابة المقالات الأدبية والسياسية" },
+      { featureKey: "scenario", name: "سيناريو", description: "كتابة السيناريوهات الدرامية" },
+      { featureKey: "short_story", name: "قصة قصيرة", description: "كتابة القصص القصيرة" },
+      { featureKey: "khawater", name: "خواطر", description: "كتابة الخواطر الأدبية" },
+      { featureKey: "social_media", name: "محتوى تواصل اجتماعي", description: "إنشاء محتوى لمنصات التواصل الاجتماعي" },
+      { featureKey: "poetry", name: "شعر", description: "كتابة الشعر العربي بأوزانه وبحوره" },
+      { featureKey: "ai_analysis", name: "التحليل بالذكاء الاصطناعي", description: "تحليل النصوص وتقييمها" },
+      { featureKey: "cover_generation", name: "تصميم الغلاف", description: "إنشاء أغلفة الكتب بالذكاء الاصطناعي" },
+      { featureKey: "export_pdf", name: "تصدير PDF", description: "تصدير المشاريع بصيغة PDF" },
+      { featureKey: "export_epub", name: "تصدير EPUB", description: "تصدير المشاريع بصيغة EPUB" },
+      { featureKey: "export_docx", name: "تصدير DOCX", description: "تصدير المشاريع بصيغة DOCX" },
+    ];
+
+    for (const feat of defaults) {
+      await db.insert(platformFeatures).values({
+        ...feat,
+        enabled: true,
+        betaUserIds: [],
+        disabledMessage: "هذه الميزة قيد التطوير وستكون متاحة قريباً",
+      });
+    }
+  }
+
+  async deleteProject(id: number): Promise<void> {
+    await db.transaction(async (tx) => {
+      const chapterList = await tx.select({ id: chapters.id }).from(chapters).where(eq(chapters.projectId, id));
+      const chapterIds = chapterList.map(c => c.id);
+
+      if (chapterIds.length > 0) {
+        for (const chapterId of chapterIds) {
+          await tx.delete(chapterVersions).where(eq(chapterVersions.chapterId, chapterId));
+        }
+        await tx.delete(chapters).where(eq(chapters.projectId, id));
+      }
+
+      await tx.delete(characterRelationships).where(eq(characterRelationships.projectId, id));
+      await tx.delete(characters).where(eq(characters.projectId, id));
+      await tx.delete(bookmarks).where(eq(bookmarks.projectId, id));
+      await tx.delete(readingProgress).where(eq(readingProgress.projectId, id));
+      await tx.delete(projectFavorites).where(eq(projectFavorites.projectId, id));
+      await tx.delete(essayViews).where(eq(essayViews.projectId, id));
+      await tx.delete(essayClicks).where(eq(essayClicks.projectId, id));
+      await tx.delete(essayReactions).where(eq(essayReactions.projectId, id));
+      await tx.delete(novelProjects).where(eq(novelProjects.id, id));
+    });
   }
 }
 

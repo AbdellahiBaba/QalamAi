@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Feather, LogOut, TicketCheck, ArrowRight, Clock, MessageCircle, Plus } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { SupportTicket } from "@shared/schema";
+import { SharedFooter } from "@/components/shared-footer";
 
 const statusLabels: Record<string, string> = {
   open: "مفتوح",
@@ -152,6 +153,7 @@ export default function Tickets() {
           </div>
         )}
       </main>
+      <SharedFooter />
     </div>
   );
 }
