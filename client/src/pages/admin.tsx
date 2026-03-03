@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -229,13 +229,27 @@ export default function Admin() {
     enabled: activeTab === "features",
   });
 
+  const [featureEdits, setFeatureEdits] = useState<Record<string, { disabledMessage: string; betaUserIds: string[] }>>({});
+  const [betaSearchQuery, setBetaSearchQuery] = useState<Record<string, string>>({});
+
+  const getFeatureEdit = (featureKey: string, feature: PlatformFeature) => {
+    if (featureEdits[featureKey]) return featureEdits[featureKey];
+    return { disabledMessage: feature.disabledMessage || "", betaUserIds: feature.betaUserIds || [] };
+  };
+
+  const setFeatureEdit = (featureKey: string, data: Partial<{ disabledMessage: string; betaUserIds: string[] }>, feature: PlatformFeature) => {
+    const current = getFeatureEdit(featureKey, feature);
+    setFeatureEdits(prev => ({ ...prev, [featureKey]: { ...current, ...data } }));
+  };
+
   const updateFeatureMutation = useMutation({
     mutationFn: async ({ key, data }: { key: string; data: { enabled?: boolean; disabledMessage?: string; betaUserIds?: string[] } }) => {
       await apiRequest("PATCH", `/api/admin/features/${key}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (_d, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/features"] });
       queryClient.invalidateQueries({ queryKey: ["/api/features"] });
+      setFeatureEdits(prev => { const next = { ...prev }; delete next[variables.key]; return next; });
       toast({ title: "تم تحديث الميزة بنجاح" });
     },
   });
@@ -2875,38 +2889,126 @@ export default function Admin() {
                           />
                         </div>
                       </div>
-                      {!feature.enabled && (
-                        <div className="space-y-2 border-t pt-3">
-                          <div>
-                            <Label className="text-xs">رسالة التعطيل</Label>
-                            <Textarea
-                              defaultValue={feature.disabledMessage || ""}
-                              onBlur={(e) => {
-                                if (e.target.value !== (feature.disabledMessage || "")) {
-                                  updateFeatureMutation.mutate({ key: feature.featureKey, data: { disabledMessage: e.target.value } });
-                                }
-                              }}
-                              className="mt-1 text-sm"
-                              rows={2}
-                              data-testid={`input-disabled-message-${feature.featureKey}`}
-                            />
+                      {!feature.enabled && (() => {
+                        const edit = getFeatureEdit(feature.featureKey, feature);
+                        const searchQ = (betaSearchQuery[feature.featureKey] || "").toLowerCase();
+                        const filteredUsers = searchQ.length >= 2 && adminUsers
+                          ? adminUsers.filter(u =>
+                              !edit.betaUserIds.includes(u.id) &&
+                              ((u.email || "").toLowerCase().includes(searchQ) ||
+                               (u.firstName || "").toLowerCase().includes(searchQ) ||
+                               (u.lastName || "").toLowerCase().includes(searchQ))
+                            ).slice(0, 5)
+                          : [];
+                        const origMsg = feature.disabledMessage || "";
+                        const origIds = (feature.betaUserIds || []).join(",");
+                        const hasChanges = edit.disabledMessage !== origMsg || edit.betaUserIds.join(",") !== origIds;
+                        return (
+                          <div className="space-y-3 border-t pt-3">
+                            <div>
+                              <Label className="text-xs">رسالة التعطيل</Label>
+                              <Textarea
+                                value={edit.disabledMessage}
+                                onChange={(e) => setFeatureEdit(feature.featureKey, { disabledMessage: e.target.value }, feature)}
+                                className="mt-1 text-sm"
+                                rows={2}
+                                data-testid={`input-disabled-message-${feature.featureKey}`}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">مستخدمو البيتا</Label>
+                              {edit.betaUserIds.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2" data-testid={`beta-users-list-${feature.featureKey}`}>
+                                  {edit.betaUserIds.map(uid => {
+                                    const u = adminUsers?.find(au => au.id === uid);
+                                    return (
+                                      <Badge key={uid} variant="secondary" className="gap-1 pl-1 pr-2 py-1">
+                                        <Avatar className="h-5 w-5">
+                                          {u?.profileImageUrl ? <AvatarImage src={u.profileImageUrl} /> : null}
+                                          <AvatarFallback className="text-[10px]">{(u?.firstName || u?.email || uid).charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs" dir="ltr">{u ? (u.firstName || u.email || uid) : uid}</span>
+                                        <button
+                                          type="button"
+                                          className="mr-1 opacity-60 hover:opacity-100 transition-opacity"
+                                          aria-label="إزالة المستخدم"
+                                          onClick={() => setFeatureEdit(feature.featureKey, { betaUserIds: edit.betaUserIds.filter(id => id !== uid) }, feature)}
+                                          data-testid={`button-remove-beta-${feature.featureKey}-${uid}`}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </Badge>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              <div className="relative mt-2">
+                                <Input
+                                  value={betaSearchQuery[feature.featureKey] || ""}
+                                  onChange={(e) => setBetaSearchQuery(prev => ({ ...prev, [feature.featureKey]: e.target.value }))}
+                                  placeholder="ابحث عن مستخدم بالبريد الإلكتروني أو الاسم..."
+                                  className="text-sm"
+                                  data-testid={`input-beta-search-${feature.featureKey}`}
+                                />
+                                {searchQ.length >= 2 && (
+                                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto" data-testid={`dropdown-beta-users-${feature.featureKey}`}>
+                                    {!adminUsers ? (
+                                      <div className="flex items-center justify-center p-3 gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span className="text-xs text-muted-foreground">جارٍ تحميل المستخدمين...</span>
+                                      </div>
+                                    ) : filteredUsers.length === 0 ? (
+                                      <div className="p-3 text-center text-xs text-muted-foreground" data-testid={`text-no-results-${feature.featureKey}`}>
+                                        لا توجد نتائج مطابقة
+                                      </div>
+                                    ) : (
+                                      filteredUsers.map(u => (
+                                        <button
+                                          key={u.id}
+                                          type="button"
+                                          className="w-full flex items-center gap-2 p-2 bg-popover transition-colors focus:bg-muted text-right"
+                                          onMouseEnter={(e) => e.currentTarget.classList.add("bg-muted")}
+                                          onMouseLeave={(e) => e.currentTarget.classList.remove("bg-muted")}
+                                          onClick={() => {
+                                            setFeatureEdit(feature.featureKey, { betaUserIds: [...edit.betaUserIds, u.id] }, feature);
+                                            setBetaSearchQuery(prev => ({ ...prev, [feature.featureKey]: "" }));
+                                          }}
+                                          data-testid={`button-add-beta-${feature.featureKey}-${u.id}`}
+                                        >
+                                          <Avatar className="h-6 w-6">
+                                            {u.profileImageUrl ? <AvatarImage src={u.profileImageUrl} /> : null}
+                                            <AvatarFallback className="text-[10px]">{(u.firstName || u.email || "?").charAt(0)}</AvatarFallback>
+                                          </Avatar>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : "—"}</p>
+                                            <p className="text-xs text-muted-foreground truncate" dir="ltr">{u.email || u.id}</p>
+                                          </div>
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex justify-end pt-1">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  updateFeatureMutation.mutate({
+                                    key: feature.featureKey,
+                                    data: { disabledMessage: edit.disabledMessage, betaUserIds: edit.betaUserIds },
+                                  });
+                                }}
+                                disabled={!hasChanges || updateFeatureMutation.isPending}
+                                data-testid={`button-save-feature-${feature.featureKey}`}
+                              >
+                                {updateFeatureMutation.isPending ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Check className="w-4 h-4 ml-2" />}
+                                حفظ التعديلات
+                              </Button>
+                            </div>
                           </div>
-                          <div>
-                            <Label className="text-xs">مستخدمو البيتا (معرّفات المستخدمين، مفصولة بفواصل)</Label>
-                            <Input
-                              defaultValue={(feature.betaUserIds || []).join(", ")}
-                              onBlur={(e) => {
-                                const ids = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
-                                updateFeatureMutation.mutate({ key: feature.featureKey, data: { betaUserIds: ids } });
-                              }}
-                              placeholder="مثال: user123, user456"
-                              className="mt-1 text-sm"
-                              dir="ltr"
-                              data-testid={`input-beta-users-${feature.featureKey}`}
-                            />
-                          </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                 ))}
