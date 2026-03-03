@@ -46,7 +46,7 @@ export default function Landing() {
     "name": "QalamAI",
     "applicationCategory": "LifestyleApplication",
     "operatingSystem": "Web",
-    "url": "https://qalamai.com",
+    "url": "https://qalamai.net",
     "description": "منصّة الكتابة الروائية العربية بالذكاء الاصطناعي. اكتب روايتك بأسلوب أدبي رفيع بمساعدة أبو هاشم.",
     "inLanguage": "ar",
     "offers": {

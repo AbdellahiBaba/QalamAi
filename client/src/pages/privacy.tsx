@@ -246,7 +246,7 @@ export default function Privacy() {
           <ul className="space-y-3 text-muted-foreground text-lg leading-loose list-none">
             <li className="flex items-start gap-3">
               <span className="w-2 h-2 rounded-full bg-primary mt-3 shrink-0"></span>
-              <span>البريد الإلكتروني: support@qalamai.com</span>
+              <span>البريد الإلكتروني: support@qalamai.net</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="w-2 h-2 rounded-full bg-primary mt-3 shrink-0"></span>

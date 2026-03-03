@@ -151,7 +151,7 @@ export default function Terms() {
                 <span className="text-sm font-medium text-primary">تواصل معنا</span>
               </div>
               <p className="font-serif text-lg leading-loose text-foreground" data-testid="text-terms-contact">
-                إذا كان لديك أي أسئلة أو استفسارات حول شروط الاستخدام هذه، يُرجى التواصل معنا عبر صفحة تواصل معنا أو عبر البريد الإلكتروني: support@qalamai.com
+                إذا كان لديك أي أسئلة أو استفسارات حول شروط الاستخدام هذه، يُرجى التواصل معنا عبر صفحة تواصل معنا أو عبر البريد الإلكتروني: support@qalamai.net
               </p>
             </CardContent>
           </Card>

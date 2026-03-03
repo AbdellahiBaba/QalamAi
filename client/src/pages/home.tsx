@@ -375,7 +375,7 @@ export default function Home() {
                 المعرض
               </Button>
             </Link>
-            <Link href="/essays-news">
+            <Link href="/essays">
               <Button variant="ghost" size="sm" data-testid="link-essays">
                 <Newspaper className="w-4 h-4 ml-1" />
                 المقالات
@@ -540,7 +540,7 @@ export default function Home() {
                         المعرض
                       </Button>
                     </Link>
-                    <Link href="/essays-news" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href="/essays" onClick={() => setMobileMenuOpen(false)}>
                       <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-essays-mobile">
                         <Newspaper className="w-4 h-4" />
                         المقالات

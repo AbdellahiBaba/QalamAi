@@ -118,7 +118,7 @@ export default function Refund() {
             يمكنك أيضاً التواصل معنا مباشرة عبر البريد الإلكتروني على العنوان التالي:
           </p>
           <p className="text-foreground font-medium text-lg" dir="ltr" data-testid="text-refund-email">
-            support@qalamai.com
+            support@qalamai.net
           </p>
         </div>
       </section>
@@ -177,7 +177,7 @@ export default function Refund() {
           <ul className="text-muted-foreground leading-loose text-lg list-disc list-inside space-y-3 pr-4">
             <li>عبر صفحة <span className="text-foreground font-medium">تواصل معنا</span> على الموقع.</li>
             <li>عبر نظام تذاكر الدعم من داخل حسابك.</li>
-            <li>عبر البريد الإلكتروني: <span dir="ltr" className="text-foreground font-medium">support@qalamai.com</span></li>
+            <li>عبر البريد الإلكتروني: <span dir="ltr" className="text-foreground font-medium">support@qalamai.net</span></li>
           </ul>
           <p className="text-muted-foreground leading-loose text-lg mt-4">
             نحن ملتزمون بضمان رضاك عن خدماتنا ونسعى دائماً لحل أي مشكلة بأسرع وقت ممكن.
