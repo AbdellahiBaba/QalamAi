@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -14,10 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
-  BookOpen, Feather, Loader2, CheckCircle, FileText,
-  Sparkles, ChevronDown, ChevronUp, Download, RefreshCw,
+  BookOpen, Feather, Loader2, CheckCircle, FileText, Sparkles,
+  ChevronDown, ChevronUp, Download, RefreshCw,
   Pencil, Save, X, Eye, RotateCcw, History,
-  Shield, Bookmark, Wand2, Info
+  Shield, Bookmark, Wand2, Info, Maximize2, Minimize2, Clock, GripVertical
 } from "lucide-react";
 import { generateChapterPreviewPDF } from "@/lib/pdf-generator";
 import LtrNum from "@/components/ui/ltr-num";
@@ -65,19 +65,113 @@ export function ChapterEditor({
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkChapterId, setBookmarkChapterId] = useState<number | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [draggedChapterId, setDraggedChapterId] = useState<number | null>(null);
+  const [dragOverChapterId, setDragOverChapterId] = useState<number | null>(null);
+  const [focusModeChapterId, setFocusModeChapterId] = useState<number | null>(null);
+  const [focusContent, setFocusContent] = useState("");
+  const [focusVisible, setFocusVisible] = useState(false);
+  const focusTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const lastSavedContentRef = useRef<string>("");
+  const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const editContentRef = useRef<string>("");
+  const [summarizingChapterId, setSummarizingChapterId] = useState<number | null>(null);
+
+  const getLocalStorageKey = useCallback((chapterId: number) => {
+    return `qalam-draft-${projectId}-${chapterId}`;
+  }, [projectId]);
+
+  const saveToLocalStorage = useCallback((chapterId: number, content: string) => {
+    try {
+      localStorage.setItem(getLocalStorageKey(chapterId), JSON.stringify({ content, timestamp: Date.now() }));
+    } catch {}
+  }, [getLocalStorageKey]);
+
+  const loadFromLocalStorage = useCallback((chapterId: number): string | null => {
+    try {
+      const raw = localStorage.getItem(getLocalStorageKey(chapterId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.content && typeof parsed.content === "string") {
+        return parsed.content;
+      }
+    } catch {}
+    return null;
+  }, [getLocalStorageKey]);
+
+  const clearLocalStorageDraft = useCallback((chapterId: number) => {
+    try {
+      localStorage.removeItem(getLocalStorageKey(chapterId));
+    } catch {}
+  }, [getLocalStorageKey]);
+
+  useEffect(() => {
+    editContentRef.current = editContent;
+  }, [editContent]);
+
+  useEffect(() => {
+    if (editingChapter === null) {
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+      setAutoSaveStatus("idle");
+      return;
+    }
+
+    autoSaveTimerRef.current = setInterval(() => {
+      const currentContent = editContentRef.current;
+      if (currentContent && currentContent !== lastSavedContentRef.current && !autoSaveMutation.isPending) {
+        saveToLocalStorage(editingChapter, currentContent);
+        setAutoSaveStatus("saving");
+        autoSaveMutation.mutate({ chapterId: editingChapter, content: currentContent });
+      }
+    }, 30000);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [editingChapter, saveToLocalStorage]);
+
+  useEffect(() => {
+    if (editContent && editingChapter !== null) {
+      saveToLocalStorage(editingChapter, editContent);
+    }
+  }, [editContent, editingChapter, saveToLocalStorage]);
 
   const saveChapterMutation = useMutation({
     mutationFn: async ({ chapterId, content }: { chapterId: number; content: string }) => {
       const res = await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${chapterId}`, { content });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
       toast({ title: "تم حفظ التعديلات" });
       setEditingChapter(null);
+      clearLocalStorageDraft(variables.chapterId);
+      lastSavedContentRef.current = variables.content;
     },
     onError: () => {
       toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
+    },
+  });
+
+  const autoSaveMutation = useMutation({
+    mutationFn: async ({ chapterId, content }: { chapterId: number; content: string }) => {
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}/chapters/${chapterId}`, { content });
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      lastSavedContentRef.current = variables.content;
+      setAutoSaveStatus("saved");
+      setTimeout(() => setAutoSaveStatus("idle"), 3000);
+    },
+    onError: () => {
+      setAutoSaveStatus("idle");
     },
   });
 
@@ -170,6 +264,85 @@ export function ChapterEditor({
       setConfirmRestoreVersion(null);
     },
   });
+
+  const summarizeMutation = useMutation({
+    mutationFn: async (chapterId: number) => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/chapters/${chapterId}/summarize`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      setSummarizingChapterId(null);
+      toast({ title: "تم إنشاء ملخص الفصل" });
+    },
+    onError: (err: any) => {
+      setSummarizingChapterId(null);
+      toast({ title: err?.message || "فشل في إنشاء الملخص", variant: "destructive" });
+    },
+  });
+
+  const reorderChaptersMutation = useMutation({
+    mutationFn: async (chapterIds: number[]) => {
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}/reorder-chapters`, { chapterIds });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تم إعادة ترتيب الفصول" });
+    },
+    onError: () => {
+      toast({ title: "فشل في إعادة ترتيب الفصول", variant: "destructive" });
+    },
+  });
+
+  const handleDragStart = (e: React.DragEvent, chapterId: number) => {
+    setDraggedChapterId(chapterId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(chapterId));
+  };
+
+  const handleDragOver = (e: React.DragEvent, chapterId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (chapterId !== draggedChapterId) {
+      setDragOverChapterId(chapterId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverChapterId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetChapterId: number) => {
+    e.preventDefault();
+    setDragOverChapterId(null);
+
+    if (!draggedChapterId || draggedChapterId === targetChapterId || !project.chapters) {
+      setDraggedChapterId(null);
+      return;
+    }
+
+    const sortedChapters = [...project.chapters].sort((a, b) => a.chapterNumber - b.chapterNumber);
+    const chapterIds = sortedChapters.map(c => c.id);
+    const fromIndex = chapterIds.indexOf(draggedChapterId);
+    const toIndex = chapterIds.indexOf(targetChapterId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedChapterId(null);
+      return;
+    }
+
+    chapterIds.splice(fromIndex, 1);
+    chapterIds.splice(toIndex, 0, draggedChapterId);
+
+    reorderChaptersMutation.mutate(chapterIds);
+    setDraggedChapterId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedChapterId(null);
+    setDragOverChapterId(null);
+  };
 
   const attemptGenerateChapter = async (chapterId: number): Promise<boolean> => {
     setStreamedContent("");
@@ -295,6 +468,42 @@ export function ChapterEditor({
     }
   }, [streamedContent]);
 
+  const enterFocusMode = (chapterId: number, content: string) => {
+    setFocusModeChapterId(chapterId);
+    setFocusContent(content);
+    requestAnimationFrame(() => {
+      setFocusVisible(true);
+      setTimeout(() => focusTextareaRef.current?.focus(), 300);
+    });
+  };
+
+  const exitFocusMode = () => {
+    setFocusVisible(false);
+    setTimeout(() => {
+      setFocusModeChapterId(null);
+      setFocusContent("");
+    }, 300);
+  };
+
+  const saveFocusContent = () => {
+    if (focusModeChapterId) {
+      saveChapterMutation.mutate({ chapterId: focusModeChapterId, content: focusContent });
+    }
+  };
+
+  useEffect(() => {
+    if (focusModeChapterId === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        exitFocusMode();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [focusModeChapterId]);
+
+  const focusWordCount = focusContent.trim() ? focusContent.trim().split(/\s+/).length : 0;
+
   if (!project.outlineApproved) {
     return (
       <div className="text-center py-16 text-muted-foreground">
@@ -372,7 +581,17 @@ export function ChapterEditor({
               const displayContent = isGenerating ? streamedContent : chapter.content;
 
               return (
-                <Card key={chapter.id}>
+                <Card
+                  key={chapter.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, chapter.id)}
+                  onDragOver={(e) => handleDragOver(e, chapter.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, chapter.id)}
+                  onDragEnd={handleDragEnd}
+                  className={`transition-all ${draggedChapterId === chapter.id ? "opacity-50" : ""} ${dragOverChapterId === chapter.id ? "border-primary border-2" : ""}`}
+                  data-testid={`card-chapter-${chapter.id}`}
+                >
                   <CardContent className="p-0">
                     <button
                       type="button"
@@ -386,6 +605,10 @@ export function ChapterEditor({
                       data-testid={`button-chapter-${chapter.id}`}
                     >
                       <div className="flex items-center gap-3">
+                        <GripVertical
+                          className="w-4 h-4 text-muted-foreground/50 cursor-grab shrink-0"
+                          data-testid={`drag-handle-chapter-${chapter.id}`}
+                        />
                         <span className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                           {chapter.chapterNumber}
                         </span>
@@ -496,11 +719,26 @@ export function ChapterEditor({
                               dir="rtl"
                               data-testid={`textarea-edit-chapter-${chapter.id}`}
                             />
-                            <div className="flex items-center gap-2 justify-end">
+                            <div className="flex items-center gap-2 justify-end flex-wrap">
+                              {autoSaveStatus === "saving" && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="text-auto-save-saving">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  جارٍ الحفظ التلقائي...
+                                </span>
+                              )}
+                              {autoSaveStatus === "saved" && (
+                                <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1" data-testid="text-auto-save-saved">
+                                  <Clock className="w-3 h-3" />
+                                  تم الحفظ التلقائي
+                                </span>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => setEditingChapter(null)}
+                                onClick={() => {
+                                  setEditingChapter(null);
+                                  setAutoSaveStatus("idle");
+                                }}
                                 data-testid={`button-cancel-edit-${chapter.id}`}
                               >
                                 <X className="w-3.5 h-3.5 ml-1" />
@@ -509,7 +747,7 @@ export function ChapterEditor({
                               <Button
                                 size="sm"
                                 onClick={() => saveChapterMutation.mutate({ chapterId: chapter.id, content: editContent })}
-                                disabled={saveChapterMutation.isPending}
+                                disabled={saveChapterMutation.isPending || autoSaveMutation.isPending}
                                 data-testid={`button-save-edit-${chapter.id}`}
                               >
                                 {saveChapterMutation.isPending ? (
@@ -529,6 +767,7 @@ export function ChapterEditor({
                               </div>
                             </ScrollArea>
                             {chapter.status === "completed" && !isGenerating && (
+                              <>
                               <div className="border-t p-3 flex items-center justify-end gap-2 flex-wrap">
                                 <Button
                                   size="sm"
@@ -616,15 +855,65 @@ export function ChapterEditor({
                                   variant="outline"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setEditContent(chapter.content || "");
+                                    const draft = loadFromLocalStorage(chapter.id);
+                                    if (draft && draft !== chapter.content) {
+                                      setEditContent(draft);
+                                      toast({ title: "تم استعادة مسودة محفوظة محلياً" });
+                                    } else {
+                                      setEditContent(chapter.content || "");
+                                    }
+                                    lastSavedContentRef.current = chapter.content || "";
                                     setEditingChapter(chapter.id);
+                                    setAutoSaveStatus("idle");
                                   }}
                                   data-testid={`button-edit-chapter-${chapter.id}`}
                                 >
                                   <Pencil className="w-3.5 h-3.5 ml-1" />
                                   تحرير
                                 </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    enterFocusMode(chapter.id, chapter.content || "");
+                                  }}
+                                  data-testid={`button-focus-mode-${chapter.id}`}
+                                >
+                                  <Maximize2 className="w-3.5 h-3.5 ml-1" />
+                                  وضع التركيز
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSummarizingChapterId(chapter.id);
+                                    summarizeMutation.mutate(chapter.id);
+                                  }}
+                                  disabled={summarizeMutation.isPending && summarizingChapterId === chapter.id}
+                                  data-testid={`button-summarize-chapter-${chapter.id}`}
+                                >
+                                  {summarizeMutation.isPending && summarizingChapterId === chapter.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                                  ) : (
+                                    <FileText className="w-3.5 h-3.5 ml-1" />
+                                  )}
+                                  ملخص الفصل
+                                </Button>
                               </div>
+                              {chapter.summary && (
+                                <div className="border-t px-4 py-3 bg-muted/30" data-testid={`text-chapter-summary-${chapter.id}`}>
+                                  <div className="flex items-start gap-2">
+                                    <Sparkles className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                                    <div>
+                                      <h5 className="text-xs font-medium text-muted-foreground mb-1">ملخص الفصل</h5>
+                                      <p className="text-sm font-serif leading-relaxed">{chapter.summary}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              </>
                             )}
                           </>
                         )}
@@ -1029,6 +1318,67 @@ export function ChapterEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {focusModeChapterId !== null && (
+        <div
+          className={`focus-mode-overlay ${focusVisible ? "focus-mode-visible" : ""}`}
+          data-testid="focus-mode-overlay"
+        >
+          <div className="focus-mode-toolbar">
+            <div className="flex items-center gap-3">
+              <span className="text-amber-200/70 text-sm font-serif" data-testid="text-focus-chapter-title">
+                {project.chapters?.find(c => c.id === focusModeChapterId)?.title || labels.chapterSingular}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-amber-200/50 text-xs" data-testid="text-focus-word-count">
+                {focusWordCount} كلمة
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-amber-200/70 hover:text-amber-100 no-default-hover-elevate"
+                onClick={saveFocusContent}
+                disabled={saveChapterMutation.isPending}
+                data-testid="button-focus-save"
+              >
+                {saveChapterMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 ml-1 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 ml-1" />
+                )}
+                حفظ
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-amber-200/70 hover:text-amber-100 no-default-hover-elevate"
+                onClick={exitFocusMode}
+                data-testid="button-focus-exit"
+              >
+                <Minimize2 className="w-4 h-4 ml-1" />
+                خروج
+              </Button>
+            </div>
+          </div>
+          <div className="focus-mode-editor">
+            <textarea
+              ref={focusTextareaRef}
+              value={focusContent}
+              onChange={(e) => setFocusContent(e.target.value)}
+              className="focus-mode-textarea"
+              dir="rtl"
+              placeholder="ابدأ الكتابة..."
+              data-testid="textarea-focus-mode"
+            />
+          </div>
+          <div className="focus-mode-footer">
+            <span className="text-amber-200/30 text-xs">
+              اضغط Escape للخروج
+            </span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

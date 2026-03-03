@@ -18,8 +18,9 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { generateChapterPreviewPDF } from "@/lib/pdf-generator";
@@ -225,6 +226,8 @@ export default function ProjectDetail() {
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
+  const [targetWordCountDialogOpen, setTargetWordCountDialogOpen] = useState(false);
+  const [targetWordCountInput, setTargetWordCountInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -446,6 +449,21 @@ export default function ProjectDetail() {
     onError: () => {
       toast({ title: "فشل في استعادة النسخة", variant: "destructive" });
       setConfirmRestoreVersion(null);
+    },
+  });
+
+  const setTargetWordCountMutation = useMutation({
+    mutationFn: async (targetWordCount: number | null) => {
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}/target-word-count`, { targetWordCount });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      setTargetWordCountDialogOpen(false);
+      toast({ title: "تم تحديث هدف الكلمات" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث هدف الكلمات", variant: "destructive" });
     },
   });
 
@@ -1161,6 +1179,16 @@ export default function ProjectDetail() {
               >
                 <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل EPUB</span>
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  window.open(`/api/projects/${projectId}/export/docx`, "_blank");
+                }}
+                data-testid="button-download-docx"
+              >
+                <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل DOCX</span>
+              </Button>
               {project.shareToken ? (
                 <Button
                   size="sm"
@@ -1371,8 +1399,8 @@ export default function ProjectDetail() {
 
         {project.paid && project.usedWords > 0 && (
           <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
                 <PenTool className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium" data-testid="text-words-counter">
                   عدد الكلمات المكتوبة: <LtrNum>{project.usedWords.toLocaleString()}</LtrNum> كلمة
@@ -1383,6 +1411,50 @@ export default function ProjectDetail() {
                   وقت القراءة: <LtrNum>{estimateReadingTime(project.usedWords)}</LtrNum> دقيقة
                 </span>
               </div>
+              {project.targetWordCount && project.targetWordCount > 0 ? (() => {
+                const progress = Math.min((project.usedWords / project.targetWordCount) * 100, 100);
+                return (
+                  <div className="space-y-2" data-testid="target-word-count-display">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Target className="w-4 h-4 text-primary" />
+                        <span className="font-medium">الهدف: <LtrNum>{project.targetWordCount.toLocaleString()}</LtrNum> كلمة</span>
+                        <span className="text-muted-foreground">(<LtrNum>{Math.round(progress)}</LtrNum>%)</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setTargetWordCountInput(String(project.targetWordCount));
+                          setTargetWordCountDialogOpen(true);
+                        }}
+                        data-testid="button-edit-target-word-count"
+                      >
+                        <Pencil className="w-3 h-3 ml-1" /> تعديل
+                      </Button>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                    {progress >= 100 && (
+                      <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5" /> تم تحقيق الهدف!
+                      </p>
+                    )}
+                  </div>
+                );
+              })() : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => {
+                    setTargetWordCountInput("");
+                    setTargetWordCountDialogOpen(true);
+                  }}
+                  data-testid="button-set-target-word-count"
+                >
+                  <Target className="w-3.5 h-3.5" /> تحديد هدف للكلمات
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -3960,6 +4032,75 @@ export default function ProjectDetail() {
                   </kbd>
                 </div>
               ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={targetWordCountDialogOpen} onOpenChange={setTargetWordCountDialogOpen}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2" data-testid="text-target-word-count-title">
+                <Target className="w-5 h-5" />
+                تحديد هدف الكلمات
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              <div className="space-y-2">
+                <Label className="text-sm">عدد الكلمات المستهدف</Label>
+                <Input
+                  type="number"
+                  min="100"
+                  step="100"
+                  placeholder="مثال: 50000"
+                  value={targetWordCountInput}
+                  onChange={(e) => setTargetWordCountInput(e.target.value)}
+                  dir="ltr"
+                  className="text-center"
+                  data-testid="input-target-word-count"
+                />
+                <p className="text-xs text-muted-foreground">
+                  الكلمات المكتوبة حالياً: <LtrNum>{project?.usedWords?.toLocaleString() || 0}</LtrNum> كلمة
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[10000, 25000, 50000, 75000, 100000].map((v) => (
+                  <Button
+                    key={v}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTargetWordCountInput(String(v))}
+                    data-testid={`button-preset-${v}`}
+                  >
+                    <LtrNum>{v.toLocaleString()}</LtrNum>
+                  </Button>
+                ))}
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                {project?.targetWordCount && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTargetWordCountMutation.mutate(null)}
+                    disabled={setTargetWordCountMutation.isPending}
+                    data-testid="button-remove-target"
+                  >
+                    <X className="w-3.5 h-3.5 ml-1" /> إزالة الهدف
+                  </Button>
+                )}
+                <Button
+                  onClick={() => {
+                    const val = parseInt(targetWordCountInput);
+                    if (!isNaN(val) && val > 0) {
+                      setTargetWordCountMutation.mutate(val);
+                    }
+                  }}
+                  disabled={setTargetWordCountMutation.isPending || !targetWordCountInput || parseInt(targetWordCountInput) <= 0}
+                  data-testid="button-save-target-word-count"
+                >
+                  {setTargetWordCountMutation.isPending ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Save className="w-4 h-4 ml-1" />}
+                  حفظ
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

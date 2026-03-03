@@ -1078,6 +1078,30 @@ export default function Home() {
                         </span>
                       )}
                     </div>
+                    {project.targetWordCount && project.targetWordCount > 0 && (() => {
+                      const currentWords = projectStats?.[project.id]?.realWordCount ?? project.usedWords;
+                      const progress = Math.min((currentWords / project.targetWordCount) * 100, 100);
+                      const radius = 18;
+                      const circumference = 2 * Math.PI * radius;
+                      const strokeDashoffset = circumference - (progress / 100) * circumference;
+                      return (
+                        <div className="flex items-center gap-3 pt-2" data-testid={`progress-ring-${project.id}`}>
+                          <div className="relative w-11 h-11 shrink-0">
+                            <svg className="w-11 h-11 -rotate-90" viewBox="0 0 44 44">
+                              <circle cx="22" cy="22" r={radius} fill="none" stroke="currentColor" className="text-muted/30" strokeWidth="3" />
+                              <circle cx="22" cy="22" r={radius} fill="none" stroke="currentColor" className={progress >= 100 ? "text-green-500" : "text-primary"} strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} style={{ transition: "stroke-dashoffset 0.5s ease" }} />
+                            </svg>
+                            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold">
+                              <LtrNum>{Math.round(progress)}</LtrNum>%
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            <Target className="w-3 h-3 inline ml-1" />
+                            <LtrNum>{currentWords.toLocaleString()}</LtrNum> / <LtrNum>{project.targetWordCount.toLocaleString()}</LtrNum> كلمة
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />

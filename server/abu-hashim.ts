@@ -3023,6 +3023,29 @@ ${chapterSummary}
   return { system, user: userMessage };
 }
 
+export function buildChapterSummaryPrompt(chapterTitle: string, chapterContent: string, projectTitle: string): { system: string; user: string } {
+  const system = `أنت أبو هاشم — الوكيل الأدبي الافتراضي في منصة QalamAI.
+مهمتك تلخيص فصل من عمل أدبي بإيجاز ودقة.
+
+═══ تعليمات التلخيص ═══
+- اكتب ملخصاً مختصراً للفصل في 3-5 جمل
+- ركّز على الأحداث الرئيسية والتطورات المهمة
+- اذكر الشخصيات الفاعلة في هذا الفصل
+- أشر إلى أي تحولات درامية أو نقاط محورية
+- اكتب بالعربية الفصحى الحديثة
+- لا تضف تقييمات أو آراء — فقط ملخص موضوعي`;
+
+  const user = `المشروع: ${projectTitle}
+عنوان الفصل: ${chapterTitle}
+
+محتوى الفصل:
+${chapterContent.substring(0, 8000)}
+
+لخّص هذا الفصل في 3-5 جمل مركّزة.`;
+
+  return { system, user };
+}
+
 export function buildGeneralChatPrompt(userMessage: string): { system: string; user: string } {
   const system = `أنت أبو هاشم — الوكيل الأدبي الافتراضي في منصة QalamAI.
 أنت مستشار أدبي محترف ومتمرس، مُلهم من عمالقة الأدب العربي: نجيب محفوظ، غسان كنفاني، أحلام مستغانمي، عبد الرحمن منيف، الطيب صالح.

@@ -470,3 +470,67 @@
   filter: brightness(1.1);
 }
 
+.focus-mode-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, #1a1612 0%, #0f0d0a 50%, #141210 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.focus-mode-overlay.focus-mode-visible {
+  opacity: 1;
+}
+
+.focus-mode-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid rgba(217, 169, 78, 0.1);
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.focus-mode-editor {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2rem 1rem;
+}
+
+.focus-mode-textarea {
+  width: 100%;
+  max-width: 720px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+  font-size: 1.125rem;
+  line-height: 2.4;
+  color: rgba(237, 216, 174, 0.85);
+  caret-color: #d4a24e;
+  padding: 1rem;
+}
+
+.focus-mode-textarea::placeholder {
+  color: rgba(217, 169, 78, 0.2);
+}
+
+.focus-mode-textarea::selection {
+  background: rgba(217, 169, 78, 0.25);
+}
+
+.focus-mode-footer {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  border-top: 1px solid rgba(217, 169, 78, 0.06);
+}
+

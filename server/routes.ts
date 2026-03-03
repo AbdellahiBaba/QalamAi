@@ -3,9 +3,9 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import { toArabicOrdinal } from "@shared/utils";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
@@ -2460,6 +2460,237 @@ ${glossaryParagraphs}
       if (!res.headersSent) {
         res.status(500).json({ error: "فشل في إنشاء ملف EPUB" });
       }
+    }
+  });
+
+  app.patch("/api/projects/:id/target-word-count", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project || project.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const { targetWordCount } = req.body;
+      if (targetWordCount !== null && (typeof targetWordCount !== "number" || targetWordCount < 0)) {
+        return res.status(400).json({ error: "هدف الكلمات يجب أن يكون رقماً موجباً" });
+      }
+      await storage.updateProject(id, { targetWordCount: targetWordCount || null });
+      res.json({ success: true, targetWordCount });
+    } catch (error) {
+      console.error("Error updating target word count:", error);
+      res.status(500).json({ error: "فشل في تحديث هدف الكلمات" });
+    }
+  });
+
+  app.patch("/api/projects/:id/reorder-chapters", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project || project.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const { chapterIds } = req.body;
+      if (!Array.isArray(chapterIds) || chapterIds.length === 0) {
+        return res.status(400).json({ error: "قائمة الفصول مطلوبة" });
+      }
+      const projectChapters = await storage.getChaptersByProject(id);
+      const projectChapterIds = new Set(projectChapters.map(ch => ch.id));
+      for (const cid of chapterIds) {
+        if (!projectChapterIds.has(cid)) {
+          return res.status(400).json({ error: "فصل غير موجود في هذا المشروع" });
+        }
+      }
+      for (let i = 0; i < chapterIds.length; i++) {
+        await db.update(chapters)
+          .set({ chapterNumber: i + 1 })
+          .where(eq(chapters.id, chapterIds[i]));
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering chapters:", error);
+      res.status(500).json({ error: "فشل في إعادة ترتيب الفصول" });
+    }
+  });
+
+  app.post("/api/projects/:id/chapters/:chapterId/summarize", isAuthenticated, async (req: any, res) => {
+    try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      const id = parseInt(req.params.id);
+      const chapterId = parseInt(req.params.chapterId);
+      const project = await storage.getProjectWithDetails(id);
+      if (!project || project.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const chapter = project.chapters.find((ch: any) => ch.id === chapterId);
+      if (!chapter || !chapter.content) {
+        return res.status(400).json({ error: "الفصل غير موجود أو لم يُكتب بعد" });
+      }
+      const prompt = buildChapterSummaryPrompt(chapter.title, chapter.content, project.title);
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: prompt.system },
+          { role: "user", content: prompt.user },
+        ],
+        max_completion_tokens: 500,
+      });
+      const summary = completion.choices[0]?.message?.content || "لم يتم إنشاء ملخص";
+      await storage.updateChapter(chapterId, { summary });
+      await logApiUsage(req.user.claims.sub, "chapter_summary", id);
+      res.json({ summary });
+    } catch (error) {
+      console.error("Error summarizing chapter:", error);
+      res.status(500).json({ error: "فشل في تلخيص الفصل" });
+    }
+  });
+
+  app.get("/api/projects/:id/export/docx", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const docxExportUser = await storage.getUser(req.user.claims.sub);
+      if (docxExportUser?.plan === "trial") {
+        return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
+      }
+      const project = await storage.getProjectWithDetails(id);
+      if (!project || project.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const docxChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : "الفصل";
+      const completedChapters = project.chapters.filter((ch: any) => ch.content);
+      if (completedChapters.length === 0) {
+        return res.status(400).json({ error: "لا توجد فصول مكتملة" });
+      }
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageBreak, BorderStyle, TableOfContents, Header, Footer, PageNumber, NumberFormat } = await import("docx");
+
+      const titlePage = [
+        new Paragraph({ spacing: { before: 4000 }, alignment: AlignmentType.CENTER, bidirectional: true, children: [] }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { after: 400 },
+          children: [
+            new TextRun({ text: project.title, bold: true, size: 56, font: "Traditional Arabic", rightToLeft: true, color: "2C1810" }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { after: 200 },
+          children: [
+            new TextRun({ text: "بقلم أبو هاشم — QalamAI", size: 28, font: "Traditional Arabic", rightToLeft: true, color: "8B7355" }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { after: 200 },
+          children: [
+            new TextRun({ text: new Date().toLocaleDateString("ar-SA"), size: 24, font: "Traditional Arabic", rightToLeft: true, color: "6B5B4F" }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { before: 1000 },
+          children: [
+            new TextRun({ text: "جميع الحقوق محفوظة © 2026", size: 20, font: "Traditional Arabic", rightToLeft: true, color: "6B5B4F" }),
+          ],
+        }),
+      ];
+
+      const chapterSections: any[] = [];
+      for (const ch of completedChapters) {
+        chapterSections.push(
+          new Paragraph({
+            pageBreakBefore: true,
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 200 },
+            children: [
+              new TextRun({ text: `${docxChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`, size: 22, font: "Traditional Arabic", rightToLeft: true, color: "8B7355" }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 400 },
+            heading: HeadingLevel.HEADING_1,
+            children: [
+              new TextRun({ text: ch.title, bold: true, size: 36, font: "Traditional Arabic", rightToLeft: true, color: "8B4513" }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 400 },
+            children: [
+              new TextRun({ text: "═══════════════", color: "D4A574", size: 20 }),
+            ],
+          }),
+        );
+
+        const paragraphs = (ch.content || "").split("\n").filter((p: string) => p.trim());
+        for (const p of paragraphs) {
+          chapterSections.push(
+            new Paragraph({
+              alignment: AlignmentType.BOTH,
+              bidirectional: true,
+              spacing: { after: 200, line: 480 },
+              indent: { firstLine: 720 },
+              children: [
+                new TextRun({ text: p.trim(), size: 26, font: "Traditional Arabic", rightToLeft: true, color: "2C1810" }),
+              ],
+            }),
+          );
+        }
+      }
+
+      if (project.glossary) {
+        chapterSections.push(
+          new Paragraph({
+            pageBreakBefore: true,
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 400 },
+            heading: HeadingLevel.HEADING_1,
+            children: [
+              new TextRun({ text: "المسرد", bold: true, size: 36, font: "Traditional Arabic", rightToLeft: true, color: "8B4513" }),
+            ],
+          }),
+        );
+        const glossaryParas = project.glossary.split("\n").filter((p: string) => p.trim());
+        for (const p of glossaryParas) {
+          chapterSections.push(
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              bidirectional: true,
+              spacing: { after: 150, line: 400 },
+              children: [
+                new TextRun({ text: p.trim(), size: 24, font: "Traditional Arabic", rightToLeft: true, color: "2C1810" }),
+              ],
+            }),
+          );
+        }
+      }
+
+      const doc = new Document({
+        sections: [{
+          properties: {
+            page: {
+              margin: { top: 1440, bottom: 1440, right: 1440, left: 1440 },
+            },
+          },
+          children: [...titlePage, ...chapterSections],
+        }],
+      });
+
+      const buffer = await Packer.toBuffer(doc);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(project.title)}.docx"`);
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error generating DOCX:", error);
+      res.status(500).json({ error: "فشل في إنشاء ملف DOCX" });
     }
   });
 

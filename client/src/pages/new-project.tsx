@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
-import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp, LayoutTemplate, Search, Heart, Crosshair, Landmark, Wand2, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -38,6 +38,144 @@ const NARRATIVE_TECHNIQUE_OPTIONS = [
   { value: "stream_of_consciousness", label: "تيار الوعي" },
   { value: "symbolic", label: "السرد الرمزي أو الأسطوري" },
   { value: "circular", label: "السرد الدائري" },
+];
+
+interface ProjectTemplate {
+  id: string;
+  label: string;
+  icon: typeof Search;
+  description: string;
+  prefill: {
+    title: string;
+    mainIdea: string;
+    timeSetting: string;
+    placeSetting: string;
+    narrativePov: string;
+    narrativeTechnique: string;
+    characters: Array<{
+      name: string;
+      background: string;
+      role: string;
+      motivation: string;
+      speechStyle: string;
+      physicalDescription: string;
+      psychologicalTraits: string;
+      age: string;
+    }>;
+  };
+}
+
+const PROJECT_TEMPLATES: ProjectTemplate[] = [
+  {
+    id: "blank",
+    label: "مشروع فارغ",
+    icon: FileText,
+    description: "ابدأ من الصفر بدون قالب محدد",
+    prefill: {
+      title: "",
+      mainIdea: "",
+      timeSetting: "",
+      placeSetting: "",
+      narrativePov: "",
+      narrativeTechnique: "",
+      characters: [{ name: "", background: "", role: "protagonist", motivation: "", speechStyle: "", physicalDescription: "", psychologicalTraits: "", age: "" }],
+    },
+  },
+  {
+    id: "mystery",
+    label: "رواية غموض وتحقيق",
+    icon: Search,
+    description: "جريمة غامضة، محقق ذكي، وألغاز تنكشف تدريجياً",
+    prefill: {
+      title: "",
+      mainIdea: "جريمة غامضة تقع في ظروف مريبة، ومحقق يسعى لكشف الحقيقة وسط شبكة من الأكاذيب والأسرار المدفونة",
+      timeSetting: "العصر الحديث",
+      placeSetting: "مدينة عربية كبرى",
+      narrativePov: "first_person",
+      narrativeTechnique: "fragmented",
+      characters: [
+        { name: "", background: "محقق ذكي وملاحظ، يعاني من ماضٍ شخصي مؤلم يدفعه للبحث عن العدالة", role: "detective", motivation: "كشف الحقيقة وتحقيق العدالة", speechStyle: "تحليلي ودقيق", physicalDescription: "", psychologicalTraits: "ذكاء حاد، انتباه للتفاصيل، عزلة اجتماعية", age: "" },
+        { name: "", background: "شخصية غامضة تبدو بريئة لكنها تخفي أسراراً خطيرة", role: "mysterious", motivation: "إخفاء الحقيقة بأي ثمن", speechStyle: "مراوغ وهادئ", physicalDescription: "", psychologicalTraits: "ازدواجية، قدرة على التمثيل، خوف دفين", age: "" },
+        { name: "", background: "ضحية الجريمة أو شاهد رئيسي يملك مفتاح اللغز", role: "secondary", motivation: "", speechStyle: "", physicalDescription: "", psychologicalTraits: "", age: "" },
+      ],
+    },
+  },
+  {
+    id: "romance",
+    label: "رواية رومانسية",
+    icon: Heart,
+    description: "قصة حب عميقة تتحدى العقبات الاجتماعية والنفسية",
+    prefill: {
+      title: "",
+      mainIdea: "قصة حب تتخطى الحدود الاجتماعية والثقافية، حيث يواجه العاشقان عقبات العائلة والتقاليد في سبيل مشاعرهما",
+      timeSetting: "العصر الحديث",
+      placeSetting: "مدينة عربية",
+      narrativePov: "third_person",
+      narrativeTechnique: "polyphonic",
+      characters: [
+        { name: "", background: "شاب/فتاة من بيئة اجتماعية معينة، يحمل أحلاماً كبيرة ويبحث عن الحب الحقيقي", role: "protagonist", motivation: "الحب والحرية في الاختيار", speechStyle: "عاطفي وصادق", physicalDescription: "", psychologicalTraits: "حساسية عالية، شجاعة، رومانسية", age: "" },
+        { name: "", background: "الحبيب/الحبيبة من بيئة مختلفة، يجمعهما القدر رغم اختلاف عالميهما", role: "love_interest", motivation: "إيجاد شريك الروح", speechStyle: "رقيق وذكي", physicalDescription: "", psychologicalTraits: "وفاء، عناد، حنان", age: "" },
+        { name: "", background: "فرد من العائلة يعارض العلاقة بشدة ويمثل صوت التقاليد", role: "antagonist", motivation: "الحفاظ على شرف العائلة وتقاليدها", speechStyle: "حازم وسلطوي", physicalDescription: "", psychologicalTraits: "تمسك بالعادات، حب السيطرة", age: "" },
+      ],
+    },
+  },
+  {
+    id: "thriller",
+    label: "رواية تشويق وإثارة",
+    icon: Crosshair,
+    description: "أحداث متسارعة، خطر محدق، وبطل في سباق مع الزمن",
+    prefill: {
+      title: "",
+      mainIdea: "مؤامرة خطيرة تهدد حياة البطل ومن حوله، وعليه أن يكشفها قبل فوات الأوان في سباق محموم مع الزمن",
+      timeSetting: "العصر الحديث",
+      placeSetting: "عدة مدن عربية",
+      narrativePov: "third_person",
+      narrativeTechnique: "temporal_break",
+      characters: [
+        { name: "", background: "شخص عادي يجد نفسه في قلب أحداث خطيرة لم يكن مستعداً لها", role: "protagonist", motivation: "النجاة وحماية أحبائه", speechStyle: "متوتر ومباشر", physicalDescription: "", psychologicalTraits: "شجاعة تحت الضغط، ذكاء سريع، إصرار", age: "" },
+        { name: "", background: "عقل مدبر يعمل من الظل ويحرك خيوط المؤامرة بدقة", role: "villain", motivation: "السلطة والسيطرة", speechStyle: "بارد ومحسوب", physicalDescription: "", psychologicalTraits: "دهاء، قسوة، نرجسية", age: "" },
+        { name: "", background: "حليف غير متوقع يساعد البطل في لحظة حرجة", role: "sidekick", motivation: "تصحيح خطأ من الماضي", speechStyle: "عملي ومختصر", physicalDescription: "", psychologicalTraits: "ولاء، غموض، خبرة", age: "" },
+      ],
+    },
+  },
+  {
+    id: "historical",
+    label: "رواية تاريخية",
+    icon: Landmark,
+    description: "أحداث في حقبة تاريخية مع شخصيات تعيش تحولات كبرى",
+    prefill: {
+      title: "",
+      mainIdea: "حياة عائلة عربية خلال حقبة تاريخية مفصلية، تتشابك مصائرها مع أحداث سياسية واجتماعية كبرى غيّرت وجه المنطقة",
+      timeSetting: "منتصف القرن العشرين",
+      placeSetting: "مدينة عربية عريقة",
+      narrativePov: "omniscient",
+      narrativeTechnique: "linear",
+      characters: [
+        { name: "", background: "رب عائلة يعيش تحولات العصر ويحاول الحفاظ على إرث أجداده", role: "protagonist", motivation: "حماية العائلة والتكيف مع المتغيرات", speechStyle: "بلاغي وحكيم", physicalDescription: "", psychologicalTraits: "حكمة، عناد، حنين للماضي", age: "" },
+        { name: "", background: "الجيل الجديد الذي يتمرد على التقاليد ويسعى للتغيير", role: "rebel", motivation: "بناء مستقبل جديد", speechStyle: "حماسي وجريء", physicalDescription: "", psychologicalTraits: "طموح، تمرد، مثالية", age: "" },
+        { name: "", background: "شخصية تمثل السلطة أو الاحتلال أو القوى المسيطرة في تلك الحقبة", role: "antagonist", motivation: "فرض النفوذ والسيطرة", speechStyle: "رسمي ومتعالٍ", physicalDescription: "", psychologicalTraits: "سلطوية، براغماتية", age: "" },
+      ],
+    },
+  },
+  {
+    id: "fantasy",
+    label: "رواية خيالية / فانتازيا",
+    icon: Wand2,
+    description: "عوالم خيالية مستوحاة من التراث العربي والأساطير الشرقية",
+    prefill: {
+      title: "",
+      mainIdea: "رحلة بطولية في عالم خيالي مستوحى من التراث العربي، حيث تتصارع قوى الخير والشر وتتشابك الأقدار مع السحر والأساطير",
+      timeSetting: "زمن أسطوري / خيالي",
+      placeSetting: "ممالك خيالية مستوحاة من الشرق",
+      narrativePov: "third_person",
+      narrativeTechnique: "symbolic",
+      characters: [
+        { name: "", background: "بطل شاب يكتشف قدرات خارقة أو مصيراً عظيماً لم يكن يعلم به", role: "protagonist", motivation: "إنقاذ عالمه من الظلام", speechStyle: "شجاع وأحياناً ساخر", physicalDescription: "", psychologicalTraits: "شجاعة، شك بالذات، نمو مستمر", age: "" },
+        { name: "", background: "حكيم أو ساحر عجوز يرشد البطل في رحلته", role: "mentor", motivation: "نقل المعرفة ومنع كارثة قديمة", speechStyle: "غامض وحكيم", physicalDescription: "", psychologicalTraits: "حكمة عميقة، أسرار مدفونة", age: "" },
+        { name: "", background: "قوة شريرة قديمة تسعى للسيطرة على العالم", role: "villain", motivation: "القوة المطلقة والخلود", speechStyle: "مهيب ومخيف", physicalDescription: "", psychologicalTraits: "جبروت، ذكاء شيطاني، وحدة", age: "" },
+      ],
+    },
+  },
 ];
 
 const projectFormSchema = z.object({
@@ -72,7 +210,8 @@ export default function NewProject() {
   useDocumentTitle("مشروع جديد — قلم AI");
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(-1);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [titleSuggestions, setTitleSuggestions] = useState<Array<{ title: string; reason: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestingTitles, setSuggestingTitles] = useState(false);
@@ -265,7 +404,21 @@ export default function NewProject() {
     }
   };
 
+  const handleSelectTemplate = (template: ProjectTemplate) => {
+    setSelectedTemplate(template.id);
+    form.setValue("title", template.prefill.title, { shouldValidate: false });
+    form.setValue("mainIdea", template.prefill.mainIdea, { shouldValidate: false });
+    form.setValue("timeSetting", template.prefill.timeSetting, { shouldValidate: false });
+    form.setValue("placeSetting", template.prefill.placeSetting, { shouldValidate: false });
+    form.setValue("narrativePov", template.prefill.narrativePov, { shouldValidate: false });
+    form.setValue("narrativeTechnique", template.prefill.narrativeTechnique, { shouldValidate: false });
+    form.setValue("characters", template.prefill.characters, { shouldValidate: false });
+    form.setValue("relationships", [], { shouldValidate: false });
+    setStep(0);
+  };
+
   const steps = [
+    { title: "القالب", icon: LayoutTemplate },
     { title: "تفاصيل الرواية", icon: BookOpen },
     { title: "الشخصيات", icon: Users },
     { title: "العلاقات والمكان", icon: MapPin },
@@ -282,6 +435,8 @@ export default function NewProject() {
     }
     return true;
   };
+
+  const totalSteps = steps.length - 2;
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -304,78 +459,118 @@ export default function NewProject() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex items-center justify-center gap-2 mb-10">
-          {steps.map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => i < step && setStep(i)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                  i === step
-                    ? "bg-primary text-primary-foreground"
-                    : i < step
-                    ? "bg-primary/10 text-primary cursor-pointer"
-                    : "bg-muted text-muted-foreground"
-                }`}
-                data-testid={`button-step-${i}`}
-              >
-                <s.icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{s.title}</span>
-              </button>
-              {i < steps.length - 1 && (
-                <div className={`w-8 h-0.5 ${i < step ? "bg-primary" : "bg-muted"}`} />
-              )}
-            </div>
-          ))}
+          {steps.map((s, i) => {
+            const stepIndex = i - 1;
+            return (
+              <div key={i} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => stepIndex < step && setStep(stepIndex)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
+                    stepIndex === step
+                      ? "bg-primary text-primary-foreground"
+                      : stepIndex < step
+                      ? "bg-primary/10 text-primary cursor-pointer"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                  data-testid={`button-step-${i}`}
+                >
+                  <s.icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{s.title}</span>
+                </button>
+                {i < steps.length - 1 && (
+                  <div className={`w-8 h-0.5 ${stepIndex < step ? "bg-primary" : "bg-muted"}`} />
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        {step === -1 && (
+          <div>
+            <div className="text-center mb-8">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold mb-2">اختر قالباً لروايتك</h2>
+              <p className="text-sm text-muted-foreground">اختر نوع الرواية لتعبئة الحقول تلقائياً، أو ابدأ من مشروع فارغ</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {PROJECT_TEMPLATES.map((template) => (
+                <Card
+                  key={template.id}
+                  className={`cursor-pointer transition-colors hover-elevate ${selectedTemplate === template.id ? "border-primary ring-1 ring-primary" : ""}`}
+                  data-testid={`template-card-${template.id}`}
+                >
+                  <CardContent className="p-5">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectTemplate(template)}
+                      className="w-full text-right"
+                      data-testid={`button-template-${template.id}`}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10 text-primary shrink-0">
+                          <template.icon className="w-5 h-5" />
+                        </div>
+                        <h3 className="font-serif font-bold text-base">{template.label}</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{template.description}</p>
+                    </button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="mb-6 flex flex-col items-center gap-3">
-              <Button
-                type="button"
-                onClick={handleSuggestFullProject}
-                disabled={suggestingFullProject}
-                className="gap-2 bg-gradient-to-l from-amber-500 to-yellow-400 text-white border-amber-600 font-bold text-base px-6"
-                data-testid="button-suggest-full-project"
-              >
-                {suggestingFullProject ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-5 w-5" />
+            {step >= 0 && (
+              <div className="mb-6 flex flex-col items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={handleSuggestFullProject}
+                  disabled={suggestingFullProject}
+                  className="gap-2 bg-gradient-to-l from-amber-500 to-yellow-400 text-white border-amber-600 font-bold text-base px-6"
+                  data-testid="button-suggest-full-project"
+                >
+                  {suggestingFullProject ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
+                  {suggestingFullProject ? "أبو هاشم يفكّر..." : "أبو هاشم يقترح لك مشروعاً كاملاً"}
+                </Button>
+                {showHintInput && (
+                  <div className="flex items-center gap-2 w-full max-w-md">
+                    <Input
+                      value={fullProjectHint}
+                      onChange={(e) => setFullProjectHint(e.target.value)}
+                      placeholder="أدخل كلمة مفتاحية أو موضوع (اختياري)..."
+                      className="flex-1"
+                      data-testid="input-full-project-hint"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleSuggestFullProject}
+                      disabled={suggestingFullProject}
+                      className="shrink-0 gap-1.5 bg-gradient-to-l from-amber-500 to-yellow-400 text-white"
+                      data-testid="button-confirm-full-project"
+                    >
+                      {suggestingFullProject ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      ابدأ
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { setShowHintInput(false); setFullProjectHint(""); }}
+                      data-testid="button-cancel-full-project"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
-                {suggestingFullProject ? "أبو هاشم يفكّر..." : "أبو هاشم يقترح لك مشروعاً كاملاً"}
-              </Button>
-              {showHintInput && (
-                <div className="flex items-center gap-2 w-full max-w-md">
-                  <Input
-                    value={fullProjectHint}
-                    onChange={(e) => setFullProjectHint(e.target.value)}
-                    placeholder="أدخل كلمة مفتاحية أو موضوع (اختياري)..."
-                    className="flex-1"
-                    data-testid="input-full-project-hint"
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleSuggestFullProject}
-                    disabled={suggestingFullProject}
-                    className="shrink-0 gap-1.5 bg-gradient-to-l from-amber-500 to-yellow-400 text-white"
-                    data-testid="button-confirm-full-project"
-                  >
-                    {suggestingFullProject ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    ابدأ
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => { setShowHintInput(false); setFullProjectHint(""); }}
-                    data-testid="button-cancel-full-project"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {step === 0 && (
               <Card>
@@ -958,45 +1153,46 @@ export default function NewProject() {
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-4 mt-8">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setStep(Math.max(0, step - 1))}
-                disabled={step === 0}
-                data-testid="button-prev-step"
-              >
-                السابق
-              </Button>
-              {step < 2 ? (
+            {step >= 0 && (
+              <div className="flex items-center justify-between gap-4 mt-8">
                 <Button
                   type="button"
-                  onClick={() => setStep(step + 1)}
-                  disabled={!canNextStep()}
-                  data-testid="button-next-step"
+                  variant="secondary"
+                  onClick={() => setStep(Math.max(-1, step - 1))}
+                  data-testid="button-prev-step"
                 >
-                  التالي
+                  السابق
                 </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  data-testid="button-create-project"
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                      جارٍ الإنشاء والتوجيه للدفع...
-                    </>
-                  ) : (
-                    <>
-                      <Feather className="w-4 h-4 ml-2" />
-                      أنشئ المشروع وادفع
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
+                {step < totalSteps ? (
+                  <Button
+                    type="button"
+                    onClick={() => setStep(step + 1)}
+                    disabled={!canNextStep()}
+                    data-testid="button-next-step"
+                  >
+                    التالي
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={createMutation.isPending}
+                    data-testid="button-create-project"
+                  >
+                    {createMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                        جارٍ الإنشاء والتوجيه للدفع...
+                      </>
+                    ) : (
+                      <>
+                        <Feather className="w-4 h-4 ml-2" />
+                        أنشئ المشروع وادفع
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
           </form>
         </Form>
       </main>

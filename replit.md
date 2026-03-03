@@ -98,3 +98,44 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - **Code Splitting**: All 25+ pages in `client/src/App.tsx` are lazily loaded via `React.lazy()` + `<Suspense>` with Arabic loading fallback.
 - **Error Boundary**: `client/src/components/error-boundary.tsx` wraps the app router, showing Arabic recovery screen on runtime errors.
 - **Lazy Images**: All `<img>` tags in gallery, author-profile, shared-project, and project-detail pages have `loading="lazy"` attribute.
+
+## Word Count Goals
+- `targetWordCount` (integer, nullable) field on `novel_projects` table.
+- `PATCH /api/projects/:id/target-word-count` endpoint to set/update.
+- Circular SVG progress ring on home.tsx project cards showing progress toward target.
+- Project detail overview shows progress bar, preset buttons (10K-100K), and edit dialog.
+
+## Focus/Zen Writing Mode
+- In `chapter-editor.tsx`: "وضع التركيز" button on completed chapters.
+- Full-screen overlay with dark calming background, amber text caret, minimal toolbar (save + exit).
+- Escape key to exit. CSS classes in `index.css` prefixed with `focus-mode-`.
+
+## Chapter Drag-and-Drop Reordering
+- HTML5 drag-and-drop API in `chapter-editor.tsx` with GripVertical drag handles.
+- `PATCH /api/projects/:id/reorder-chapters` endpoint validates chapter ownership before updating order.
+
+## Auto-Save Drafts
+- 30-second auto-save interval when editing chapters in `chapter-editor.tsx`.
+- localStorage backup on every content change for crash recovery.
+- Visual indicators: "جارٍ الحفظ التلقائي..." (saving) and "تم الحفظ التلقائي" (saved).
+- Guards against concurrent mutations via `isPending` check.
+
+## Project Templates
+- Template selection step (step -1) in `new-project.tsx` before the main form.
+- 6 templates: blank, mystery, romance, thriller, historical, fantasy.
+- Each pre-fills mainIdea, timeSetting, placeSetting, narrativePov, narrativeTechnique, character archetypes.
+
+## DOCX Export
+- `GET /api/projects/:id/export/docx` endpoint using `docx` npm package.
+- RTL Arabic support with Traditional Arabic font, A4 margins, cover page, chapter formatting.
+- Download button alongside PDF/EPUB in project detail.
+
+## AI-Powered Chapter Summaries
+- `POST /api/projects/:id/chapters/:chapterId/summarize` endpoint.
+- `buildChapterSummaryPrompt` in `abu-hashim.ts` — generates 3-5 sentence summary.
+- `summary` field on chapters table. UI button on completed chapters in chapter-editor.tsx.
+
+## Reading Progress for Shared Projects
+- Scroll-based progress bar at top of shared-project.tsx.
+- IntersectionObserver tracks visible chapters. Progress saved to localStorage.
+- Chapter completion tracking sidebar for multi-chapter projects.
