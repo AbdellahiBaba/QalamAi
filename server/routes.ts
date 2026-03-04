@@ -2106,10 +2106,11 @@ ${pages.map(p => `  <url>
       const boldFontPath = path.join(process.cwd(), "server", "fonts", "Amiri-Bold.ttf");
 
       const pdfAuthorName = (exportUser as any)?.displayName || (exportUser as any)?.firstName || exportUser?.email?.split("@")[0] || "المؤلف";
+      const isMemoire = project.projectType === "memoire";
 
       const doc = new PDFDocument({
         size: "A4",
-        margins: { top: 72, bottom: 0, left: 72, right: 72 },
+        margins: { top: 72, bottom: 72, left: 72, right: 72 },
         info: {
           Title: project.title,
           Author: pdfAuthorName,
@@ -2126,21 +2127,79 @@ ${pages.map(p => `  <url>
       res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(project.title)}.pdf"`);
       doc.pipe(res);
 
-      const pageWidth = 595.28 - 144;
+      const fullPageWidth = 595.28;
+      const pageWidth = fullPageWidth - 144;
       const pageHeight = 841.89;
+      const borderInnerTop = 48;
+      const borderInnerBottom = pageHeight - 48;
+      const contentMarginX = 72;
+      const contentStartY = 90;
+      const contentBottomLimit = borderInnerBottom - 50;
+      const footerY = borderInnerBottom - 30;
+      const continuationStartY = 90;
+
+      const memoireFieldMap: Record<string, string> = {
+        sciences: "العلوم الطبيعية والتطبيقية",
+        humanities: "العلوم الإنسانية والاجتماعية",
+        law: "القانون والعلوم القانونية",
+        medicine: "الطب والعلوم الصحية",
+        engineering: "الهندسة والتكنولوجيا",
+        economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
+        education: "علوم التربية والتعليم",
+        literature: "الآداب واللغات",
+        media: "الإعلام والاتصال",
+        computer_science: "الإعلام الآلي وعلوم الحاسوب",
+        islamic_studies: "العلوم الإسلامية والشريعة",
+        political_science: "العلوم السياسية والعلاقات الدولية",
+        psychology: "علم النفس",
+        sociology: "علم الاجتماع",
+        history: "التاريخ",
+        philosophy: "الفلسفة",
+        agriculture: "العلوم الزراعية",
+        architecture: "الهندسة المعمارية والعمران",
+      };
+
       const drawBorder = () => {
-        doc.rect(36, 36, 595.28 - 72, 841.89 - 72)
+        doc.rect(36, 36, fullPageWidth - 72, pageHeight - 72)
           .lineWidth(1.5)
           .strokeColor("#8B7355")
           .stroke();
-        doc.rect(42, 42, 595.28 - 84, 841.89 - 84)
+        doc.rect(42, 42, fullPageWidth - 84, pageHeight - 84)
           .lineWidth(0.5)
           .strokeColor("#C4A882")
           .stroke();
       };
 
-      const fullPageWidth = 595.28;
-      const contentStartY = 90;
+      const drawPageFooter = (num: number) => {
+        doc.font("Arabic").fontSize(9).fillColor("#999");
+        doc.text(`\u2014 ${num} \u2014`, 0, footerY, { width: fullPageWidth, align: "center", lineBreak: false });
+      };
+
+      const drawPageHeader = (chapterTitle: string) => {
+        doc.font("Arabic").fontSize(9).fillColor("#999");
+        doc.text(chapterTitle, contentMarginX, 50, {
+          width: pageWidth,
+          align: "right",
+          features: ["rtla"],
+          lineBreak: false,
+        });
+      };
+
+      const drawOrnamentalDivider = (y: number) => {
+        const centerX = fullPageWidth / 2;
+        const dividerWidth = 180;
+        doc.moveTo(centerX - dividerWidth / 2, y).lineTo(centerX - 30, y).lineWidth(1).strokeColor("#C4A882").stroke();
+        doc.moveTo(centerX + 30, y).lineTo(centerX + dividerWidth / 2, y).lineWidth(1).strokeColor("#C4A882").stroke();
+        doc.font("Arabic").fontSize(12).fillColor("#C4A882");
+        doc.text("\u2726 \u2726 \u2726", centerX - 25, y - 6, { width: 50, align: "center", lineBreak: false });
+      };
+
+      const drawCenteredArabic = (text: string, y: number, fontSize: number, color: string, bold?: boolean) => {
+        doc.font(bold ? "ArabicBold" : "Arabic").fontSize(fontSize).fillColor(color);
+        const w = doc.widthOfString(text, { features: ["rtla"] });
+        doc.text(text, (fullPageWidth - w) / 2, y, { width: w + 4, features: ["rtla"], lineBreak: false });
+        return doc.heightOfString(text, { width: w + 4 }) + 4;
+      };
 
       doc.addPage();
 
@@ -2163,93 +2222,151 @@ ${pages.map(p => `  <url>
         doc.font("ArabicBold").fontSize(28).fillColor("#2C1810");
         const coverTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
         const coverTitleY = Math.max(300, 380 - coverTitleH / 2);
-        doc.text(project.title, 72, coverTitleY, {
+        doc.text(project.title, contentMarginX, coverTitleY, {
           width: pageWidth,
           align: "center",
           features: ["rtla"],
         });
 
-        doc.font("Arabic")
-          .fontSize(14)
-          .fillColor("#6B5B4F");
+        doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
         const coverSubY = coverTitleY + coverTitleH + 30;
-        const coverAuthorAr = `تأليف ${pdfAuthorName}`;
-        const coverAuthorW = doc.widthOfString(coverAuthorAr, { features: ["rtla"] });
-        doc.text(coverAuthorAr, (fullPageWidth - coverAuthorW) / 2, coverSubY, { width: coverAuthorW + 2, features: ["rtla"], lineBreak: false });
+        drawCenteredArabic(`تأليف ${pdfAuthorName}`, coverSubY, 14, "#6B5B4F");
       }
 
-      doc.addPage();
-      drawBorder();
-
-      doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
-      const cpTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
-      const cpTitleY = Math.max(240, 300 - cpTitleH / 2);
-      doc.text(project.title, 72, cpTitleY, { width: pageWidth, align: "center", features: ["rtla"] });
-
-      const authLineY = cpTitleY + cpTitleH + 30;
-      doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
-      const cpAuthorLine = `تأليف ${pdfAuthorName}`;
-      const cpAuthorW = doc.widthOfString(cpAuthorLine, { features: ["rtla"] });
-      doc.text(cpAuthorLine, (fullPageWidth - cpAuthorW) / 2, authLineY, { width: cpAuthorW + 2, features: ["rtla"], lineBreak: false });
-
-      const cpAssistLine = "بمساعدة أبو هاشم — QalamAI";
-      doc.fontSize(12).fillColor("#8B7355");
-      const cpAssistW = doc.widthOfString(cpAssistLine, { features: ["rtla"] });
-      doc.text(cpAssistLine, (fullPageWidth - cpAssistW) / 2, authLineY + 28, { width: cpAssistW + 2, features: ["rtla"], lineBreak: false });
-
-      const dateLine = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
-      const dateW = doc.widthOfString(dateLine);
-      doc.text(dateLine, (fullPageWidth - dateW) / 2, authLineY + 60, { lineBreak: false });
-
-      let memoireMetaOffset = 0;
-      if (project.projectType === "memoire") {
-        const memoireFieldMap: Record<string, string> = {
-          sciences: "العلوم الطبيعية والتطبيقية",
-          humanities: "العلوم الإنسانية والاجتماعية",
-          law: "القانون والعلوم القانونية",
-          medicine: "الطب والعلوم الصحية",
-          engineering: "الهندسة والتكنولوجيا",
-          economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
-          education: "علوم التربية والتعليم",
-          literature: "الآداب واللغات",
-          media: "الإعلام والاتصال",
-          computer_science: "الإعلام الآلي وعلوم الحاسوب",
-          islamic_studies: "العلوم الإسلامية والشريعة",
-          political_science: "العلوم السياسية والعلاقات الدولية",
-          psychology: "علم النفس",
-          sociology: "علم الاجتماع",
-          history: "التاريخ",
-          philosophy: "الفلسفة",
-          agriculture: "العلوم الزراعية",
-          architecture: "الهندسة المعمارية والعمران",
-        };
+      if (isMemoire) {
         const memoireFieldAr = memoireFieldMap[(project as any).memoireField || ""] || (project as any).memoireField || "";
         const memoireUniv = (project as any).memoireUniversity || "";
+        const memoireFac = (project as any).memoireFaculty || "";
+        const memoireDept = (project as any).memoireDepartment || "";
+        const memoireCountry = (project as any).memoireCountry || "";
+        const memoireMethodology = (project as any).memoireMethodology || "";
+        const memoireCitation = (project as any).memoireCitationStyle || "";
+        const memoireKeywords = (project as any).memoireKeywords || "";
+        const currentYear = new Date().getFullYear();
+        const academicYear = `${currentYear - 1} / ${currentYear}`;
 
-        let memoireY = authLineY + 56;
+        doc.addPage();
+        drawBorder();
+
+        let metaY = 100;
+
         if (memoireUniv) {
-          doc.font("Arabic").fontSize(13).fillColor("#6B5B4F");
-          const univLine = `${memoireUniv}`;
-          const univW = doc.widthOfString(univLine, { features: ["rtla"] });
-          doc.text(univLine, (fullPageWidth - univW) / 2, memoireY, { width: univW + 2, features: ["rtla"], lineBreak: false });
-          memoireY += 24;
-          memoireMetaOffset += 24;
+          metaY += drawCenteredArabic(memoireUniv, metaY, 18, "#2C1810", true);
+          metaY += 8;
         }
-        if (memoireFieldAr) {
-          doc.font("Arabic").fontSize(12).fillColor("#8B7355");
-          const fieldLine = `التخصص: ${memoireFieldAr}`;
-          const fieldW = doc.widthOfString(fieldLine, { features: ["rtla"] });
-          doc.text(fieldLine, (fullPageWidth - fieldW) / 2, memoireY, { width: fieldW + 2, features: ["rtla"], lineBreak: false });
-          memoireMetaOffset += 24;
+        if (memoireFac) {
+          metaY += drawCenteredArabic(memoireFac, metaY, 14, "#6B5B4F");
+          metaY += 4;
         }
-      }
+        if (memoireDept) {
+          metaY += drawCenteredArabic(memoireDept, metaY, 13, "#8B7355");
+          metaY += 4;
+        }
 
-      doc.font("Arabic").fontSize(13).fillColor("#8B7355");
-      const currentYear = new Date().getFullYear();
-      const rightsAr = `جميع الحقوق محفوظة © ${currentYear} ${pdfAuthorName}`;
-      const rightsArW = doc.widthOfString(rightsAr, { features: ["rtla"] });
-      const rightsY = authLineY + 100 + memoireMetaOffset;
-      doc.text(rightsAr, (fullPageWidth - rightsArW) / 2, rightsY, { width: rightsArW + 2, features: ["rtla"], lineBreak: false });
+        metaY += 20;
+        doc.moveTo(fullPageWidth * 0.3, metaY).lineTo(fullPageWidth * 0.7, metaY).lineWidth(0.5).strokeColor("#C4A882").stroke();
+        metaY += 30;
+
+        metaY += drawCenteredArabic("مذكرة تخرج", metaY, 16, "#8B7355");
+        metaY += 15;
+
+        doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
+        const titleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
+        doc.text(project.title, contentMarginX, metaY, { width: pageWidth, align: "center", features: ["rtla"] });
+        metaY += titleH + 20;
+
+        doc.moveTo(fullPageWidth * 0.3, metaY).lineTo(fullPageWidth * 0.7, metaY).lineWidth(0.5).strokeColor("#C4A882").stroke();
+        metaY += 30;
+
+        if (memoireFieldAr) {
+          metaY += drawCenteredArabic(`التخصص: ${memoireFieldAr}`, metaY, 13, "#6B5B4F");
+          metaY += 6;
+        }
+        if (memoireMethodology) {
+          const methodologyMap: Record<string, string> = {
+            descriptive: "المنهج الوصفي",
+            analytical: "المنهج التحليلي",
+            experimental: "المنهج التجريبي",
+            historical: "المنهج التاريخي",
+            comparative: "المنهج المقارن",
+            survey: "المنهج المسحي",
+            case_study: "دراسة حالة",
+            inductive: "المنهج الاستقرائي",
+            deductive: "المنهج الاستنباطي",
+            mixed: "منهج مختلط",
+          };
+          const methodAr = methodologyMap[memoireMethodology] || memoireMethodology;
+          metaY += drawCenteredArabic(`المنهج: ${methodAr}`, metaY, 13, "#6B5B4F");
+          metaY += 6;
+        }
+        if (memoireCitation) {
+          metaY += drawCenteredArabic(`نظام التوثيق: ${memoireCitation.toUpperCase()}`, metaY, 12, "#8B7355");
+          metaY += 6;
+        }
+
+        metaY += 20;
+        metaY += drawCenteredArabic(`إعداد الطالب(ة): ${pdfAuthorName}`, metaY, 14, "#333333");
+        metaY += 15;
+
+        metaY += drawCenteredArabic("بمساعدة أبو هاشم — QalamAI", metaY, 12, "#8B7355");
+        metaY += 20;
+
+        if (memoireCountry) {
+          metaY += drawCenteredArabic(memoireCountry, metaY, 12, "#8B7355");
+          metaY += 4;
+        }
+        metaY += drawCenteredArabic(`السنة الجامعية: ${academicYear}`, metaY, 13, "#6B5B4F");
+        metaY += 25;
+
+        doc.font("Arabic").fontSize(11).fillColor("#8B7355");
+        const rightsAcademic = `جميع الحقوق محفوظة © ${currentYear} ${pdfAuthorName}`;
+        const rightsW = doc.widthOfString(rightsAcademic, { features: ["rtla"] });
+        doc.text(rightsAcademic, (fullPageWidth - rightsW) / 2, Math.min(metaY, pageHeight - 120), { width: rightsW + 4, features: ["rtla"], lineBreak: false });
+
+        doc.addPage();
+        drawBorder();
+        doc.font("ArabicBold").fontSize(36).fillColor("#2C1810");
+        const bismillah = "\uFDFD";
+        const bismW = doc.widthOfString(bismillah);
+        doc.text(bismillah, (fullPageWidth - bismW) / 2, 340, { width: bismW + 4, lineBreak: false });
+        doc.font("Arabic").fontSize(14).fillColor("#8B7355");
+        drawCenteredArabic("بسم الله الرحمن الرحيم", 400, 14, "#8B7355");
+
+        if (memoireKeywords) {
+          doc.addPage();
+          drawBorder();
+          doc.font("ArabicBold").fontSize(20).fillColor("#2C1810");
+          doc.text("الكلمات المفتاحية", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+          doc.moveTo(contentMarginX, 120).lineTo(fullPageWidth - contentMarginX, 120).lineWidth(0.5).strokeColor("#C4A882").stroke();
+          doc.font("Arabic").fontSize(13).fillColor("#333333");
+          const keywords = memoireKeywords.split(/[,،\n]+/).map((k: string) => k.trim()).filter(Boolean);
+          let kwY = 140;
+          for (const kw of keywords) {
+            doc.font("Arabic").fontSize(13).fillColor("#333333");
+            const kwText = `\u25C6  ${kw}`;
+            doc.text(kwText, contentMarginX, kwY, { width: pageWidth, align: "right", features: ["rtla"] });
+            kwY += 28;
+          }
+        }
+      } else {
+        doc.addPage();
+        drawBorder();
+
+        doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
+        const cpTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
+        const cpTitleY = Math.max(240, 300 - cpTitleH / 2);
+        doc.text(project.title, contentMarginX, cpTitleY, { width: pageWidth, align: "center", features: ["rtla"] });
+
+        const authLineY = cpTitleY + cpTitleH + 30;
+        drawCenteredArabic(`تأليف ${pdfAuthorName}`, authLineY, 14, "#6B5B4F");
+        drawCenteredArabic("بمساعدة أبو هاشم — QalamAI", authLineY + 28, 12, "#8B7355");
+
+        const dateLine = new Date().toLocaleDateString("ar-SA", { year: "numeric", month: "long" });
+        drawCenteredArabic(dateLine, authLineY + 58, 12, "#8B7355");
+
+        const currentYear = new Date().getFullYear();
+        drawCenteredArabic(`جميع الحقوق محفوظة © ${currentYear} ${pdfAuthorName}`, authLineY + 100, 13, "#8B7355");
+      }
 
       const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
@@ -2257,12 +2374,10 @@ ${pages.map(p => `  <url>
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
 
-      const continuationStartY = 90;
       const tocMinEntryHeight = 28;
       const tocEntrySpacing = 6;
       const tocFirstPageStartY = 145;
-      const tocContPageStartY = 72;
-      const tocBottomLimit = pageHeight - 120;
+      const tocContPageStartY = contentStartY;
       const tocEntryWidth = pageWidth - 90;
 
       let tocPageCount = 1;
@@ -2273,14 +2388,15 @@ ${pages.map(p => `  <url>
         const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
         const entryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
         const totalH = Math.max(entryH, tocMinEntryHeight) + tocEntrySpacing;
-        if (simTocY + totalH > tocBottomLimit) {
+        if (simTocY + totalH > contentBottomLimit) {
           tocPageCount++;
           simTocY = tocContPageStartY;
         }
         simTocY += totalH;
       }
 
-      const pagesBeforeChapters = 2 + tocPageCount;
+      const extraPagesBeforeChapters = isMemoire ? (2 + ((project as any).memoireKeywords ? 1 : 0)) : 1;
+      const pagesBeforeChapters = 1 + extraPagesBeforeChapters + tocPageCount;
       let estimatedPage = pagesBeforeChapters + 1;
       const chapterStartPages: number[] = [];
 
@@ -2294,8 +2410,8 @@ ${pages.map(p => `  <url>
         let estY = estContentStartY;
         doc.font("Arabic").fontSize(13);
         for (const para of paragraphs) {
-          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8, indent: 25 });
-          if (estY + textHeight > pageHeight - 100) {
+          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth - 20, align: "right", lineGap: 8 });
+          if (estY + textHeight > contentBottomLimit) {
             estimatedPage++;
             estY = continuationStartY;
           }
@@ -2308,10 +2424,10 @@ ${pages.map(p => `  <url>
       drawBorder();
 
       doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
-      doc.text("فهرس المحتويات", 72, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+      doc.text("فهرس المحتويات", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
 
-      doc.moveTo(72, 125).lineTo(fullPageWidth - 72, 125).lineWidth(1).strokeColor("#8B7355").stroke();
-      doc.moveTo(72, 128).lineTo(fullPageWidth - 72, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
+      doc.moveTo(contentMarginX, 125).lineTo(fullPageWidth - contentMarginX, 125).lineWidth(1).strokeColor("#8B7355").stroke();
+      doc.moveTo(contentMarginX, 128).lineTo(fullPageWidth - contentMarginX, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
 
       doc.font("Arabic").fontSize(13).fillColor("#333333");
       let tocY = 145;
@@ -2332,55 +2448,21 @@ ${pages.map(p => `  <url>
         });
 
         doc.font("Arabic").fontSize(13).fillColor("#8B7355");
-        doc.text(String(pageNum), 72, tocY, {
+        doc.text(String(pageNum), contentMarginX, tocY, {
           width: 50,
           align: "left",
           lineBreak: false,
         });
 
         tocY += entryHeight + tocEntrySpacing;
-        if (tocY > tocBottomLimit) {
+        if (tocY > contentBottomLimit) {
           doc.addPage();
           drawBorder();
-          tocY = 72;
+          tocY = contentStartY;
         }
       }
 
       let pageNumber = pagesBeforeChapters;
-
-      const drawPageHeader = (chapterTitle: string) => {
-        doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(chapterTitle, 72, 50, {
-          width: pageWidth,
-          align: "right",
-          features: ["rtla"],
-          lineBreak: false,
-        });
-      };
-
-      const drawOrnamentalDivider = (y: number) => {
-        const centerX = fullPageWidth / 2;
-        const dividerWidth = 180;
-
-        doc.moveTo(centerX - dividerWidth / 2, y)
-          .lineTo(centerX - 30, y)
-          .lineWidth(1)
-          .strokeColor("#C4A882")
-          .stroke();
-
-        doc.moveTo(centerX + 30, y)
-          .lineTo(centerX + dividerWidth / 2, y)
-          .lineWidth(1)
-          .strokeColor("#C4A882")
-          .stroke();
-
-        doc.font("Arabic").fontSize(12).fillColor("#C4A882");
-        doc.text("\u2726 \u2726 \u2726", centerX - 25, y - 6, {
-          width: 50,
-          align: "center",
-          lineBreak: false,
-        });
-      };
 
       for (const chapter of chapters) {
         doc.addPage();
@@ -2389,11 +2471,9 @@ ${pages.map(p => `  <url>
 
         const chTitle = chapter.title || `${chapterLabel} ${toArabicOrdinal(chapter.chapterNumber)}`;
 
-        doc.font("ArabicBold")
-          .fontSize(22)
-          .fillColor("#2C1810");
+        doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
         const titleHeight = doc.heightOfString(chTitle, { width: pageWidth, align: "right" });
-        doc.text(chTitle, 72, contentStartY, {
+        doc.text(chTitle, contentMarginX, contentStartY, {
           width: pageWidth,
           align: "right",
           features: ["rtla"],
@@ -2403,18 +2483,16 @@ ${pages.map(p => `  <url>
         drawOrnamentalDivider(dividerY);
         const chapterContentStartY = dividerY + 25;
 
-        doc.font("Arabic")
-          .fontSize(13)
-          .fillColor("#333333");
+        doc.font("Arabic").fontSize(13).fillColor("#333333");
 
         const paragraphs = (chapter.content || "").split(/\n+/).filter((p: string) => p.trim());
         let yPos = chapterContentStartY;
 
         for (const para of paragraphs) {
-          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth, align: "right", lineGap: 8, indent: 25 });
-          if (yPos + textHeight > pageHeight - 100) {
-            doc.font("Arabic").fontSize(9).fillColor("#999");
-            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
+          const paraWidth = pageWidth - 20;
+          const textHeight = doc.heightOfString(para.trim(), { width: paraWidth, align: "right", lineGap: 8 });
+          if (yPos + textHeight > contentBottomLimit) {
+            drawPageFooter(pageNumber);
             doc.addPage();
             pageNumber++;
             drawBorder();
@@ -2422,18 +2500,16 @@ ${pages.map(p => `  <url>
             yPos = continuationStartY;
           }
           doc.font("Arabic").fontSize(13).fillColor("#333333");
-          doc.text(para.trim(), 72, yPos, {
-            width: pageWidth,
+          doc.text(para.trim(), contentMarginX + 20, yPos, {
+            width: paraWidth,
             align: "right",
             lineGap: 8,
-            indent: 25,
             features: ["rtla"],
           });
           yPos += textHeight + 12;
         }
 
-        doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
+        drawPageFooter(pageNumber);
       }
 
       if (project.glossary) {
@@ -2442,19 +2518,18 @@ ${pages.map(p => `  <url>
         drawBorder();
 
         doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
-        doc.text("المسرد", 72, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+        doc.text("المسرد", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
 
-        doc.moveTo(72, 125).lineTo(fullPageWidth - 72, 125).lineWidth(1).strokeColor("#8B7355").stroke();
-        doc.moveTo(72, 128).lineTo(fullPageWidth - 72, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
+        doc.moveTo(contentMarginX, 125).lineTo(fullPageWidth - contentMarginX, 125).lineWidth(1).strokeColor("#8B7355").stroke();
+        doc.moveTo(contentMarginX, 128).lineTo(fullPageWidth - contentMarginX, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
 
         doc.font("Arabic").fontSize(12).fillColor("#333333");
         const glossaryLines = project.glossary.split(/\n+/).filter((l: string) => l.trim());
         let yPos = 145;
         for (const line of glossaryLines) {
           const textHeight = doc.heightOfString(line.trim(), { width: pageWidth, align: "right", lineGap: 6 });
-          if (yPos + textHeight > pageHeight - 100) {
-            doc.font("Arabic").fontSize(9).fillColor("#999");
-            doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
+          if (yPos + textHeight > contentBottomLimit) {
+            drawPageFooter(pageNumber);
             doc.addPage();
             pageNumber++;
             drawBorder();
@@ -2462,11 +2537,10 @@ ${pages.map(p => `  <url>
             yPos = continuationStartY;
           }
           doc.font("Arabic").fontSize(12).fillColor("#333333");
-          doc.text(line.trim(), 72, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
+          doc.text(line.trim(), contentMarginX, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
           yPos += textHeight + 8;
         }
-        doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(`\u2014 ${pageNumber} \u2014`, 0, pageHeight - 60, { width: fullPageWidth, align: "center", lineBreak: false });
+        drawPageFooter(pageNumber);
       }
 
       doc.end();
@@ -2537,6 +2611,7 @@ ${pages.map(p => `  <url>
   </rootfiles>
 </container>`, { name: "META-INF/container.xml" });
 
+      const isMemoire = project.projectType === "memoire";
       const chapterItems = completedChapters
         .map((_: any, i: number) => `    <item id="chapter${i + 1}" href="chapter${i + 1}.xhtml" media-type="application/xhtml+xml"/>`)
         .join("\n");
@@ -2552,6 +2627,12 @@ ${pages.map(p => `  <url>
         : "";
       const colophonManifestItem = `    <item id="colophon" href="colophon.xhtml" media-type="application/xhtml+xml"/>`;
       const colophonSpineItem = `    <itemref idref="colophon"/>\n`;
+      const bismillahManifestItem = isMemoire
+        ? `\n    <item id="bismillah" href="bismillah.xhtml" media-type="application/xhtml+xml"/>`
+        : "";
+      const bismillahSpineItem = isMemoire
+        ? `    <itemref idref="bismillah"/>\n`
+        : "";
       const glossaryManifestItem = project.glossary
         ? `\n    <item id="glossary" href="glossary.xhtml" media-type="application/xhtml+xml"/>`
         : "";
@@ -2571,11 +2652,11 @@ ${pages.map(p => `  <url>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
-${coverManifestItems}${colophonManifestItem}
+${coverManifestItems}${colophonManifestItem}${bismillahManifestItem}
 ${chapterItems}${glossaryManifestItem}
   </manifest>
   <spine page-progression-direction="rtl">
-${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
+${coverSpineItem}${colophonSpineItem}${bismillahSpineItem}${chapterSpine}${glossarySpineItem}
   </spine>
 </package>`, { name: "OEBPS/content.opf" });
 
@@ -2596,7 +2677,7 @@ ${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
       const safeTitle = project.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
       let epubMemoireMeta = "";
-      if (project.projectType === "memoire") {
+      if (isMemoire) {
         const epubMemoireFieldMap: Record<string, string> = {
           sciences: "العلوم الطبيعية والتطبيقية",
           humanities: "العلوم الإنسانية والاجتماعية",
@@ -2617,13 +2698,62 @@ ${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
           agriculture: "العلوم الزراعية",
           architecture: "الهندسة المعمارية والعمران",
         };
+        const epubMemoireMethodologyMap: Record<string, string> = {
+          descriptive: "المنهج الوصفي",
+          analytical: "المنهج التحليلي",
+          comparative: "المنهج المقارن",
+          historical: "المنهج التاريخي",
+          experimental: "المنهج التجريبي",
+          survey: "المنهج المسحي",
+          case_study: "دراسة حالة",
+          inductive: "المنهج الاستقرائي",
+          deductive: "المنهج الاستنباطي",
+          mixed: "المنهج المختلط",
+        };
+        const epubMemoireCitationMap: Record<string, string> = {
+          apa: "APA",
+          mla: "MLA",
+          chicago: "شيكاغو",
+          harvard: "هارفارد",
+          ieee: "IEEE",
+          iso690: "ISO 690",
+          islamic: "التوثيق الإسلامي",
+        };
+        const escHtml = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const epubFieldAr = epubMemoireFieldMap[(project as any).memoireField || ""] || (project as any).memoireField || "";
-        const epubUniv = ((project as any).memoireUniversity || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const epubUniv = escHtml((project as any).memoireUniversity || "");
+        const epubFaculty = escHtml((project as any).memoireFaculty || "");
+        const epubDepartment = escHtml((project as any).memoireDepartment || "");
+        const epubCountry = escHtml((project as any).memoireCountry || "");
+        const epubMethodology = epubMemoireMethodologyMap[(project as any).memoireMethodology || ""] || (project as any).memoireMethodology || "";
+        const epubCitation = epubMemoireCitationMap[(project as any).memoireCitationStyle || ""] || (project as any).memoireCitationStyle || "";
+        const epubKeywords = escHtml((project as any).memoireKeywords || "");
+        const epubAcademicYear = `${new Date().getFullYear() - 1}/${new Date().getFullYear()}`;
+
         if (epubUniv) {
-          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 1.1em; color: #2C1810;">${epubUniv}</p>`;
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 1.1em; color: #2C1810; font-weight: bold;">${epubUniv}</p>`;
+        }
+        if (epubFaculty) {
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 1em; color: #2C1810;">الكلية: ${epubFaculty}</p>`;
+        }
+        if (epubDepartment) {
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 1em; color: #2C1810;">القسم: ${epubDepartment}</p>`;
         }
         if (epubFieldAr) {
           epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">التخصص: ${epubFieldAr}</p>`;
+        }
+        if (epubCountry) {
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">البلد: ${epubCountry}</p>`;
+        }
+        if (epubMethodology) {
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">المنهجية: ${epubMethodology}</p>`;
+        }
+        if (epubCitation) {
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">نمط التوثيق: ${epubCitation}</p>`;
+        }
+        epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">السنة الجامعية: ${epubAcademicYear}</p>`;
+        if (epubKeywords) {
+          epubMemoireMeta += `\n    <hr/>\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;"><strong>الكلمات المفتاحية:</strong> ${epubKeywords}</p>`;
         }
       }
 
@@ -2642,6 +2772,21 @@ ${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
   </div>
 </body>
 </html>`, { name: "OEBPS/colophon.xhtml" });
+
+      if (isMemoire) {
+        archive.append(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
+<head><title>بسم الله الرحمن الرحيم</title><link rel="stylesheet" href="style.css"/></head>
+<body>
+  <div style="text-align: center; padding-top: 35%; line-height: 3;">
+    <p style="text-indent: 0; font-size: 2em; color: #8B4513; font-weight: bold;">بسم الله الرحمن الرحيم</p>
+    <hr/>
+    <p style="text-indent: 0; font-size: 1.1em; color: #6B5B4F;">﴿ وَقُل رَّبِّ زِدْنِي عِلْمًا ﴾</p>
+  </div>
+</body>
+</html>`, { name: "OEBPS/bismillah.xhtml" });
+      }
 
       archive.append(`body { direction: rtl; unicode-bidi: embed; font-family: serif; line-height: 2; padding: 1em; color: #2C1810; background: #FFFDF5; }
 html { writing-mode: horizontal-tb; }
@@ -2842,7 +2987,207 @@ ${glossaryParagraphs}
         ],
       });
 
-      const titleSection = {
+      const docxMemoireFieldMap: Record<string, string> = {
+        sciences: "العلوم الطبيعية والتطبيقية",
+        humanities: "العلوم الإنسانية والاجتماعية",
+        law: "القانون والعلوم القانونية",
+        medicine: "الطب والعلوم الصحية",
+        engineering: "الهندسة والتكنولوجيا",
+        economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
+        education: "علوم التربية والتعليم",
+        literature: "الآداب واللغات",
+        media: "الإعلام والاتصال",
+        computer_science: "الإعلام الآلي وعلوم الحاسوب",
+        islamic_studies: "العلوم الإسلامية والشريعة",
+        political_science: "العلوم السياسية والعلاقات الدولية",
+        psychology: "علم النفس",
+        sociology: "علم الاجتماع",
+        history: "التاريخ",
+        philosophy: "الفلسفة",
+        agriculture: "العلوم الزراعية",
+        architecture: "الهندسة المعمارية والعمران",
+      };
+
+      const isMemoireProject = project.projectType === "memoire";
+
+      const titleSection = isMemoireProject ? (() => {
+        const mUniv = (project as any).memoireUniversity || "";
+        const mFaculty = (project as any).memoireFaculty || "";
+        const mDepartment = (project as any).memoireDepartment || "";
+        const mFieldKey = (project as any).memoireField || "";
+        const mFieldAr = docxMemoireFieldMap[mFieldKey] || mFieldKey || "";
+        const mCountry = (project as any).memoireCountry || "";
+        const mMethodology = (project as any).memoireMethodology || "";
+        const mCitationStyle = (project as any).memoireCitationStyle || "";
+        const academicYear = `${new Date().getFullYear() - 1} / ${new Date().getFullYear()}`;
+
+        const methodologyMap: Record<string, string> = {
+          descriptive: "المنهج الوصفي",
+          analytical: "المنهج التحليلي",
+          comparative: "المنهج المقارن",
+          historical: "المنهج التاريخي",
+          experimental: "المنهج التجريبي",
+          survey: "المنهج المسحي",
+          case_study: "دراسة حالة",
+          inductive: "المنهج الاستقرائي",
+          deductive: "المنهج الاستنباطي",
+          mixed: "المنهج المختلط",
+        };
+        const mMethodologyAr = methodologyMap[mMethodology] || mMethodology || "";
+
+        const citationMap: Record<string, string> = {
+          apa: "APA",
+          mla: "MLA",
+          chicago: "شيكاغو",
+          harvard: "هارفارد",
+          ieee: "IEEE",
+          iso690: "ISO 690",
+          islamic: "التوثيق الإسلامي",
+        };
+        const mCitationAr = citationMap[mCitationStyle] || mCitationStyle || "";
+
+        const titleChildren: any[] = [];
+
+        if (mUniv) {
+          titleChildren.push(new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { before: 800, after: 200 },
+            children: [
+              new TextRun({ text: mUniv, bold: true, size: 32, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }));
+        }
+
+        if (mFaculty) {
+          titleChildren.push(new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 150 },
+            children: [
+              new TextRun({ text: `كلية: ${mFaculty}`, size: 28, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }));
+        }
+
+        if (mDepartment) {
+          titleChildren.push(new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 150 },
+            children: [
+              new TextRun({ text: `قسم: ${mDepartment}`, size: 28, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }));
+        }
+
+        if (mFieldAr) {
+          titleChildren.push(new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 150 },
+            children: [
+              new TextRun({ text: `التخصص: ${mFieldAr}`, size: 26, font: mainFont, rightToLeft: true, color: subtleColor }),
+            ],
+          }));
+        }
+
+        titleChildren.push(decoratorLine({ before: 400, after: 400 }));
+
+        titleChildren.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { after: 200 },
+          children: [
+            new TextRun({ text: "مذكرة تخرج بعنوان", size: 24, font: mainFont, rightToLeft: true, color: subtleColor, italics: true }),
+          ],
+        }));
+
+        titleChildren.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { after: 400 },
+          children: [
+            new TextRun({ text: project.title, bold: true, size: 56, font: mainFont, rightToLeft: true, color: accentColor }),
+          ],
+        }));
+
+        titleChildren.push(decoratorLine({ before: 200, after: 400 }));
+
+        titleChildren.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { after: 200 },
+          children: [
+            new TextRun({ text: "إعداد الطالب(ة)", size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
+          ],
+        }));
+
+        titleChildren.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { after: 400 },
+          children: [
+            new TextRun({ text: authorName, bold: true, size: 34, font: mainFont, rightToLeft: true, color: bodyColor }),
+          ],
+        }));
+
+        const metaRows: { label: string; value: string }[] = [];
+        if (mMethodologyAr) metaRows.push({ label: "المنهجية", value: mMethodologyAr });
+        if (mCitationAr) metaRows.push({ label: "أسلوب التوثيق", value: mCitationAr });
+        if (mCountry) metaRows.push({ label: "البلد", value: mCountry });
+
+        if (metaRows.length > 0) {
+          for (const row of metaRows) {
+            titleChildren.push(new Paragraph({
+              alignment: AlignmentType.CENTER,
+              bidirectional: true,
+              spacing: { after: 120 },
+              children: [
+                new TextRun({ text: `${row.label}: `, size: 24, font: mainFont, rightToLeft: true, color: subtleColor }),
+                new TextRun({ text: row.value, bold: true, size: 24, font: mainFont, rightToLeft: true, color: bodyColor }),
+              ],
+            }));
+          }
+        }
+
+        titleChildren.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { before: 600, after: 200 },
+          children: [
+            new TextRun({ text: `السنة الجامعية: ${academicYear}`, size: 24, font: mainFont, rightToLeft: true, color: subtleColor }),
+          ],
+        }));
+
+        titleChildren.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          spacing: { before: 200, after: 200 },
+          children: [
+            new TextRun({ text: "بمساعدة أبو هاشم — QalamAI", size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
+          ],
+        }));
+
+        titleChildren.push(new Paragraph({ spacing: { before: 1000 }, alignment: AlignmentType.CENTER, bidirectional: true, children: [] }));
+        titleChildren.push(decoratorLine({ before: 200, after: 200 }));
+        titleChildren.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          bidirectional: true,
+          children: [
+            new TextRun({ text: `جميع الحقوق محفوظة © ${new Date().getFullYear()} ${authorName}`, size: 18, font: mainFont, rightToLeft: true, color: subtleColor }),
+          ],
+        }));
+
+        return {
+          properties: {
+            page: {
+              margin: { top: 1800, bottom: 1800, right: 1800, left: 1800 },
+            },
+          },
+          children: titleChildren,
+        };
+      })() : {
         properties: {
           page: {
             margin: { top: 2160, bottom: 2160, right: 1800, left: 1800 },
@@ -2884,52 +3229,6 @@ ${glossaryParagraphs}
               new TextRun({ text: authorName, bold: true, size: 36, font: mainFont, rightToLeft: true, color: bodyColor }),
             ],
           }),
-          ...(project.projectType === "memoire" ? (() => {
-            const docxMemoireFieldMap: Record<string, string> = {
-              sciences: "العلوم الطبيعية والتطبيقية",
-              humanities: "العلوم الإنسانية والاجتماعية",
-              law: "القانون والعلوم القانونية",
-              medicine: "الطب والعلوم الصحية",
-              engineering: "الهندسة والتكنولوجيا",
-              economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
-              education: "علوم التربية والتعليم",
-              literature: "الآداب واللغات",
-              media: "الإعلام والاتصال",
-              computer_science: "الإعلام الآلي وعلوم الحاسوب",
-              islamic_studies: "العلوم الإسلامية والشريعة",
-              political_science: "العلوم السياسية والعلاقات الدولية",
-              psychology: "علم النفس",
-              sociology: "علم الاجتماع",
-              history: "التاريخ",
-              philosophy: "الفلسفة",
-              agriculture: "العلوم الزراعية",
-              architecture: "الهندسة المعمارية والعمران",
-            };
-            const docxFieldAr = docxMemoireFieldMap[(project as any).memoireField || ""] || (project as any).memoireField || "";
-            const docxUniv = (project as any).memoireUniversity || "";
-            const memoireParas: any[] = [];
-            if (docxUniv) {
-              memoireParas.push(new Paragraph({
-                alignment: AlignmentType.CENTER,
-                bidirectional: true,
-                spacing: { after: 200 },
-                children: [
-                  new TextRun({ text: docxUniv, size: 28, font: mainFont, rightToLeft: true, color: bodyColor }),
-                ],
-              }));
-            }
-            if (docxFieldAr) {
-              memoireParas.push(new Paragraph({
-                alignment: AlignmentType.CENTER,
-                bidirectional: true,
-                spacing: { after: 200 },
-                children: [
-                  new TextRun({ text: `التخصص: ${docxFieldAr}`, size: 24, font: mainFont, rightToLeft: true, color: subtleColor }),
-                ],
-              }));
-            }
-            return memoireParas;
-          })() : []),
           new Paragraph({
             alignment: AlignmentType.CENTER,
             bidirectional: true,
@@ -2957,6 +3256,26 @@ ${glossaryParagraphs}
           }),
         ],
       };
+
+      const bismillahSection = isMemoireProject ? {
+        properties: {
+          page: {
+            margin: { top: 2160, bottom: 2160, right: 1800, left: 1800 },
+          },
+        },
+        children: [
+          new Paragraph({ spacing: { before: 4000 }, alignment: AlignmentType.CENTER, bidirectional: true, children: [] }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            bidirectional: true,
+            spacing: { after: 600 },
+            children: [
+              new TextRun({ text: "بسم الله الرحمن الرحيم", bold: true, size: 56, font: mainFont, rightToLeft: true, color: accentColor }),
+            ],
+          }),
+          decoratorLine({ before: 200, after: 200 }),
+        ],
+      } : null;
 
       const tocChildren: any[] = [
         new Paragraph({
@@ -3116,6 +3435,36 @@ ${glossaryParagraphs}
         }
       }
 
+      if (isMemoireProject) {
+        const memoireKeywords = (project as any).memoireKeywords || "";
+        if (memoireKeywords) {
+          contentChildren.push(
+            new Paragraph({
+              pageBreakBefore: true,
+              alignment: AlignmentType.CENTER,
+              bidirectional: true,
+              spacing: { before: 1200, after: 300 },
+              heading: HeadingLevel.HEADING_1,
+              children: [
+                new TextRun({ text: "الكلمات المفتاحية", bold: true, size: 44, font: mainFont, rightToLeft: true, color: accentColor }),
+              ],
+            }),
+            decoratorLine({ after: 400 }),
+          );
+          const keywords = memoireKeywords.split(",").map((k: string) => k.trim()).filter((k: string) => k);
+          if (keywords.length > 0) {
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.CENTER,
+              bidirectional: true,
+              spacing: { after: 300, line: 400 },
+              children: [
+                new TextRun({ text: keywords.join("  ·  "), size: 28, font: mainFont, rightToLeft: true, color: bodyColor }),
+              ],
+            }));
+          }
+        }
+      }
+
       const contentSection = {
         properties: {
           page: {
@@ -3156,10 +3505,14 @@ ${glossaryParagraphs}
         children: contentChildren,
       };
 
+      const docSections: any[] = [titleSection];
+      if (bismillahSection) docSections.push(bismillahSection);
+      docSections.push(tocSection, contentSection);
+
       const doc = new Document({
         creator: authorName,
         title: project.title,
-        sections: [titleSection, tocSection, contentSection],
+        sections: docSections,
       });
 
       const buffer = await Packer.toBuffer(doc);

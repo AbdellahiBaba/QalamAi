@@ -145,7 +145,8 @@ export default function Home() {
     },
   });
 
-  const [notifOpen, setNotifOpen] = useState(false);
+  const [desktopNotifOpen, setDesktopNotifOpen] = useState(false);
+  const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [, navigate] = useLocation();
 
@@ -392,7 +393,7 @@ export default function Home() {
                 المقالات
               </Button>
             </Link>
-            <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+            <Popover open={desktopNotifOpen} onOpenChange={setDesktopNotifOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
                   <Bell className="w-4 h-4" />
@@ -487,7 +488,7 @@ export default function Home() {
           </div>
           <div className="flex md:hidden items-center gap-1">
             <ThemeToggle />
-            <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+            <Popover open={mobileNotifOpen} onOpenChange={setMobileNotifOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications-mobile">
                   <Bell className="w-4 h-4" />
