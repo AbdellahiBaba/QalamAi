@@ -19,10 +19,11 @@ export const SHORT_STORY_PRICE = 8000;
 export const KHAWATER_PRICE = 999;
 export const SOCIAL_MEDIA_PRICE = 1999;
 export const POETRY_PRICE = 4999;
+export const MEMOIRE_PRICE = 15000;
 export const ALL_IN_ONE_PRICE = 50000;
 
 export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
-export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry"] as const;
+export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"] as const;
 export type ProjectType = (typeof PROJECT_TYPES)[number];
 
 export const ESSAY_SUBJECTS = [
@@ -96,6 +97,7 @@ export function getProjectPriceByType(projectType: string, pageCount?: number): 
   if (projectType === "khawater") return KHAWATER_PRICE;
   if (projectType === "social_media") return SOCIAL_MEDIA_PRICE;
   if (projectType === "poetry") return POETRY_PRICE;
+  if (projectType === "memoire") return MEMOIRE_PRICE;
   return getProjectPrice(pageCount || 150);
 }
 
@@ -109,6 +111,7 @@ export const PLAN_PRICES: Record<string, number> = {
   khawater: KHAWATER_PRICE,
   social_media: SOCIAL_MEDIA_PRICE,
   poetry: POETRY_PRICE,
+  memoire: MEMOIRE_PRICE,
   all_in_one: ALL_IN_ONE_PRICE,
 };
 
@@ -179,6 +182,18 @@ export const novelProjects = pgTable("novel_projects", {
   poetryRawiHaraka: text("poetry_rawi_haraka"),
   poetryRidf: text("poetry_ridf"),
   poetryMuarada: text("poetry_muarada"),
+  memoireUniversity: text("memoire_university"),
+  memoireCountry: text("memoire_country"),
+  memoireFaculty: text("memoire_faculty"),
+  memoireDepartment: text("memoire_department"),
+  memoireField: text("memoire_field"),
+  memoireMethodology: text("memoire_methodology"),
+  memoireCitationStyle: text("memoire_citation_style"),
+  memoireChapterCount: integer("memoire_chapter_count"),
+  memoirePageTarget: integer("memoire_page_target"),
+  memoireHypotheses: text("memoire_hypotheses"),
+  memoireKeywords: text("memoire_keywords"),
+  memoireUserData: text("memoire_user_data"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

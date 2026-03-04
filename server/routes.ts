@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
 import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
@@ -706,8 +706,8 @@ ${pages.map(p => `  <url>
               currency: "usd",
               unit_amount: project.price,
               product_data: {
-                name: project.projectType === "essay" ? `مقال: ${project.title}` : project.projectType === "scenario" ? `سيناريو: ${project.title}` : project.projectType === "short_story" ? `قصة قصيرة: ${project.title}` : project.projectType === "khawater" ? `خاطرة: ${project.title}` : project.projectType === "social_media" ? `محتوى سوشيال: ${project.title}` : project.projectType === "poetry" ? `قصيدة: ${project.title}` : `رواية: ${project.title}`,
-                description: project.projectType === "essay" ? `مقال احترافي` : project.projectType === "scenario" ? `سيناريو ${project.formatType === "series" ? "مسلسل" : "فيلم"}` : project.projectType === "short_story" ? `قصة قصيرة ${project.pageCount} صفحة` : project.projectType === "khawater" ? `خاطرة / تأمل أدبي` : project.projectType === "social_media" ? `محتوى سوشيال ميديا` : project.projectType === "poetry" ? `قصيدة عمودية` : `رواية ${project.pageCount} صفحة`,
+                name: project.projectType === "essay" ? `مقال: ${project.title}` : project.projectType === "scenario" ? `سيناريو: ${project.title}` : project.projectType === "short_story" ? `قصة قصيرة: ${project.title}` : project.projectType === "khawater" ? `خاطرة: ${project.title}` : project.projectType === "social_media" ? `محتوى سوشيال: ${project.title}` : project.projectType === "poetry" ? `قصيدة: ${project.title}` : project.projectType === "memoire" ? `مذكرة تخرج: ${project.title}` : `رواية: ${project.title}`,
+                description: project.projectType === "essay" ? `مقال احترافي` : project.projectType === "scenario" ? `سيناريو ${project.formatType === "series" ? "مسلسل" : "فيلم"}` : project.projectType === "short_story" ? `قصة قصيرة ${project.pageCount} صفحة` : project.projectType === "khawater" ? `خاطرة / تأمل أدبي` : project.projectType === "social_media" ? `محتوى سوشيال ميديا` : project.projectType === "poetry" ? `قصيدة عمودية` : project.projectType === "memoire" ? `مذكرة تخرج أكاديمية` : `رواية ${project.pageCount} صفحة`,
               },
             },
             quantity: 1,
@@ -1158,7 +1158,7 @@ ${pages.map(p => `  <url>
       const userId = req.user.claims.sub;
       const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect, poetryMeter, poetryRhyme, poetryEra, poetryTone, poetryTheme, poetryVerseCount, poetryImageryLevel, poetryEmotionLevel, poetryRawiHaraka, poetryRidf, poetryMuarada } = req.body;
 
-      const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story" || projectType === "khawater" || projectType === "social_media" || projectType === "poetry") ? projectType : "novel";
+      const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story" || projectType === "khawater" || projectType === "social_media" || projectType === "poetry" || projectType === "memoire") ? projectType : "novel";
 
       const featureEnabled = await storage.isFeatureEnabled(type, userId);
       if (!featureEnabled) {
@@ -1226,6 +1226,18 @@ ${pages.map(p => `  <url>
         poetryRawiHaraka: type === "poetry" ? (poetryRawiHaraka || null) : null,
         poetryRidf: type === "poetry" ? (poetryRidf || null) : null,
         poetryMuarada: type === "poetry" ? (poetryMuarada || null) : null,
+        memoireUniversity: type === "memoire" ? (req.body.memoireUniversity || null) : null,
+        memoireCountry: type === "memoire" ? (req.body.memoireCountry || null) : null,
+        memoireFaculty: type === "memoire" ? (req.body.memoireFaculty || null) : null,
+        memoireDepartment: type === "memoire" ? (req.body.memoireDepartment || null) : null,
+        memoireField: type === "memoire" ? (req.body.memoireField || null) : null,
+        memoireMethodology: type === "memoire" ? (req.body.memoireMethodology || "mixed") : null,
+        memoireCitationStyle: type === "memoire" ? (req.body.memoireCitationStyle || "apa") : null,
+        memoireChapterCount: type === "memoire" ? (req.body.memoireChapterCount || 5) : null,
+        memoirePageTarget: type === "memoire" ? (req.body.memoirePageTarget || 100) : null,
+        memoireHypotheses: type === "memoire" ? (req.body.memoireHypotheses || null) : null,
+        memoireKeywords: type === "memoire" ? (req.body.memoireKeywords || null) : null,
+        memoireUserData: type === "memoire" ? (req.body.memoireUserData || null) : null,
         ...(autoPaid ? { paid: true, status: "draft" } : {}),
       });
 
@@ -1338,6 +1350,8 @@ ${pages.map(p => `  <url>
         promptResult = buildScenarioOutlinePrompt(project, chars, rels, chars);
       } else if (pType === "short_story") {
         promptResult = buildShortStoryOutlinePrompt(project, chars, rels, chars);
+      } else if (pType === "memoire") {
+        promptResult = buildMemoireOutlinePrompt(project);
       } else {
         promptResult = buildOutlinePrompt(project, chars, rels, chars);
       }
@@ -1433,6 +1447,33 @@ ${pages.map(p => `  <url>
               projectId: id,
               chapterNumber: i,
               title: `المقطع ${i}`,
+              summary: null,
+            });
+          }
+        }
+      } else if (pType === "memoire") {
+        const chapterRegex = /الفصل\s+(\d+)\s*[:\-—–]\s*(.+)/g;
+        const chapterMatches = outline.match(chapterRegex);
+        if (chapterMatches) {
+          let num = 1;
+          for (const match of chapterMatches) {
+            const titleMatch = match.match(/الفصل\s+\d+\s*[:\-—–]\s*(.+)/);
+            const chTitle = titleMatch?.[1]?.trim() || `الفصل ${num}`;
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: num,
+              title: chTitle,
+              summary: null,
+            });
+            num++;
+          }
+        } else {
+          const memoireChapterCount = project.memoireChapterCount || 5;
+          for (let i = 1; i <= memoireChapterCount; i++) {
+            await storage.createChapter({
+              projectId: id,
+              chapterNumber: i,
+              title: `الفصل ${i}`,
               summary: null,
             });
           }
@@ -1608,6 +1649,9 @@ ${pages.map(p => `  <url>
       if (pType === "novel") {
         const structure = calculateNovelStructure(project.pageCount);
         totalParts = structure.partsPerChapter;
+      } else if (pType === "memoire") {
+        const structure = calculateMemoireStructure(project);
+        totalParts = structure.partsPerChapter;
       }
 
       await storage.updateChapter(chapterId, { status: "generating", content: "" });
@@ -1644,6 +1688,8 @@ ${pages.map(p => `  <url>
           promptResult = buildScenePrompt(project, chars, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
         } else if (pType === "short_story") {
           promptResult = buildShortStorySectionPrompt(project, updatedChapter!, previousChapters, project.outline || "", part, totalParts, chars);
+        } else if (pType === "memoire") {
+          promptResult = buildMemoireSectionPrompt(project, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
         } else {
           promptResult = buildChapterPrompt(project, chars, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
         }

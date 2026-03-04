@@ -120,6 +120,11 @@ const projectTypeLabels: Record<string, string> = {
   novel: "رواية",
   essay: "مقال",
   scenario: "سيناريو",
+  short_story: "قصة قصيرة",
+  khawater: "خاطرة",
+  social_media: "سوشيال ميديا",
+  poetry: "قصيدة",
+  memoire: "مذكرة تخرج",
 };
 
 const projectStatusLabels: Record<string, string> = {

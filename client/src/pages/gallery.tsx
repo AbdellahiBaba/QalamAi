@@ -33,6 +33,7 @@ const typeLabels: Record<string, string> = {
   khawater: "خاطرة",
   social_media: "سوشيال ميديا",
   poetry: "قصيدة",
+  memoire: "مذكرة تخرج",
 };
 
 const filterOptions = [
@@ -44,6 +45,7 @@ const filterOptions = [
   { value: "khawater", label: "خاطرة" },
   { value: "social_media", label: "سوشيال ميديا" },
   { value: "poetry", label: "قصيدة" },
+  { value: "memoire", label: "مذكرة تخرج" },
 ];
 
 export default function Gallery() {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -749,6 +749,12 @@ export default function Home() {
                   <span className="text-xs text-amber-500 mr-auto">قريباً</span>
                 </DropdownMenuItem>
               )}
+              <Link href="/project/new/memoire">
+                <DropdownMenuItem data-testid="menu-new-memoire">
+                  <GraduationCap className="w-4 h-4 ml-2" />
+                  مذكرة تخرج جديدة
+                </DropdownMenuItem>
+              </Link>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1019,7 +1025,7 @@ export default function Home() {
                     <div className="space-y-3">
                       {writingStats.projectBreakdown.slice(0, 8).map((proj) => {
                         const maxWords = Math.max(...writingStats.projectBreakdown.map(p => p.words), 1);
-                        const typeLabel = proj.type === "essay" ? "مقال" : proj.type === "scenario" ? "سيناريو" : proj.type === "short_story" ? "قصة قصيرة" : proj.type === "khawater" ? "خاطرة" : proj.type === "social_media" ? "سوشيال ميديا" : proj.type === "poetry" ? "قصيدة" : "رواية";
+                        const typeLabel = proj.type === "essay" ? "مقال" : proj.type === "scenario" ? "سيناريو" : proj.type === "short_story" ? "قصة قصيرة" : proj.type === "khawater" ? "خاطرة" : proj.type === "social_media" ? "سوشيال ميديا" : proj.type === "poetry" ? "قصيدة" : proj.type === "memoire" ? "مذكرة تخرج" : "رواية";
                         return (
                           <div key={proj.projectId} data-testid={`breakdown-project-${proj.projectId}`}>
                             <div className="flex items-center justify-between gap-2 mb-1">
@@ -1085,6 +1091,7 @@ export default function Home() {
                       <SelectItem value="khawater">خاطرة</SelectItem>
                       <SelectItem value="social_media">سوشيال ميديا</SelectItem>
                       <SelectItem value="poetry">قصيدة</SelectItem>
+                      <SelectItem value="memoire">مذكرة تخرج</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1185,6 +1192,7 @@ export default function Home() {
                         {(project.projectType === "essay") && <Newspaper className="w-4 h-4 text-blue-500 shrink-0" />}
                         {(project.projectType === "scenario") && <Film className="w-4 h-4 text-purple-500 shrink-0" />}
                         {(project.projectType === "poetry") && <BookMarked className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                        {(project.projectType === "memoire") && <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
                         {(!project.projectType || project.projectType === "novel") && <BookOpen className="w-4 h-4 text-primary shrink-0" />}
                         <h3 className="font-serif text-lg font-semibold line-clamp-2 break-words" data-testid={`text-project-title-${project.id}`}>
                           {project.title}
@@ -1196,7 +1204,7 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خاطرة" : project.projectType === "social_media" ? "سوشيال ميديا" : project.projectType === "poetry" ? "قصيدة" : "رواية"}
+                      {project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خاطرة" : project.projectType === "social_media" ? "سوشيال ميديا" : project.projectType === "poetry" ? "قصيدة" : project.projectType === "memoire" ? "مذكرة تخرج" : "رواية"}
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {project.mainIdea}
@@ -1307,7 +1315,7 @@ export default function Home() {
             </div>
             <h2 className="font-serif text-2xl font-semibold mb-3">لا توجد مشاريع بعد</h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              ابدأ بإنشاء مشروعك الأول — رواية، مقال، سيناريو، خاطرة، قصيدة، أو محتوى سوشيال ميديا. وسيساعدك أبو هاشم في الكتابة بأسلوب احترافي
+              ابدأ بإنشاء مشروعك الأول — رواية، مقال، سيناريو، خاطرة، قصيدة، مذكرة تخرج، أو محتوى سوشيال ميديا. وسيساعدك أبو هاشم في الكتابة بأسلوب احترافي
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link href="/project/new">
@@ -1350,6 +1358,12 @@ export default function Home() {
                 <Button size="lg" variant="outline" data-testid="button-empty-new-poetry">
                   <BookMarked className="w-4 h-4 ml-2" />
                   قصيدة عمودية
+                </Button>
+              </Link>
+              <Link href="/project/new/memoire">
+                <Button size="lg" variant="outline" data-testid="button-empty-new-memoire">
+                  <GraduationCap className="w-4 h-4 ml-2" />
+                  مذكرة تخرج جديدة
                 </Button>
               </Link>
             </div>
@@ -1503,6 +1517,19 @@ export default function Home() {
                     <p className="text-xs text-muted-foreground">شعر عمودي بأوزان وقوافٍ</p>
                   </CardContent>
                 </Card>
+                <Card
+                  className={`cursor-pointer transition-shadow hover:shadow-lg ${selectedProjectType === "memoire" ? "ring-2 ring-primary" : ""}`}
+                  onClick={() => setSelectedProjectType("memoire")}
+                  data-testid="card-project-type-memoire"
+                >
+                  <CardContent className="p-4 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-md bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mx-auto">
+                      <GraduationCap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <h4 className="font-semibold text-sm">مذكرة تخرج</h4>
+                    <p className="text-xs text-muted-foreground">بحث أكاديمي بمعايير جامعية</p>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
@@ -1644,6 +1671,7 @@ export default function Home() {
                         khawater: "/project/new/khawater",
                         social_media: "/project/new/social-media",
                         poetry: "/project/new?type=poetry",
+                        memoire: "/project/new/memoire",
                       };
                       navigate(routes[selectedProjectType]);
                     }

@@ -1,7 +1,7 @@
 # QalamAI — Arabic Writing Platform
 
 ## Overview
-QalamAI is an AI-powered Arabic writing platform featuring the virtual literary agent "Abu Hashim." It aims to transform ideas into narratives by supporting seven core content types: Novel Writing, Professional Essay/News Writing, Drama/Film Scenario Writing, Short Story, Khawater/Reflections, Social Media Content, and Arabic Classical Poetry. The platform seeks to become the premier tool for Arabic content creation, leveraging AI to assist authors, journalists, and screenwriters in bringing their visions to life, with a strong focus on preserving and enhancing Arabic literary traditions.
+QalamAI is an AI-powered Arabic writing platform featuring the virtual literary agent "Abu Hashim." It aims to transform ideas into narratives by supporting eight core content types: Novel Writing, Professional Essay/News Writing, Drama/Film Scenario Writing, Short Story, Khawater/Reflections, Social Media Content, Arabic Classical Poetry, and Academic Graduation Memoire (مذكرة تخرج). The platform seeks to become the premier tool for Arabic content creation, leveraging AI to assist authors, journalists, screenwriters, and university students in bringing their visions to life, with a strong focus on preserving and enhancing Arabic literary traditions.
 
 ## User Preferences
 Not specified.
@@ -14,7 +14,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 **Key Architectural Decisions and Features:**
 - **AI-Driven Content Generation:** Multi-type project creation with dedicated workflows, AI-driven outline generation, sequential content generation with streaming output, and specialized AI knowledge bases drawing from renowned Arab literary figures.
 - **Advanced Authoring Tools:** Inline editing, chapter version history, "Rewrite This Section" with tone selection, title/character suggestions, full project blueprints, and originality/plagiarism checks.
-- **Content Type Specialization:** Each content type (including the advanced Arabic Classical Poetry module with a full prosody engine for 15 meters, rhyme vowel selection (حركة الروي), ردف support, and معارضة/poetic emulation mode) has tailored AI personas, generation parameters, and specific input fields.
+- **Content Type Specialization:** Each content type (including the advanced Arabic Classical Poetry module with a full prosody engine for 15 meters, rhyme vowel selection (حركة الروي), ردف support, and معارضة/poetic emulation mode, and the Academic Memoire module with university-specific templates for all Arab countries, citation styles (APA/MLA/Chicago), methodology support, and mandatory academic structure) has tailored AI personas, generation parameters, and specific input fields.
 - **Export and Publishing:** Robust export capabilities include server-side PDF generation (with Amiri Arabic font support for RTL), EPUB, and DOCX. Authors can publish projects to a public gallery or essays to a dedicated news page, with options for social sharing and reader reactions.
 - **User Management & Engagement:** User profiles, public author profiles, onboarding, in-app notifications, reading progress tracking, writing statistics dashboard, and a free trial system with automated Stripe billing.
 - **Literary Analysis and Enhancements:** AI-powered Continuity Fix and Literary Style Analysis provide actionable suggestions. Enhanced proofreading prompts for all content types include detailed Arabic grammar, morphology, and spelling checklists.

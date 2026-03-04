@@ -157,6 +157,25 @@ function getTypeLabels(projectType?: string) {
       allDone: "تم الانتهاء من نظم القصيدة!",
     };
   }
+  if (projectType === "memoire") {
+    return {
+      chaptersLabel: "الفصول",
+      chapterSingular: "الفصل",
+      outlineLabel: "الهيكل الأكاديمي",
+      typeLabel: "مذكرة تخرج",
+      writeAll: "اكتب جميع الفصول",
+      writeOne: "اكتب هذا الفصل",
+      createOutline: "إنشاء الهيكل الأكاديمي",
+      outlineCreating: "جاري إنشاء الهيكل الأكاديمي...",
+      approveOutline: "الموافقة على الهيكل الأكاديمي",
+      noOutline: "لم يتم إنشاء الهيكل الأكاديمي بعد. اضغط على \"إنشاء الهيكل الأكاديمي\" للبدء",
+      mustApprove: "يجب الموافقة على الهيكل الأكاديمي أولاً",
+      mustApproveDesc: "قم بإنشاء الهيكل الأكاديمي والموافقة عليه من تبويب \"نظرة عامة\" قبل البدء بكتابة الفصول",
+      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء الهيكل وكتابة الفصول.",
+      paymentDesc: "إتمام الدفع للبدء بكتابة مذكرة التخرج",
+      allDone: "تم الانتهاء من كتابة جميع فصول المذكرة!",
+    };
+  }
   return {
     chaptersLabel: "الفصول",
     chapterSingular: "الفصل",
