@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -144,6 +144,10 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
+  const [reportSearch, setReportSearch] = useState("");
+  const [reportSort, setReportSort] = useState("newest");
+  const [expandedReporterInfo, setExpandedReporterInfo] = useState<Record<number, boolean>>({});
+  const [confirmBanReportId, setConfirmBanReportId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -386,18 +390,24 @@ export default function Admin() {
     enabled: activeTab === "reports",
   });
 
+  const { data: reportStats } = useQuery<any>({
+    queryKey: ["/api/admin/reports/stats"],
+    enabled: activeTab === "reports",
+  });
+
   const updateReportMutation = useMutation({
-    mutationFn: async ({ id, status, adminNote, actionTaken }: { id: number; status: string; adminNote?: string; actionTaken?: string }) => {
+    mutationFn: async ({ id, status, adminNote, actionTaken, priority }: { id: number; status?: string; adminNote?: string; actionTaken?: string; priority?: string }) => {
       const res = await fetch(`/api/admin/reports/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status, adminNote, actionTaken }),
+        body: JSON.stringify({ status, adminNote, actionTaken, priority }),
       });
       return res.json();
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports/stats"] });
       setReportActionNotes((prev) => { const next = { ...prev }; delete next[variables.id]; return next; });
       toast({ title: "تم تحديث البلاغ بنجاح" });
     },
@@ -3345,12 +3355,60 @@ export default function Admin() {
                   )}
                 </div>
               </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="content-project-meta">
+                {projectContent.project.projectType && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {{ novel: "رواية", essay: "مقال", scenario: "سيناريو", short_story: "قصة قصيرة", khawater: "خواطر", social_media: "تواصل اجتماعي", poetry: "شعر", memoire: "مذكرة تخرج" }[projectContent.project.projectType as string] || projectContent.project.projectType}
+                  </Badge>
+                )}
+                {projectContent.project.userId && <span>المؤلف: {projectContent.project.userId}</span>}
+                {projectContent.project.createdAt && <span>تاريخ الإنشاء: {new Date(projectContent.project.createdAt).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" })}</span>}
+                {projectContent.project.publishedToGallery && <Badge variant="secondary" className="text-[10px]">منشور في المعرض</Badge>}
+              </div>
+
               {projectContent.project.flagged && (
                 <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/20 text-sm text-red-700 dark:text-red-400" data-testid="text-flag-reason">
                   <Flag className="w-4 h-4 inline ml-1" />
                   مُبلّغ: {projectContent.project.flagReason || "بدون سبب"}
                 </div>
               )}
+
+              {contentProjectId && (() => {
+                const projectReports = (reportsData || []).filter((r: any) => r.projectId === contentProjectId);
+                if (projectReports.length === 0) return null;
+                return (
+                  <div className="space-y-2" data-testid="content-report-timeline">
+                    <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                      <Flag className="w-4 h-4 text-red-500" />
+                      سجل البلاغات ({projectReports.length})
+                    </h4>
+                    <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
+                      {projectReports.map((r: any) => (
+                        <div key={r.id} className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1.5">
+                          {r.reportNumber && <span className="font-mono text-[10px] text-muted-foreground">{r.reportNumber}</span>}
+                          <Badge className={({
+                            pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                            reviewed: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                            dismissed: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+                            action_taken: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                          } as Record<string, string>)[r.status] || ""} className="text-[10px]">
+                            {{ pending: "قيد الانتظار", reviewed: "تمت المراجعة", dismissed: "مرفوض", action_taken: "تم اتخاذ إجراء" }[r.status as string] || r.status}
+                          </Badge>
+                          <span>{{ inappropriate: "غير لائق", plagiarism: "سرقة أدبية", offensive: "مسيء", spam: "مزعج", other: "أخرى" }[r.reason as string] || r.reason}</span>
+                          {r.severity && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {{ low: "منخفضة", medium: "متوسطة", high: "عالية", critical: "حرجة" }[r.severity as string] || r.severity}
+                            </Badge>
+                          )}
+                          <span className="text-muted-foreground mr-auto">{new Date(r.createdAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="space-y-3">
                 {projectContent.chapters && projectContent.chapters.length > 0 ? (
                   projectContent.chapters
@@ -3573,9 +3631,116 @@ export default function Admin() {
           </div>
         )}
 
-        {activeTab === "reports" && (
+        {activeTab === "reports" && (() => {
+          const reasonLabels: Record<string, string> = {
+            inappropriate: "محتوى غير لائق",
+            plagiarism: "سرقة أدبية",
+            offensive: "محتوى مسيء",
+            spam: "محتوى مزعج",
+            other: "أخرى",
+          };
+          const subReasonLabels: Record<string, string> = {
+            violence: "عنف", sexual: "محتوى جنسي", drugs: "مخدرات", other_inappropriate: "أخرى",
+            copied_known_source: "منسوخ من مصدر معروف", ai_no_disclosure: "ذكاء اصطناعي بدون إفصاح", other_plagiarism: "أخرى",
+            hate_speech: "خطاب كراهية", discrimination: "تمييز", threats: "تهديدات", other_offensive: "أخرى",
+            advertising: "إعلانات", repeated_content: "محتوى متكرر", misleading: "محتوى مضلل", other_spam: "أخرى",
+          };
+          const statusLabels: Record<string, string> = {
+            pending: "قيد الانتظار",
+            reviewed: "تمت المراجعة",
+            dismissed: "مرفوض",
+            action_taken: "تم اتخاذ إجراء",
+          };
+          const statusColors: Record<string, string> = {
+            pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+            reviewed: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+            dismissed: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+            action_taken: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+          };
+          const severityLabels: Record<string, string> = { low: "منخفضة", medium: "متوسطة", high: "عالية", critical: "حرجة" };
+          const severityColors: Record<string, string> = {
+            low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+            medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+            high: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+            critical: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+          };
+          const priorityLabels: Record<string, string> = { normal: "عادية", high: "مرتفعة", urgent: "عاجلة" };
+          const priorityColors: Record<string, string> = {
+            normal: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+            high: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+            urgent: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+          };
+          const actionLabels: Record<string, string> = { warned: "تحذير", unpublished: "إلغاء النشر", banned: "حظر", none: "لا شيء" };
+          const typeLabels: Record<string, string> = { novel: "رواية", essay: "مقال", scenario: "سيناريو", short_story: "قصة قصيرة", khawater: "خواطر", social_media: "تواصل اجتماعي", poetry: "شعر", memoire: "مذكرة تخرج" };
+
+          const timeAgo = (date: string | Date) => {
+            const diff = Date.now() - new Date(date).getTime();
+            const minutes = Math.floor(diff / 60000);
+            if (minutes < 1) return "الآن";
+            if (minutes < 60) return `منذ ${minutes} دقيقة`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `منذ ${hours} ساعة`;
+            const days = Math.floor(hours / 24);
+            if (days < 30) return `منذ ${days} يوم`;
+            return `منذ ${Math.floor(days / 30)} شهر`;
+          };
+
+          const DeviceIcon = ({ type }: { type: string }) => {
+            if (type === "mobile") return <Smartphone className="w-3.5 h-3.5" />;
+            if (type === "tablet") return <Tablet className="w-3.5 h-3.5" />;
+            return <Monitor className="w-3.5 h-3.5" />;
+          };
+
+          let filteredReports = reportsData || [];
+          if (reportSearch.trim()) {
+            const q = reportSearch.trim().toLowerCase();
+            filteredReports = filteredReports.filter((r: any) =>
+              (r.projectTitle && r.projectTitle.toLowerCase().includes(q)) ||
+              (r.reportNumber && r.reportNumber.toLowerCase().includes(q)) ||
+              (r.details && r.details.toLowerCase().includes(q))
+            );
+          }
+          if (reportSort === "oldest") {
+            filteredReports = [...filteredReports].sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          } else if (reportSort === "severity") {
+            const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+            filteredReports = [...filteredReports].sort((a: any, b: any) => (sevOrder[a.severity] ?? 4) - (sevOrder[b.severity] ?? 4));
+          } else if (reportSort === "report_count") {
+            filteredReports = [...filteredReports].sort((a: any, b: any) => (b.reportCountForProject || 0) - (a.reportCountForProject || 0));
+          }
+
+          return (
           <div className="space-y-6" data-testid="section-reports">
-            <div className="flex flex-wrap items-center gap-2 mb-4">
+            {reportStats && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="report-stats-bar">
+                <Card>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-2xl font-bold" data-testid="text-stat-total"><LtrNum>{reportStats.total || 0}</LtrNum></p>
+                    <p className="text-xs text-muted-foreground">إجمالي البلاغات</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-yellow-200 dark:border-yellow-800">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-2xl font-bold text-yellow-600" data-testid="text-stat-pending"><LtrNum>{reportStats.pending || 0}</LtrNum></p>
+                    <p className="text-xs text-muted-foreground">قيد الانتظار</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-red-200 dark:border-red-800">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-2xl font-bold text-red-600" data-testid="text-stat-critical"><LtrNum>{(reportStats.bySeverity?.critical || 0) + (reportStats.bySeverity?.high || 0)}</LtrNum></p>
+                    <p className="text-xs text-muted-foreground">عالية / حرجة</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-green-200 dark:border-green-800">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-2xl font-bold text-green-600" data-testid="text-stat-resolved-week"><LtrNum>{reportStats.resolvedThisWeek || 0}</LtrNum></p>
+                    <p className="text-xs text-muted-foreground">تمت معالجتها هذا الأسبوع</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2">
               {[
                 { value: "all", label: "الكل" },
                 { value: "pending", label: "قيد الانتظار" },
@@ -3595,82 +3760,239 @@ export default function Admin() {
               ))}
             </div>
 
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={reportSearch}
+                  onChange={(e) => setReportSearch(e.target.value)}
+                  placeholder="بحث بالعنوان أو رقم البلاغ..."
+                  className="pr-9"
+                  data-testid="input-report-search"
+                />
+              </div>
+              <Select value={reportSort} onValueChange={setReportSort}>
+                <SelectTrigger className="w-[160px]" data-testid="select-report-sort">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">الأحدث أولاً</SelectItem>
+                  <SelectItem value="oldest">الأقدم أولاً</SelectItem>
+                  <SelectItem value="severity">الأعلى خطورة</SelectItem>
+                  <SelectItem value="report_count">الأكثر بلاغات</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {reportsLoading ? (
               <div className="space-y-4">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <Card key={i}><CardContent className="p-4"><Skeleton className="h-20 w-full" /></CardContent></Card>
+                  <Card key={i}><CardContent className="p-4"><Skeleton className="h-24 w-full" /></CardContent></Card>
                 ))}
               </div>
-            ) : !reportsData || reportsData.length === 0 ? (
+            ) : filteredReports.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground" data-testid="text-no-reports">
                 <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>لا توجد بلاغات</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {reportsData.map((report: any) => {
-                  const reasonLabels: Record<string, string> = {
-                    inappropriate: "محتوى غير لائق",
-                    plagiarism: "سرقة أدبية",
-                    offensive: "محتوى مسيء",
-                    spam: "محتوى مزعج",
-                    other: "أخرى",
-                  };
-                  const statusLabels: Record<string, string> = {
-                    pending: "قيد الانتظار",
-                    reviewed: "تمت المراجعة",
-                    dismissed: "مرفوض",
-                    action_taken: "تم اتخاذ إجراء",
-                  };
-                  const statusColors: Record<string, string> = {
-                    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-                    reviewed: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-                    dismissed: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
-                    action_taken: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                  };
+                {filteredReports.map((report: any) => {
+                  const isExpanded = expandedReporterInfo[report.id] || false;
                   return (
-                    <Card key={report.id} data-testid={`card-report-${report.id}`}>
+                    <Card key={report.id} className={report.severity === "critical" ? "border-red-300 dark:border-red-800" : report.severity === "high" ? "border-orange-300 dark:border-orange-800" : ""} data-testid={`card-report-${report.id}`}>
                       <CardContent className="p-4 space-y-3">
                         <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="space-y-1">
+                          <div className="space-y-1.5 flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
+                              {report.reportNumber && (
+                                <Badge variant="secondary" className="font-mono text-[10px]" data-testid={`badge-report-number-${report.id}`}>
+                                  <Hash className="w-3 h-3 ml-0.5" />
+                                  {report.reportNumber}
+                                </Badge>
+                              )}
                               <Badge className={statusColors[report.status] || ""} data-testid={`badge-report-status-${report.id}`}>
                                 {statusLabels[report.status] || report.status}
                               </Badge>
                               <Badge variant="outline" data-testid={`badge-report-reason-${report.id}`}>
                                 {reasonLabels[report.reason] || report.reason}
                               </Badge>
+                              {report.subReason && (
+                                <Badge variant="outline" className="text-[10px]" data-testid={`badge-report-subreason-${report.id}`}>
+                                  {subReasonLabels[report.subReason] || report.subReason}
+                                </Badge>
+                              )}
+                              {report.severity && (
+                                <Badge className={severityColors[report.severity] || ""} data-testid={`badge-report-severity-${report.id}`}>
+                                  {report.severity === "critical" && <ShieldAlert className="w-3 h-3 ml-0.5" />}
+                                  {report.severity === "high" && <AlertTriangle className="w-3 h-3 ml-0.5" />}
+                                  {severityLabels[report.severity] || report.severity}
+                                </Badge>
+                              )}
+                              {report.priority && report.priority !== "normal" && (
+                                <Badge className={priorityColors[report.priority] || ""} data-testid={`badge-report-priority-${report.id}`}>
+                                  {priorityLabels[report.priority]}
+                                </Badge>
+                              )}
+                              {(report.reportCountForProject || 0) > 1 && (
+                                <Badge variant="destructive" className="text-[10px]" data-testid={`badge-report-count-${report.id}`}>
+                                  <Flag className="w-3 h-3 ml-0.5" />
+                                  <LtrNum>{report.reportCountForProject}</LtrNum> بلاغات
+                                </Badge>
+                              )}
                             </div>
+
                             <p className="text-sm font-semibold" data-testid={`text-report-project-${report.id}`}>
                               المشروع: {report.projectTitle || `#${report.projectId}`}
+                              {report.projectType && <span className="text-xs text-muted-foreground mr-2">({typeLabels[report.projectType] || report.projectType})</span>}
                             </p>
+
                             {report.details && (
-                              <p className="text-sm text-muted-foreground" data-testid={`text-report-details-${report.id}`}>
+                              <p className="text-sm text-muted-foreground line-clamp-2" data-testid={`text-report-details-${report.id}`}>
                                 {report.details}
                               </p>
                             )}
-                            <p className="text-xs text-muted-foreground">
-                              {report.reporterUserId ? `مُبلّغ: مستخدم #${report.reporterUserId}` : `IP: ${report.reporterIp}`}
-                              {" · "}
-                              {new Date(report.createdAt).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                            </p>
+
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {timeAgo(report.createdAt)}
+                              </span>
+                              {report.reporterEmail && (
+                                <span className="flex items-center gap-1">
+                                  <MessageSquare className="w-3 h-3" />
+                                  {report.reporterEmail}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0"
-                            onClick={() => { setContentProjectId(report.projectId); setShowContentDialog(true); }}
-                            data-testid={`button-report-view-content-${report.id}`}
-                          >
-                            <Eye className="w-4 h-4 ml-1" />
-                            عرض المحتوى
-                          </Button>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {report.status === "pending" && (
+                              <Select
+                                value={report.priority || "normal"}
+                                onValueChange={(val) => updateReportMutation.mutate({ id: report.id, priority: val })}
+                              >
+                                <SelectTrigger className="w-[100px] h-8 text-xs" data-testid={`select-report-priority-${report.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="normal">عادية</SelectItem>
+                                  <SelectItem value="high">مرتفعة</SelectItem>
+                                  <SelectItem value="urgent">عاجلة</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setContentProjectId(report.projectId); setShowContentDialog(true); }}
+                              data-testid={`button-report-view-content-${report.id}`}
+                            >
+                              <Eye className="w-4 h-4 ml-1" />
+                              عرض المحتوى
+                            </Button>
+                          </div>
                         </div>
+
+                        <button
+                          className="flex items-center gap-1.5 text-xs text-primary hover:underline cursor-pointer bg-transparent border-0 p-0"
+                          onClick={() => setExpandedReporterInfo((prev) => ({ ...prev, [report.id]: !prev[report.id] }))}
+                          data-testid={`button-toggle-reporter-info-${report.id}`}
+                        >
+                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          معلومات المُبلّغ
+                        </button>
+
+                        {isExpanded && (
+                          <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-xs border" data-testid={`panel-reporter-info-${report.id}`}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div className="flex items-center gap-2">
+                                <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                <span className="text-muted-foreground">IP:</span>
+                                <span className="font-mono" dir="ltr" data-testid={`text-reporter-ip-${report.id}`}>{report.reporterIp || "-"}</span>
+                              </div>
+                              {report.reporterCountry && (
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">الموقع:</span>
+                                  <span data-testid={`text-reporter-location-${report.id}`}>
+                                    {report.reporterCity ? `${report.reporterCity}، ` : ""}{report.reporterCountry}
+                                  </span>
+                                </div>
+                              )}
+                              {report.reporterIsp && (
+                                <div className="flex items-center gap-2">
+                                  <Wifi className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">مزود الخدمة:</span>
+                                  <span data-testid={`text-reporter-isp-${report.id}`}>{report.reporterIsp}</span>
+                                </div>
+                              )}
+                              {report.reporterDeviceType && (
+                                <div className="flex items-center gap-2">
+                                  <DeviceIcon type={report.reporterDeviceType} />
+                                  <span className="text-muted-foreground">الجهاز:</span>
+                                  <span data-testid={`text-reporter-device-${report.id}`}>
+                                    {report.reporterDeviceType === "mobile" ? "هاتف" : report.reporterDeviceType === "tablet" ? "جهاز لوحي" : "حاسوب"}
+                                  </span>
+                                </div>
+                              )}
+                              {report.reporterDeviceName && report.reporterDeviceName !== "Unknown" && (
+                                <div className="flex items-center gap-2 sm:col-span-2">
+                                  <Monitor className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">المتصفح:</span>
+                                  <span className="font-mono text-[10px]" dir="ltr" data-testid={`text-reporter-browser-${report.id}`}>{report.reporterDeviceName}</span>
+                                </div>
+                              )}
+                              {report.reporterUserId && (
+                                <div className="flex items-center gap-2">
+                                  <Users className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">معرف المستخدم:</span>
+                                  <span className="font-mono" data-testid={`text-reporter-userid-${report.id}`}>{report.reporterUserId}</span>
+                                </div>
+                              )}
+                            </div>
+                            {report.reporterUserAgent && (
+                              <details className="mt-1">
+                                <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">User-Agent الكامل</summary>
+                                <p className="font-mono text-[10px] mt-1 p-2 bg-background rounded border break-all" dir="ltr" data-testid={`text-reporter-ua-${report.id}`}>
+                                  {report.reporterUserAgent}
+                                </p>
+                              </details>
+                            )}
+                          </div>
+                        )}
+
                         {report.adminNote && (
                           <div className="bg-muted p-2 rounded text-sm" data-testid={`text-report-admin-note-${report.id}`}>
                             <strong>ملاحظة الإدارة:</strong> {report.adminNote}
                           </div>
                         )}
+
+                        {(report.status === "dismissed" || report.status === "action_taken") && (
+                          <div className="bg-muted/30 p-2 rounded text-xs text-muted-foreground flex flex-wrap items-center gap-3" data-testid={`panel-resolution-${report.id}`}>
+                            {report.reviewedBy && <span>المراجع: {report.reviewedBy}</span>}
+                            {report.reviewedAt && <span>تاريخ المراجعة: {new Date(report.reviewedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>}
+                            {report.actionTaken && report.actionTaken !== "none" && (
+                              <Badge variant="outline" className="text-[10px]">
+                                الإجراء: {actionLabels[report.actionTaken] || report.actionTaken}
+                              </Badge>
+                            )}
+                            {report.resolvedAt && report.createdAt && (
+                              <span className="flex items-center gap-1">
+                                <CalendarCheck className="w-3 h-3" />
+                                مدة المعالجة: {(() => {
+                                  const diff = new Date(report.resolvedAt).getTime() - new Date(report.createdAt).getTime();
+                                  const hrs = Math.floor(diff / 3600000);
+                                  if (hrs < 1) return "أقل من ساعة";
+                                  if (hrs < 24) return `${hrs} ساعة`;
+                                  return `${Math.floor(hrs / 24)} يوم`;
+                                })()}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         {report.status === "pending" && (
                           <div className="space-y-2 border-t pt-3">
                             <Input
@@ -3712,7 +4034,7 @@ export default function Admin() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => updateReportMutation.mutate({ id: report.id, status: "action_taken", actionTaken: "banned", adminNote: reportActionNotes[report.id] || undefined })}
+                                onClick={() => setConfirmBanReportId(report.id)}
                                 disabled={updateReportMutation.isPending}
                                 data-testid={`button-report-ban-${report.id}`}
                               >
@@ -3727,8 +4049,42 @@ export default function Admin() {
                 })}
               </div>
             )}
+
+            <Dialog open={confirmBanReportId !== null} onOpenChange={(open) => { if (!open) setConfirmBanReportId(null); }}>
+              <DialogContent dir="rtl" className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-destructive" data-testid="text-ban-confirm-title">
+                    <ShieldOff className="w-5 h-5" />
+                    تأكيد حظر المستخدم
+                  </DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  هذا الإجراء سيؤدي إلى حظر المؤلف وإلغاء نشر المحتوى ومنع وصوله للمنصة. هل أنت متأكد؟
+                </p>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setConfirmBanReportId(null)} data-testid="button-ban-cancel">
+                    إلغاء
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (confirmBanReportId !== null) {
+                        updateReportMutation.mutate({ id: confirmBanReportId, status: "action_taken", actionTaken: "banned", adminNote: reportActionNotes[confirmBanReportId] || undefined });
+                        setConfirmBanReportId(null);
+                      }
+                    }}
+                    disabled={updateReportMutation.isPending}
+                    data-testid="button-ban-confirm"
+                  >
+                    <ShieldOff className="w-4 h-4 ml-1" />
+                    تأكيد الحظر
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-        )}
+          );
+        })()}
 
       <Dialog open={showBulkPlanDialog} onOpenChange={setShowBulkPlanDialog}>
         <DialogContent dir="rtl">

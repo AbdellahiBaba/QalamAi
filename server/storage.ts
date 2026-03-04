@@ -107,6 +107,14 @@ export interface IStorage {
   updateContentReport(id: number, updates: Partial<ContentReport>): Promise<ContentReport>;
   getReportCountForProject(projectId: number): Promise<number>;
   getRecentReportCountByIp(ip: string, windowMs: number): Promise<number>;
+  getReportsForProject(projectId: number): Promise<ContentReport[]>;
+  getReportStats(): Promise<{
+    total: number;
+    pending: number;
+    bySeverity: Record<string, number>;
+    byReason: Record<string, number>;
+    resolvedThisWeek: number;
+  }>;
   checkAndResetFreeMonthly(userId: string): Promise<{ projectsUsed: number; generationsUsed: number }>;
   incrementFreeMonthlyUsage(userId: string, type: "project" | "generation"): Promise<void>;
 }
@@ -895,7 +903,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getContentReports(status?: string): Promise<(ContentReport & { projectTitle?: string })[]> {
+  async getContentReports(status?: string): Promise<(ContentReport & { projectTitle?: string; projectType?: string; projectUserId?: string; reportCountForProject?: number })[]> {
     const conditions = status ? [eq(contentReports.status, status)] : [];
     const reports = await db
       .select({
@@ -904,14 +912,29 @@ export class DatabaseStorage implements IStorage {
         reporterIp: contentReports.reporterIp,
         reporterUserId: contentReports.reporterUserId,
         reason: contentReports.reason,
+        subReason: contentReports.subReason,
+        severity: contentReports.severity,
         details: contentReports.details,
+        reportNumber: contentReports.reportNumber,
+        reporterEmail: contentReports.reporterEmail,
         status: contentReports.status,
+        priority: contentReports.priority,
         adminNote: contentReports.adminNote,
         actionTaken: contentReports.actionTaken,
         reviewedBy: contentReports.reviewedBy,
         reviewedAt: contentReports.reviewedAt,
+        resolvedAt: contentReports.resolvedAt,
+        reporterUserAgent: contentReports.reporterUserAgent,
+        reporterDeviceType: contentReports.reporterDeviceType,
+        reporterDeviceName: contentReports.reporterDeviceName,
+        reporterCountry: contentReports.reporterCountry,
+        reporterCity: contentReports.reporterCity,
+        reporterIsp: contentReports.reporterIsp,
+        reporterGeoData: contentReports.reporterGeoData,
         createdAt: contentReports.createdAt,
         projectTitle: novelProjects.title,
+        projectType: novelProjects.projectType,
+        projectUserId: novelProjects.userId,
       })
       .from(contentReports)
       .leftJoin(novelProjects, eq(contentReports.projectId, novelProjects.id))
@@ -945,6 +968,41 @@ export class DatabaseStorage implements IStorage {
         sql`${contentReports.createdAt} > ${cutoff}`
       ));
     return result?.count || 0;
+  }
+
+  async getReportsForProject(projectId: number): Promise<ContentReport[]> {
+    return db.select().from(contentReports).where(eq(contentReports.projectId, projectId)).orderBy(desc(contentReports.createdAt));
+  }
+
+  async getReportStats(): Promise<{
+    total: number;
+    pending: number;
+    bySeverity: Record<string, number>;
+    byReason: Record<string, number>;
+    resolvedThisWeek: number;
+  }> {
+    const allReports = await db.select({
+      status: contentReports.status,
+      severity: contentReports.severity,
+      reason: contentReports.reason,
+      resolvedAt: contentReports.resolvedAt,
+    }).from(contentReports);
+
+    const total = allReports.length;
+    const pending = allReports.filter(r => r.status === "pending").length;
+
+    const bySeverity: Record<string, number> = {};
+    const byReason: Record<string, number> = {};
+    for (const r of allReports) {
+      const sev = r.severity || "unset";
+      bySeverity[sev] = (bySeverity[sev] || 0) + 1;
+      byReason[r.reason] = (byReason[r.reason] || 0) + 1;
+    }
+
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const resolvedThisWeek = allReports.filter(r => r.resolvedAt && r.resolvedAt > weekAgo).length;
+
+    return { total, pending, bySeverity, byReason, resolvedThisWeek };
   }
 
   async checkAndResetFreeMonthly(userId: string): Promise<{ projectsUsed: number; generationsUsed: number }> {

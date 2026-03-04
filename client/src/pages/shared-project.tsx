@@ -479,7 +479,7 @@ export default function SharedProject() {
       </div>
 
       {project && (
-        <ReportDialog projectId={project.id} open={reportOpen} onOpenChange={setReportOpen} />
+        <ReportDialog projectId={project.id} projectTitle={project.title} open={reportOpen} onOpenChange={setReportOpen} />
       )}
 
       <div className="h-14" />

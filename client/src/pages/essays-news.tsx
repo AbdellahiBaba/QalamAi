@@ -47,6 +47,7 @@ export default function EssaysNews() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
+  const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: essays, isLoading } = useQuery<PublicEssay[]>({
@@ -236,7 +237,7 @@ export default function EssaysNews() {
                       )}
                       <button
                         className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors mr-auto"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(essay.id); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(essay.id); setReportProjectTitle(essay.title); }}
                         data-testid={`button-report-essay-${essay.id}`}
                       >
                         <Flag className="w-3 h-3" /> إبلاغ
@@ -254,6 +255,7 @@ export default function EssaysNews() {
       {reportProjectId && (
         <ReportDialog
           projectId={reportProjectId}
+          projectTitle={reportProjectTitle}
           open={!!reportProjectId}
           onOpenChange={(open) => { if (!open) setReportProjectId(null); }}
         />

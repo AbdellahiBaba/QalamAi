@@ -46,6 +46,7 @@ export default function MemoireGallery() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
+  const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const [fieldFilter, setFieldFilter] = useState("all");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -356,6 +357,7 @@ export default function MemoireGallery() {
                           e.preventDefault();
                           e.stopPropagation();
                           setReportProjectId(memoire.id);
+                          setReportProjectTitle(memoire.title);
                         }}
                         data-testid={`button-report-memoire-${memoire.id}`}
                       >
@@ -374,6 +376,7 @@ export default function MemoireGallery() {
       {reportProjectId && (
         <ReportDialog
           projectId={reportProjectId}
+          projectTitle={reportProjectTitle}
           open={!!reportProjectId}
           onOpenChange={(open) => {
             if (!open) setReportProjectId(null);

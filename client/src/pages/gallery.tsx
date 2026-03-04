@@ -52,6 +52,7 @@ export default function Gallery() {
   useDocumentTitle("معرض الأعمال — قلم AI");
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
+  const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState("all");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -250,7 +251,7 @@ export default function Gallery() {
                   )}
                   <button
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors mt-1"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(project.id); }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(project.id); setReportProjectTitle(project.title); }}
                     data-testid={`button-report-gallery-${project.id}`}
                   >
                     <Flag className="w-3 h-3" /> إبلاغ
@@ -265,6 +266,7 @@ export default function Gallery() {
       {reportProjectId && (
         <ReportDialog
           projectId={reportProjectId}
+          projectTitle={reportProjectTitle}
           open={!!reportProjectId}
           onOpenChange={(open) => { if (!open) setReportProjectId(null); }}
         />

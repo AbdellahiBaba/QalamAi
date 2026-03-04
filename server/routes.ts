@@ -5637,7 +5637,7 @@ ${ch.content}
 
   app.post("/api/reports", async (req: any, res) => {
     try {
-      const { projectId, reason, details } = req.body;
+      const { projectId, reason, subReason, severity, details, reporterEmail } = req.body;
       if (!projectId || !reason) {
         return res.status(400).json({ error: "معرف المحتوى وسبب البلاغ مطلوبان" });
       }
@@ -5645,6 +5645,11 @@ ${ch.content}
       const validReasons = ["inappropriate", "plagiarism", "offensive", "spam", "other"];
       if (!validReasons.includes(reason)) {
         return res.status(400).json({ error: "سبب البلاغ غير صالح" });
+      }
+
+      const validSeverities = ["low", "medium", "high", "critical"];
+      if (severity && !validSeverities.includes(severity)) {
+        return res.status(400).json({ error: "مستوى الخطورة غير صالح" });
       }
 
       const project = await storage.getProject(parseInt(projectId));
@@ -5660,15 +5665,69 @@ ${ch.content}
 
       const reporterUserId = req.user?.claims?.sub || null;
 
+      const now = new Date();
+      const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
+      const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const reportNumber = `RPT-${datePart}-${randomPart}`;
+
+      const userAgent = req.headers["user-agent"] || "";
+      let deviceType = "desktop";
+      let deviceName = "Unknown";
+      if (userAgent) {
+        if (/mobile|android|iphone|ipod/i.test(userAgent)) deviceType = "mobile";
+        else if (/ipad|tablet/i.test(userAgent)) deviceType = "tablet";
+
+        const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera|MSIE|Trident)[\/\s]?([\d.]+)?/i);
+        const osMatch = userAgent.match(/(Windows NT [\d.]+|Mac OS X [\d._]+|Linux|Android [\d.]+|iOS [\d._]+|iPhone OS [\d._]+)/i);
+        const browserName = browserMatch ? browserMatch[1] : "Unknown Browser";
+        const browserVersion = browserMatch ? browserMatch[2] : "";
+        const osName = osMatch ? osMatch[1].replace(/_/g, ".") : "Unknown OS";
+        deviceName = `${browserName} ${browserVersion} on ${osName}`.trim();
+      }
+
+      let reporterCountry: string | null = null;
+      let reporterCity: string | null = null;
+      let reporterIsp: string | null = null;
+      let reporterGeoData: string | null = null;
+
+      try {
+        const cleanIp = ip.replace("::ffff:", "");
+        if (cleanIp !== "unknown" && cleanIp !== "127.0.0.1" && cleanIp !== "::1") {
+          const geoRes = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,country,city,isp,org,as,query,regionName`, { signal: AbortSignal.timeout(3000) });
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            if (geoData.status === "success") {
+              reporterCountry = geoData.country || null;
+              reporterCity = geoData.city ? `${geoData.city}, ${geoData.regionName || ""}`.trim() : null;
+              reporterIsp = geoData.isp || geoData.org || null;
+              reporterGeoData = JSON.stringify(geoData);
+            }
+          }
+        }
+      } catch (geoErr) {
+        console.error("Geo lookup failed (non-critical):", geoErr);
+      }
+
       const report = await storage.createContentReport({
         projectId: parseInt(projectId),
         reporterIp: ip,
         reporterUserId,
         reason,
+        subReason: subReason || null,
+        severity: severity || null,
         details: details ? String(details).slice(0, 2000) : null,
+        reportNumber,
+        reporterEmail: reporterEmail ? String(reporterEmail).slice(0, 255) : null,
+        reporterUserAgent: userAgent || null,
+        reporterDeviceType: deviceType,
+        reporterDeviceName: deviceName,
+        reporterCountry,
+        reporterCity,
+        reporterIsp,
+        reporterGeoData,
       });
 
-      res.status(201).json({ success: true, id: report.id });
+      res.status(201).json({ success: true, id: report.id, reportNumber });
     } catch (error) {
       console.error("Error creating report:", error);
       res.status(500).json({ error: "فشل في إرسال البلاغ" });
@@ -5679,10 +5738,37 @@ ${ch.content}
     try {
       const status = req.query.status as string | undefined;
       const reports = await storage.getContentReports(status || undefined);
-      res.json(reports);
+      const reportsWithCount = await Promise.all(
+        reports.map(async (r) => ({
+          ...r,
+          reportCountForProject: await storage.getReportCountForProject(r.projectId),
+        }))
+      );
+      res.json(reportsWithCount);
     } catch (error) {
       console.error("Error fetching reports:", error);
       res.status(500).json({ error: "فشل في جلب البلاغات" });
+    }
+  });
+
+  app.get("/api/admin/reports/stats", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const stats = await storage.getReportStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching report stats:", error);
+      res.status(500).json({ error: "فشل في جلب إحصائيات البلاغات" });
+    }
+  });
+
+  app.get("/api/admin/reports/project/:projectId", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const reports = await storage.getReportsForProject(projectId);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching project reports:", error);
+      res.status(500).json({ error: "فشل في جلب بلاغات المشروع" });
     }
   });
 
@@ -5700,22 +5786,29 @@ ${ch.content}
   app.patch("/api/admin/reports/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { status, adminNote, actionTaken } = req.body;
+      const { status, adminNote, actionTaken, priority } = req.body;
 
       const report = await storage.getContentReport(id);
       if (!report) return res.status(404).json({ error: "البلاغ غير موجود" });
 
       const validStatuses = ["pending", "reviewed", "dismissed", "action_taken"];
       const validActions = ["none", "unpublished", "warned", "banned"];
+      const validPriorities = ["normal", "high", "urgent"];
 
       const updates: any = {
         reviewedBy: req.user.claims.sub,
         reviewedAt: new Date(),
       };
 
-      if (status && validStatuses.includes(status)) updates.status = status;
+      if (status && validStatuses.includes(status)) {
+        updates.status = status;
+        if (status === "dismissed" || status === "action_taken") {
+          updates.resolvedAt = new Date();
+        }
+      }
       if (adminNote !== undefined) updates.adminNote = adminNote;
       if (actionTaken && validActions.includes(actionTaken)) updates.actionTaken = actionTaken;
+      if (priority && validPriorities.includes(priority)) updates.priority = priority;
 
       if (actionTaken === "unpublished") {
         await storage.updateProject(report.projectId, {

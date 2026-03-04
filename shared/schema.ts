@@ -554,15 +554,28 @@ export const contentReports = pgTable("content_reports", {
   reporterIp: varchar("reporter_ip"),
   reporterUserId: varchar("reporter_user_id"),
   reason: varchar("reason").notNull(),
+  subReason: varchar("sub_reason"),
+  severity: varchar("severity"),
   details: text("details"),
+  reportNumber: varchar("report_number"),
+  reporterEmail: varchar("reporter_email"),
   status: varchar("status").default("pending").notNull(),
+  priority: varchar("priority").default("normal"),
   adminNote: text("admin_note"),
   actionTaken: varchar("action_taken"),
   reviewedBy: varchar("reviewed_by"),
   reviewedAt: timestamp("reviewed_at"),
+  resolvedAt: timestamp("resolved_at"),
+  reporterUserAgent: text("reporter_user_agent"),
+  reporterDeviceType: varchar("reporter_device_type"),
+  reporterDeviceName: varchar("reporter_device_name"),
+  reporterCountry: varchar("reporter_country"),
+  reporterCity: varchar("reporter_city"),
+  reporterIsp: varchar("reporter_isp"),
+  reporterGeoData: text("reporter_geo_data"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertContentReportSchema = createInsertSchema(contentReports).omit({ id: true, createdAt: true, status: true, adminNote: true, actionTaken: true, reviewedBy: true, reviewedAt: true });
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({ id: true, createdAt: true, status: true, priority: true, adminNote: true, actionTaken: true, reviewedBy: true, reviewedAt: true, resolvedAt: true });
 export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
 export type ContentReport = typeof contentReports.$inferSelect;
