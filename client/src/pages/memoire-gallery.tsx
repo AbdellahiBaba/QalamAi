@@ -36,10 +36,27 @@ interface PublicMemoire {
   memoireUniversity: string | null;
   memoireCountry: string | null;
   memoireField: string | null;
+  memoireDegreeLevel: string | null;
   memoireMethodology: string | null;
   memoireCitationStyle: string | null;
   memoireKeywords: string | null;
 }
+
+const METHODOLOGY_LABELS: Record<string, string> = {
+  descriptive: "المنهج الوصفي", analytical: "المنهج التحليلي", experimental: "المنهج التجريبي",
+  historical: "المنهج التاريخي", comparative: "المنهج المقارن", survey: "المنهج المسحي",
+  case_study: "دراسة حالة", inductive: "المنهج الاستقرائي", deductive: "المنهج الاستنباطي",
+  mixed: "منهج مختلط", qualitative: "نوعي (كيفي)", quantitative: "كمّي",
+};
+
+const DEGREE_LEVEL_LABELS: Record<string, string> = {
+  licence: "ليسانس / بكالوريوس", master: "ماستر / ماجستير", doctorate: "دكتوراه",
+};
+
+const CITATION_LABELS: Record<string, string> = {
+  apa: "APA", mla: "MLA", chicago: "Chicago / Turabian", harvard: "Harvard",
+  ieee: "IEEE", iso690: "ISO 690", islamic: "التوثيق الإسلامي", university_specific: "حسب نظام الجامعة",
+};
 
 export default function MemoireGallery() {
   useDocumentTitle("مذكرات التخرج الأكاديمية — قلم AI");
@@ -48,6 +65,7 @@ export default function MemoireGallery() {
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const [fieldFilter, setFieldFilter] = useState("all");
+  const [methodologyFilter, setMethodologyFilter] = useState("all");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: memoires, isLoading, isError } = useQuery<PublicMemoire[]>({
@@ -63,21 +81,36 @@ export default function MemoireGallery() {
     return Array.from(set);
   }, [memoires]);
 
+  const methodologies = useMemo(() => {
+    if (!memoires) return [];
+    const set = new Set<string>();
+    memoires.forEach((m) => {
+      if (m.memoireMethodology) set.add(m.memoireMethodology);
+    });
+    return Array.from(set);
+  }, [memoires]);
+
   const filteredMemoires = useMemo(() => {
     if (!memoires) return [];
     return memoires.filter((m) => {
       const matchesField = fieldFilter === "all" || m.memoireField === fieldFilter;
+      const matchesMethodology = methodologyFilter === "all" || m.memoireMethodology === methodologyFilter;
+      const q = searchQuery.trim();
+      const methodologyLabel = m.memoireMethodology ? (METHODOLOGY_LABELS[m.memoireMethodology] || m.memoireMethodology) : "";
+      const citationLabel = m.memoireCitationStyle ? (CITATION_LABELS[m.memoireCitationStyle] || m.memoireCitationStyle) : "";
       const matchesSearch =
-        !searchQuery.trim() ||
-        m.title.includes(searchQuery) ||
-        (m.mainIdea && m.mainIdea.includes(searchQuery)) ||
-        (m.authorName && m.authorName.includes(searchQuery)) ||
-        (m.memoireUniversity && m.memoireUniversity.includes(searchQuery)) ||
-        (m.memoireField && m.memoireField.includes(searchQuery)) ||
-        (m.memoireKeywords && m.memoireKeywords.includes(searchQuery));
-      return matchesField && matchesSearch;
+        !q ||
+        m.title.includes(q) ||
+        (m.mainIdea && m.mainIdea.includes(q)) ||
+        (m.authorName && m.authorName.includes(q)) ||
+        (m.memoireUniversity && m.memoireUniversity.includes(q)) ||
+        (m.memoireField && m.memoireField.includes(q)) ||
+        (m.memoireKeywords && m.memoireKeywords.includes(q)) ||
+        methodologyLabel.includes(q) ||
+        citationLabel.includes(q);
+      return matchesField && matchesMethodology && matchesSearch;
     });
-  }, [memoires, searchQuery, fieldFilter]);
+  }, [memoires, searchQuery, fieldFilter, methodologyFilter]);
 
   const itemListJsonLd = useMemo(() => {
     if (!filteredMemoires || filteredMemoires.length === 0) return null;
@@ -169,6 +202,30 @@ export default function MemoireGallery() {
             </div>
           )}
         </div>
+        {methodologies.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap" data-testid="filter-methodology-group">
+            <span className="text-sm text-muted-foreground shrink-0">المنهجية:</span>
+            <Badge
+              variant={methodologyFilter === "all" ? "default" : "outline"}
+              className="cursor-pointer toggle-elevate"
+              onClick={() => setMethodologyFilter("all")}
+              data-testid="filter-methodology-all"
+            >
+              الكل
+            </Badge>
+            {methodologies.map((m) => (
+              <Badge
+                key={m}
+                variant={methodologyFilter === m ? "default" : "outline"}
+                className="cursor-pointer toggle-elevate"
+                onClick={() => setMethodologyFilter(m)}
+                data-testid={`filter-methodology-${m}`}
+              >
+                {METHODOLOGY_LABELS[m] || m}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         {isError ? (
           <div className="text-center py-16 space-y-4" data-testid="memoires-error">
@@ -307,16 +364,22 @@ export default function MemoireGallery() {
                           {memoire.memoireField}
                         </Badge>
                       )}
+                      {memoire.memoireDegreeLevel && (
+                        <Badge variant="outline" className="text-xs gap-1" data-testid={`badge-memoire-degree-${memoire.id}`}>
+                          <GraduationCap className="w-3 h-3" />
+                          {DEGREE_LEVEL_LABELS[memoire.memoireDegreeLevel] || memoire.memoireDegreeLevel}
+                        </Badge>
+                      )}
                       {memoire.memoireMethodology && (
                         <Badge variant="outline" className="text-xs gap-1" data-testid={`badge-memoire-methodology-${memoire.id}`}>
                           <FlaskConical className="w-3 h-3" />
-                          {memoire.memoireMethodology}
+                          {METHODOLOGY_LABELS[memoire.memoireMethodology] || memoire.memoireMethodology}
                         </Badge>
                       )}
                       {memoire.memoireCitationStyle && (
                         <Badge variant="outline" className="text-xs gap-1" data-testid={`badge-memoire-citation-${memoire.id}`}>
                           <FileText className="w-3 h-3" />
-                          {memoire.memoireCitationStyle}
+                          {CITATION_LABELS[memoire.memoireCitationStyle] || memoire.memoireCitationStyle}
                         </Badge>
                       )}
                     </div>

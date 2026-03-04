@@ -187,6 +187,7 @@ export const novelProjects = pgTable("novel_projects", {
   memoireFaculty: text("memoire_faculty"),
   memoireDepartment: text("memoire_department"),
   memoireField: text("memoire_field"),
+  memoireDegreeLevel: text("memoire_degree_level"),
   memoireMethodology: text("memoire_methodology"),
   memoireCitationStyle: text("memoire_citation_style"),
   memoireChapterCount: integer("memoire_chapter_count"),

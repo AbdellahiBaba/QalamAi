@@ -1276,6 +1276,7 @@ ${pages.map(p => `  <url>
         memoireFaculty: type === "memoire" ? (req.body.memoireFaculty || null) : null,
         memoireDepartment: type === "memoire" ? (req.body.memoireDepartment || null) : null,
         memoireField: type === "memoire" ? (req.body.memoireField || null) : null,
+        memoireDegreeLevel: type === "memoire" ? (req.body.memoireDegreeLevel || null) : null,
         memoireMethodology: type === "memoire" ? (req.body.memoireMethodology || "mixed") : null,
         memoireCitationStyle: type === "memoire" ? (req.body.memoireCitationStyle || "apa") : null,
         memoireChapterCount: type === "memoire" ? (req.body.memoireChapterCount || 5) : null,
@@ -2124,7 +2125,8 @@ ${pages.map(p => `  <url>
       }
 
       const fixBidi = (text: string): string => {
-        return text.replace(/([a-zA-Z0-9](?:[a-zA-Z0-9\s\/\-\.\:\©\(\)\@\#\%\&\*\+\=\,\;\!\?\u2014]*[a-zA-Z0-9])?)/g, (match) => {
+        return text.replace(/([a-zA-Z0-9](?:[a-zA-Z0-9\s\/\-\:\©\(\)\#\%\&\*\+\=\,\;\!\?\u2014]*[a-zA-Z0-9])?)/g, (match) => {
+          if (match.includes("@") || /^https?/i.test(match) || /^www\./i.test(match)) return match;
           return match.split("").reverse().join("");
         });
       };
@@ -2287,6 +2289,12 @@ ${pages.map(p => `  <url>
 
         if (memoireFieldAr) {
           metaY += drawCenteredArabic(`التخصص: ${memoireFieldAr}`, metaY, 13, "#6B5B4F");
+          metaY += 6;
+        }
+        const pdfDegreeLevel = (project as any).memoireDegreeLevel || "";
+        if (pdfDegreeLevel) {
+          const pdfDegreeLevelMap: Record<string, string> = { licence: "ليسانس / بكالوريوس", master: "ماستر / ماجستير", doctorate: "دكتوراه" };
+          metaY += drawCenteredArabic(`المستوى: ${pdfDegreeLevelMap[pdfDegreeLevel] || pdfDegreeLevel}`, metaY, 13, "#6B5B4F");
           metaY += 6;
         }
         if (memoireMethodology) {
@@ -2750,6 +2758,11 @@ ${coverSpineItem}${colophonSpineItem}${bismillahSpineItem}${chapterSpine}${gloss
         if (epubFieldAr) {
           epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">التخصص: ${epubFieldAr}</p>`;
         }
+        const epubDegreeLevel = (project as any).memoireDegreeLevel || "";
+        if (epubDegreeLevel) {
+          const epubDegreeLevelMap: Record<string, string> = { licence: "ليسانس / بكالوريوس", master: "ماستر / ماجستير", doctorate: "دكتوراه" };
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">المستوى: ${epubDegreeLevelMap[epubDegreeLevel] || epubDegreeLevel}</p>`;
+        }
         if (epubCountry) {
           epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">البلد: ${epubCountry}</p>`;
         }
@@ -2973,17 +2986,53 @@ ${glossaryParagraphs}
       const decorColor = "C4975A";
       const authorName = (docxExportUser as any)?.displayName || (docxExportUser as any)?.firstName || docxExportUser?.email?.split("@")[0] || "المؤلف";
 
+      const splitBidiRuns = (text: string): { text: string; isRtl: boolean }[] => {
+        const segments: { text: string; isRtl: boolean }[] = [];
+        const bidiRegex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0621-\u064A\u0660-\u0669]+(?:[\s\u060C\u061B\u061F\u0640]*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0621-\u064A\u0660-\u0669]+)*)/g;
+        let lastIndex = 0;
+        let match;
+        while ((match = bidiRegex.exec(text)) !== null) {
+          if (match.index > lastIndex) {
+            const ltrPart = text.slice(lastIndex, match.index);
+            if (ltrPart) segments.push({ text: ltrPart, isRtl: false });
+          }
+          segments.push({ text: match[0], isRtl: true });
+          lastIndex = bidiRegex.lastIndex;
+        }
+        if (lastIndex < text.length) {
+          segments.push({ text: text.slice(lastIndex), isRtl: false });
+        }
+        if (segments.length === 0) {
+          const hasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+          segments.push({ text, isRtl: hasArabic });
+        }
+        return segments;
+      };
+
+      const makeBidiTextRuns = (text: string, options: { bold?: boolean; size: number; color: string; italics?: boolean }): any[] => {
+        const segments = splitBidiRuns(text);
+        return segments.map(seg => new TextRun({
+          text: seg.text,
+          bold: options.bold,
+          size: options.size,
+          font: mainFont,
+          rightToLeft: seg.isRtl,
+          color: options.color,
+          italics: options.italics,
+        }));
+      };
+
       const parseFormattedText = (text: string, defaultSize: number, defaultColor: string): any[] => {
         const runs: any[] = [];
         const parts = text.split(/(\*\*[^*]+\*\*)/g);
         for (const part of parts) {
           if (part.startsWith("**") && part.endsWith("**")) {
-            runs.push(new TextRun({ text: part.slice(2, -2), bold: true, size: defaultSize, font: mainFont, rightToLeft: true, color: defaultColor }));
+            runs.push(...makeBidiTextRuns(part.slice(2, -2), { bold: true, size: defaultSize, color: defaultColor }));
           } else if (part.trim()) {
-            runs.push(new TextRun({ text: part, size: defaultSize, font: mainFont, rightToLeft: true, color: defaultColor }));
+            runs.push(...makeBidiTextRuns(part, { size: defaultSize, color: defaultColor }));
           }
         }
-        return runs.length > 0 ? runs : [new TextRun({ text, size: defaultSize, font: mainFont, rightToLeft: true, color: defaultColor })];
+        return runs.length > 0 ? runs : makeBidiTextRuns(text, { size: defaultSize, color: defaultColor });
       };
 
       const decoratorLine = (spacing?: { before?: number; after?: number }) => new Paragraph({
@@ -3027,7 +3076,15 @@ ${glossaryParagraphs}
         const mCountry = (project as any).memoireCountry || "";
         const mMethodology = (project as any).memoireMethodology || "";
         const mCitationStyle = (project as any).memoireCitationStyle || "";
+        const mDegreeLevel = (project as any).memoireDegreeLevel || "";
         const academicYear = `${new Date().getFullYear() - 1} / ${new Date().getFullYear()}`;
+
+        const degreeLevelMap: Record<string, string> = {
+          licence: "ليسانس / بكالوريوس",
+          master: "ماستر / ماجستير",
+          doctorate: "دكتوراه",
+        };
+        const mDegreeLevelAr = degreeLevelMap[mDegreeLevel] || mDegreeLevel || "";
 
         const methodologyMap: Record<string, string> = {
           descriptive: "المنهج الوصفي",
@@ -3152,8 +3209,8 @@ ${glossaryParagraphs}
               bidirectional: true,
               spacing: { after: 120 },
               children: [
-                new TextRun({ text: `${row.label}: `, size: 24, font: mainFont, rightToLeft: true, color: subtleColor }),
-                new TextRun({ text: row.value, bold: true, size: 24, font: mainFont, rightToLeft: true, color: bodyColor }),
+                ...makeBidiTextRuns(`${row.label}: `, { size: 24, color: subtleColor }),
+                ...makeBidiTextRuns(row.value, { bold: true, size: 24, color: bodyColor }),
               ],
             }));
           }
@@ -3164,7 +3221,7 @@ ${glossaryParagraphs}
           bidirectional: true,
           spacing: { before: 600, after: 200 },
           children: [
-            new TextRun({ text: `السنة الجامعية: ${academicYear}`, size: 24, font: mainFont, rightToLeft: true, color: subtleColor }),
+            ...makeBidiTextRuns(`السنة الجامعية: ${academicYear}`, { size: 24, color: subtleColor }),
           ],
         }));
 
@@ -3173,7 +3230,7 @@ ${glossaryParagraphs}
           bidirectional: true,
           spacing: { before: 200, after: 200 },
           children: [
-            new TextRun({ text: "بمساعدة أبو هاشم — QalamAI", size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
+            ...makeBidiTextRuns("بمساعدة أبو هاشم — QalamAI", { size: 22, color: subtleColor }),
           ],
         }));
 
@@ -3183,7 +3240,7 @@ ${glossaryParagraphs}
           alignment: AlignmentType.CENTER,
           bidirectional: true,
           children: [
-            new TextRun({ text: `جميع الحقوق محفوظة © ${new Date().getFullYear()} ${authorName}`, size: 18, font: mainFont, rightToLeft: true, color: subtleColor }),
+            ...makeBidiTextRuns(`جميع الحقوق محفوظة © ${new Date().getFullYear()} ${authorName}`, { size: 18, color: subtleColor }),
           ],
         }));
 
@@ -3242,7 +3299,7 @@ ${glossaryParagraphs}
             bidirectional: true,
             spacing: { before: 600, after: 200 },
             children: [
-              new TextRun({ text: "بمساعدة أبو هاشم — QalamAI", size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
+              ...makeBidiTextRuns("بمساعدة أبو هاشم — QalamAI", { size: 22, color: subtleColor }),
             ],
           }),
           new Paragraph({
@@ -3250,7 +3307,7 @@ ${glossaryParagraphs}
             bidirectional: true,
             spacing: { after: 200 },
             children: [
-              new TextRun({ text: new Date().toLocaleDateString("ar-SA", { year: "numeric", month: "long" }), size: 22, font: mainFont, rightToLeft: true, color: subtleColor }),
+              ...makeBidiTextRuns(new Date().toLocaleDateString("ar-SA", { year: "numeric", month: "long" }), { size: 22, color: subtleColor }),
             ],
           }),
           new Paragraph({ spacing: { before: 2000 }, alignment: AlignmentType.CENTER, bidirectional: true, children: [] }),
@@ -3259,7 +3316,7 @@ ${glossaryParagraphs}
             alignment: AlignmentType.CENTER,
             bidirectional: true,
             children: [
-              new TextRun({ text: `جميع الحقوق محفوظة © ${new Date().getFullYear()} ${authorName}`, size: 18, font: mainFont, rightToLeft: true, color: subtleColor }),
+              ...makeBidiTextRuns(`جميع الحقوق محفوظة © ${new Date().getFullYear()} ${authorName}`, { size: 18, color: subtleColor }),
             ],
           }),
         ],
@@ -3369,7 +3426,7 @@ ${glossaryParagraphs}
               bidirectional: true,
               spacing: { before: 400, after: 200 },
               heading: HeadingLevel.HEADING_3,
-              children: [new TextRun({ text: trimmed.slice(4), bold: true, size: 30, font: mainFont, rightToLeft: true, color: accentColor })],
+              children: makeBidiTextRuns(trimmed.slice(4), { bold: true, size: 30, color: accentColor }),
             }));
           } else if (trimmed.startsWith("## ")) {
             contentChildren.push(new Paragraph({
@@ -3377,7 +3434,7 @@ ${glossaryParagraphs}
               bidirectional: true,
               spacing: { before: 500, after: 250 },
               heading: HeadingLevel.HEADING_2,
-              children: [new TextRun({ text: trimmed.slice(3), bold: true, size: 34, font: mainFont, rightToLeft: true, color: accentColor })],
+              children: makeBidiTextRuns(trimmed.slice(3), { bold: true, size: 34, color: accentColor }),
             }));
           } else if (trimmed.startsWith("# ")) {
             contentChildren.push(new Paragraph({
@@ -3385,7 +3442,7 @@ ${glossaryParagraphs}
               bidirectional: true,
               spacing: { before: 600, after: 300 },
               heading: HeadingLevel.HEADING_1,
-              children: [new TextRun({ text: trimmed.slice(2), bold: true, size: 38, font: mainFont, rightToLeft: true, color: accentColor })],
+              children: makeBidiTextRuns(trimmed.slice(2), { bold: true, size: 38, color: accentColor }),
             }));
           } else if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
             contentChildren.push(decoratorLine({ before: 300, after: 300 }));
@@ -3428,8 +3485,8 @@ ${glossaryParagraphs}
               spacing: { after: 150, line: 360 },
               indent: { right: 200 },
               children: [
-                new TextRun({ text: term, bold: true, size: 26, font: mainFont, rightToLeft: true, color: accentColor }),
-                new TextRun({ text: `: ${def}`, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+                ...makeBidiTextRuns(term, { bold: true, size: 26, color: accentColor }),
+                ...makeBidiTextRuns(`: ${def}`, { size: 26, color: bodyColor }),
               ],
             }));
           } else {
@@ -3437,7 +3494,7 @@ ${glossaryParagraphs}
               alignment: AlignmentType.RIGHT,
               bidirectional: true,
               spacing: { after: 150, line: 360 },
-              children: [new TextRun({ text: trimmed, size: 26, font: mainFont, rightToLeft: true, color: bodyColor })],
+              children: makeBidiTextRuns(trimmed, { size: 26, color: bodyColor }),
             }));
           }
         }
@@ -4245,6 +4302,7 @@ ${glossaryParagraphs}
         memoireUniversity: p.memoireUniversity,
         memoireCountry: p.memoireCountry,
         memoireField: p.memoireField,
+        memoireDegreeLevel: p.memoireDegreeLevel,
         memoireMethodology: p.memoireMethodology,
         memoireCitationStyle: p.memoireCitationStyle,
         memoireKeywords: p.memoireKeywords,

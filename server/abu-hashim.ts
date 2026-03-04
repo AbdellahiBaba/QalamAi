@@ -4408,15 +4408,28 @@ export function buildMemoireOutlinePrompt(project: NovelProject): { system: stri
   const totalWords = pageTarget * 250;
 
   const methodologyMap: Record<string, string> = {
+    descriptive: "المنهج الوصفي",
+    analytical: "المنهج التحليلي",
+    experimental: "المنهج التجريبي",
+    historical: "المنهج التاريخي",
+    comparative: "المنهج المقارن",
+    survey: "المنهج المسحي",
+    case_study: "دراسة حالة",
+    inductive: "المنهج الاستقرائي",
+    deductive: "المنهج الاستنباطي",
+    mixed: "المنهج المختلط (الكمّي والنوعي)",
     qualitative: "المنهج النوعي (الكيفي)",
     quantitative: "المنهج الكمّي",
-    mixed: "المنهج المختلط (الكمّي والنوعي)",
   };
 
   const citationMap: Record<string, string> = {
     apa: "APA (الجمعية الأمريكية لعلم النفس) — الإصدار السابع",
     mla: "MLA (جمعية اللغات الحديثة) — الإصدار التاسع",
     chicago: "شيكاغو/تورابيان — الإصدار السابع عشر",
+    harvard: "نظام هارفارد للتوثيق",
+    ieee: "IEEE (معهد مهندسي الكهرباء والإلكترونيات)",
+    iso690: "ISO 690 — المعيار الدولي للتوثيق",
+    islamic: "التوثيق الإسلامي (منهج تحقيق المخطوطات والمصادر الشرعية)",
     university_specific: "أسلوب التوثيق الخاص بالجامعة",
   };
 
@@ -4466,12 +4479,14 @@ ${getFieldSpecificProblemGuidelines(project.memoireField || "")}
 البلد: ${project.memoireCountry || "غير محدد"}
 الكلية: ${project.memoireFaculty || "غير محددة"}
 القسم: ${project.memoireDepartment || "غير محدد"}
+${(project as any).memoireDegreeLevel ? `المستوى الأكاديمي: ${{ licence: "ليسانس / بكالوريوس", master: "ماستر / ماجستير", doctorate: "دكتوراه" }[(project as any).memoireDegreeLevel as string] || (project as any).memoireDegreeLevel}` : ""}
 
 ═══ معايير البحث ═══
 المنهجية: ${methodologyAr}
 أسلوب التوثيق: ${citationAr}
 عدد الفصول المطلوب: ${chapterCount} فصول
 الحجم المستهدف: ${totalWords.toLocaleString()} كلمة (${pageTarget} صفحة تقريباً)
+${(project as any).memoireDegreeLevel === "doctorate" ? "ملاحظة: هذا بحث دكتوراه — يتطلب عمقاً نظرياً وتحليلياً متقدماً، ومراجعة أدبيات شاملة، ومساهمة أصيلة في المعرفة." : (project as any).memoireDegreeLevel === "master" ? "ملاحظة: هذا بحث ماستر — يتطلب تحليلاً معمّقاً ومراجعة أدبيات واسعة وإطاراً نظرياً متماسكاً." : ""}
 `;
 
   if (project.memoireHypotheses) {
@@ -4581,14 +4596,27 @@ export function buildMemoireSectionPrompt(
     : structure.wordsPerChapter;
 
   const methodologyMap: Record<string, string> = {
+    descriptive: "المنهج الوصفي",
+    analytical: "المنهج التحليلي",
+    experimental: "المنهج التجريبي",
+    historical: "المنهج التاريخي",
+    comparative: "المنهج المقارن",
+    survey: "المنهج المسحي",
+    case_study: "دراسة حالة",
+    inductive: "المنهج الاستقرائي",
+    deductive: "المنهج الاستنباطي",
+    mixed: "مختلط (نوعي وكمّي)",
     qualitative: "نوعي (كيفي)",
     quantitative: "كمّي",
-    mixed: "مختلط (نوعي وكمّي)",
   };
   const citationMap: Record<string, string> = {
     apa: "APA (الجمعية الأمريكية لعلم النفس)",
     mla: "MLA (جمعية اللغات الحديثة)",
     chicago: "شيكاغو",
+    harvard: "هارفارد",
+    ieee: "IEEE",
+    iso690: "ISO 690",
+    islamic: "التوثيق الإسلامي",
     university_specific: "حسب دليل الجامعة المحددة",
   };
   const fieldMap: Record<string, string> = {
@@ -4606,10 +4634,14 @@ export function buildMemoireSectionPrompt(
   const citation = citationMap[project.memoireCitationStyle || ""] || project.memoireCitationStyle || "APA";
   const field = fieldMap[project.memoireField || ""] || project.memoireField || "عام";
 
+  const degreeLevelMap: Record<string, string> = { licence: "ليسانس / بكالوريوس", master: "ماستر / ماجستير", doctorate: "دكتوراه" };
+  const degreeLevel = degreeLevelMap[(project as any).memoireDegreeLevel || ""] || "";
+
   let prompt = `اكتب الفصل رقم ${chapter.chapterNumber} بعنوان "${chapter.title}" من مذكرة التخرج "${project.title}".
 
 ═══ معلومات المذكرة ═══
 - التخصص الأكاديمي: ${field}
+${degreeLevel ? `- المستوى الأكاديمي: ${degreeLevel}` : ""}
 - المنهجية: ${methodology}
 - أسلوب التوثيق: ${citation}
 ${project.memoireUniversity ? `- الجامعة: ${project.memoireUniversity}` : ""}

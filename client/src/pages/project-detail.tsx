@@ -280,6 +280,7 @@ export default function ProjectDetail() {
   const [editMemoireFaculty, setEditMemoireFaculty] = useState("");
   const [editMemoireDepartment, setEditMemoireDepartment] = useState("");
   const [editMemoireField, setEditMemoireField] = useState("");
+  const [editMemoireDegreeLevel, setEditMemoireDegreeLevel] = useState("");
   const [editMemoireMethodology, setEditMemoireMethodology] = useState("");
   const [editMemoireCitationStyle, setEditMemoireCitationStyle] = useState("");
   const [editMemoirePageTarget, setEditMemoirePageTarget] = useState("");
@@ -1077,6 +1078,7 @@ export default function ProjectDetail() {
     setEditMemoireFaculty((project as any).memoireFaculty || "");
     setEditMemoireDepartment((project as any).memoireDepartment || "");
     setEditMemoireField((project as any).memoireField || "");
+    setEditMemoireDegreeLevel((project as any).memoireDegreeLevel || "");
     setEditMemoireMethodology((project as any).memoireMethodology || "");
     setEditMemoireCitationStyle((project as any).memoireCitationStyle || "");
     setEditMemoirePageTarget(String((project as any).memoirePageTarget || ""));
@@ -1133,6 +1135,7 @@ export default function ProjectDetail() {
       data.memoireFaculty = editMemoireFaculty;
       data.memoireDepartment = editMemoireDepartment;
       data.memoireField = editMemoireField;
+      data.memoireDegreeLevel = editMemoireDegreeLevel;
       data.memoireMethodology = editMemoireMethodology;
       data.memoireCitationStyle = editMemoireCitationStyle;
       data.memoirePageTarget = editMemoirePageTarget ? parseInt(editMemoirePageTarget) : null;
@@ -2442,15 +2445,35 @@ export default function ProjectDetail() {
                             </Select>
                           </div>
                           <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">المستوى الأكاديمي</Label>
+                            <Select value={editMemoireDegreeLevel} onValueChange={setEditMemoireDegreeLevel}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-memoire-degree-level">
+                                <SelectValue placeholder="اختر المستوى" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="licence">ليسانس / بكالوريوس</SelectItem>
+                                <SelectItem value="master">ماستر / ماجستير</SelectItem>
+                                <SelectItem value="doctorate">دكتوراه</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
                             <Label className="text-muted-foreground text-xs">منهجية البحث</Label>
                             <Select value={editMemoireMethodology} onValueChange={setEditMemoireMethodology}>
                               <SelectTrigger className="h-8 text-sm" data-testid="select-edit-memoire-methodology">
                                 <SelectValue placeholder="اختر المنهجية" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="qualitative">نوعي (كيفي)</SelectItem>
-                                <SelectItem value="quantitative">كمّي</SelectItem>
-                                <SelectItem value="mixed">مختلط (نوعي وكمّي)</SelectItem>
+                                <SelectItem value="descriptive">المنهج الوصفي</SelectItem>
+                                <SelectItem value="analytical">المنهج التحليلي</SelectItem>
+                                <SelectItem value="experimental">المنهج التجريبي</SelectItem>
+                                <SelectItem value="historical">المنهج التاريخي</SelectItem>
+                                <SelectItem value="comparative">المنهج المقارن</SelectItem>
+                                <SelectItem value="survey">المنهج المسحي</SelectItem>
+                                <SelectItem value="case_study">دراسة حالة</SelectItem>
+                                <SelectItem value="inductive">المنهج الاستقرائي</SelectItem>
+                                <SelectItem value="deductive">المنهج الاستنباطي</SelectItem>
+                                <SelectItem value="mixed">منهج مختلط</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -2464,6 +2487,10 @@ export default function ProjectDetail() {
                                 <SelectItem value="apa">APA (جمعية علم النفس الأمريكية)</SelectItem>
                                 <SelectItem value="mla">MLA (جمعية اللغة الحديثة)</SelectItem>
                                 <SelectItem value="chicago">Chicago / Turabian</SelectItem>
+                                <SelectItem value="harvard">Harvard</SelectItem>
+                                <SelectItem value="ieee">IEEE</SelectItem>
+                                <SelectItem value="iso690">ISO 690</SelectItem>
+                                <SelectItem value="islamic">التوثيق الإسلامي</SelectItem>
                                 <SelectItem value="university_specific">حسب نظام الجامعة</SelectItem>
                               </SelectContent>
                             </Select>
@@ -2530,11 +2557,22 @@ export default function ProjectDetail() {
                               } as Record<string, string>)[(project as any).memoireField] || (project as any).memoireField}</span>
                             </div>
                           )}
+                          {(project as any).memoireDegreeLevel && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">المستوى:</span>
+                              <span className="font-medium">{({
+                                licence: "ليسانس / بكالوريوس", master: "ماستر / ماجستير", doctorate: "دكتوراه",
+                              } as Record<string, string>)[(project as any).memoireDegreeLevel] || (project as any).memoireDegreeLevel}</span>
+                            </div>
+                          )}
                           {(project as any).memoireMethodology && (
                             <div className="flex justify-between gap-2">
                               <span className="text-muted-foreground">المنهجية:</span>
                               <span className="font-medium">{({
-                                qualitative: "نوعي (كيفي)", quantitative: "كمّي", mixed: "مختلط (نوعي وكمّي)",
+                                descriptive: "المنهج الوصفي", analytical: "المنهج التحليلي", experimental: "المنهج التجريبي",
+                                historical: "المنهج التاريخي", comparative: "المنهج المقارن", survey: "المنهج المسحي",
+                                case_study: "دراسة حالة", inductive: "المنهج الاستقرائي", deductive: "المنهج الاستنباطي",
+                                mixed: "منهج مختلط", qualitative: "نوعي (كيفي)", quantitative: "كمّي",
                               } as Record<string, string>)[(project as any).memoireMethodology] || (project as any).memoireMethodology}</span>
                             </div>
                           )}
@@ -2542,7 +2580,8 @@ export default function ProjectDetail() {
                             <div className="flex justify-between gap-2">
                               <span className="text-muted-foreground">نظام التوثيق:</span>
                               <span className="font-medium">{({
-                                apa: "APA", mla: "MLA", chicago: "Chicago / Turabian", university_specific: "حسب نظام الجامعة",
+                                apa: "APA", mla: "MLA", chicago: "Chicago / Turabian", harvard: "Harvard",
+                                ieee: "IEEE", iso690: "ISO 690", islamic: "التوثيق الإسلامي", university_specific: "حسب نظام الجامعة",
                               } as Record<string, string>)[(project as any).memoireCitationStyle] || (project as any).memoireCitationStyle}</span>
                             </div>
                           )}

@@ -81,6 +81,7 @@ const memoireFormSchema = z.object({
   title: z.string().min(1, "عنوان البحث مطلوب"),
   mainIdea: z.string().min(10, "يجب أن تكون إشكالية البحث 10 أحرف على الأقل"),
   memoireField: z.string().min(1, "التخصص الأكاديمي مطلوب"),
+  memoireDegreeLevel: z.string().min(1, "المستوى الأكاديمي مطلوب"),
   memoireCountry: z.string().min(1, "البلد مطلوب"),
   memoireUniversity: z.string().min(1, "اسم الجامعة مطلوب"),
   memoireFaculty: z.string().min(1, "اسم الكلية مطلوب"),
@@ -127,6 +128,7 @@ export default function NewMemoire() {
       title: "",
       mainIdea: "",
       memoireField: "",
+      memoireDegreeLevel: "",
       memoireCountry: "",
       memoireUniversity: "",
       memoireFaculty: "",
@@ -221,6 +223,7 @@ export default function NewMemoire() {
         characters: [],
         relationships: [],
         memoireField: data.memoireField,
+        memoireDegreeLevel: data.memoireDegreeLevel,
         memoireCountry: data.memoireCountry,
         memoireUniversity: data.memoireUniversity,
         memoireFaculty: data.memoireFaculty,
@@ -620,6 +623,25 @@ export default function NewMemoire() {
                           {ACADEMIC_FIELDS.map((f) => (
                             <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="memoireDegreeLevel" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>المستوى الأكاديمي</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-degree-level">
+                            <SelectValue placeholder="اختر المستوى" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="licence">ليسانس / بكالوريوس</SelectItem>
+                          <SelectItem value="master">ماستر / ماجستير</SelectItem>
+                          <SelectItem value="doctorate">دكتوراه</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
