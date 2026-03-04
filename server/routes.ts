@@ -1119,6 +1119,28 @@ ${pages.map(p => `  <url>
         updates.mainIdea = req.body.mainIdea.trim().slice(0, 5000);
       }
 
+      if (project.projectType === "poetry") {
+        const validRawiHaraka = ["fatha", "damma", "kasra", "sukun"];
+        if (req.body.poetryRawiHaraka === null || req.body.poetryRawiHaraka === "") {
+          (updates as any).poetryRawiHaraka = null;
+        } else if (typeof req.body.poetryRawiHaraka === "string" && validRawiHaraka.includes(req.body.poetryRawiHaraka)) {
+          (updates as any).poetryRawiHaraka = req.body.poetryRawiHaraka;
+        }
+
+        const validRidf = ["alef", "waw", "yaa"];
+        if (req.body.poetryRidf === null || req.body.poetryRidf === "" || req.body.poetryRidf === "none") {
+          (updates as any).poetryRidf = null;
+        } else if (typeof req.body.poetryRidf === "string" && validRidf.includes(req.body.poetryRidf)) {
+          (updates as any).poetryRidf = req.body.poetryRidf;
+        }
+
+        if (req.body.poetryMuarada === null || req.body.poetryMuarada === "") {
+          (updates as any).poetryMuarada = null;
+        } else if (typeof req.body.poetryMuarada === "string") {
+          (updates as any).poetryMuarada = req.body.poetryMuarada.slice(0, 10000);
+        }
+      }
+
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: "لا توجد تعديلات" });
       }

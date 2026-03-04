@@ -251,6 +251,11 @@ export default function ProjectDetail() {
   const [editPoetryVerseCount, setEditPoetryVerseCount] = useState("");
   const [editPoetryImageryLevel, setEditPoetryImageryLevel] = useState(5);
   const [editPoetryEmotionLevel, setEditPoetryEmotionLevel] = useState(7);
+  const [editPoetryRawiHaraka, setEditPoetryRawiHaraka] = useState("");
+  const [editPoetryRidf, setEditPoetryRidf] = useState("");
+  const [editPoetryMuarada, setEditPoetryMuarada] = useState("");
+  const [editMuaradaEnabled, setEditMuaradaEnabled] = useState(false);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [editingMainIdea, setEditingMainIdea] = useState(false);
   const [editMainIdeaValue, setEditMainIdeaValue] = useState("");
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
@@ -1028,6 +1033,10 @@ export default function ProjectDetail() {
     setEditPoetryVerseCount(String((project as any).poetryVerseCount || ""));
     setEditPoetryImageryLevel((project as any).poetryImageryLevel ?? 5);
     setEditPoetryEmotionLevel((project as any).poetryEmotionLevel ?? 7);
+    setEditPoetryRawiHaraka((project as any).poetryRawiHaraka || "");
+    setEditPoetryRidf((project as any).poetryRidf || "");
+    setEditPoetryMuarada((project as any).poetryMuarada || "");
+    setEditMuaradaEnabled(!!((project as any).poetryMuarada));
     setEditingSettings(true);
   };
 
@@ -1069,8 +1078,48 @@ export default function ProjectDetail() {
       data.poetryVerseCount = editPoetryVerseCount ? parseInt(editPoetryVerseCount) : null;
       data.poetryImageryLevel = editPoetryImageryLevel;
       data.poetryEmotionLevel = editPoetryEmotionLevel;
+      data.poetryRawiHaraka = editPoetryRawiHaraka || null;
+      data.poetryRidf = editPoetryRidf === "none" ? null : (editPoetryRidf || null);
+      data.poetryMuarada = editMuaradaEnabled ? (editPoetryMuarada || null) : null;
     }
     saveSettingsMutation.mutate(data);
+  };
+
+  const handleSaveAndRegenerate = async () => {
+    if (!project) return;
+    setShowRegenConfirm(false);
+    const pt = project.projectType;
+    if (pt !== "poetry") return;
+
+    const data: Record<string, any> = {
+      poetryMeter: editPoetryMeter,
+      poetryRhyme: editPoetryRhyme,
+      poetryEra: editPoetryEra,
+      poetryTone: editPoetryTone,
+      poetryTheme: editPoetryTheme,
+      poetryVerseCount: editPoetryVerseCount ? parseInt(editPoetryVerseCount) : null,
+      poetryImageryLevel: editPoetryImageryLevel,
+      poetryEmotionLevel: editPoetryEmotionLevel,
+      poetryRawiHaraka: editPoetryRawiHaraka || null,
+      poetryRidf: editPoetryRidf === "none" ? null : (editPoetryRidf || null),
+      poetryMuarada: editMuaradaEnabled ? (editPoetryMuarada || null) : null,
+    };
+
+    try {
+      await apiRequest("PATCH", `/api/projects/${projectId}/settings`, data);
+      await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      setEditingSettings(false);
+      toast({ title: "تم حفظ الإعدادات، جارٍ إعادة توليد القصيدة..." });
+
+      const chapters = project.chapters;
+      if (chapters && chapters.length > 0) {
+        const chapterId = chapters[0].id;
+        await generateChapter(chapterId);
+        toast({ title: "تم إعادة توليد القصيدة بالإعدادات الجديدة بنجاح" });
+      }
+    } catch (error) {
+      toast({ title: "فشل في حفظ الإعدادات أو إعادة التوليد", variant: "destructive" });
+    }
   };
 
   const handleSaveTitle = () => {
@@ -1781,6 +1830,11 @@ export default function ProjectDetail() {
                         <Button variant="ghost" size="sm" onClick={handleSaveSettings} disabled={saveSettingsMutation.isPending} className="h-7 gap-1 text-xs" data-testid="button-save-settings">
                           {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} حفظ
                         </Button>
+                        {project.projectType === "poetry" && (
+                          <Button variant="ghost" size="sm" onClick={() => setShowRegenConfirm(true)} disabled={saveSettingsMutation.isPending || generatingChapter !== null} className="h-7 gap-1 text-xs text-amber-600 dark:text-amber-400" data-testid="button-save-and-regenerate">
+                            {generatingChapter !== null ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} حفظ وإعادة التوليد
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => setEditingSettings(false)} className="h-7 text-xs" data-testid="button-cancel-settings">
                           <X className="w-3 h-3" />
                         </Button>
@@ -2148,6 +2202,57 @@ export default function ProjectDetail() {
                             <Label className="text-muted-foreground text-xs">شدة العاطفة: <LtrNum>{editPoetryEmotionLevel}</LtrNum>/10</Label>
                             <input type="range" min={1} max={10} value={editPoetryEmotionLevel} onChange={(e) => setEditPoetryEmotionLevel(Number(e.target.value))} className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-primary" data-testid="slider-edit-poetry-emotion" />
                           </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">حركة الروي — المَجرى</Label>
+                            <Select value={editPoetryRawiHaraka} onValueChange={setEditPoetryRawiHaraka}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-rawi-haraka">
+                                <SelectValue placeholder="اختر حركة الروي" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="fatha">الفتحة (َ)</SelectItem>
+                                <SelectItem value="damma">الضمة (ُ)</SelectItem>
+                                <SelectItem value="kasra">الكسرة (ِ)</SelectItem>
+                                <SelectItem value="sukun">السكون (ْ)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الردف</Label>
+                            <Select value={editPoetryRidf || "none"} onValueChange={setEditPoetryRidf}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-poetry-ridf">
+                                <SelectValue placeholder="بدون ردف" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">بدون ردف</SelectItem>
+                                <SelectItem value="alef">ألف (ا)</SelectItem>
+                                <SelectItem value="waw">واو (و)</SelectItem>
+                                <SelectItem value="yaa">ياء (ي)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-muted-foreground text-xs">معارضة قصيدة</Label>
+                              <Switch
+                                checked={editMuaradaEnabled}
+                                onCheckedChange={(checked) => {
+                                  setEditMuaradaEnabled(checked);
+                                  if (!checked) setEditPoetryMuarada("");
+                                }}
+                                data-testid="switch-edit-muarada"
+                              />
+                            </div>
+                            {editMuaradaEnabled && (
+                              <Textarea
+                                value={editPoetryMuarada}
+                                onChange={(e) => setEditPoetryMuarada(e.target.value)}
+                                placeholder="ألصق أبيات القصيدة التي تريد معارضتها..."
+                                className="min-h-[100px] text-sm font-serif leading-[2] text-right"
+                                dir="rtl"
+                                data-testid="textarea-edit-muarada"
+                              />
+                            )}
+                          </div>
                         </>
                       ) : (
                         <>
@@ -2197,6 +2302,24 @@ export default function ProjectDetail() {
                             <div className="flex justify-between gap-2">
                               <span className="text-muted-foreground">شدة العاطفة:</span>
                               <span className="font-medium"><LtrNum>{(project as any).poetryEmotionLevel}</LtrNum>/10</span>
+                            </div>
+                          )}
+                          {(project as any).poetryRawiHaraka && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">حركة الروي:</span>
+                              <span className="font-medium">{({"fatha": "الفتحة (َ)", "damma": "الضمة (ُ)", "kasra": "الكسرة (ِ)", "sukun": "السكون (ْ)"} as Record<string,string>)[(project as any).poetryRawiHaraka] || (project as any).poetryRawiHaraka}</span>
+                            </div>
+                          )}
+                          {(project as any).poetryRidf && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الردف:</span>
+                              <span className="font-medium">{({"alef": "ألف (ا)", "waw": "واو (و)", "yaa": "ياء (ي)"} as Record<string,string>)[(project as any).poetryRidf] || (project as any).poetryRidf}</span>
+                            </div>
+                          )}
+                          {(project as any).poetryMuarada && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">معارضة:</span>
+                              <span className="font-medium text-green-600 dark:text-green-400">مفعّلة</span>
                             </div>
                           )}
                         </>
@@ -4474,6 +4597,28 @@ export default function ProjectDetail() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={showRegenConfirm} onOpenChange={setShowRegenConfirm}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle data-testid="text-regen-confirm-title">حفظ الإعدادات وإعادة توليد القصيدة</AlertDialogTitle>
+              <AlertDialogDescription data-testid="text-regen-confirm-desc">
+                سيتم حفظ الإعدادات الجديدة وحذف القصيدة الحالية وإنشاء قصيدة جديدة بالإعدادات المعدّلة. هل تريد المتابعة؟
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-row-reverse gap-2">
+              <AlertDialogCancel data-testid="button-cancel-regen">إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleSaveAndRegenerate}
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                data-testid="button-confirm-regen"
+              >
+                <RefreshCw className="w-4 h-4 ml-2" />
+                حفظ وإعادة التوليد
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent dir="rtl">
