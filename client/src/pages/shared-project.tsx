@@ -4,7 +4,6 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather } from "lucide-react";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -311,11 +310,9 @@ export default function SharedProject() {
                     <span className="mx-1">—</span>
                     <h2 className="font-serif text-lg font-semibold">{ch.title}</h2>
                   </div>
-                  <ScrollArea className="max-h-[600px]">
-                    <div className="font-serif text-base leading-[2.2] whitespace-pre-wrap">
-                      {ch.content}
-                    </div>
-                  </ScrollArea>
+                  <div className="font-serif text-base leading-[2.2] whitespace-pre-wrap">
+                    {ch.content}
+                  </div>
                 </CardContent>
               </Card>
             ))}
