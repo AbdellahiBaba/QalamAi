@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Slider } from "@/components/ui/slider";
-import { ArrowRight, GraduationCap, Loader2, Sparkles, X, BookOpen, Building2, FlaskConical } from "lucide-react";
+import { ArrowRight, GraduationCap, Loader2, Sparkles, X, BookOpen, Building2, FlaskConical, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -270,8 +270,19 @@ export default function NewMemoire() {
     return true;
   };
 
+  const watchedTitle = form.watch("title");
+  const watchedMainIdea = form.watch("mainIdea");
+  const watchedField = form.watch("memoireField");
+  const watchedCountry = form.watch("memoireCountry");
+  const watchedUniversity = form.watch("memoireUniversity");
+  const watchedFaculty = form.watch("memoireFaculty");
+  const watchedDepartment = form.watch("memoireDepartment");
+  const watchedMethodology = form.watch("memoireMethodology");
+  const watchedCitationStyle = form.watch("memoireCitationStyle");
   const watchedPageTarget = form.watch("memoirePageTarget");
   const watchedChapterCount = form.watch("memoireChapterCount");
+  const watchedHypotheses = form.watch("memoireHypotheses");
+  const watchedKeywords = form.watch("memoireKeywords");
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -535,6 +546,7 @@ export default function NewMemoire() {
             )}
 
             {step === 2 && (
+              <div className="space-y-6">
               <Card>
                 <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="space-y-2 mb-6">
@@ -676,6 +688,104 @@ export default function NewMemoire() {
                   )} />
                 </CardContent>
               </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                      <h3 className="font-serif text-lg font-bold">ملخص المذكرة</h3>
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      {watchedTitle && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">العنوان:</span>
+                          <span className="font-medium" data-testid="text-summary-title">{watchedTitle}</span>
+                        </div>
+                      )}
+                      {watchedField && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">التخصص:</span>
+                          <span className="font-medium" data-testid="text-summary-field">
+                            {ACADEMIC_FIELDS.find(f => f.value === watchedField)?.label || watchedField}
+                          </span>
+                        </div>
+                      )}
+                      {watchedUniversity && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">الجامعة:</span>
+                          <span className="font-medium" data-testid="text-summary-university">{watchedUniversity}</span>
+                        </div>
+                      )}
+                      {watchedCountry && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">البلد:</span>
+                          <span className="font-medium" data-testid="text-summary-country">
+                            {ARAB_COUNTRIES.find(c => c.value === watchedCountry)?.label || watchedCountry}
+                          </span>
+                        </div>
+                      )}
+                      {watchedFaculty && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">الكلية:</span>
+                          <span className="font-medium" data-testid="text-summary-faculty">{watchedFaculty}</span>
+                        </div>
+                      )}
+                      {watchedDepartment && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">القسم:</span>
+                          <span className="font-medium" data-testid="text-summary-department">{watchedDepartment}</span>
+                        </div>
+                      )}
+                      {watchedMethodology && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">المنهجية:</span>
+                          <span className="font-medium" data-testid="text-summary-methodology">
+                            {METHODOLOGY_OPTIONS.find(m => m.value === watchedMethodology)?.label || watchedMethodology}
+                          </span>
+                        </div>
+                      )}
+                      {watchedCitationStyle && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">نظام التوثيق:</span>
+                          <span className="font-medium" data-testid="text-summary-citation">
+                            {CITATION_STYLE_OPTIONS.find(c => c.value === watchedCitationStyle)?.label || watchedCitationStyle}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground shrink-0">عدد الصفحات:</span>
+                        <span className="font-medium" data-testid="text-summary-pages"><LtrNum>{watchedPageTarget}</LtrNum> صفحة</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground shrink-0">عدد الفصول:</span>
+                        <span className="font-medium" data-testid="text-summary-chapters"><LtrNum>{watchedChapterCount}</LtrNum></span>
+                      </div>
+                      {watchedMainIdea && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">الإشكالية:</span>
+                          <span className="font-medium line-clamp-2" data-testid="text-summary-idea">{watchedMainIdea}</span>
+                        </div>
+                      )}
+                      {watchedHypotheses && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">الفرضيات:</span>
+                          <span className="font-medium line-clamp-2" data-testid="text-summary-hypotheses">{watchedHypotheses}</span>
+                        </div>
+                      )}
+                      {watchedKeywords && (
+                        <div className="flex gap-2">
+                          <span className="text-muted-foreground shrink-0">الكلمات المفتاحية:</span>
+                          <span className="font-medium" data-testid="text-summary-keywords">{watchedKeywords}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 rounded-md bg-muted/50 border p-3 text-sm text-muted-foreground">
+                      <p>سعر المذكرة: <span className="font-bold text-foreground" data-testid="text-summary-price"><LtrNum>150</LtrNum> دولار</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             <div className="flex items-center justify-between gap-4 mt-6">
@@ -703,9 +813,6 @@ export default function NewMemoire() {
                 </Button>
               ) : (
                 <div className="flex items-center gap-4">
-                  <span className="text-sm text-muted-foreground" data-testid="text-price">
-                    <LtrNum>150</LtrNum> دولار
-                  </span>
                   <Button
                     type="submit"
                     disabled={createMutation.isPending}

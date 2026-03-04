@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
 import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
@@ -1141,6 +1141,50 @@ ${pages.map(p => `  <url>
         }
       }
 
+      if (project.projectType === "memoire") {
+        if (typeof req.body.memoireUniversity === "string") {
+          (updates as any).memoireUniversity = req.body.memoireUniversity.slice(0, 500);
+        }
+        const validCountries = ["sa","eg","dz","ma","tn","iq","sy","jo","lb","ae","kw","qa","bh","om","ye","ly","sd","mr","so","dj","km","ps"];
+        if (typeof req.body.memoireCountry === "string" && validCountries.includes(req.body.memoireCountry)) {
+          (updates as any).memoireCountry = req.body.memoireCountry;
+        }
+        if (typeof req.body.memoireFaculty === "string") {
+          (updates as any).memoireFaculty = req.body.memoireFaculty.slice(0, 500);
+        }
+        if (typeof req.body.memoireDepartment === "string") {
+          (updates as any).memoireDepartment = req.body.memoireDepartment.slice(0, 500);
+        }
+        const validFields = ["sciences","humanities","law","medicine","engineering","economics","education","literature","media","computer_science","political_science","sociology","psychology","islamic_studies","agriculture","architecture","pharmacy","management"];
+        if (typeof req.body.memoireField === "string" && validFields.includes(req.body.memoireField)) {
+          (updates as any).memoireField = req.body.memoireField;
+        }
+        const validMethodologies = ["qualitative","quantitative","mixed"];
+        if (typeof req.body.memoireMethodology === "string" && validMethodologies.includes(req.body.memoireMethodology)) {
+          (updates as any).memoireMethodology = req.body.memoireMethodology;
+        }
+        const validCitations = ["apa","mla","chicago","university_specific"];
+        if (typeof req.body.memoireCitationStyle === "string" && validCitations.includes(req.body.memoireCitationStyle)) {
+          (updates as any).memoireCitationStyle = req.body.memoireCitationStyle;
+        }
+        if (req.body.memoirePageTarget === null) {
+          (updates as any).memoirePageTarget = null;
+        } else if (typeof req.body.memoirePageTarget === "number" && req.body.memoirePageTarget >= 20 && req.body.memoirePageTarget <= 500) {
+          (updates as any).memoirePageTarget = req.body.memoirePageTarget;
+        }
+        if (req.body.memoireChapterCount === null) {
+          (updates as any).memoireChapterCount = null;
+        } else if (typeof req.body.memoireChapterCount === "number" && req.body.memoireChapterCount >= 2 && req.body.memoireChapterCount <= 20) {
+          (updates as any).memoireChapterCount = req.body.memoireChapterCount;
+        }
+        if (typeof req.body.memoireHypotheses === "string") {
+          (updates as any).memoireHypotheses = req.body.memoireHypotheses.slice(0, 5000);
+        }
+        if (typeof req.body.memoireKeywords === "string") {
+          (updates as any).memoireKeywords = req.body.memoireKeywords.slice(0, 1000);
+        }
+      }
+
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: "لا توجد تعديلات" });
       }
@@ -1565,15 +1609,55 @@ ${pages.map(p => `  <url>
         return res.status(400).json({ error: "هذا النوع من المشاريع لا يحتاج مخططاً" });
       }
 
-      const systemPrompt = project.projectType === "essay"
-        ? "أنت أبو هاشم — محرر صحفي محترف. عدّل الهيكل التالي بناءً على تعليمات المستخدم. أعد الهيكل كاملاً مع التعديلات المطلوبة."
-        : project.projectType === "scenario"
-        ? "أنت أبو هاشم — كاتب سيناريو محترف. عدّل المخطط الدرامي التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات."
-        : project.projectType === "short_story"
-        ? "أنت أبو هاشم — كاتب قصص قصيرة محترف. عدّل مخطط القصة التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات المطلوبة."
-        : "أنت أبو هاشم — وكيل أدبي ذكي. عدّل مخطط الرواية التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات المطلوبة.";
+      let systemPrompt: string;
+      let userPrompt: string;
 
-      const userPrompt = `المخطط الحالي:\n${project.outline}\n\nالتعديل المطلوب:\n${instruction}\n\nأعد المخطط كاملاً بعد التعديل. حافظ على نفس التنسيق والبنية.`;
+      if (project.projectType === "memoire") {
+        const fieldLabels: Record<string, string> = {
+          sciences: "العلوم الطبيعية والتطبيقية", humanities: "العلوم الإنسانية والاجتماعية",
+          law: "القانون والعلوم القانونية", medicine: "الطب والعلوم الصحية",
+          engineering: "الهندسة والتكنولوجيا", economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
+          education: "علوم التربية والتعليم", literature: "الآداب واللغات",
+          media: "الإعلام والاتصال", computer_science: "الإعلام الآلي وعلوم الحاسوب",
+          islamic_studies: "العلوم الإسلامية والشريعة", political_science: "العلوم السياسية والعلاقات الدولية",
+          psychology: "علم النفس", sociology: "علم الاجتماع",
+          history: "التاريخ", philosophy: "الفلسفة",
+          agriculture: "العلوم الزراعية", architecture: "الهندسة المعمارية والعمران",
+        };
+        const fieldAr = fieldLabels[project.memoireField || ""] || project.memoireField || "غير محدد";
+        const methodLabels: Record<string, string> = { qualitative: "نوعي", quantitative: "كمّي", mixed: "مختلط" };
+        const methodAr = methodLabels[project.memoireMethodology || ""] || project.memoireMethodology || "غير محدد";
+
+        systemPrompt = MEMOIRE_SYSTEM_PROMPT + `\n\nأنت الآن تراجع وتعدّل مخطط مذكرة تخرج أكاديمية. عدّل الهيكل بناءً على تعليمات الطالب مع الحفاظ على الصرامة الأكاديمية والمنهجية العلمية المناسبة للتخصص والنظام الجامعي.`;
+
+        const contextParts = [
+          `المخطط الحالي:\n${project.outline}`,
+          `\n═══ السياق الأكاديمي ═══`,
+          project.memoireUniversity ? `الجامعة: ${project.memoireUniversity}` : null,
+          project.memoireCountry ? `البلد: ${project.memoireCountry}` : null,
+          project.memoireFaculty ? `الكلية: ${project.memoireFaculty}` : null,
+          project.memoireDepartment ? `القسم: ${project.memoireDepartment}` : null,
+          `التخصص: ${fieldAr}`,
+          `المنهجية: ${methodAr}`,
+          project.memoireCitationStyle ? `أسلوب التوثيق: ${project.memoireCitationStyle}` : null,
+          project.memoirePageTarget ? `عدد الصفحات المستهدف: ${project.memoirePageTarget}` : null,
+          project.memoireChapterCount ? `عدد الفصول: ${project.memoireChapterCount}` : null,
+          project.memoireHypotheses ? `الفرضيات: ${project.memoireHypotheses}` : null,
+          project.memoireKeywords ? `الكلمات المفتاحية: ${project.memoireKeywords}` : null,
+          `\nالتعديل المطلوب:\n${instruction}`,
+          `\nأعد المخطط كاملاً بعد التعديل. حافظ على نفس التنسيق والبنية الأكاديمية. تأكد من أن الهيكل يتوافق مع معايير تخصص ${fieldAr} ومتطلبات النظام الجامعي في ${project.memoireCountry || "البلد المحدد"}.`,
+        ];
+        userPrompt = contextParts.filter(Boolean).join("\n");
+      } else {
+        systemPrompt = project.projectType === "essay"
+          ? "أنت أبو هاشم — محرر صحفي محترف. عدّل الهيكل التالي بناءً على تعليمات المستخدم. أعد الهيكل كاملاً مع التعديلات المطلوبة."
+          : project.projectType === "scenario"
+          ? "أنت أبو هاشم — كاتب سيناريو محترف. عدّل المخطط الدرامي التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات."
+          : project.projectType === "short_story"
+          ? "أنت أبو هاشم — كاتب قصص قصيرة محترف. عدّل مخطط القصة التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات المطلوبة."
+          : "أنت أبو هاشم — وكيل أدبي ذكي. عدّل مخطط الرواية التالي بناءً على تعليمات المستخدم. أعد المخطط كاملاً مع التعديلات المطلوبة.";
+        userPrompt = `المخطط الحالي:\n${project.outline}\n\nالتعديل المطلوب:\n${instruction}\n\nأعد المخطط كاملاً بعد التعديل. حافظ على نفس التنسيق والبنية.`;
+      }
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -2116,14 +2200,57 @@ ${pages.map(p => `  <url>
       const dateW = doc.widthOfString(dateLine);
       doc.text(dateLine, (fullPageWidth - dateW) / 2, authLineY + 60, { lineBreak: false });
 
+      let memoireMetaOffset = 0;
+      if (project.projectType === "memoire") {
+        const memoireFieldMap: Record<string, string> = {
+          sciences: "العلوم الطبيعية والتطبيقية",
+          humanities: "العلوم الإنسانية والاجتماعية",
+          law: "القانون والعلوم القانونية",
+          medicine: "الطب والعلوم الصحية",
+          engineering: "الهندسة والتكنولوجيا",
+          economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
+          education: "علوم التربية والتعليم",
+          literature: "الآداب واللغات",
+          media: "الإعلام والاتصال",
+          computer_science: "الإعلام الآلي وعلوم الحاسوب",
+          islamic_studies: "العلوم الإسلامية والشريعة",
+          political_science: "العلوم السياسية والعلاقات الدولية",
+          psychology: "علم النفس",
+          sociology: "علم الاجتماع",
+          history: "التاريخ",
+          philosophy: "الفلسفة",
+          agriculture: "العلوم الزراعية",
+          architecture: "الهندسة المعمارية والعمران",
+        };
+        const memoireFieldAr = memoireFieldMap[(project as any).memoireField || ""] || (project as any).memoireField || "";
+        const memoireUniv = (project as any).memoireUniversity || "";
+
+        let memoireY = authLineY + 56;
+        if (memoireUniv) {
+          doc.font("Arabic").fontSize(13).fillColor("#6B5B4F");
+          const univLine = `${memoireUniv}`;
+          const univW = doc.widthOfString(univLine, { features: ["rtla"] });
+          doc.text(univLine, (fullPageWidth - univW) / 2, memoireY, { width: univW + 2, features: ["rtla"], lineBreak: false });
+          memoireY += 24;
+          memoireMetaOffset += 24;
+        }
+        if (memoireFieldAr) {
+          doc.font("Arabic").fontSize(12).fillColor("#8B7355");
+          const fieldLine = `التخصص: ${memoireFieldAr}`;
+          const fieldW = doc.widthOfString(fieldLine, { features: ["rtla"] });
+          doc.text(fieldLine, (fullPageWidth - fieldW) / 2, memoireY, { width: fieldW + 2, features: ["rtla"], lineBreak: false });
+          memoireMetaOffset += 24;
+        }
+      }
+
       doc.font("Arabic").fontSize(13).fillColor("#8B7355");
       const currentYear = new Date().getFullYear();
       const rightsAr = `جميع الحقوق محفوظة © ${currentYear} ${pdfAuthorName}`;
       const rightsArW = doc.widthOfString(rightsAr, { features: ["rtla"] });
-      const rightsY = authLineY + 100;
+      const rightsY = authLineY + 100 + memoireMetaOffset;
       doc.text(rightsAr, (fullPageWidth - rightsArW) / 2, rightsY, { width: rightsArW + 2, features: ["rtla"], lineBreak: false });
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
       const chapters = (project.chapters || [])
         .filter((ch: any) => ch.content && ch.status === "completed")
@@ -2362,7 +2489,7 @@ ${pages.map(p => `  <url>
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       const epubAuthorName = (epubExportUser as any)?.displayName || (epubExportUser as any)?.firstName || epubExportUser?.email?.split("@")[0] || "المؤلف";
-      const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
       if (completedChapters.length === 0) return res.status(400).json({ error: "لا توجد فصول مكتملة" });
 
@@ -2467,6 +2594,38 @@ ${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
       const epubDate = new Date().toLocaleDateString("ar-SA");
       const safeTitle = project.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+      let epubMemoireMeta = "";
+      if (project.projectType === "memoire") {
+        const epubMemoireFieldMap: Record<string, string> = {
+          sciences: "العلوم الطبيعية والتطبيقية",
+          humanities: "العلوم الإنسانية والاجتماعية",
+          law: "القانون والعلوم القانونية",
+          medicine: "الطب والعلوم الصحية",
+          engineering: "الهندسة والتكنولوجيا",
+          economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
+          education: "علوم التربية والتعليم",
+          literature: "الآداب واللغات",
+          media: "الإعلام والاتصال",
+          computer_science: "الإعلام الآلي وعلوم الحاسوب",
+          islamic_studies: "العلوم الإسلامية والشريعة",
+          political_science: "العلوم السياسية والعلاقات الدولية",
+          psychology: "علم النفس",
+          sociology: "علم الاجتماع",
+          history: "التاريخ",
+          philosophy: "الفلسفة",
+          agriculture: "العلوم الزراعية",
+          architecture: "الهندسة المعمارية والعمران",
+        };
+        const epubFieldAr = epubMemoireFieldMap[(project as any).memoireField || ""] || (project as any).memoireField || "";
+        const epubUniv = ((project as any).memoireUniversity || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        if (epubUniv) {
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 1.1em; color: #2C1810;">${epubUniv}</p>`;
+        }
+        if (epubFieldAr) {
+          epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">التخصص: ${epubFieldAr}</p>`;
+        }
+      }
+
       archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
@@ -2474,7 +2633,7 @@ ${coverSpineItem}${colophonSpineItem}${chapterSpine}${glossarySpineItem}
 <body>
   <div style="text-align: center; padding-top: 40%; line-height: 2.5;">
     <h1>${safeTitle}</h1>
-    <p style="text-indent: 0; font-size: 1.2em; color: #2C1810;">تأليف ${epubAuthorName.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>
+    <p style="text-indent: 0; font-size: 1.2em; color: #2C1810;">تأليف ${epubAuthorName.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>${epubMemoireMeta}
     <p style="text-indent: 0; font-size: 0.95em; color: #8B7355;">بمساعدة أبو هاشم — QalamAI</p>
     <p style="text-indent: 0; color: #8B7355;">${epubDate}</p>
     <hr/>
@@ -2645,8 +2804,8 @@ ${glossaryParagraphs}
       if (!project || project.userId !== req.user.claims.sub) {
         return res.status(404).json({ error: "المشروع غير موجود" });
       }
-      const docxChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
-      const projectTypeLabel = project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خواطر" : project.projectType === "social_media" ? "محتوى" : project.projectType === "poetry" ? "شعر" : "رواية";
+      const docxChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
+      const projectTypeLabel = project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خواطر" : project.projectType === "social_media" ? "محتوى" : project.projectType === "poetry" ? "شعر" : project.projectType === "memoire" ? "مذكرة تخرج" : "رواية";
       const completedChapters = project.chapters.filter((ch: any) => ch.content);
       if (completedChapters.length === 0) {
         return res.status(400).json({ error: "لا توجد فصول مكتملة" });
@@ -2724,6 +2883,52 @@ ${glossaryParagraphs}
               new TextRun({ text: authorName, bold: true, size: 36, font: mainFont, rightToLeft: true, color: bodyColor }),
             ],
           }),
+          ...(project.projectType === "memoire" ? (() => {
+            const docxMemoireFieldMap: Record<string, string> = {
+              sciences: "العلوم الطبيعية والتطبيقية",
+              humanities: "العلوم الإنسانية والاجتماعية",
+              law: "القانون والعلوم القانونية",
+              medicine: "الطب والعلوم الصحية",
+              engineering: "الهندسة والتكنولوجيا",
+              economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
+              education: "علوم التربية والتعليم",
+              literature: "الآداب واللغات",
+              media: "الإعلام والاتصال",
+              computer_science: "الإعلام الآلي وعلوم الحاسوب",
+              islamic_studies: "العلوم الإسلامية والشريعة",
+              political_science: "العلوم السياسية والعلاقات الدولية",
+              psychology: "علم النفس",
+              sociology: "علم الاجتماع",
+              history: "التاريخ",
+              philosophy: "الفلسفة",
+              agriculture: "العلوم الزراعية",
+              architecture: "الهندسة المعمارية والعمران",
+            };
+            const docxFieldAr = docxMemoireFieldMap[(project as any).memoireField || ""] || (project as any).memoireField || "";
+            const docxUniv = (project as any).memoireUniversity || "";
+            const memoireParas: any[] = [];
+            if (docxUniv) {
+              memoireParas.push(new Paragraph({
+                alignment: AlignmentType.CENTER,
+                bidirectional: true,
+                spacing: { after: 200 },
+                children: [
+                  new TextRun({ text: docxUniv, size: 28, font: mainFont, rightToLeft: true, color: bodyColor }),
+                ],
+              }));
+            }
+            if (docxFieldAr) {
+              memoireParas.push(new Paragraph({
+                alignment: AlignmentType.CENTER,
+                bidirectional: true,
+                spacing: { after: 200 },
+                children: [
+                  new TextRun({ text: `التخصص: ${docxFieldAr}`, size: 24, font: mainFont, rightToLeft: true, color: subtleColor }),
+                ],
+              }));
+            }
+            return memoireParas;
+          })() : []),
           new Paragraph({
             alignment: AlignmentType.CENTER,
             bidirectional: true,
@@ -4122,7 +4327,7 @@ ${glossaryParagraphs}
         .filter((ch: any) => ch.content)
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
         .map((ch: any) => {
-          const glossaryLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+          const glossaryLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
           return `${glossaryLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}\n${ch.content}`;
         })
         .join("\n\n---\n\n");
@@ -4180,7 +4385,7 @@ ${glossaryParagraphs}
 
       if (completedChapters.length < 2) return res.status(400).json({ error: "يجب أن يكون هناك فصلان مكتملان على الأقل لإجراء فحص الاستمرارية" });
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
       const allContent = completedChapters
         .map((ch: any) => `${chapterLabel} ${ch.chapterNumber}: ${ch.title}\n${ch.content?.substring(0, 3000)}`)
@@ -4352,7 +4557,7 @@ ${allContent}
         .map((ch: any) => `الفصل ${ch.chapterNumber} - ${ch.title}:\n${ch.content!.substring(0, 600)}`)
         .join("\n---\n");
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
       const typeMap: Record<string, string> = {
         character: "تناقض في الشخصية", timeline: "تناقض في الخط الزمني",
@@ -4455,7 +4660,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
 
       if (completedChapters.length < 1) return res.status(400).json({ error: "يجب أن يكون هناك فصل مكتمل واحد على الأقل لتحليل الأسلوب" });
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
       const allContent = completedChapters
         .map((ch: any) => `${chapterLabel} ${ch.chapterNumber}: ${ch.title}\n${ch.content?.substring(0, 4000)}`)
@@ -4519,7 +4724,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
         return res.status(400).json({ error: "لا توجد فصول مكتملة" });
       }
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
       const chapterSummaries = completedChapters
         .map((ch: any) => `[${chapterLabel} ${ch.chapterNumber} — ${ch.title} — ID:${ch.id}]\n${(ch.content || "").substring(0, 1500)}`)
@@ -4732,7 +4937,7 @@ ${ch.content}
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
       const unresolvedIssues: { issue: any; index: number; chapter: any }[] = [];
       for (let i = 0; i < continuityResult.issues.length; i++) {
@@ -4861,7 +5066,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
         return res.status(400).json({ error: "لا توجد فصول مكتملة" });
       }
 
-      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : "الفصل";
+      const chapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
 
       const unresolvedImprovements: { improvement: any; index: number }[] = [];
       for (let i = 0; i < styleResult.improvements.length; i++) {

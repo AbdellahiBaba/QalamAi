@@ -275,6 +275,17 @@ export default function ProjectDetail() {
   const [editPoetryRidf, setEditPoetryRidf] = useState("");
   const [editPoetryMuarada, setEditPoetryMuarada] = useState("");
   const [editMuaradaEnabled, setEditMuaradaEnabled] = useState(false);
+  const [editMemoireUniversity, setEditMemoireUniversity] = useState("");
+  const [editMemoireCountry, setEditMemoireCountry] = useState("");
+  const [editMemoireFaculty, setEditMemoireFaculty] = useState("");
+  const [editMemoireDepartment, setEditMemoireDepartment] = useState("");
+  const [editMemoireField, setEditMemoireField] = useState("");
+  const [editMemoireMethodology, setEditMemoireMethodology] = useState("");
+  const [editMemoireCitationStyle, setEditMemoireCitationStyle] = useState("");
+  const [editMemoirePageTarget, setEditMemoirePageTarget] = useState("");
+  const [editMemoireChapterCount, setEditMemoireChapterCount] = useState("");
+  const [editMemoireHypotheses, setEditMemoireHypotheses] = useState("");
+  const [editMemoireKeywords, setEditMemoireKeywords] = useState("");
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [editingMainIdea, setEditingMainIdea] = useState(false);
   const [editMainIdeaValue, setEditMainIdeaValue] = useState("");
@@ -1061,6 +1072,17 @@ export default function ProjectDetail() {
     setEditPoetryRidf((project as any).poetryRidf || "");
     setEditPoetryMuarada((project as any).poetryMuarada || "");
     setEditMuaradaEnabled(!!((project as any).poetryMuarada));
+    setEditMemoireUniversity((project as any).memoireUniversity || "");
+    setEditMemoireCountry((project as any).memoireCountry || "");
+    setEditMemoireFaculty((project as any).memoireFaculty || "");
+    setEditMemoireDepartment((project as any).memoireDepartment || "");
+    setEditMemoireField((project as any).memoireField || "");
+    setEditMemoireMethodology((project as any).memoireMethodology || "");
+    setEditMemoireCitationStyle((project as any).memoireCitationStyle || "");
+    setEditMemoirePageTarget(String((project as any).memoirePageTarget || ""));
+    setEditMemoireChapterCount(String((project as any).memoireChapterCount || ""));
+    setEditMemoireHypotheses((project as any).memoireHypotheses || "");
+    setEditMemoireKeywords((project as any).memoireKeywords || "");
     setEditingSettings(true);
   };
 
@@ -1105,6 +1127,18 @@ export default function ProjectDetail() {
       data.poetryRawiHaraka = editPoetryRawiHaraka || null;
       data.poetryRidf = editPoetryRidf === "none" ? null : (editPoetryRidf || null);
       data.poetryMuarada = editMuaradaEnabled ? (editPoetryMuarada || null) : null;
+    } else if (pt === "memoire") {
+      data.memoireUniversity = editMemoireUniversity;
+      data.memoireCountry = editMemoireCountry;
+      data.memoireFaculty = editMemoireFaculty;
+      data.memoireDepartment = editMemoireDepartment;
+      data.memoireField = editMemoireField;
+      data.memoireMethodology = editMemoireMethodology;
+      data.memoireCitationStyle = editMemoireCitationStyle;
+      data.memoirePageTarget = editMemoirePageTarget ? parseInt(editMemoirePageTarget) : null;
+      data.memoireChapterCount = editMemoireChapterCount ? parseInt(editMemoireChapterCount) : null;
+      data.memoireHypotheses = editMemoireHypotheses;
+      data.memoireKeywords = editMemoireKeywords;
     }
     saveSettingsMutation.mutate(data);
   };
@@ -1842,7 +1876,7 @@ export default function ProjectDetail() {
                 <CardContent className="p-4 sm:p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-serif text-lg font-semibold" data-testid="text-details-title">
-                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : project.projectType === "poetry" ? "تفاصيل القصيدة" : "تفاصيل الرواية"}
+                      {project.projectType === "essay" ? "تفاصيل المقال" : project.projectType === "scenario" ? "تفاصيل السيناريو" : project.projectType === "short_story" ? "تفاصيل القصة القصيرة" : project.projectType === "khawater" ? "تفاصيل الخاطرة" : project.projectType === "social_media" ? "تفاصيل المحتوى" : project.projectType === "poetry" ? "تفاصيل القصيدة" : project.projectType === "memoire" ? "تفاصيل المذكرة" : "تفاصيل الرواية"}
                     </h3>
                     {!editingSettings && (
                       <Button variant="ghost" size="sm" onClick={startEditSettings} className="h-7 gap-1 text-xs edit-btn-pulse" data-testid="button-edit-settings">
@@ -2344,6 +2378,196 @@ export default function ProjectDetail() {
                             <div className="flex justify-between gap-2">
                               <span className="text-muted-foreground">معارضة:</span>
                               <span className="font-medium text-green-600 dark:text-green-400">مفعّلة</span>
+                            </div>
+                          )}
+                        </>
+                      )
+                    ) : project.projectType === "memoire" ? (
+                      editingSettings ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الجامعة</Label>
+                            <Input value={editMemoireUniversity} onChange={(e) => setEditMemoireUniversity(e.target.value)} data-testid="input-edit-memoire-university" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">البلد</Label>
+                            <Select value={editMemoireCountry} onValueChange={setEditMemoireCountry}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-memoire-country">
+                                <SelectValue placeholder="اختر البلد" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  { value: "sa", label: "المملكة العربية السعودية" }, { value: "eg", label: "مصر" }, { value: "dz", label: "الجزائر" },
+                                  { value: "ma", label: "المغرب" }, { value: "tn", label: "تونس" }, { value: "iq", label: "العراق" },
+                                  { value: "sy", label: "سوريا" }, { value: "jo", label: "الأردن" }, { value: "lb", label: "لبنان" },
+                                  { value: "ae", label: "الإمارات العربية المتحدة" }, { value: "kw", label: "الكويت" }, { value: "qa", label: "قطر" },
+                                  { value: "bh", label: "البحرين" }, { value: "om", label: "عُمان" }, { value: "ye", label: "اليمن" },
+                                  { value: "ly", label: "ليبيا" }, { value: "sd", label: "السودان" }, { value: "mr", label: "موريتانيا" },
+                                  { value: "so", label: "الصومال" }, { value: "dj", label: "جيبوتي" }, { value: "km", label: "جزر القمر" }, { value: "ps", label: "فلسطين" },
+                                ].map((c) => (
+                                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الكلية</Label>
+                            <Input value={editMemoireFaculty} onChange={(e) => setEditMemoireFaculty(e.target.value)} data-testid="input-edit-memoire-faculty" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">القسم</Label>
+                            <Input value={editMemoireDepartment} onChange={(e) => setEditMemoireDepartment(e.target.value)} data-testid="input-edit-memoire-department" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">التخصص الأكاديمي</Label>
+                            <Select value={editMemoireField} onValueChange={setEditMemoireField}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-memoire-field">
+                                <SelectValue placeholder="اختر التخصص" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  { value: "sciences", label: "العلوم" }, { value: "humanities", label: "العلوم الإنسانية" },
+                                  { value: "law", label: "القانون والحقوق" }, { value: "medicine", label: "الطب والعلوم الصحية" },
+                                  { value: "engineering", label: "الهندسة" }, { value: "economics", label: "الاقتصاد والتجارة" },
+                                  { value: "education", label: "علوم التربية" }, { value: "literature", label: "الأدب واللغات" },
+                                  { value: "media", label: "الإعلام والاتصال" }, { value: "computer_science", label: "علوم الحاسوب والمعلوماتية" },
+                                  { value: "political_science", label: "العلوم السياسية" }, { value: "sociology", label: "علم الاجتماع" },
+                                  { value: "psychology", label: "علم النفس" }, { value: "islamic_studies", label: "الدراسات الإسلامية" },
+                                  { value: "agriculture", label: "العلوم الزراعية" }, { value: "architecture", label: "العمارة والتخطيط" },
+                                  { value: "pharmacy", label: "الصيدلة" }, { value: "management", label: "الإدارة والتسيير" },
+                                ].map((f) => (
+                                  <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">منهجية البحث</Label>
+                            <Select value={editMemoireMethodology} onValueChange={setEditMemoireMethodology}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-memoire-methodology">
+                                <SelectValue placeholder="اختر المنهجية" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="qualitative">نوعي (كيفي)</SelectItem>
+                                <SelectItem value="quantitative">كمّي</SelectItem>
+                                <SelectItem value="mixed">مختلط (نوعي وكمّي)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">نظام التوثيق</Label>
+                            <Select value={editMemoireCitationStyle} onValueChange={setEditMemoireCitationStyle}>
+                              <SelectTrigger className="h-8 text-sm" data-testid="select-edit-memoire-citation">
+                                <SelectValue placeholder="اختر نظام التوثيق" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="apa">APA (جمعية علم النفس الأمريكية)</SelectItem>
+                                <SelectItem value="mla">MLA (جمعية اللغة الحديثة)</SelectItem>
+                                <SelectItem value="chicago">Chicago / Turabian</SelectItem>
+                                <SelectItem value="university_specific">حسب نظام الجامعة</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">عدد الصفحات المستهدف</Label>
+                            <Input type="number" min={20} max={500} value={editMemoirePageTarget} onChange={(e) => setEditMemoirePageTarget(e.target.value)} data-testid="input-edit-memoire-page-target" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">عدد الفصول</Label>
+                            <Input type="number" min={2} max={20} value={editMemoireChapterCount} onChange={(e) => setEditMemoireChapterCount(e.target.value)} data-testid="input-edit-memoire-chapter-count" className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الفرضيات</Label>
+                            <Textarea value={editMemoireHypotheses} onChange={(e) => setEditMemoireHypotheses(e.target.value)} placeholder="اكتب فرضيات البحث..." className="min-h-[60px] text-sm" data-testid="textarea-edit-memoire-hypotheses" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-muted-foreground text-xs">الكلمات المفتاحية</Label>
+                            <Input value={editMemoireKeywords} onChange={(e) => setEditMemoireKeywords(e.target.value)} placeholder="افصل بين الكلمات بفواصل..." data-testid="input-edit-memoire-keywords" className="h-8 text-sm" />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {(project as any).memoireUniversity && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الجامعة:</span>
+                              <span className="font-medium">{(project as any).memoireUniversity}</span>
+                            </div>
+                          )}
+                          {(project as any).memoireCountry && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">البلد:</span>
+                              <span className="font-medium">{({
+                                sa: "المملكة العربية السعودية", eg: "مصر", dz: "الجزائر", ma: "المغرب", tn: "تونس",
+                                iq: "العراق", sy: "سوريا", jo: "الأردن", lb: "لبنان", ae: "الإمارات العربية المتحدة",
+                                kw: "الكويت", qa: "قطر", bh: "البحرين", om: "عُمان", ye: "اليمن", ly: "ليبيا",
+                                sd: "السودان", mr: "موريتانيا", so: "الصومال", dj: "جيبوتي", km: "جزر القمر", ps: "فلسطين",
+                              } as Record<string, string>)[(project as any).memoireCountry] || (project as any).memoireCountry}</span>
+                            </div>
+                          )}
+                          {(project as any).memoireFaculty && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الكلية:</span>
+                              <span className="font-medium">{(project as any).memoireFaculty}</span>
+                            </div>
+                          )}
+                          {(project as any).memoireDepartment && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">القسم:</span>
+                              <span className="font-medium">{(project as any).memoireDepartment}</span>
+                            </div>
+                          )}
+                          {(project as any).memoireField && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">التخصص:</span>
+                              <span className="font-medium">{({
+                                sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون والحقوق",
+                                medicine: "الطب والعلوم الصحية", engineering: "الهندسة", economics: "الاقتصاد والتجارة",
+                                education: "علوم التربية", literature: "الأدب واللغات", media: "الإعلام والاتصال",
+                                computer_science: "علوم الحاسوب والمعلوماتية", political_science: "العلوم السياسية",
+                                sociology: "علم الاجتماع", psychology: "علم النفس", islamic_studies: "الدراسات الإسلامية",
+                                agriculture: "العلوم الزراعية", architecture: "العمارة والتخطيط", pharmacy: "الصيدلة",
+                                management: "الإدارة والتسيير",
+                              } as Record<string, string>)[(project as any).memoireField] || (project as any).memoireField}</span>
+                            </div>
+                          )}
+                          {(project as any).memoireMethodology && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">المنهجية:</span>
+                              <span className="font-medium">{({
+                                qualitative: "نوعي (كيفي)", quantitative: "كمّي", mixed: "مختلط (نوعي وكمّي)",
+                              } as Record<string, string>)[(project as any).memoireMethodology] || (project as any).memoireMethodology}</span>
+                            </div>
+                          )}
+                          {(project as any).memoireCitationStyle && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">نظام التوثيق:</span>
+                              <span className="font-medium">{({
+                                apa: "APA", mla: "MLA", chicago: "Chicago / Turabian", university_specific: "حسب نظام الجامعة",
+                              } as Record<string, string>)[(project as any).memoireCitationStyle] || (project as any).memoireCitationStyle}</span>
+                            </div>
+                          )}
+                          {(project as any).memoirePageTarget && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">عدد الصفحات:</span>
+                              <span className="font-medium"><LtrNum>{(project as any).memoirePageTarget}</LtrNum></span>
+                            </div>
+                          )}
+                          {(project as any).memoireChapterCount && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">عدد الفصول:</span>
+                              <span className="font-medium"><LtrNum>{(project as any).memoireChapterCount}</LtrNum></span>
+                            </div>
+                          )}
+                          {(project as any).memoireHypotheses && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الفرضيات:</span>
+                              <span className="font-medium text-xs leading-relaxed">{(project as any).memoireHypotheses}</span>
+                            </div>
+                          )}
+                          {(project as any).memoireKeywords && (
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">الكلمات المفتاحية:</span>
+                              <span className="font-medium text-xs">{(project as any).memoireKeywords}</span>
                             </div>
                           )}
                         </>
