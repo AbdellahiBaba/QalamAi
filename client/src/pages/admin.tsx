@@ -2820,8 +2820,6 @@ export default function Admin() {
             )}
           </>
         )}
-      </main>
-      </div>
 
       <Dialog open={showSocialDialog} onOpenChange={(open) => { if (!open) { setShowSocialDialog(false); setEditingSocialLink(null); } }}>
         <DialogContent dir="rtl">
@@ -4092,6 +4090,9 @@ export default function Admin() {
           </div>
           );
         })()}
+
+      </main>
+      </div>
 
       <Dialog open={showBulkPlanDialog} onOpenChange={setShowBulkPlanDialog}>
         <DialogContent dir="rtl">

@@ -2123,6 +2123,12 @@ ${pages.map(p => `  <url>
         doc.registerFont("ArabicBold", fs.existsSync(boldFontPath) ? boldFontPath : fontPath);
       }
 
+      const fixBidi = (text: string): string => {
+        return text.replace(/([a-zA-Z0-9](?:[a-zA-Z0-9\s\/\-\.\:\©\(\)\@\#\%\&\*\+\=\,\;\!\?\u2014]*[a-zA-Z0-9])?)/g, (match) => {
+          return match.split("").reverse().join("");
+        });
+      };
+
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(project.title)}.pdf"`);
       doc.pipe(res);
@@ -2172,12 +2178,12 @@ ${pages.map(p => `  <url>
 
       const drawPageFooter = (num: number) => {
         doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(`\u2014 ${num} \u2014`, 0, footerY, { width: fullPageWidth, align: "center", lineBreak: false });
+        doc.text(fixBidi(`\u2014 ${num} \u2014`), 0, footerY, { width: fullPageWidth, align: "center", lineBreak: false });
       };
 
       const drawPageHeader = (chapterTitle: string) => {
         doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(chapterTitle, contentMarginX, 50, {
+        doc.text(fixBidi(chapterTitle), contentMarginX, 50, {
           width: pageWidth,
           align: "right",
           features: ["rtla"],
@@ -2195,10 +2201,11 @@ ${pages.map(p => `  <url>
       };
 
       const drawCenteredArabic = (text: string, y: number, fontSize: number, color: string, bold?: boolean) => {
+        const t = fixBidi(text);
         doc.font(bold ? "ArabicBold" : "Arabic").fontSize(fontSize).fillColor(color);
-        const w = doc.widthOfString(text, { features: ["rtla"] });
-        doc.text(text, (fullPageWidth - w) / 2, y, { width: w + 4, features: ["rtla"], lineBreak: false });
-        return doc.heightOfString(text, { width: w + 4 }) + 4;
+        const w = doc.widthOfString(t, { features: ["rtla"] });
+        doc.text(t, (fullPageWidth - w) / 2, y, { width: w + 4, features: ["rtla"], lineBreak: false });
+        return doc.heightOfString(t, { width: w + 4 }) + 4;
       };
 
       doc.addPage();
@@ -2222,7 +2229,7 @@ ${pages.map(p => `  <url>
         doc.font("ArabicBold").fontSize(28).fillColor("#2C1810");
         const coverTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
         const coverTitleY = Math.max(300, 380 - coverTitleH / 2);
-        doc.text(project.title, contentMarginX, coverTitleY, {
+        doc.text(fixBidi(project.title), contentMarginX, coverTitleY, {
           width: pageWidth,
           align: "center",
           features: ["rtla"],
@@ -2272,7 +2279,7 @@ ${pages.map(p => `  <url>
 
         doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
         const titleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
-        doc.text(project.title, contentMarginX, metaY, { width: pageWidth, align: "center", features: ["rtla"] });
+        doc.text(fixBidi(project.title), contentMarginX, metaY, { width: pageWidth, align: "center", features: ["rtla"] });
         metaY += titleH + 20;
 
         doc.moveTo(fullPageWidth * 0.3, metaY).lineTo(fullPageWidth * 0.7, metaY).lineWidth(0.5).strokeColor("#C4A882").stroke();
@@ -2320,8 +2327,9 @@ ${pages.map(p => `  <url>
 
         doc.font("Arabic").fontSize(11).fillColor("#8B7355");
         const rightsAcademic = `جميع الحقوق محفوظة © ${currentYear} ${pdfAuthorName}`;
-        const rightsW = doc.widthOfString(rightsAcademic, { features: ["rtla"] });
-        doc.text(rightsAcademic, (fullPageWidth - rightsW) / 2, Math.min(metaY, pageHeight - 120), { width: rightsW + 4, features: ["rtla"], lineBreak: false });
+        const rightsFixed = fixBidi(rightsAcademic);
+        const rightsW = doc.widthOfString(rightsFixed, { features: ["rtla"] });
+        doc.text(rightsFixed, (fullPageWidth - rightsW) / 2, Math.min(metaY, pageHeight - 120), { width: rightsW + 4, features: ["rtla"], lineBreak: false });
 
         doc.addPage();
         drawBorder();
@@ -2344,7 +2352,7 @@ ${pages.map(p => `  <url>
           for (const kw of keywords) {
             doc.font("Arabic").fontSize(13).fillColor("#333333");
             const kwText = `\u25C6  ${kw}`;
-            doc.text(kwText, contentMarginX, kwY, { width: pageWidth, align: "right", features: ["rtla"] });
+            doc.text(fixBidi(kwText), contentMarginX, kwY, { width: pageWidth, align: "right", features: ["rtla"] });
             kwY += 28;
           }
         }
@@ -2355,7 +2363,7 @@ ${pages.map(p => `  <url>
         doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
         const cpTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
         const cpTitleY = Math.max(240, 300 - cpTitleH / 2);
-        doc.text(project.title, contentMarginX, cpTitleY, { width: pageWidth, align: "center", features: ["rtla"] });
+        doc.text(fixBidi(project.title), contentMarginX, cpTitleY, { width: pageWidth, align: "center", features: ["rtla"] });
 
         const authLineY = cpTitleY + cpTitleH + 30;
         drawCenteredArabic(`تأليف ${pdfAuthorName}`, authLineY, 14, "#6B5B4F");
@@ -2441,7 +2449,7 @@ ${pages.map(p => `  <url>
         doc.font("Arabic").fontSize(13).fillColor("#333333");
         const tocEntryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
         const entryHeight = Math.max(tocEntryH, tocMinEntryHeight);
-        doc.text(tocEntry, 100, tocY, {
+        doc.text(fixBidi(tocEntry), 100, tocY, {
           width: pageWidth - 90,
           align: "right",
           features: ["rtla"],
@@ -2473,7 +2481,7 @@ ${pages.map(p => `  <url>
 
         doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
         const titleHeight = doc.heightOfString(chTitle, { width: pageWidth, align: "right" });
-        doc.text(chTitle, contentMarginX, contentStartY, {
+        doc.text(fixBidi(chTitle), contentMarginX, contentStartY, {
           width: pageWidth,
           align: "right",
           features: ["rtla"],
@@ -2500,7 +2508,7 @@ ${pages.map(p => `  <url>
             yPos = continuationStartY;
           }
           doc.font("Arabic").fontSize(13).fillColor("#333333");
-          doc.text(para.trim(), contentMarginX + 20, yPos, {
+          doc.text(fixBidi(para.trim()), contentMarginX + 20, yPos, {
             width: paraWidth,
             align: "right",
             lineGap: 8,
@@ -2537,7 +2545,7 @@ ${pages.map(p => `  <url>
             yPos = continuationStartY;
           }
           doc.font("Arabic").fontSize(12).fillColor("#333333");
-          doc.text(line.trim(), contentMarginX, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
+          doc.text(fixBidi(line.trim()), contentMarginX, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
           yPos += textHeight + 8;
         }
         drawPageFooter(pageNumber);
