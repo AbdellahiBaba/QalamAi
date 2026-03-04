@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -141,7 +141,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "social" | "features" | "reports">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -220,6 +220,17 @@ export default function Admin() {
   });
 
   const [essaySortBy, setEssaySortBy] = useState<"views" | "clicks" | "ctr">("clicks");
+
+  interface MemoireAnalyticsRow { projectId: number; title: string; university: string | null; memoireField: string | null; memoireMethodology: string | null; memoireCountry: string | null; views: number; clicks: number }
+
+  const { data: memoireAnalytics, isLoading: memoireAnalyticsLoading } = useQuery<MemoireAnalyticsRow[]>({
+    queryKey: ["/api/admin/memoire-analytics"],
+    enabled: activeTab === "memoires",
+  });
+
+  const [memoireSortBy, setMemoireSortBy] = useState<"views" | "clicks" | "ctr">("clicks");
+
+  const [reviewFilter, setReviewFilter] = useState<"pending" | "all">("pending");
 
   const SOCIAL_PLATFORMS = [
     { value: "linkedin", label: "LinkedIn", icon: SiLinkedin },
@@ -329,7 +340,12 @@ export default function Admin() {
   });
 
   const { data: pendingReviews, isLoading: reviewsLoading } = useQuery<PlatformReview[]>({
-    queryKey: ["/api/admin/reviews"],
+    queryKey: ["/api/admin/reviews", reviewFilter],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/reviews?filter=${reviewFilter}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
     enabled: activeTab === "reviews",
   });
 
@@ -492,6 +508,33 @@ export default function Admin() {
     },
     onError: () => {
       toast({ title: "فشل في إنشاء كود الخصم", variant: "destructive" });
+    },
+  });
+
+  const updatePromoMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/admin/promos/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promos"] });
+      toast({ title: "تم تحديث كود الخصم بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث كود الخصم", variant: "destructive" });
+    },
+  });
+
+  const deletePromoMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/admin/promos/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promos"] });
+      toast({ title: "تم حذف كود الخصم بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في حذف كود الخصم", variant: "destructive" });
     },
   });
 
@@ -758,8 +801,9 @@ export default function Admin() {
               <div>
                 <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">المحتوى</p>
                 {[
-                  { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.length || 0 },
+                  { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.filter(r => !r.approved).length || 0 },
                   { key: "essays" as const, icon: FileText, label: "المقالات" },
+                  { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
                   { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
                 ].map((item) => (
                   <button
@@ -863,8 +907,9 @@ export default function Admin() {
                     <div>
                       <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">المحتوى</p>
                       {[
-                        { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.length || 0 },
+                        { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.filter(r => !r.approved).length || 0 },
                         { key: "essays" as const, icon: FileText, label: "المقالات" },
+                        { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
                         { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
                       ].map((item) => (
                         <button
@@ -1720,6 +1765,7 @@ export default function Admin() {
                         <th className="text-right p-3 font-medium text-muted-foreground">تاريخ الانتهاء</th>
                         <th className="text-right p-3 font-medium text-muted-foreground">ينطبق على</th>
                         <th className="text-right p-3 font-medium text-muted-foreground">الحالة</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">إجراءات</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1741,6 +1787,30 @@ export default function Admin() {
                             <Badge variant={promo.active ? "default" : "outline"}>
                               {promo.active ? "نشط" : "معطل"}
                             </Badge>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => updatePromoMutation.mutate({ id: promo.id, data: { active: !promo.active } })}
+                                disabled={updatePromoMutation.isPending}
+                                data-testid={`button-promo-toggle-${promo.id}`}
+                              >
+                                {promo.active ? <ToggleRight className="w-4 h-4 text-green-500" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-500 hover:text-red-600"
+                                onClick={() => { if (confirm("هل أنت متأكد من حذف كود الخصم هذا؟")) deletePromoMutation.mutate(promo.id); }}
+                                disabled={deletePromoMutation.isPending}
+                                data-testid={`button-promo-delete-${promo.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1980,6 +2050,24 @@ export default function Admin() {
 
         {activeTab === "reviews" && (
           <>
+            <div className="flex items-center gap-2 mb-6">
+              <Button
+                variant={reviewFilter === "pending" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setReviewFilter("pending")}
+                data-testid="button-review-filter-pending"
+              >
+                قيد الانتظار
+              </Button>
+              <Button
+                variant={reviewFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setReviewFilter("all")}
+                data-testid="button-review-filter-all"
+              >
+                جميع المراجعات
+              </Button>
+            </div>
             {reviewsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
@@ -2002,6 +2090,11 @@ export default function Admin() {
                           <span className="font-medium text-sm" data-testid={`text-reviewer-name-${review.id}`}>
                             {review.reviewerName}
                           </span>
+                          {review.approved && (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-[10px]" data-testid={`badge-review-approved-${review.id}`}>
+                              <Check className="w-3 h-3 ml-0.5" /> معتمدة
+                            </Badge>
+                          )}
                           <div className="flex items-center gap-0.5" data-testid={`text-review-rating-${review.id}`}>
                             {Array.from({ length: 5 }).map((_, i) => (
                               <Star
@@ -2022,21 +2115,23 @@ export default function Admin() {
                         {review.content}
                       </p>
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-600 border-green-200 dark:border-green-800 dark:text-green-400"
-                          onClick={() => approveReviewMutation.mutate(review.id)}
-                          disabled={approveReviewMutation.isPending || deleteReviewMutation.isPending}
-                          data-testid={`button-approve-review-${review.id}`}
-                        >
-                          {approveReviewMutation.isPending ? (
-                            <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
-                          ) : (
-                            <Check className="w-3.5 h-3.5 ml-1" />
-                          )}
-                          موافقة
-                        </Button>
+                        {!review.approved && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600 border-green-200 dark:border-green-800 dark:text-green-400"
+                            onClick={() => approveReviewMutation.mutate(review.id)}
+                            disabled={approveReviewMutation.isPending || deleteReviewMutation.isPending}
+                            data-testid={`button-approve-review-${review.id}`}
+                          >
+                            {approveReviewMutation.isPending ? (
+                              <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 ml-1" />
+                            )}
+                            موافقة
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="destructive"
@@ -2375,6 +2470,180 @@ export default function Admin() {
                 </CardContent>
               </Card>
             )}
+          </>
+        )}
+
+        {activeTab === "memoires" && (
+          <>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-6">
+              <h2 className="font-serif text-lg font-bold flex-1 flex items-center gap-2">
+                <GraduationCap className="w-5 h-5" />
+                تحليلات المذكرات الجامعية
+              </h2>
+              <Select value={memoireSortBy} onValueChange={(v) => setMemoireSortBy(v as "views" | "clicks" | "ctr")}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-memoire-sort">
+                  <SelectValue placeholder="ترتيب حسب" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="clicks">الأكثر نقراً</SelectItem>
+                  <SelectItem value="views">الأكثر مشاهدة</SelectItem>
+                  <SelectItem value="ctr">أعلى CTR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {memoireAnalyticsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <Skeleton className="h-5 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (() => {
+              const sorted = [...(memoireAnalytics || [])].sort((a, b) => {
+                if (memoireSortBy === "views") return b.views - a.views;
+                if (memoireSortBy === "ctr") {
+                  const ctrA = a.views > 0 ? a.clicks / a.views : 0;
+                  const ctrB = b.views > 0 ? b.clicks / b.views : 0;
+                  return ctrB - ctrA;
+                }
+                return b.clicks - a.clicks;
+              });
+              return sorted.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <Card data-testid="card-total-memoires">
+                      <CardContent className="p-5 text-center">
+                        <div className="text-3xl font-bold mb-1"><LtrNum>{sorted.length}</LtrNum></div>
+                        <div className="text-xs text-muted-foreground">إجمالي المذكرات</div>
+                      </CardContent>
+                    </Card>
+                    <Card data-testid="card-total-memoire-views">
+                      <CardContent className="p-5 text-center">
+                        <div className="text-3xl font-bold mb-1 text-blue-500"><LtrNum>{sorted.reduce((s, m) => s + m.views, 0)}</LtrNum></div>
+                        <div className="text-xs text-muted-foreground">إجمالي المشاهدات</div>
+                      </CardContent>
+                    </Card>
+                    <Card data-testid="card-total-memoire-clicks">
+                      <CardContent className="p-5 text-center">
+                        <div className="text-3xl font-bold mb-1 text-green-500"><LtrNum>{sorted.reduce((s, m) => s + m.clicks, 0)}</LtrNum></div>
+                        <div className="text-xs text-muted-foreground">إجمالي النقرات</div>
+                      </CardContent>
+                    </Card>
+                    <Card data-testid="card-memoire-avg-ctr">
+                      <CardContent className="p-5 text-center">
+                        <div className="text-3xl font-bold mb-1 text-amber-500">
+                          <LtrNum>
+                            {(() => {
+                              const totalViews = sorted.reduce((s, m) => s + m.views, 0);
+                              const totalClicks = sorted.reduce((s, m) => s + m.clicks, 0);
+                              return totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : "0";
+                            })()}%
+                          </LtrNum>
+                        </div>
+                        <div className="text-xs text-muted-foreground">متوسط CTR</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="hidden sm:block border rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="text-right p-3 font-medium text-muted-foreground">#</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">العنوان</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">الجامعة</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">التخصص</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">المنهج</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">البلد</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">المشاهدات</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">النقرات</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">CTR</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sorted.map((m, idx) => {
+                            const ctr = m.views > 0 ? ((m.clicks / m.views) * 100).toFixed(1) : "0";
+                            return (
+                              <tr key={m.projectId} className="border-b last:border-0 hover:bg-muted/30 transition-colors" data-testid={`row-memoire-${m.projectId}`}>
+                                <td className="p-3 text-muted-foreground"><LtrNum>{idx + 1}</LtrNum></td>
+                                <td className="p-3 font-medium max-w-[250px] truncate" data-testid={`text-memoire-title-${m.projectId}`}>{m.title}</td>
+                                <td className="p-3 text-xs max-w-[150px] truncate" data-testid={`text-memoire-university-${m.projectId}`}>{m.university || "-"}</td>
+                                <td className="p-3 text-xs max-w-[120px] truncate" data-testid={`text-memoire-field-${m.projectId}`}>{m.memoireField || "-"}</td>
+                                <td className="p-3 text-xs" data-testid={`text-memoire-methodology-${m.projectId}`}>{m.memoireMethodology || "-"}</td>
+                                <td className="p-3 text-xs" data-testid={`text-memoire-country-${m.projectId}`}>{m.memoireCountry || "-"}</td>
+                                <td className="p-3" data-testid={`text-memoire-views-${m.projectId}`}>
+                                  <div className="flex items-center gap-1.5">
+                                    <Eye className="w-3.5 h-3.5 text-blue-500" />
+                                    <LtrNum>{m.views.toLocaleString()}</LtrNum>
+                                  </div>
+                                </td>
+                                <td className="p-3" data-testid={`text-memoire-clicks-${m.projectId}`}>
+                                  <div className="flex items-center gap-1.5">
+                                    <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                                    <LtrNum>{m.clicks.toLocaleString()}</LtrNum>
+                                  </div>
+                                </td>
+                                <td className="p-3" data-testid={`text-memoire-ctr-${m.projectId}`}>
+                                  <Badge variant="secondary"><LtrNum>{ctr}%</LtrNum></Badge>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="sm:hidden space-y-3">
+                    {sorted.map((m, idx) => {
+                      const ctr = m.views > 0 ? ((m.clicks / m.views) * 100).toFixed(1) : "0";
+                      return (
+                        <Card key={m.projectId} data-testid={`card-memoire-${m.projectId}`}>
+                          <CardContent className="p-4 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-medium text-sm line-clamp-2">{m.title}</span>
+                              <span className="font-mono text-xs text-muted-foreground shrink-0">#{idx + 1}</span>
+                            </div>
+                            {(m.university || m.memoireField || m.memoireCountry) && (
+                              <div className="flex flex-wrap gap-1">
+                                {m.university && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-university-${m.projectId}`}>{m.university}</Badge>}
+                                {m.memoireField && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-field-${m.projectId}`}>{m.memoireField}</Badge>}
+                                {m.memoireCountry && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-country-${m.projectId}`}>{m.memoireCountry}</Badge>}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Eye className="w-3.5 h-3.5 text-blue-500" />
+                                <LtrNum>{m.views.toLocaleString()}</LtrNum> مشاهدة
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                                <LtrNum>{m.clicks.toLocaleString()}</LtrNum> نقرة
+                              </div>
+                              <Badge variant="secondary" className="text-[10px]">
+                                CTR: <LtrNum>{ctr}%</LtrNum>
+                              </Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <GraduationCap className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">لا توجد مذكرات منشورة بعد</p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </>
         )}
 
@@ -3386,6 +3655,16 @@ export default function Admin() {
                               {new Date(report.createdAt).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                             </p>
                           </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => { setContentProjectId(report.projectId); setShowContentDialog(true); }}
+                            data-testid={`button-report-view-content-${report.id}`}
+                          >
+                            <Eye className="w-4 h-4 ml-1" />
+                            عرض المحتوى
+                          </Button>
                         </div>
                         {report.adminNote && (
                           <div className="bg-muted p-2 rounded text-sm" data-testid={`text-report-admin-note-${report.id}`}>

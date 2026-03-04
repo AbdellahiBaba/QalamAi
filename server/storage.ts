@@ -79,6 +79,10 @@ export interface IStorage {
   getEssayViewCount(projectId: number): Promise<number>;
   getEssayClickCount(projectId: number): Promise<number>;
   getEssayAnalytics(): Promise<Array<{ projectId: number; title: string; views: number; clicks: number }>>;
+  getMemoireAnalytics(): Promise<Array<{ projectId: number; title: string; university: string | null; memoireField: string | null; memoireMethodology: string | null; memoireCountry: string | null; views: number; clicks: number }>>;
+  getAllReviews(): Promise<PlatformReview[]>;
+  updatePromoCode(id: number, data: Partial<{ discountPercent: number; maxUses: number | null; validUntil: Date | null; applicableTo: string; active: boolean }>): Promise<PromoCode>;
+  deletePromoCode(id: number): Promise<void>;
   createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken>;
   getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(token: string): Promise<void>;
@@ -705,6 +709,40 @@ export class DatabaseStorage implements IStorage {
       results.push({ projectId: p.id, title: p.title, views, clicks });
     }
     return results.sort((a, b) => b.clicks - a.clicks);
+  }
+
+  async getMemoireAnalytics(): Promise<Array<{ projectId: number; title: string; university: string | null; memoireField: string | null; memoireMethodology: string | null; memoireCountry: string | null; views: number; clicks: number }>> {
+    const projects = await db.select().from(novelProjects)
+      .where(and(eq(novelProjects.projectType, "memoire"), isNotNull(novelProjects.shareToken)));
+    const results = [];
+    for (const p of projects) {
+      const views = await this.getEssayViewCount(p.id);
+      const clicks = await this.getEssayClickCount(p.id);
+      results.push({
+        projectId: p.id,
+        title: p.title,
+        university: p.university || null,
+        memoireField: p.memoireField || null,
+        memoireMethodology: p.memoireMethodology || null,
+        memoireCountry: p.memoireCountry || null,
+        views,
+        clicks,
+      });
+    }
+    return results.sort((a, b) => b.clicks - a.clicks);
+  }
+
+  async getAllReviews(): Promise<PlatformReview[]> {
+    return db.select().from(platformReviews).orderBy(desc(platformReviews.createdAt));
+  }
+
+  async updatePromoCode(id: number, data: Partial<{ discountPercent: number; maxUses: number | null; validUntil: Date | null; applicableTo: string; active: boolean }>): Promise<PromoCode> {
+    const [updated] = await db.update(promoCodes).set(data).where(eq(promoCodes.id, id)).returning();
+    return updated;
+  }
+
+  async deletePromoCode(id: number): Promise<void> {
+    await db.delete(promoCodes).where(eq(promoCodes.id, id));
   }
 
   async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken> {

@@ -3705,6 +3705,33 @@ ${glossaryParagraphs}
     }
   });
 
+  app.patch("/api/admin/promos/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { discountPercent, maxUses, validUntil, applicableTo, active } = req.body;
+      const updateData: any = {};
+      if (discountPercent !== undefined) updateData.discountPercent = parseInt(discountPercent);
+      if (maxUses !== undefined) updateData.maxUses = maxUses ? parseInt(maxUses) : null;
+      if (validUntil !== undefined) updateData.validUntil = validUntil ? new Date(validUntil) : null;
+      if (applicableTo !== undefined) updateData.applicableTo = applicableTo;
+      if (active !== undefined) updateData.active = active;
+      const promo = await storage.updatePromoCode(id, updateData);
+      res.json(promo);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث العرض" });
+    }
+  });
+
+  app.delete("/api/admin/promos/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePromoCode(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف العرض" });
+    }
+  });
+
   // ===== Reading Progress & Bookmarks =====
   app.put("/api/projects/:id/progress", isAuthenticated, async (req: any, res) => {
     try {
@@ -4053,6 +4080,15 @@ ${glossaryParagraphs}
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب تحليلات المقال" });
+    }
+  });
+
+  app.get("/api/admin/memoire-analytics", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const analytics = await storage.getMemoireAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب تحليلات المذكرات" });
     }
   });
 
@@ -5387,10 +5423,16 @@ ${ch.content}
   });
 
   // ===== Admin Review Moderation =====
-  app.get("/api/admin/reviews", isAuthenticated, isAdmin, async (_req: any, res) => {
+  app.get("/api/admin/reviews", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const reviews = await storage.getPendingReviews();
-      res.json(reviews);
+      const filter = req.query.filter;
+      if (filter === "all") {
+        const reviews = await storage.getAllReviews();
+        res.json(reviews);
+      } else {
+        const reviews = await storage.getPendingReviews();
+        res.json(reviews);
+      }
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب المراجعات" });
     }
