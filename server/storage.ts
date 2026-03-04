@@ -872,6 +872,7 @@ export class DatabaseStorage implements IStorage {
       { featureKey: "khawater", name: "خواطر", description: "كتابة الخواطر الأدبية" },
       { featureKey: "social_media", name: "محتوى تواصل اجتماعي", description: "إنشاء محتوى لمنصات التواصل الاجتماعي" },
       { featureKey: "poetry", name: "شعر", description: "كتابة الشعر العربي بأوزانه وبحوره" },
+      { featureKey: "memoire", name: "مذكرة تخرج", description: "كتابة مذكرات التخرج الأكاديمية بالذكاء الاصطناعي" },
       { featureKey: "ai_analysis", name: "التحليل بالذكاء الاصطناعي", description: "تحليل النصوص وتقييمها" },
       { featureKey: "cover_generation", name: "تصميم الغلاف", description: "إنشاء أغلفة الكتب بالذكاء الاصطناعي" },
       { featureKey: "export_pdf", name: "تصدير PDF", description: "تصدير المشاريع بصيغة PDF" },
