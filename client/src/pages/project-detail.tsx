@@ -1809,7 +1809,7 @@ export default function ProjectDetail() {
                 <span className="hidden sm:inline">نظرة عامة</span>
                 <span className="sm:hidden">عام</span>
               </TabsTrigger>
-              {project.projectType !== "essay" && project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
+              {project.projectType !== "essay" && project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && project.projectType !== "memoire" && (
                 <TabsTrigger value="characters" data-testid="tab-characters" className="flex-shrink-0">
                   <Users className="w-4 h-4 ml-1.5" />
                   <span className="hidden sm:inline">الشخصيات</span>
@@ -3001,7 +3001,7 @@ export default function ProjectDetail() {
             )}
           </TabsContent>
 
-          <TabsContent value="characters" className="space-y-6">
+          {project.projectType !== "memoire" && <TabsContent value="characters" className="space-y-6">
             <div className="flex items-center justify-between gap-4 mb-2">
               <h3 className="font-serif text-lg font-semibold">الشخصيات ({project.characters?.length || 0})</h3>
               <Button
@@ -3099,7 +3099,7 @@ export default function ProjectDetail() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+          </TabsContent>}
 
           <TabsContent value="chapters" className="space-y-4">
             {!project.outlineApproved ? (
