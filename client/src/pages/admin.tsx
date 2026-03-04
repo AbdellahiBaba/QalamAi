@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -157,6 +159,7 @@ export default function Admin() {
   const [apiUsageSearch, setApiUsageSearch] = useState("");
   const [apiUsageDetailUser, setApiUsageDetailUser] = useState<string | null>(null);
   const [showApiUsageDialog, setShowApiUsageDialog] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: stats, isLoading: statsLoading } = useQuery<{ status: string; count: number }[]>({
@@ -686,7 +689,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
+    <div className="min-h-screen bg-background flex flex-col" dir="rtl">
       <header className="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -724,133 +727,207 @@ export default function Admin() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <h1 className="font-serif text-2xl sm:text-3xl font-bold mb-6 sm:mb-8" data-testid="text-admin-title">
-          لوحة الإدارة
-        </h1>
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="hidden lg:flex flex-col w-56 shrink-0 border-l bg-muted/30 sticky top-14 h-[calc(100vh-3.5rem)] sm:top-16 sm:h-[calc(100vh-4rem)]">
+          <ScrollArea className="flex-1 py-4">
+            <nav className="space-y-5 px-3">
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">الإدارة</p>
+                {[
+                  { key: "tickets" as const, icon: Ticket, label: "تذاكر الدعم" },
+                  { key: "users" as const, icon: Users, label: "المستخدمون" },
+                  { key: "reports" as const, icon: AlertCircle, label: "البلاغات", badge: reportsData?.filter((r: any) => r.status === "pending").length || 0 },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors relative ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                    data-testid={`button-tab-${item.key}`}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    {item.label}
+                    {item.badge && item.badge > 0 ? (
+                      <Badge className="mr-auto h-5 min-w-5 px-1 flex items-center justify-center text-[10px] bg-red-500 text-white border-0" data-testid={`badge-${item.key}-count`}>
+                        {item.badge}
+                      </Badge>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+              <Separator />
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">المحتوى</p>
+                {[
+                  { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.length || 0 },
+                  { key: "essays" as const, icon: FileText, label: "المقالات" },
+                  { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                    data-testid={`button-tab-${item.key}`}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    {item.label}
+                    {"badge" in item && item.badge && item.badge > 0 ? (
+                      <Badge variant="secondary" className="mr-auto text-[10px]" data-testid={`badge-${item.key}-count`}>
+                        <LtrNum>{item.badge}</LtrNum>
+                      </Badge>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+              <Separator />
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">التحليلات</p>
+                {[
+                  { key: "analytics" as const, icon: BarChart3, label: "إحصائيات" },
+                  { key: "api-usage" as const, icon: Cpu, label: "استخدام API" },
+                  { key: "tracking" as const, icon: Crosshair, label: "بكسل التتبع" },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                    data-testid={`button-tab-${item.key}`}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <Separator />
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">الإعدادات</p>
+                {[
+                  { key: "promos" as const, icon: Tag, label: "رموز الخصم" },
+                  { key: "features" as const, icon: Settings, label: "المميزات" },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                    data-testid={`button-tab-${item.key}`}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </nav>
+          </ScrollArea>
+        </aside>
 
-        <div className="flex items-center gap-2 mb-6 sm:mb-8 overflow-x-auto pb-2">
-          <Button
-            variant={activeTab === "tickets" ? "default" : "outline"}
-            onClick={() => setActiveTab("tickets")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-tickets"
-          >
-            <Ticket className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">تذاكر الدعم</span>
-          </Button>
-          <Button
-            variant={activeTab === "users" ? "default" : "outline"}
-            onClick={() => setActiveTab("users")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-users"
-          >
-            <Users className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">المستخدمون</span>
-          </Button>
-          <Button
-            variant={activeTab === "analytics" ? "default" : "outline"}
-            onClick={() => setActiveTab("analytics")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-analytics"
-          >
-            <BarChart3 className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">إحصائيات</span>
-          </Button>
-          <Button
-            variant={activeTab === "promos" ? "default" : "outline"}
-            onClick={() => setActiveTab("promos")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-promos"
-          >
-            <Tag className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">رموز الخصم</span>
-          </Button>
-          <Button
-            variant={activeTab === "api-usage" ? "default" : "outline"}
-            onClick={() => setActiveTab("api-usage")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-api-usage"
-          >
-            <Cpu className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">استخدام API</span>
-          </Button>
-          <Button
-            variant={activeTab === "reviews" ? "default" : "outline"}
-            onClick={() => setActiveTab("reviews")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-reviews"
-          >
-            <MessageSquare className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">المراجعات</span>
-            {pendingReviews && pendingReviews.length > 0 && (
-              <Badge variant="secondary" className="mr-1 text-[10px]" data-testid="badge-reviews-count">
-                <LtrNum>{pendingReviews.length}</LtrNum>
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant={activeTab === "tracking" ? "default" : "outline"}
-            onClick={() => setActiveTab("tracking")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-tracking"
-          >
-            <Crosshair className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">بكسل التتبع</span>
-          </Button>
-          <Button
-            variant={activeTab === "essays" ? "default" : "outline"}
-            onClick={() => setActiveTab("essays")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-essays"
-          >
-            <FileText className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">المقالات</span>
-          </Button>
-          <Button
-            variant={activeTab === "social" ? "default" : "outline"}
-            onClick={() => setActiveTab("social")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-social"
-          >
-            <Share2 className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">وسائل التواصل</span>
-          </Button>
-          <Button
-            variant={activeTab === "features" ? "default" : "outline"}
-            onClick={() => setActiveTab("features")}
-            size="sm"
-            className="shrink-0"
-            data-testid="button-tab-features"
-          >
-            <Settings className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">المميزات</span>
-          </Button>
-          <Button
-            variant={activeTab === "reports" ? "default" : "outline"}
-            onClick={() => setActiveTab("reports")}
-            size="sm"
-            className="shrink-0 relative"
-            data-testid="button-tab-reports"
-          >
-            <AlertCircle className="w-4 h-4 sm:ml-2" />
-            <span className="hidden sm:inline">البلاغات</span>
-            {reportsData && reportsData.filter((r: any) => r.status === "pending").length > 0 && (
-              <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-red-500 text-white border-0" data-testid="badge-reports-count">
-                {reportsData.filter((r: any) => r.status === "pending").length}
-              </Badge>
-            )}
-          </Button>
-        </div>
+        <main className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 py-6 sm:py-10">
+          <div className="flex items-center gap-3 mb-6 sm:mb-8">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="lg:hidden shrink-0" data-testid="button-admin-menu">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-64 p-0" dir="rtl">
+                <div className="p-4 border-b">
+                  <h2 className="font-serif text-lg font-bold flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-primary" />
+                    لوحة الإدارة
+                  </h2>
+                </div>
+                <ScrollArea className="h-[calc(100vh-5rem)]">
+                  <nav className="space-y-5 px-3 py-4">
+                    <div>
+                      <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">الإدارة</p>
+                      {[
+                        { key: "tickets" as const, icon: Ticket, label: "تذاكر الدعم" },
+                        { key: "users" as const, icon: Users, label: "المستخدمون" },
+                        { key: "reports" as const, icon: AlertCircle, label: "البلاغات", badge: reportsData?.filter((r: any) => r.status === "pending").length || 0 },
+                      ].map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => { setActiveTab(item.key); setMobileMenuOpen(false); }}
+                          className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                          data-testid={`button-mobile-tab-${item.key}`}
+                        >
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          {item.label}
+                          {item.badge && item.badge > 0 ? (
+                            <Badge className="mr-auto h-5 min-w-5 px-1 flex items-center justify-center text-[10px] bg-red-500 text-white border-0">
+                              {item.badge}
+                            </Badge>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">المحتوى</p>
+                      {[
+                        { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.length || 0 },
+                        { key: "essays" as const, icon: FileText, label: "المقالات" },
+                        { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
+                      ].map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => { setActiveTab(item.key); setMobileMenuOpen(false); }}
+                          className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                          data-testid={`button-mobile-tab-${item.key}`}
+                        >
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          {item.label}
+                          {"badge" in item && item.badge && item.badge > 0 ? (
+                            <Badge variant="secondary" className="mr-auto text-[10px]">
+                              <LtrNum>{item.badge}</LtrNum>
+                            </Badge>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">التحليلات</p>
+                      {[
+                        { key: "analytics" as const, icon: BarChart3, label: "إحصائيات" },
+                        { key: "api-usage" as const, icon: Cpu, label: "استخدام API" },
+                        { key: "tracking" as const, icon: Crosshair, label: "بكسل التتبع" },
+                      ].map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => { setActiveTab(item.key); setMobileMenuOpen(false); }}
+                          className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                          data-testid={`button-mobile-tab-${item.key}`}
+                        >
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">الإعدادات</p>
+                      {[
+                        { key: "promos" as const, icon: Tag, label: "رموز الخصم" },
+                        { key: "features" as const, icon: Settings, label: "المميزات" },
+                      ].map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => { setActiveTab(item.key); setMobileMenuOpen(false); }}
+                          className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors ${activeTab === item.key ? "bg-primary text-primary-foreground font-medium" : "hover:bg-muted text-foreground/80"}`}
+                          data-testid={`button-mobile-tab-${item.key}`}
+                        >
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </nav>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold" data-testid="text-admin-title">
+              لوحة الإدارة
+            </h1>
+          </div>
 
         {activeTab === "tickets" && (
           <>
@@ -2458,6 +2535,7 @@ export default function Admin() {
           </>
         )}
       </main>
+      </div>
 
       <Dialog open={showSocialDialog} onOpenChange={(open) => { if (!open) { setShowSocialDialog(false); setEditingSocialLink(null); } }}>
         <DialogContent dir="rtl">
