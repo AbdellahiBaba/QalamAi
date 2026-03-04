@@ -4569,10 +4569,12 @@ ${getMemoireCountryRules(project.memoireCountry || "")}`;
 export function calculateMemoireStructure(project: NovelProject) {
   const pageTarget = project.memoirePageTarget || 100;
   const chapterCount = project.memoireChapterCount || 5;
-  const wordsPerPage = 250;
+  const degreeLevel = (project as any).memoireDegreeLevel || "licence";
+  const wordsPerPage = degreeLevel === "doctorate" ? 275 : degreeLevel === "master" ? 260 : 240;
+  const splitThreshold = degreeLevel === "doctorate" ? 3000 : degreeLevel === "master" ? 3500 : 4500;
   const totalWords = pageTarget * wordsPerPage;
   const wordsPerChapter = Math.round(totalWords / chapterCount);
-  const partsPerChapter = wordsPerChapter > 4000 ? Math.ceil(wordsPerChapter / 3500) : 1;
+  const partsPerChapter = wordsPerChapter > splitThreshold ? Math.ceil(wordsPerChapter / 3500) : 1;
 
   return {
     totalWords,
@@ -4620,14 +4622,28 @@ export function buildMemoireSectionPrompt(
     university_specific: "حسب دليل الجامعة المحددة",
   };
   const fieldMap: Record<string, string> = {
-    sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون",
-    medicine: "الطب", engineering: "الهندسة", economics: "الاقتصاد والعلوم المالية",
-    education: "التربية وعلوم التعليم", literature: "الأدب واللغة العربية",
-    media: "الإعلام والاتصال", computer_science: "علوم الحاسوب والمعلوماتية",
-    sociology: "علم الاجتماع", psychology: "علم النفس", history: "التاريخ",
-    geography: "الجغرافيا", islamic_studies: "الدراسات الإسلامية",
-    political_science: "العلوم السياسية", business: "إدارة الأعمال",
+    sciences: "العلوم الطبيعية والتطبيقية",
+    humanities: "العلوم الإنسانية والاجتماعية",
+    law: "القانون والعلوم القانونية",
+    medicine: "الطب والعلوم الصحية",
+    engineering: "الهندسة والتكنولوجيا",
+    economics: "العلوم الاقتصادية والتجارية وعلوم التسيير",
+    education: "علوم التربية والتعليم",
+    literature: "الآداب واللغات",
+    media: "الإعلام والاتصال",
+    computer_science: "الإعلام الآلي وعلوم الحاسوب",
+    islamic_studies: "العلوم الإسلامية والشريعة",
+    political_science: "العلوم السياسية والعلاقات الدولية",
+    psychology: "علم النفس",
+    sociology: "علم الاجتماع",
+    history: "التاريخ",
+    philosophy: "الفلسفة",
+    geography: "الجغرافيا",
     agriculture: "العلوم الزراعية",
+    architecture: "الهندسة المعمارية والعمران",
+    business: "إدارة الأعمال",
+    pharmacy: "الصيدلة",
+    management: "الإدارة والتسيير",
   };
 
   const methodology = methodologyMap[project.memoireMethodology || ""] || project.memoireMethodology || "غير محدد";

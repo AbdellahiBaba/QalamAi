@@ -2251,6 +2251,7 @@ ${pages.map(p => `  <url>
         const memoireMethodology = (project as any).memoireMethodology || "";
         const memoireCitation = (project as any).memoireCitationStyle || "";
         const memoireKeywords = (project as any).memoireKeywords || "";
+        const memoireHypotheses = (project as any).memoireHypotheses || "";
         const currentYear = new Date().getFullYear();
         const academicYear = `${currentYear - 1} / ${currentYear}`;
 
@@ -2315,7 +2316,8 @@ ${pages.map(p => `  <url>
           metaY += 6;
         }
         if (memoireCitation) {
-          metaY += drawCenteredArabic(`نظام التوثيق: ${memoireCitation.toUpperCase()}`, metaY, 12, "#8B7355");
+          const pdfCitationMap: Record<string, string> = { apa: "APA", mla: "MLA", chicago: "شيكاغو", harvard: "هارفارد", ieee: "IEEE", iso690: "ISO 690", islamic: "التوثيق الإسلامي", university_specific: "حسب نظام الجامعة" };
+          metaY += drawCenteredArabic(`نظام التوثيق: ${pdfCitationMap[memoireCitation] || memoireCitation}`, metaY, 12, "#8B7355");
           metaY += 6;
         }
 
@@ -2362,6 +2364,28 @@ ${pages.map(p => `  <url>
             const kwText = `\u25C6  ${kw}`;
             doc.text(fixBidi(kwText), contentMarginX, kwY, { width: pageWidth, align: "right", features: ["rtla"] });
             kwY += 28;
+          }
+        }
+
+        if (memoireHypotheses) {
+          doc.addPage();
+          drawBorder();
+          doc.font("ArabicBold").fontSize(20).fillColor("#2C1810");
+          doc.text("فرضيات البحث", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+          doc.moveTo(contentMarginX, 120).lineTo(fullPageWidth - contentMarginX, 120).lineWidth(0.5).strokeColor("#C4A882").stroke();
+          doc.font("Arabic").fontSize(13).fillColor("#333333");
+          const hypotheses = memoireHypotheses.split(/\n+/).map((h: string) => h.trim()).filter(Boolean);
+          let hyY = 140;
+          for (let hi = 0; hi < hypotheses.length; hi++) {
+            if (hyY > pageHeight - 100) {
+              doc.addPage();
+              drawBorder();
+              hyY = contentStartY;
+            }
+            const hyText = `${hi + 1}.  ${hypotheses[hi]}`;
+            const hyH = doc.heightOfString(fixBidi(hyText), { width: pageWidth, features: ["rtla"] });
+            doc.text(fixBidi(hyText), contentMarginX, hyY, { width: pageWidth, align: "right", features: ["rtla"] });
+            hyY += hyH + 12;
           }
         }
       } else {
@@ -2411,7 +2435,7 @@ ${pages.map(p => `  <url>
         simTocY += totalH;
       }
 
-      const extraPagesBeforeChapters = isMemoire ? (2 + ((project as any).memoireKeywords ? 1 : 0)) : 1;
+      const extraPagesBeforeChapters = isMemoire ? (2 + ((project as any).memoireKeywords ? 1 : 0) + ((project as any).memoireHypotheses ? 1 : 0)) : 1;
       const pagesBeforeChapters = 1 + extraPagesBeforeChapters + tocPageCount;
       let estimatedPage = pagesBeforeChapters + 1;
       const chapterStartPages: number[] = [];
@@ -2775,6 +2799,17 @@ ${coverSpineItem}${colophonSpineItem}${bismillahSpineItem}${chapterSpine}${gloss
         epubMemoireMeta += `\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;">السنة الجامعية: ${epubAcademicYear}</p>`;
         if (epubKeywords) {
           epubMemoireMeta += `\n    <hr/>\n    <p style="text-indent: 0; font-size: 0.95em; color: #6B5B4F;"><strong>الكلمات المفتاحية:</strong> ${epubKeywords}</p>`;
+        }
+        const epubHypotheses = escHtml((project as any).memoireHypotheses || "");
+        if (epubHypotheses) {
+          const hyLines = epubHypotheses.split(/\n+/).filter((h: string) => h.trim());
+          let hyHtml = `\n    <hr/>\n    <p style="text-indent: 0; font-size: 1em; color: #2C1810; font-weight: bold;">فرضيات البحث</p>`;
+          hyHtml += `\n    <ol style="text-indent: 0; font-size: 0.95em; color: #6B5B4F; padding-right: 1.5em;">`;
+          for (const h of hyLines) {
+            hyHtml += `\n      <li>${escHtml(h.trim())}</li>`;
+          }
+          hyHtml += `\n    </ol>`;
+          epubMemoireMeta += hyHtml;
         }
       }
 
@@ -3525,6 +3560,31 @@ ${glossaryParagraphs}
               children: [
                 new TextRun({ text: keywords.join("  ·  "), size: 28, font: mainFont, rightToLeft: true, color: bodyColor }),
               ],
+            }));
+          }
+        }
+        const docxHypotheses = (project as any).memoireHypotheses || "";
+        if (docxHypotheses) {
+          contentChildren.push(
+            new Paragraph({
+              pageBreakBefore: true,
+              alignment: AlignmentType.CENTER,
+              bidirectional: true,
+              spacing: { before: 1200, after: 300 },
+              heading: HeadingLevel.HEADING_1,
+              children: [
+                new TextRun({ text: "فرضيات البحث", bold: true, size: 44, font: mainFont, rightToLeft: true, color: accentColor }),
+              ],
+            }),
+            decoratorLine({ after: 400 }),
+          );
+          const hyLines = docxHypotheses.split(/\n+/).map((h: string) => h.trim()).filter(Boolean);
+          for (let hi = 0; hi < hyLines.length; hi++) {
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              bidirectional: true,
+              spacing: { after: 200, line: 360 },
+              children: makeBidiTextRuns(`${hi + 1}.  ${hyLines[hi]}`, 26, bodyColor),
             }));
           }
         }

@@ -1829,7 +1829,7 @@ export default function ProjectDetail() {
                   الفهرس
                 </TabsTrigger>
               )}
-              {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
+              {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && project.projectType !== "memoire" && (
                 <TabsTrigger value="continuity" data-testid="tab-continuity" className="flex-shrink-0">
                   <Shield className="w-4 h-4 ml-1.5" />
                   <span className="hidden sm:inline">الاستمرارية</span>
@@ -3565,7 +3565,7 @@ export default function ProjectDetail() {
             )}
           </TabsContent>
 
-          <TabsContent value="continuity" className="space-y-4">
+          {project.projectType !== "memoire" && <TabsContent value="continuity" className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
                 <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
@@ -3896,7 +3896,7 @@ export default function ProjectDetail() {
                 <p className="text-xs mt-2">يتطلب فصلين مكتملين على الأقل</p>
               </div>
             )}
-          </TabsContent>
+          </TabsContent>}
 
           <TabsContent value="style" className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">

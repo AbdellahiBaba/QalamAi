@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -121,6 +121,7 @@ export default function NewMemoire() {
   const [customDepartment, setCustomDepartment] = useState("");
   const [customMethodology, setCustomMethodology] = useState("");
   const [customCitation, setCustomCitation] = useState("");
+  const aiPopulatingRef = useRef(false);
 
   const form = useForm<MemoireFormData>({
     resolver: zodResolver(memoireFormSchema),
@@ -172,7 +173,7 @@ export default function NewMemoire() {
     : "";
 
   useEffect(() => {
-    if (watchedCountry) {
+    if (watchedCountry && !aiPopulatingRef.current) {
       form.setValue("memoireUniversity", "");
       form.setValue("memoireFaculty", "");
       form.setValue("memoireDepartment", "");
@@ -186,7 +187,7 @@ export default function NewMemoire() {
   }, [watchedCountry]);
 
   useEffect(() => {
-    if (watchedUniversity && !universityOther) {
+    if (watchedUniversity && !universityOther && !aiPopulatingRef.current) {
       form.setValue("memoireFaculty", "");
       form.setValue("memoireDepartment", "");
       setFacultyOther(false);
@@ -197,7 +198,7 @@ export default function NewMemoire() {
   }, [watchedUniversity, universityOther, form]);
 
   useEffect(() => {
-    if (watchedFaculty && !facultyOther) {
+    if (watchedFaculty && !facultyOther && !aiPopulatingRef.current) {
       form.setValue("memoireDepartment", "");
       setDepartmentOther(false);
       setCustomDepartment("");
@@ -309,6 +310,7 @@ export default function NewMemoire() {
         hint: fullProjectHint || undefined,
       });
       const data = await res.json();
+      aiPopulatingRef.current = true;
       form.setValue("title", data.title, { shouldValidate: true });
       form.setValue("mainIdea", data.mainIdea, { shouldValidate: true });
       if (data.memoireField) form.setValue("memoireField", data.memoireField, { shouldValidate: true });
@@ -316,9 +318,13 @@ export default function NewMemoire() {
       if (data.memoireMethodology) form.setValue("memoireMethodology", data.memoireMethodology, { shouldValidate: true });
       if (data.memoireCitationStyle) form.setValue("memoireCitationStyle", data.memoireCitationStyle, { shouldValidate: true });
       if (data.memoireCountry) form.setValue("memoireCountry", data.memoireCountry, { shouldValidate: true });
+      if (data.memoireUniversity) form.setValue("memoireUniversity", data.memoireUniversity, { shouldValidate: true });
+      if (data.memoireFaculty) form.setValue("memoireFaculty", data.memoireFaculty, { shouldValidate: true });
+      if (data.memoireDepartment) form.setValue("memoireDepartment", data.memoireDepartment, { shouldValidate: true });
       if (data.memoireHypotheses) form.setValue("memoireHypotheses", data.memoireHypotheses, { shouldValidate: true });
       if (data.memoireChapterCount) form.setValue("memoireChapterCount", Number(data.memoireChapterCount), { shouldValidate: true });
       if (data.memoirePageTarget) form.setValue("memoirePageTarget", Number(data.memoirePageTarget), { shouldValidate: true });
+      setTimeout(() => { aiPopulatingRef.current = false; }, 500);
       toast({ title: "تم اقتراح مشروع كامل — راجع التفاصيل وعدّلها كما تشاء" });
       setShowHintInput(false);
       setFullProjectHint("");
@@ -344,7 +350,8 @@ export default function NewMemoire() {
       const title = form.watch("title");
       const mainIdea = form.watch("mainIdea");
       const field = form.watch("memoireField");
-      return title && mainIdea && mainIdea.length >= 10 && field;
+      const degreeLevel = form.watch("memoireDegreeLevel");
+      return title && mainIdea && mainIdea.length >= 10 && field && degreeLevel;
     }
     if (step === 1) {
       const country = form.watch("memoireCountry");
