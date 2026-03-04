@@ -1,0 +1,57 @@
+Add a new feature that enables the AI to generate a complete Arabic-only academic graduation memoire (مذكرة تخرج) that fully complies with the official academic standards, structures, and formatting rules used in universities and colleges across all Arab countries, including: Saudi Arabia, Jordan, Kuwait, Bahrain, UAE, Qatar, Oman, Iraq, Egypt, Algeria, Tunisia, Morocco, Mauritania, Libya, Sudan, Lebanon, Palestine, Yemen, and others.
+
+The memoire content must always be written in Arabic only, using formal academic Arabic and following the research-writing rules required in Arab universities.
+
+The feature must ensure the following:
+
+1. Academic Writing Rules:
+   - Produce the entire memoire in formal, error-free, academic Arabic.
+   - Maintain objectivity, clarity, coherence, and logical structure.
+   - Apply proper citation and in-text referencing according to the style required by the user (APA, MLA, Chicago, or university-specific).
+   - Respect academic integrity and produce original, non-plagiarized content.
+   - Follow the academic writing standards used in Arab universities for all disciplines.
+
+2. University Templates and Requirements:
+   - Apply the official memoire structure and formatting used in each Arab university when the user specifies the university name.
+   - Support templates for universities in KSA, Jordan, Kuwait, Bahrain, UAE, Algeria, Mauritania, Egypt, Morocco, Tunisia, Iraq, Sudan, Lebanon, Palestine, Yemen, and all other Arab countries.
+   - Adapt the memoire format to match the selected university’s faculty, department, and academic guidelines.
+
+3. Mandatory Memoire Structure:
+   - Title page (according to the university template)
+   - Dedication (optional)
+   - Acknowledgment
+   - Abstract in Arabic
+   - Table of contents
+   - List of figures and tables (if applicable)
+   - Introduction
+   - Problem statement
+   - Research questions
+   - Hypotheses (if applicable)
+   - Objectives of the study
+   - Importance of the study
+   - Scope and limitations
+   - Research methodology (qualitative, quantitative, or mixed)
+   - Theoretical framework
+   - Literature review
+   - Field study / practical section (if required)
+   - Data analysis and discussion
+   - Conclusion
+   - Recommendations
+   - References (formatted according to the chosen citation style)
+   - Appendices
+
+4. Customization Options:
+   - University name, country, faculty, and department
+   - Research topic and academic field
+   - Preferred methodology
+   - Required number of pages or chapters
+   - Citation style
+   - Ability to integrate user-provided data, surveys, or references
+
+5. Output Requirements:
+   - The memoire must be fully written in Arabic only.
+   - The output must be well-organized, academically formatted, and ready for review.
+   - The structure must match the academic standards of the selected university.
+   - The feature must ask the user clarifying questions when needed to ensure accuracy.
+
+The feature should guide the user step-by-step and generate a complete, academically compliant Arabic graduation memoire suitable for any Arab university.
