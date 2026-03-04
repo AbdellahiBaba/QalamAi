@@ -4,7 +4,7 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag } from "lucide-react";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import LtrNum from "@/components/ui/ltr-num";
 import { ttqTrack } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Progress } from "@/components/ui/progress";
+import { ReportDialog } from "@/components/report-dialog";
 
 interface SharedChapter {
   chapterNumber: number;
@@ -62,6 +63,7 @@ export default function SharedProject() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [readChapters, setReadChapters] = useState<Set<number>>(new Set());
   const [linkCopied, setLinkCopied] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [reactionCounts, setReactionCounts] = useState<ReactionCounts>({ like: 0, love: 0, insightful: 0, thoughtful: 0 });
   const [reactingType, setReactingType] = useState<string | null>(null);
   const [animatingType, setAnimatingType] = useState<string | null>(null);
@@ -464,8 +466,21 @@ export default function SharedProject() {
           >
             {linkCopied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
           </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+            data-testid="button-report-content"
+            onClick={() => setReportOpen(true)}
+          >
+            <Flag className="w-4 h-4" />
+          </Button>
         </div>
       </div>
+
+      {project && (
+        <ReportDialog projectId={project.id} open={reportOpen} onOpenChange={setReportOpen} />
+      )}
 
       <div className="h-14" />
     </div>

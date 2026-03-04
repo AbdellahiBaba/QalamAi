@@ -18,6 +18,7 @@ import {
   essayReactions, type EssayReaction,
   socialMediaLinks, type SocialMediaLink, type InsertSocialMediaLink,
   platformFeatures, type PlatformFeature,
+  contentReports, type ContentReport, type InsertContentReport,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, avg, lt } from "drizzle-orm";
@@ -96,6 +97,14 @@ export interface IStorage {
   isFeatureEnabled(key: string, userId?: string): Promise<boolean>;
   seedDefaultFeatures(): Promise<void>;
   deleteProject(id: number): Promise<void>;
+  createContentReport(report: InsertContentReport): Promise<ContentReport>;
+  getContentReports(status?: string): Promise<(ContentReport & { projectTitle?: string })[]>;
+  getContentReport(id: number): Promise<ContentReport | undefined>;
+  updateContentReport(id: number, updates: Partial<ContentReport>): Promise<ContentReport>;
+  getReportCountForProject(projectId: number): Promise<number>;
+  getRecentReportCountByIp(ip: string, windowMs: number): Promise<number>;
+  checkAndResetFreeMonthly(userId: string): Promise<{ projectsUsed: number; generationsUsed: number }>;
+  incrementFreeMonthlyUsage(userId: string, type: "project" | "generation"): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -839,6 +848,98 @@ export class DatabaseStorage implements IStorage {
         betaUserIds: [],
         disabledMessage: "هذه الميزة قيد التطوير وستكون متاحة قريباً",
       });
+    }
+  }
+
+  async createContentReport(report: InsertContentReport): Promise<ContentReport> {
+    const [created] = await db.insert(contentReports).values(report).returning();
+    return created;
+  }
+
+  async getContentReports(status?: string): Promise<(ContentReport & { projectTitle?: string })[]> {
+    const conditions = status ? [eq(contentReports.status, status)] : [];
+    const reports = await db
+      .select({
+        id: contentReports.id,
+        projectId: contentReports.projectId,
+        reporterIp: contentReports.reporterIp,
+        reporterUserId: contentReports.reporterUserId,
+        reason: contentReports.reason,
+        details: contentReports.details,
+        status: contentReports.status,
+        adminNote: contentReports.adminNote,
+        actionTaken: contentReports.actionTaken,
+        reviewedBy: contentReports.reviewedBy,
+        reviewedAt: contentReports.reviewedAt,
+        createdAt: contentReports.createdAt,
+        projectTitle: novelProjects.title,
+      })
+      .from(contentReports)
+      .leftJoin(novelProjects, eq(contentReports.projectId, novelProjects.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(contentReports.createdAt));
+    return reports;
+  }
+
+  async getContentReport(id: number): Promise<ContentReport | undefined> {
+    const [report] = await db.select().from(contentReports).where(eq(contentReports.id, id));
+    return report;
+  }
+
+  async updateContentReport(id: number, updates: Partial<ContentReport>): Promise<ContentReport> {
+    const [updated] = await db.update(contentReports).set(updates).where(eq(contentReports.id, id)).returning();
+    return updated;
+  }
+
+  async getReportCountForProject(projectId: number): Promise<number> {
+    const [result] = await db.select({ count: count() }).from(contentReports).where(eq(contentReports.projectId, projectId));
+    return result?.count || 0;
+  }
+
+  async getRecentReportCountByIp(ip: string, windowMs: number): Promise<number> {
+    const cutoff = new Date(Date.now() - windowMs);
+    const [result] = await db
+      .select({ count: count() })
+      .from(contentReports)
+      .where(and(
+        eq(contentReports.reporterIp, ip),
+        sql`${contentReports.createdAt} > ${cutoff}`
+      ));
+    return result?.count || 0;
+  }
+
+  async checkAndResetFreeMonthly(userId: string): Promise<{ projectsUsed: number; generationsUsed: number }> {
+    const user = await this.getUser(userId);
+    if (!user) return { projectsUsed: 0, generationsUsed: 0 };
+
+    const now = new Date();
+    const resetAt = user.freeMonthlyResetAt;
+    const needsReset = !resetAt || resetAt.getMonth() !== now.getMonth() || resetAt.getFullYear() !== now.getFullYear();
+
+    if (needsReset) {
+      await db.update(users).set({
+        freeMonthlyProjectsUsed: 0,
+        freeMonthlyGenerationsUsed: 0,
+        freeMonthlyResetAt: now,
+      }).where(eq(users.id, userId));
+      return { projectsUsed: 0, generationsUsed: 0 };
+    }
+
+    return {
+      projectsUsed: user.freeMonthlyProjectsUsed || 0,
+      generationsUsed: user.freeMonthlyGenerationsUsed || 0,
+    };
+  }
+
+  async incrementFreeMonthlyUsage(userId: string, type: "project" | "generation"): Promise<void> {
+    if (type === "project") {
+      await db.update(users).set({
+        freeMonthlyProjectsUsed: sql`COALESCE(${users.freeMonthlyProjectsUsed}, 0) + 1`,
+      }).where(eq(users.id, userId));
+    } else {
+      await db.update(users).set({
+        freeMonthlyGenerationsUsed: sql`COALESCE(${users.freeMonthlyGenerationsUsed}, 0) + 1`,
+      }).where(eq(users.id, userId));
     }
   }
 

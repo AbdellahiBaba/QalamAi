@@ -67,6 +67,9 @@ export const TRIAL_MAX_COVERS = 1;
 export const TRIAL_MAX_CONTINUITY = 1;
 export const TRIAL_MAX_STYLE = 1;
 export const TRIAL_DURATION_HOURS = 24;
+
+export const FREE_MONTHLY_PROJECTS = 1;
+export const FREE_MONTHLY_GENERATIONS = 2;
 export const TRIAL_CHARGE_AMOUNT = 50000;
 
 export function getRemainingAnalysisUses(usedCount: number, paidCount: number): number {
@@ -529,3 +532,22 @@ export const platformFeatures = pgTable("platform_features", {
 export const insertPlatformFeatureSchema = createInsertSchema(platformFeatures).omit({ id: true });
 export type InsertPlatformFeature = z.infer<typeof insertPlatformFeatureSchema>;
 export type PlatformFeature = typeof platformFeatures.$inferSelect;
+
+export const contentReports = pgTable("content_reports", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  reporterIp: varchar("reporter_ip"),
+  reporterUserId: varchar("reporter_user_id"),
+  reason: varchar("reason").notNull(),
+  details: text("details"),
+  status: varchar("status").default("pending").notNull(),
+  adminNote: text("admin_note"),
+  actionTaken: varchar("action_taken"),
+  reviewedBy: varchar("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({ id: true, createdAt: true, status: true, adminNote: true, actionTaken: true, reviewedBy: true, reviewedAt: true });
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
+export type ContentReport = typeof contentReports.$inferSelect;

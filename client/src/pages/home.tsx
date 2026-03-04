@@ -59,6 +59,17 @@ export default function Home() {
     queryKey: ["/api/user/plan"],
   });
 
+  const { data: freeUsageData } = useQuery<{
+    plan: string;
+    unlimited: boolean;
+    projectsUsed?: number;
+    projectsLimit?: number;
+    generationsUsed?: number;
+    generationsLimit?: number;
+  }>({
+    queryKey: ["/api/user/free-usage"],
+  });
+
   const { data: projectStats } = useQuery<Record<number, { realWordCount: number; realPageCount: number }>>({
     queryKey: ["/api/projects/stats"],
     enabled: !!projects && projects.length > 0,
@@ -850,6 +861,49 @@ export default function Home() {
                     </div>
                   );
                 })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {freeUsageData && !freeUsageData.unlimited && (
+          <Card className="mb-6 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20" data-testid="card-free-usage">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="space-y-3 flex-1 min-w-[200px]">
+                  <h3 className="font-semibold text-sm">
+                    حصتك المجانية الشهرية
+                  </h3>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>المشاريع</span>
+                        <span>{freeUsageData.projectsUsed ?? 0} / {freeUsageData.projectsLimit ?? 1}</span>
+                      </div>
+                      <Progress
+                        value={((freeUsageData.projectsUsed ?? 0) / (freeUsageData.projectsLimit ?? 1)) * 100}
+                        className="h-2"
+                        data-testid="progress-free-projects"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>التوليدات</span>
+                        <span>{freeUsageData.generationsUsed ?? 0} / {freeUsageData.generationsLimit ?? 2}</span>
+                      </div>
+                      <Progress
+                        value={((freeUsageData.generationsUsed ?? 0) / (freeUsageData.generationsLimit ?? 2)) * 100}
+                        className="h-2"
+                        data-testid="progress-free-generations"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Link href="/pricing">
+                  <Button size="sm" className="shrink-0" data-testid="button-upgrade-free">
+                    ترقية الآن
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>

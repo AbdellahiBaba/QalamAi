@@ -5,12 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { SharedFooter } from "@/components/shared-footer";
+import { ReportDialog } from "@/components/report-dialog";
 
 interface GalleryProject {
   id: number;
@@ -48,6 +49,7 @@ const filterOptions = [
 export default function Gallery() {
   useDocumentTitle("معرض الأعمال — قلم AI");
   const [searchQuery, setSearchQuery] = useState("");
+  const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [activeFilter, setActiveFilter] = useState("all");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -244,6 +246,13 @@ export default function Gallery() {
                       {project.mainIdea}
                     </p>
                   )}
+                  <button
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors mt-1"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(project.id); }}
+                    data-testid={`button-report-gallery-${project.id}`}
+                  >
+                    <Flag className="w-3 h-3" /> إبلاغ
+                  </button>
                 </CardContent>
               </Card>
             ))}
@@ -251,6 +260,13 @@ export default function Gallery() {
         )}
       </div>
       <SharedFooter />
+      {reportProjectId && (
+        <ReportDialog
+          projectId={reportProjectId}
+          open={!!reportProjectId}
+          onOpenChange={(open) => { if (!open) setReportProjectId(null); }}
+        />
+      )}
     </div>
   );
 }

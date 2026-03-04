@@ -134,7 +134,9 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "social" | "features">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "social" | "features" | "reports">("tickets");
+  const [reportFilter, setReportFilter] = useState("all");
+  const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -348,6 +350,36 @@ export default function Admin() {
   const { data: trackingPixelsData, isLoading: trackingLoading } = useQuery<TrackingPixelData[]>({
     queryKey: ["/api/admin/tracking-pixels"],
     enabled: activeTab === "tracking",
+  });
+
+  const { data: reportsData, isLoading: reportsLoading } = useQuery<any[]>({
+    queryKey: ["/api/admin/reports", reportFilter],
+    queryFn: async () => {
+      const url = reportFilter === "all" ? "/api/admin/reports" : `/api/admin/reports?status=${reportFilter}`;
+      const res = await fetch(url, { credentials: "include" });
+      return res.json();
+    },
+    enabled: activeTab === "reports",
+  });
+
+  const updateReportMutation = useMutation({
+    mutationFn: async ({ id, status, adminNote, actionTaken }: { id: number; status: string; adminNote?: string; actionTaken?: string }) => {
+      const res = await fetch(`/api/admin/reports/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status, adminNote, actionTaken }),
+      });
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports"] });
+      setReportActionNotes((prev) => { const next = { ...prev }; delete next[variables.id]; return next; });
+      toast({ title: "تم تحديث البلاغ بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث البلاغ", variant: "destructive" });
+    },
   });
 
   const [tiktokConfig, setTiktokConfig] = useState({ pixelId: "", accessToken: "", enabled: false, hasAccessToken: false });
@@ -797,6 +829,21 @@ export default function Admin() {
           >
             <Settings className="w-4 h-4 sm:ml-2" />
             <span className="hidden sm:inline">المميزات</span>
+          </Button>
+          <Button
+            variant={activeTab === "reports" ? "default" : "outline"}
+            onClick={() => setActiveTab("reports")}
+            size="sm"
+            className="shrink-0 relative"
+            data-testid="button-tab-reports"
+          >
+            <AlertCircle className="w-4 h-4 sm:ml-2" />
+            <span className="hidden sm:inline">البلاغات</span>
+            {reportsData && reportsData.filter((r: any) => r.status === "pending").length > 0 && (
+              <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-red-500 text-white border-0" data-testid="badge-reports-count">
+                {reportsData.filter((r: any) => r.status === "pending").length}
+              </Badge>
+            )}
           </Button>
         </div>
 
@@ -3169,6 +3216,153 @@ export default function Admin() {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "reports" && (
+          <div className="space-y-6" data-testid="section-reports">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {[
+                { value: "all", label: "الكل" },
+                { value: "pending", label: "قيد الانتظار" },
+                { value: "reviewed", label: "تمت المراجعة" },
+                { value: "dismissed", label: "مرفوض" },
+                { value: "action_taken", label: "تم اتخاذ إجراء" },
+              ].map((f) => (
+                <Button
+                  key={f.value}
+                  variant={reportFilter === f.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setReportFilter(f.value)}
+                  data-testid={`button-report-filter-${f.value}`}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+
+            {reportsLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}><CardContent className="p-4"><Skeleton className="h-20 w-full" /></CardContent></Card>
+                ))}
+              </div>
+            ) : !reportsData || reportsData.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground" data-testid="text-no-reports">
+                <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>لا توجد بلاغات</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reportsData.map((report: any) => {
+                  const reasonLabels: Record<string, string> = {
+                    inappropriate: "محتوى غير لائق",
+                    plagiarism: "سرقة أدبية",
+                    offensive: "محتوى مسيء",
+                    spam: "محتوى مزعج",
+                    other: "أخرى",
+                  };
+                  const statusLabels: Record<string, string> = {
+                    pending: "قيد الانتظار",
+                    reviewed: "تمت المراجعة",
+                    dismissed: "مرفوض",
+                    action_taken: "تم اتخاذ إجراء",
+                  };
+                  const statusColors: Record<string, string> = {
+                    pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                    reviewed: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                    dismissed: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+                    action_taken: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                  };
+                  return (
+                    <Card key={report.id} data-testid={`card-report-${report.id}`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge className={statusColors[report.status] || ""} data-testid={`badge-report-status-${report.id}`}>
+                                {statusLabels[report.status] || report.status}
+                              </Badge>
+                              <Badge variant="outline" data-testid={`badge-report-reason-${report.id}`}>
+                                {reasonLabels[report.reason] || report.reason}
+                              </Badge>
+                            </div>
+                            <p className="text-sm font-semibold" data-testid={`text-report-project-${report.id}`}>
+                              المشروع: {report.projectTitle || `#${report.projectId}`}
+                            </p>
+                            {report.details && (
+                              <p className="text-sm text-muted-foreground" data-testid={`text-report-details-${report.id}`}>
+                                {report.details}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                              {report.reporterUserId ? `مُبلّغ: مستخدم #${report.reporterUserId}` : `IP: ${report.reporterIp}`}
+                              {" · "}
+                              {new Date(report.createdAt).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        </div>
+                        {report.adminNote && (
+                          <div className="bg-muted p-2 rounded text-sm" data-testid={`text-report-admin-note-${report.id}`}>
+                            <strong>ملاحظة الإدارة:</strong> {report.adminNote}
+                          </div>
+                        )}
+                        {report.status === "pending" && (
+                          <div className="space-y-2 border-t pt-3">
+                            <Input
+                              placeholder="ملاحظة الإدارة (اختياري)..."
+                              value={reportActionNotes[report.id] || ""}
+                              onChange={(e) => setReportActionNotes((prev) => ({ ...prev, [report.id]: e.target.value }))}
+                              data-testid={`input-report-note-${report.id}`}
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateReportMutation.mutate({ id: report.id, status: "dismissed", adminNote: reportActionNotes[report.id] || undefined })}
+                                disabled={updateReportMutation.isPending}
+                                data-testid={`button-report-dismiss-${report.id}`}
+                              >
+                                رفض البلاغ
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-yellow-600 border-yellow-300"
+                                onClick={() => updateReportMutation.mutate({ id: report.id, status: "action_taken", actionTaken: "warned", adminNote: reportActionNotes[report.id] || undefined })}
+                                disabled={updateReportMutation.isPending}
+                                data-testid={`button-report-warn-${report.id}`}
+                              >
+                                <ShieldAlert className="w-4 h-4 ml-1" /> تحذير المؤلف
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-orange-600 border-orange-300"
+                                onClick={() => updateReportMutation.mutate({ id: report.id, status: "action_taken", actionTaken: "unpublished", adminNote: reportActionNotes[report.id] || undefined })}
+                                disabled={updateReportMutation.isPending}
+                                data-testid={`button-report-unpublish-${report.id}`}
+                              >
+                                <FlagOff className="w-4 h-4 ml-1" /> إلغاء النشر
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => updateReportMutation.mutate({ id: report.id, status: "action_taken", actionTaken: "banned", adminNote: reportActionNotes[report.id] || undefined })}
+                                disabled={updateReportMutation.isPending}
+                                data-testid={`button-report-ban-${report.id}`}
+                              >
+                                <ShieldOff className="w-4 h-4 ml-1" /> حظر المستخدم
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>

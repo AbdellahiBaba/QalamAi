@@ -19,7 +19,7 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -189,6 +189,7 @@ export default function ProjectDetail() {
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
   const [generatingChapter, setGeneratingChapter] = useState<number | null>(null);
   const [streamedContent, setStreamedContent] = useState("");
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<{ currentPart: number; totalParts: number } | null>(null);
   const [confirmRegenerate, setConfirmRegenerate] = useState<number | null>(null);
   const [editingChapter, setEditingChapter] = useState<number | null>(null);
@@ -693,6 +694,10 @@ export default function ProjectDetail() {
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => null);
+      if (errorData?.code === "FREE_MONTHLY_LIMIT") {
+        setShowUpgradeDialog(true);
+        return false;
+      }
       throw new Error(errorData?.error || "Failed to generate chapter");
     }
 
@@ -4642,6 +4647,39 @@ export default function ProjectDetail() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Crown className="w-5 h-5 text-amber-500" />
+                لقد استنفدت حصتك المجانية الشهرية
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                الخطة المجانية تتيح لك إنشاء مشروع واحد وتوليد فصلين شهريًا لتجربة المنصة.
+                قم بالترقية الآن لفتح إمكانيات غير محدودة مع أبو هاشم!
+              </p>
+              <ul className="space-y-1.5 text-sm list-disc list-inside text-muted-foreground">
+                <li>مشاريع غير محدودة</li>
+                <li>توليد فصول بلا حدود</li>
+                <li>نشر في المعرض والمقالات</li>
+                <li>دعم كامل من أبو هاشم</li>
+              </ul>
+              <div className="flex gap-2 pt-2">
+                <Link href="/pricing" className="flex-1">
+                  <Button className="w-full" data-testid="button-upgrade-now-detail">
+                    <Crown className="w-4 h-4 ml-2" /> اطلع على الخطط
+                  </Button>
+                </Link>
+                <Button variant="outline" onClick={() => setShowUpgradeDialog(false)} data-testid="button-close-upgrade-detail">
+                  لاحقًا
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

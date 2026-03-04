@@ -14,11 +14,13 @@ import {
   Image as ImageIcon,
   Heart,
   Clock,
+  Flag,
 } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
+import { ReportDialog } from "@/components/report-dialog";
 
 interface PublicEssay {
   id: number;
@@ -44,6 +46,7 @@ export default function EssaysNews() {
   useDocumentTitle("المقالات السياسية والرأي العام — قلم AI");
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: essays, isLoading } = useQuery<PublicEssay[]>({
@@ -231,6 +234,13 @@ export default function EssaysNews() {
                           })}
                         </span>
                       )}
+                      <button
+                        className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors mr-auto"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(essay.id); }}
+                        data-testid={`button-report-essay-${essay.id}`}
+                      >
+                        <Flag className="w-3 h-3" /> إبلاغ
+                      </button>
                     </div>
                   </CardContent>
                 </Card>
@@ -241,6 +251,13 @@ export default function EssaysNews() {
       </div>
 
       <SharedFooter />
+      {reportProjectId && (
+        <ReportDialog
+          projectId={reportProjectId}
+          open={!!reportProjectId}
+          onOpenChange={(open) => { if (!open) setReportProjectId(null); }}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, NARRATIVE_TECHNIQUE_MAP } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
@@ -1181,9 +1181,20 @@ ${pages.map(p => `  <url>
         }
       }
 
+      if (user?.plan === "free" && !FREE_ACCESS_USER_IDS.includes(userId)) {
+        const { projectsUsed } = await storage.checkAndResetFreeMonthly(userId);
+        if (projectsUsed >= FREE_MONTHLY_PROJECTS) {
+          return res.status(403).json({
+            error: "لقد استنفدت حصتك المجانية الشهرية. قم بالترقية لإنشاء مشاريع غير محدودة",
+            code: "FREE_MONTHLY_LIMIT",
+            usage: { projectsUsed, projectsLimit: FREE_MONTHLY_PROJECTS }
+          });
+        }
+      }
+
       const isFreeUser = FREE_ACCESS_USER_IDS.includes(userId);
       const planCovers = userPlanCoversType(user?.plan, type);
-      const autoPaid = isFreeUser || planCovers;
+      const autoPaid = isFreeUser || planCovers || (user?.plan === "free");
 
       const project = await storage.createProject({
         userId,
@@ -1257,6 +1268,10 @@ ${pages.map(p => `  <url>
           summary: null,
         });
         await storage.updateProject(project.id, { outline: "—", outlineApproved: 1 });
+      }
+
+      if (user?.plan === "free" && !FREE_ACCESS_USER_IDS.includes(userId)) {
+        await storage.incrementFreeMonthlyUsage(userId, "project");
       }
 
       trackServerEvent({
@@ -1565,6 +1580,17 @@ ${pages.map(p => `  <url>
         }
       }
 
+      if (chapterUser?.plan === "free" && !isFreeUser) {
+        const { generationsUsed } = await storage.checkAndResetFreeMonthly(req.user.claims.sub);
+        if (generationsUsed >= FREE_MONTHLY_GENERATIONS) {
+          return res.status(403).json({
+            error: "لقد استنفدت حصة التوليد المجانية الشهرية. قم بالترقية لتوليد غير محدود",
+            code: "FREE_MONTHLY_LIMIT",
+            usage: { generationsUsed, generationsLimit: FREE_MONTHLY_GENERATIONS }
+          });
+        }
+      }
+
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
 
@@ -1652,6 +1678,10 @@ ${pages.map(p => `  <url>
       }
 
       updateWritingStreak(req.user.claims.sub).catch(() => {});
+
+      if (chapterUser?.plan === "free" && !isFreeUser) {
+        storage.incrementFreeMonthlyUsage(req.user.claims.sub, "generation").catch(() => {});
+      }
 
       const estCompletionTokens = Math.ceil(fullContent.length / 3);
       logApiUsage(req.user.claims.sub, projectId, "chapter", "gpt-5.2", { usage: { prompt_tokens: 2000, completion_tokens: estCompletionTokens, total_tokens: 2000 + estCompletionTokens } });
@@ -5283,6 +5313,137 @@ ${ch.content}
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "فشل في حذف المشروع" });
+    }
+  });
+
+  app.post("/api/reports", async (req: any, res) => {
+    try {
+      const { projectId, reason, details } = req.body;
+      if (!projectId || !reason) {
+        return res.status(400).json({ error: "معرف المحتوى وسبب البلاغ مطلوبان" });
+      }
+
+      const validReasons = ["inappropriate", "plagiarism", "offensive", "spam", "other"];
+      if (!validReasons.includes(reason)) {
+        return res.status(400).json({ error: "سبب البلاغ غير صالح" });
+      }
+
+      const project = await storage.getProject(parseInt(projectId));
+      if (!project) {
+        return res.status(404).json({ error: "المحتوى غير موجود" });
+      }
+
+      const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+      const recentCount = await storage.getRecentReportCountByIp(ip, 3600000);
+      if (recentCount >= 3) {
+        return res.status(429).json({ error: "لقد أرسلت عدداً كبيراً من البلاغات. حاول مرة أخرى لاحقاً" });
+      }
+
+      const reporterUserId = req.user?.claims?.sub || null;
+
+      const report = await storage.createContentReport({
+        projectId: parseInt(projectId),
+        reporterIp: ip,
+        reporterUserId,
+        reason,
+        details: details ? String(details).slice(0, 2000) : null,
+      });
+
+      res.status(201).json({ success: true, id: report.id });
+    } catch (error) {
+      console.error("Error creating report:", error);
+      res.status(500).json({ error: "فشل في إرسال البلاغ" });
+    }
+  });
+
+  app.get("/api/admin/reports", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const reports = await storage.getContentReports(status || undefined);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ error: "فشل في جلب البلاغات" });
+    }
+  });
+
+  app.get("/api/admin/reports/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const report = await storage.getContentReport(id);
+      if (!report) return res.status(404).json({ error: "البلاغ غير موجود" });
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب البلاغ" });
+    }
+  });
+
+  app.patch("/api/admin/reports/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, adminNote, actionTaken } = req.body;
+
+      const report = await storage.getContentReport(id);
+      if (!report) return res.status(404).json({ error: "البلاغ غير موجود" });
+
+      const validStatuses = ["pending", "reviewed", "dismissed", "action_taken"];
+      const validActions = ["none", "unpublished", "warned", "banned"];
+
+      const updates: any = {
+        reviewedBy: req.user.claims.sub,
+        reviewedAt: new Date(),
+      };
+
+      if (status && validStatuses.includes(status)) updates.status = status;
+      if (adminNote !== undefined) updates.adminNote = adminNote;
+      if (actionTaken && validActions.includes(actionTaken)) updates.actionTaken = actionTaken;
+
+      if (actionTaken === "unpublished") {
+        await storage.updateProject(report.projectId, {
+          publishedToGallery: false,
+          publishedToNews: false,
+        });
+      }
+
+      if (actionTaken === "banned") {
+        const project = await storage.getProject(report.projectId);
+        if (project) {
+          await storage.setUserApiSuspended(project.userId, true);
+          await storage.updateProject(report.projectId, {
+            publishedToGallery: false,
+            publishedToNews: false,
+            flagged: true,
+            flagReason: adminNote || "تم الحظر بسبب بلاغ محتوى",
+          });
+        }
+      }
+
+      const updated = await storage.updateContentReport(id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating report:", error);
+      res.status(500).json({ error: "فشل في تحديث البلاغ" });
+    }
+  });
+
+  app.get("/api/user/free-usage", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || user.plan !== "free") {
+        return res.json({ plan: user?.plan || "free", unlimited: true });
+      }
+      const { projectsUsed, generationsUsed } = await storage.checkAndResetFreeMonthly(userId);
+      res.json({
+        plan: "free",
+        unlimited: false,
+        projectsUsed,
+        projectsLimit: FREE_MONTHLY_PROJECTS,
+        generationsUsed,
+        generationsLimit: FREE_MONTHLY_GENERATIONS,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب بيانات الاستخدام" });
     }
   });
 

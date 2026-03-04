@@ -46,6 +46,9 @@ export const users = pgTable("users", {
   writingStreak: integer("writing_streak").default(0),
   lastWritingDate: varchar("last_writing_date"),
   dailyWordGoal: integer("daily_word_goal").default(500),
+  freeMonthlyProjectsUsed: integer("free_monthly_projects_used").default(0),
+  freeMonthlyGenerationsUsed: integer("free_monthly_generations_used").default(0),
+  freeMonthlyResetAt: timestamp("free_monthly_reset_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
