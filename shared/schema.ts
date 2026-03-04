@@ -173,6 +173,9 @@ export const novelProjects = pgTable("novel_projects", {
   poetryVerseCount: integer("poetry_verse_count"),
   poetryImageryLevel: integer("poetry_imagery_level"),
   poetryEmotionLevel: integer("poetry_emotion_level"),
+  poetryRawiHaraka: text("poetry_rawi_haraka"),
+  poetryRidf: text("poetry_ridf"),
+  poetryMuarada: text("poetry_muarada"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });

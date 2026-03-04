@@ -1134,7 +1134,7 @@ ${pages.map(p => `  <url>
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect, poetryMeter, poetryRhyme, poetryEra, poetryTone, poetryTheme, poetryVerseCount, poetryImageryLevel, poetryEmotionLevel } = req.body;
+      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect, poetryMeter, poetryRhyme, poetryEra, poetryTone, poetryTheme, poetryVerseCount, poetryImageryLevel, poetryEmotionLevel, poetryRawiHaraka, poetryRidf, poetryMuarada } = req.body;
 
       const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story" || projectType === "khawater" || projectType === "social_media" || projectType === "poetry") ? projectType : "novel";
 
@@ -1190,6 +1190,9 @@ ${pages.map(p => `  <url>
         poetryVerseCount: type === "poetry" ? (poetryVerseCount || 10) : null,
         poetryImageryLevel: type === "poetry" ? (poetryImageryLevel ?? 5) : null,
         poetryEmotionLevel: type === "poetry" ? (poetryEmotionLevel ?? 7) : null,
+        poetryRawiHaraka: type === "poetry" ? (poetryRawiHaraka || null) : null,
+        poetryRidf: type === "poetry" ? (poetryRidf || null) : null,
+        poetryMuarada: type === "poetry" ? (poetryMuarada || null) : null,
         ...(autoPaid ? { paid: true, status: "draft" } : {}),
       });
 

@@ -280,6 +280,9 @@ const projectFormSchema = z.object({
   poetryVerseCount: z.number().optional(),
   poetryImageryLevel: z.number().min(0).max(10).optional(),
   poetryEmotionLevel: z.number().min(0).max(10).optional(),
+  poetryRawiHaraka: z.string().optional(),
+  poetryRidf: z.string().optional(),
+  poetryMuarada: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.projectType === "novel") {
     if (!data.timeSetting) ctx.addIssue({ code: "custom", path: ["timeSetting"], message: "الزمن مطلوب" });
@@ -298,6 +301,9 @@ const projectFormSchema = z.object({
     if (!data.poetryMeter) ctx.addIssue({ code: "custom", path: ["poetryMeter"], message: "البحر الشعري مطلوب" });
     if (!data.poetryRhyme) ctx.addIssue({ code: "custom", path: ["poetryRhyme"], message: "حرف الروي مطلوب" });
     if (!data.poetryVerseCount) ctx.addIssue({ code: "custom", path: ["poetryVerseCount"], message: "عدد الأبيات مطلوب" });
+    if (data.poetryMuarada && data.poetryMuarada.trim().length > 0 && data.poetryMuarada.trim().length < 20) {
+      ctx.addIssue({ code: "custom", path: ["poetryMuarada"], message: "ألصق القصيدة الأصلية كاملة — النص قصير جداً للمعارضة" });
+    }
   }
 });
 
@@ -322,6 +328,7 @@ export default function NewProject() {
   const [fullProjectHint, setFullProjectHint] = useState("");
   const [showHintInput, setShowHintInput] = useState(false);
   const [selectedPoetryRhyme, setSelectedPoetryRhyme] = useState<string>("");
+  const [muaradaEnabled, setMuaradaEnabled] = useState(false);
 
   const urlType = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("type") : null;
   const isPoetryFromUrl = urlType === "poetry";
@@ -348,6 +355,9 @@ export default function NewProject() {
       poetryVerseCount: undefined,
       poetryImageryLevel: 5,
       poetryEmotionLevel: 5,
+      poetryRawiHaraka: undefined,
+      poetryRidf: undefined,
+      poetryMuarada: undefined,
     },
   });
 
@@ -368,6 +378,7 @@ export default function NewProject() {
         payload.timeSetting = "poetry";
         payload.placeSetting = "poetry";
         payload.narrativePov = "poetry";
+        if (payload.poetryRidf === "none") payload.poetryRidf = null;
       }
       const res = await apiRequest("POST", "/api/projects", payload);
       const project = await res.json();
@@ -916,6 +927,88 @@ export default function NewProject() {
                         <FormMessage />
                       </FormItem>
                     )} />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="poetryRawiHaraka" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>حركة الروي — المَجرى (اختياري)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-poetry-rawi-haraka">
+                              <SelectValue placeholder="اختر حركة الروي" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="fatha">الفتحة (َ) — قافية مطلقة</SelectItem>
+                            <SelectItem value="damma">الضمة (ُ) — قافية مطلقة</SelectItem>
+                            <SelectItem value="kasra">الكسرة (ِ) — قافية مطلقة</SelectItem>
+                            <SelectItem value="sukun">السكون (ْ) — قافية مقيّدة</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">تُوحَّد هذه الحركة على حرف الروي في جميع أبيات القصيدة</p>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="poetryRidf" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>الردف (اختياري)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-poetry-ridf">
+                              <SelectValue placeholder="بدون ردف" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">بدون ردف</SelectItem>
+                            <SelectItem value="alef">ألف (ا) — مثل: نار، دار</SelectItem>
+                            <SelectItem value="waw">واو (و) — مثل: نور، صدور</SelectItem>
+                            <SelectItem value="yaa">ياء (ي) — مثل: سمير، كبير</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">حرف مدّ يأتي قبل الروي مباشرة في كل بيت</p>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <label className="text-sm font-medium">معارضة قصيدة مشهورة</label>
+                        <p className="text-xs text-muted-foreground">انظم قصيدة جديدة على نهج قصيدة مشهورة — نفس البحر والقافية مع معانٍ جديدة</p>
+                      </div>
+                      <Switch
+                        checked={muaradaEnabled}
+                        onCheckedChange={(checked) => {
+                          setMuaradaEnabled(checked);
+                          if (!checked) {
+                            form.setValue("poetryMuarada", undefined);
+                          }
+                        }}
+                        data-testid="switch-muarada"
+                      />
+                    </div>
+                    {muaradaEnabled && (
+                      <FormField control={form.control} name="poetryMuarada" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>القصيدة الأصلية المُعارَضة</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value || ""}
+                              placeholder={"ألصق أبيات القصيدة التي تريد معارضتها هنا...\n\nمثال:\nقفا نبكِ من ذكرى حبيبٍ ومنزلِ *** بسقطِ اللوى بين الدخولِ فحوملِ"}
+                              className="min-h-[160px] font-serif text-base leading-[2] text-right"
+                              dir="rtl"
+                              data-testid="textarea-muarada"
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">سيدرس أبو هاشم القصيدة الأصلية وينظم معارضة لها بنفس البحر والقافية مع معانٍ وصور جديدة مبتكرة</p>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    )}
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
