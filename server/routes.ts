@@ -183,6 +183,7 @@ export async function registerRoutes(
       { loc: "/abu-hashim", priority: "0.7", changefreq: "monthly" },
       { loc: "/promo", priority: "0.8", changefreq: "monthly" },
       { loc: "/novel-theme", priority: "0.6", changefreq: "monthly" },
+      { loc: "/memoires", priority: "0.7", changefreq: "daily" },
       { loc: "/login", priority: "0.5", changefreq: "yearly" },
       { loc: "/register", priority: "0.5", changefreq: "yearly" },
     ];
@@ -771,7 +772,7 @@ ${pages.map(p => `  <url>
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       const { projectType, hint } = req.body;
-      const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry"];
+      const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"];
       const safeType = validTypes.includes(projectType) ? projectType : "novel";
       const safeHint = typeof hint === "string" ? hint.slice(0, 500) : undefined;
 
@@ -3837,6 +3838,31 @@ ${glossaryParagraphs}
       })));
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب المعرض" });
+    }
+  });
+
+  app.get("/api/public/memoires", async (_req, res) => {
+    try {
+      const projects = await storage.getGalleryProjects();
+      const memoires = projects.filter(p => p.projectType === "memoire");
+      res.json(memoires.map(p => ({
+        id: p.id,
+        title: p.title,
+        coverImageUrl: p.coverImageUrl,
+        shareToken: p.shareToken,
+        mainIdea: p.mainIdea?.slice(0, 300),
+        authorName: p.authorName,
+        authorId: p.authorId,
+        authorAverageRating: p.authorAverageRating,
+        memoireUniversity: p.memoireUniversity,
+        memoireCountry: p.memoireCountry,
+        memoireField: p.memoireField,
+        memoireMethodology: p.memoireMethodology,
+        memoireCitationStyle: p.memoireCitationStyle,
+        memoireKeywords: p.memoireKeywords,
+      })));
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المذكرات الأكاديمية" });
     }
   });
 

@@ -310,6 +310,12 @@ export default function NewMemoire() {
       form.setValue("mainIdea", data.mainIdea, { shouldValidate: true });
       if (data.memoireField) form.setValue("memoireField", data.memoireField, { shouldValidate: true });
       if (data.memoireKeywords) form.setValue("memoireKeywords", data.memoireKeywords, { shouldValidate: true });
+      if (data.memoireMethodology) form.setValue("memoireMethodology", data.memoireMethodology, { shouldValidate: true });
+      if (data.memoireCitationStyle) form.setValue("memoireCitationStyle", data.memoireCitationStyle, { shouldValidate: true });
+      if (data.memoireCountry) form.setValue("memoireCountry", data.memoireCountry, { shouldValidate: true });
+      if (data.memoireHypotheses) form.setValue("memoireHypotheses", data.memoireHypotheses, { shouldValidate: true });
+      if (data.memoireChapterCount) form.setValue("memoireChapterCount", Number(data.memoireChapterCount), { shouldValidate: true });
+      if (data.memoirePageTarget) form.setValue("memoirePageTarget", Number(data.memoirePageTarget), { shouldValidate: true });
       toast({ title: "تم اقتراح مشروع كامل — راجع التفاصيل وعدّلها كما تشاء" });
       setShowHintInput(false);
       setFullProjectHint("");

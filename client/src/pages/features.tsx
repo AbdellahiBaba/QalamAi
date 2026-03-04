@@ -26,6 +26,12 @@ import {
   Sparkles,
   Crown,
   CheckCircle2,
+  GraduationCap,
+  FlaskConical,
+  Library,
+  BookMarked,
+  ScrollText,
+  Award,
 } from "lucide-react";
 
 const novelFeatures = [
@@ -145,6 +151,45 @@ const scenarioFeatures = [
   },
 ];
 
+const memoireFeatures = [
+  {
+    icon: GraduationCap,
+    title: "مذكرات تخرج أكاديمية",
+    description:
+      "كتابة مذكرات تخرج متكاملة لجميع المستويات — ليسانس، ماستر، ودكتوراه — بمعايير الجامعات العربية مع هيكلة أكاديمية محكمة من المقدمة إلى الخاتمة.",
+  },
+  {
+    icon: FlaskConical,
+    title: "منهجيات بحثية متنوعة",
+    description:
+      "دعم جميع المنهجيات: الوصفي، التحليلي، التجريبي، المقارن، التاريخي، دراسة الحالة، والمنهج المختلط — مع التكييف حسب طبيعة التخصص والموضوع.",
+  },
+  {
+    icon: Library,
+    title: "أنظمة توثيق معتمدة",
+    description:
+      "دعم جميع أنظمة التوثيق الأكاديمية: APA، MLA، Chicago، Harvard، IEEE، Vancouver — مع تنسيق المراجع والإحالات وفق النظام المختار.",
+  },
+  {
+    icon: BookMarked,
+    title: "هيكلة الفصول الأكاديمية",
+    description:
+      "بناء هيكل المذكرة بشكل منهجي: الإطار النظري، الدراسات السابقة، المنهجية، عرض النتائج، التحليل والمناقشة، والتوصيات — بتقسيم فصول مرن.",
+  },
+  {
+    icon: ScrollText,
+    title: "صياغة أكاديمية رصينة",
+    description:
+      "كتابة بأسلوب أكاديمي علمي رصين يحترم معايير البحث العلمي: موضوعية، دقة لغوية، استخدام المصطلحات المتخصصة، وصياغة الفرضيات بشكل قابل للاختبار.",
+  },
+  {
+    icon: Award,
+    title: "تغطية جميع التخصصات",
+    description:
+      "أكثر من 30 تخصصاً أكاديمياً: علوم الحاسوب، القانون، الاقتصاد، الأدب، علم النفس، الطب، الهندسة، العلوم الإسلامية، الإعلام، وغيرها الكثير.",
+  },
+];
+
 const allInOneFeatures = [
   "كتابة روايات كاملة بأسلوب أدبي رفيع",
   "مقالات وأخبار احترافية بجميع المجالات",
@@ -154,6 +199,7 @@ const allInOneFeatures = [
   "دعم اللهجات العربية المتعددة",
   "تحسين محركات البحث للمقالات",
   "بنية درامية احترافية للسيناريوهات",
+  "مذكرات تخرج أكاديمية بمعايير الجامعات العربية",
   "مراجعة وتحرير ذكي للنصوص",
   "التزام أخلاقي تام بمعايير الجودة",
 ];
@@ -224,12 +270,13 @@ export default function Features() {
             مميزات <span className="text-primary">QalamAI</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed" data-testid="text-features-hero-desc">
-            منصة متكاملة للكتابة الإبداعية والمهنية بالعربية — من الروايات الأدبية إلى المقالات الاحترافية وسيناريوهات الأفلام والمسلسلات
+            منصة متكاملة للكتابة الإبداعية والمهنية والأكاديمية بالعربية — من الروايات الأدبية إلى المقالات الاحترافية وسيناريوهات الأفلام ومذكرات التخرج الأكاديمية
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
             <Badge variant="secondary" data-testid="badge-novel">كتابة الروايات</Badge>
             <Badge variant="secondary" data-testid="badge-essay">المقالات والأخبار</Badge>
             <Badge variant="secondary" data-testid="badge-scenario">السيناريوهات</Badge>
+            <Badge variant="secondary" data-testid="badge-memoire">مذكرات التخرج</Badge>
           </div>
         </div>
       </section>
@@ -266,6 +313,18 @@ export default function Features() {
         ctaText="ابدأ كتابة سيناريو"
         ctaHref="/project/new/scenario"
         testIdPrefix="scenario"
+      />
+
+      <div className="border-t" />
+
+      <ContentSection
+        icon={GraduationCap}
+        title="مذكرات التخرج الأكاديمية"
+        subtitle="كتابة مذكرات تخرج ورسائل أكاديمية بمعايير الجامعات العربية — بإشراف أبو هاشم بصفته أستاذاً أكاديمياً متخصصاً في جميع التخصصات"
+        features={memoireFeatures}
+        ctaText="ابدأ مذكرة تخرج"
+        ctaHref="/project/new/memoire"
+        testIdPrefix="memoire"
       />
 
       <section className="py-20 px-6 bg-card/50" data-testid="section-all-features">

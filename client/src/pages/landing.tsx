@@ -89,7 +89,7 @@ export default function Landing() {
               حيث تتحوّل الفكرة إلى رواية، والقلم إلى صوت.
             </p>
             <p className="text-muted-foreground leading-relaxed max-w-lg">
-              منصّة QalamAI تجمع بين الذكاء الاصطناعي والأدب العربي لتقدّم لك تجربة كتابة روائية فريدة. أبو هاشم — مساعدك الأدبي — مستوحى من أساليب كبار الروائيين العرب مثل أحلام مستغانمي وإبراهيم نصر الله والدكتورة خولة حمدي.
+              منصّة QalamAI تجمع بين الذكاء الاصطناعي والأدب العربي لتقدّم لك تجربة كتابة فريدة. من الروايات والمقالات إلى السيناريوهات ومذكرات التخرج الأكاديمية — أبو هاشم مساعدك الذكي المستوحى من أساليب كبار الروائيين العرب مثل أحلام مستغانمي وإبراهيم نصر الله والدكتورة خولة حمدي.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/login">
@@ -143,10 +143,10 @@ export default function Landing() {
           <div className="text-center mb-16">
             <h2 className="font-serif text-2xl sm:text-3xl font-bold mb-4" data-testid="text-features-title">ما الذي يقدّمه QalamAI؟</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              أدوات متكاملة لتحويل فكرتك إلى رواية عربية أدبية متكاملة
+              أدوات متكاملة لتحويل فكرتك إلى رواية، مقال، سيناريو، أو مذكرة تخرج أكاديمية
             </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             <Card className="bg-background">
               <CardContent className="p-6 space-y-4">
                 <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center">
@@ -188,6 +188,17 @@ export default function Landing() {
                 <h3 className="font-serif text-xl font-semibold" data-testid="text-feature-editing">التحرير والتحسين</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   مراجعة النصوص وتحسينها لغوياً وأسلوبياً مع الحفاظ على صوت الكاتب الأصلي وأسلوبه المميز.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-background">
+              <CardContent className="p-6 space-y-4">
+                <div className="w-12 h-12 rounded-md bg-primary/10 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-serif text-xl font-semibold" data-testid="text-feature-memoire">مذكرات التخرج</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  كتابة مذكرات تخرج أكاديمية متكاملة بمعايير الجامعات العربية — من صياغة الإشكالية إلى النتائج والتوصيات.
                 </p>
               </CardContent>
             </Card>

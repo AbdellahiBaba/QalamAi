@@ -1105,6 +1105,7 @@ export function buildFullProjectSuggestionPrompt(data: {
     khawater: "خاطرة",
     social_media: "محتوى سوشيال ميديا",
     poetry: "قصيدة عمودية",
+    memoire: "مذكرة تخرج أكاديمية",
   };
   const typeLabel = typeLabels[data.projectType] || "رواية عربية";
   const hintNote = data.hint ? `\n\nتلميح من الكاتب: "${data.hint}"\nاستلهم من هذا التلميح لبناء المشروع الكامل.` : "";
@@ -1225,6 +1226,29 @@ export function buildFullProjectSuggestionPrompt(data: {
   "poetryTone": "أحد هذه القيم فقط: romantic أو epic أو mystical أو melancholic أو triumphant أو contemplative أو passionate أو satirical أو nostalgic أو solemn",
   "poetryTheme": "أحد هذه القيم فقط: ghazal أو fakhr أو madh أو hija أو ritha أو hikma أو wasf أو hamasa أو zuhd أو itab أو hanin أو watani أو ijtimaii أو falsafi"
 }`,
+
+    memoire: `بصفتك أستاذاً جامعياً متخصصاً في الإشراف على مذكرات التخرج والرسائل الأكاديمية في الجامعات العربية — اقترح مشروع مذكرة تخرج أكاديمية كاملة يتضمن:
+{
+  "title": "عنوان المذكرة الأكاديمي الكامل — عنوان علمي دقيق يعكس إشكالية البحث (10-20 كلمة)",
+  "mainIdea": "الإشكالية البحثية مفصلة (5-8 جمل): صياغة أكاديمية واضحة تحدد المشكلة البحثية، أهمية الدراسة، الفجوة المعرفية التي تسعى لسدّها، والتساؤلات الرئيسية التي يجيب عنها البحث",
+  "memoireField": "أحد هذه القيم فقط: computer_science أو law أو economics أو literature أو psychology أو sociology أو education أو biology أو chemistry أو physics أو math أو engineering أو medicine أو pharmacy أو political_science أو history أو philosophy أو media أو business أو architecture أو agriculture أو islamic_studies أو linguistics أو geography أو environmental_science أو sports_science أو arts أو accounting أو public_admin أو social_work أو library_science",
+  "memoireMethodology": "أحد هذه القيم فقط: descriptive أو analytical أو experimental أو comparative أو historical أو survey أو case_study أو mixed أو qualitative أو quantitative",
+  "memoireCitationStyle": "أحد هذه القيم فقط: apa أو mla أو chicago أو harvard أو ieee أو vancouver أو iso690 أو custom_arabic",
+  "memoireCountry": "أحد هذه القيم فقط: dz أو ma أو tn أو ly أو eg أو sa أو iq أو sy أو jo أو lb أو ps أو ye أو om أو ae أو kw أو bh أو qa أو sd أو mr أو so أو dj أو km",
+  "memoireKeywords": "الكلمات المفتاحية للبحث (6-10 كلمات مفتاحية أكاديمية دقيقة مفصولة بفواصل)",
+  "memoireHypotheses": "فرضيات البحث (3-5 فرضيات مرقمة، كل فرضية بصياغة علمية قابلة للاختبار والقياس، مثل: 1. توجد علاقة ذات دلالة إحصائية بين... 2. يؤثر... تأثيراً إيجابياً على...)",
+  "memoireChapterCount": "رقم بين 4 و 8 يناسب طبيعة البحث والتخصص",
+  "memoirePageTarget": "رقم بين 60 و 300 يناسب مستوى المذكرة (ليسانس: 60-100، ماستر: 80-150، دكتوراه: 150-300)"
+}
+
+═══ إرشادات خاصة بمذكرة التخرج ═══
+- اختر موضوعاً أكاديمياً أصيلاً ومعاصراً يعالج إشكالية حقيقية في المجتمع العربي أو يساهم في تطوير المعرفة في التخصص
+- صغ العنوان بأسلوب أكاديمي رصين يتضمن المتغيرات الأساسية للدراسة
+- اجعل الإشكالية واضحة ومحددة وقابلة للبحث الميداني أو النظري
+- صغ الفرضيات بأسلوب علمي قابل للاختبار والقياس الإحصائي
+- اختر المنهجية الأنسب لطبيعة الموضوع والتخصص
+- اختر نظام التوثيق المناسب للتخصص (APA للعلوم الإنسانية، IEEE للهندسة، إلخ)
+- راعِ معايير الجامعات العربية في هيكلة البحث الأكاديمي`,
   };
 
   const instructions = typeInstructions[data.projectType] || typeInstructions.novel;
