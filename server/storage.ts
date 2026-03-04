@@ -19,6 +19,7 @@ import {
   socialMediaLinks, type SocialMediaLink, type InsertSocialMediaLink,
   platformFeatures, type PlatformFeature,
   contentReports, type ContentReport, type InsertContentReport,
+  PLAN_PRICES,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, avg, lt } from "drizzle-orm";
@@ -379,16 +380,21 @@ export class DatabaseStorage implements IStorage {
         sql`SELECT COALESCE(SUM(price), 0)::int as total FROM novel_projects WHERE paid = true AND updated_at >= date_trunc('month', CURRENT_DATE)`
       );
       const revenueByType = await db.execute(
-        sql`SELECT COALESCE(project_type, 'novel') as type, COALESCE(SUM(price), 0)::int as total, COUNT(*)::int as count FROM novel_projects WHERE paid = true GROUP BY COALESCE(project_type, 'novel')`
+        sql`SELECT COALESCE(project_type, 'novel') as type, COALESCE(SUM(price), 0)::int as amount, COUNT(*)::int as count FROM novel_projects WHERE paid = true GROUP BY COALESCE(project_type, 'novel')`
       );
       const paidPlans = await db.execute(
         sql`SELECT COALESCE(plan, 'free') as plan, COUNT(*)::int as count FROM users WHERE plan != 'free' AND plan IS NOT NULL AND plan_purchased_at IS NOT NULL GROUP BY plan`
       );
+      const paidPlansWithRevenue = paidPlans.rows.map((row: any) => ({
+        plan: row.plan,
+        count: row.count,
+        revenue: (row.count || 0) * (PLAN_PRICES[row.plan] || 0),
+      }));
       revenueData = {
         totalRevenue: (totalRevenue.rows[0] as any)?.total || 0,
         monthlyRevenue: (monthlyRevenue.rows[0] as any)?.total || 0,
         revenueByType: revenueByType.rows,
-        paidPlans: paidPlans.rows,
+        paidPlans: paidPlansWithRevenue,
       };
     } catch (e) {
       console.error("Error fetching revenue data:", e);
@@ -870,7 +876,7 @@ export class DatabaseStorage implements IStorage {
 
   async seedDefaultFeatures(): Promise<void> {
     const existing = await this.getAllFeatures();
-    if (existing.length > 0) return;
+    const existingKeys = new Set(existing.map(f => f.featureKey));
 
     const defaults = [
       { featureKey: "novel", name: "رواية", description: "كتابة الروايات بالذكاء الاصطناعي" },
@@ -889,6 +895,7 @@ export class DatabaseStorage implements IStorage {
     ];
 
     for (const feat of defaults) {
+      if (existingKeys.has(feat.featureKey)) continue;
       await db.insert(platformFeatures).values({
         ...feat,
         enabled: true,

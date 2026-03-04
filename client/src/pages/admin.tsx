@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
@@ -164,7 +164,14 @@ export default function Admin() {
   const [apiUsageDetailUser, setApiUsageDetailUser] = useState<string | null>(null);
   const [showApiUsageDialog, setShowApiUsageDialog] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mainContentRef = useRef<HTMLElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo(0, 0);
+    }
+  }, [activeTab]);
 
   const { data: stats, isLoading: statsLoading } = useQuery<{ status: string; count: number }[]>({
     queryKey: ["/api/admin/stats"],
@@ -873,7 +880,7 @@ export default function Admin() {
           </ScrollArea>
         </aside>
 
-        <main className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 py-6 sm:py-10">
+        <main ref={mainContentRef} className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 py-6 sm:py-10">
           <div className="flex items-center gap-3 mb-6 sm:mb-8">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
