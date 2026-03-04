@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -14,11 +14,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Slider } from "@/components/ui/slider";
-import { ArrowRight, GraduationCap, Loader2, Sparkles, X, BookOpen, Building2, FlaskConical, CheckCircle2 } from "lucide-react";
+import { ArrowRight, GraduationCap, Loader2, Sparkles, X, BookOpen, Building2, FlaskConical, CheckCircle2, Info } from "lucide-react";
 import { Link } from "wouter";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import LtrNum from "@/components/ui/ltr-num";
+import {
+  getUniversitiesByCountry,
+  getFacultiesByUniversity,
+  getDepartmentsByFaculty,
+  getMethodologiesByContext,
+  getCitationStyleByContext,
+  ALL_METHODOLOGY_OPTIONS,
+  ALL_CITATION_STYLES,
+} from "@/data/universities";
 
 const ARAB_COUNTRIES = [
   { value: "sa", label: "المملكة العربية السعودية" },
@@ -66,18 +75,7 @@ const ACADEMIC_FIELDS = [
   { value: "management", label: "الإدارة والتسيير" },
 ];
 
-const METHODOLOGY_OPTIONS = [
-  { value: "qualitative", label: "نوعي (كيفي)" },
-  { value: "quantitative", label: "كمّي" },
-  { value: "mixed", label: "مختلط (نوعي وكمّي)" },
-];
-
-const CITATION_STYLE_OPTIONS = [
-  { value: "apa", label: "APA (جمعية علم النفس الأمريكية)" },
-  { value: "mla", label: "MLA (جمعية اللغة الحديثة)" },
-  { value: "chicago", label: "Chicago / Turabian" },
-  { value: "university_specific", label: "حسب نظام الجامعة" },
-];
+const OTHER_VALUE = "__other__";
 
 const memoireFormSchema = z.object({
   title: z.string().min(1, "عنوان البحث مطلوب"),
@@ -111,6 +109,18 @@ export default function NewMemoire() {
   const [showHintInput, setShowHintInput] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
+  const [universityOther, setUniversityOther] = useState(false);
+  const [facultyOther, setFacultyOther] = useState(false);
+  const [departmentOther, setDepartmentOther] = useState(false);
+  const [methodologyOther, setMethodologyOther] = useState(false);
+  const [citationOther, setCitationOther] = useState(false);
+
+  const [customUniversity, setCustomUniversity] = useState("");
+  const [customFaculty, setCustomFaculty] = useState("");
+  const [customDepartment, setCustomDepartment] = useState("");
+  const [customMethodology, setCustomMethodology] = useState("");
+  const [customCitation, setCustomCitation] = useState("");
+
   const form = useForm<MemoireFormData>({
     resolver: zodResolver(memoireFormSchema),
     defaultValues: {
@@ -130,6 +140,73 @@ export default function NewMemoire() {
       memoireUserData: "",
     },
   });
+
+  const watchedCountry = form.watch("memoireCountry");
+  const watchedUniversity = form.watch("memoireUniversity");
+  const watchedFaculty = form.watch("memoireFaculty");
+  const watchedField = form.watch("memoireField");
+  const watchedTitle = form.watch("title");
+  const watchedMainIdea = form.watch("mainIdea");
+  const watchedDepartment = form.watch("memoireDepartment");
+  const watchedMethodology = form.watch("memoireMethodology");
+  const watchedCitationStyle = form.watch("memoireCitationStyle");
+  const watchedPageTarget = form.watch("memoirePageTarget");
+  const watchedChapterCount = form.watch("memoireChapterCount");
+  const watchedHypotheses = form.watch("memoireHypotheses");
+  const watchedKeywords = form.watch("memoireKeywords");
+
+  const universities = watchedCountry ? getUniversitiesByCountry(watchedCountry) : [];
+  const faculties = (watchedCountry && watchedUniversity && !universityOther)
+    ? getFacultiesByUniversity(watchedCountry, watchedUniversity) : [];
+  const departments = (watchedCountry && watchedUniversity && watchedFaculty && !universityOther && !facultyOther)
+    ? getDepartmentsByFaculty(watchedCountry, watchedUniversity, watchedFaculty) : [];
+
+  const contextMethodologies = (watchedCountry && watchedUniversity && watchedField && !universityOther)
+    ? getMethodologiesByContext(watchedCountry, watchedUniversity, watchedField)
+    : ALL_METHODOLOGY_OPTIONS.map(m => m.value);
+
+  const recommendedCitation = (watchedCountry && watchedUniversity && watchedField && !universityOther)
+    ? getCitationStyleByContext(watchedCountry, watchedUniversity, watchedField)
+    : "";
+
+  useEffect(() => {
+    if (watchedCountry) {
+      form.setValue("memoireUniversity", "");
+      form.setValue("memoireFaculty", "");
+      form.setValue("memoireDepartment", "");
+      setUniversityOther(false);
+      setFacultyOther(false);
+      setDepartmentOther(false);
+      setCustomUniversity("");
+      setCustomFaculty("");
+      setCustomDepartment("");
+    }
+  }, [watchedCountry]);
+
+  useEffect(() => {
+    if (watchedUniversity && !universityOther) {
+      form.setValue("memoireFaculty", "");
+      form.setValue("memoireDepartment", "");
+      setFacultyOther(false);
+      setDepartmentOther(false);
+      setCustomFaculty("");
+      setCustomDepartment("");
+    }
+  }, [watchedUniversity, universityOther, form]);
+
+  useEffect(() => {
+    if (watchedFaculty && !facultyOther) {
+      form.setValue("memoireDepartment", "");
+      setDepartmentOther(false);
+      setCustomDepartment("");
+    }
+  }, [watchedFaculty, facultyOther, form]);
+
+  useEffect(() => {
+    if (recommendedCitation && !citationOther) {
+      form.setValue("memoireCitationStyle", recommendedCitation);
+    }
+  }, [recommendedCitation, citationOther, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: MemoireFormData) => {
@@ -270,19 +347,79 @@ export default function NewMemoire() {
     return true;
   };
 
-  const watchedTitle = form.watch("title");
-  const watchedMainIdea = form.watch("mainIdea");
-  const watchedField = form.watch("memoireField");
-  const watchedCountry = form.watch("memoireCountry");
-  const watchedUniversity = form.watch("memoireUniversity");
-  const watchedFaculty = form.watch("memoireFaculty");
-  const watchedDepartment = form.watch("memoireDepartment");
-  const watchedMethodology = form.watch("memoireMethodology");
-  const watchedCitationStyle = form.watch("memoireCitationStyle");
-  const watchedPageTarget = form.watch("memoirePageTarget");
-  const watchedChapterCount = form.watch("memoireChapterCount");
-  const watchedHypotheses = form.watch("memoireHypotheses");
-  const watchedKeywords = form.watch("memoireKeywords");
+  const handleUniversitySelect = (value: string) => {
+    if (value === OTHER_VALUE) {
+      setUniversityOther(true);
+      setFacultyOther(true);
+      setDepartmentOther(true);
+      form.setValue("memoireUniversity", "");
+      form.setValue("memoireFaculty", "");
+      form.setValue("memoireDepartment", "");
+      setCustomUniversity("");
+      setCustomFaculty("");
+      setCustomDepartment("");
+    } else {
+      setUniversityOther(false);
+      setFacultyOther(false);
+      setDepartmentOther(false);
+      setCustomUniversity("");
+      setCustomFaculty("");
+      setCustomDepartment("");
+      form.setValue("memoireUniversity", value);
+      form.setValue("memoireFaculty", "");
+      form.setValue("memoireDepartment", "");
+    }
+  };
+
+  const handleFacultySelect = (value: string) => {
+    if (value === OTHER_VALUE) {
+      setFacultyOther(true);
+      setDepartmentOther(true);
+      form.setValue("memoireFaculty", "");
+      form.setValue("memoireDepartment", "");
+      setCustomFaculty("");
+      setCustomDepartment("");
+    } else {
+      setFacultyOther(false);
+      setDepartmentOther(false);
+      setCustomFaculty("");
+      setCustomDepartment("");
+      form.setValue("memoireFaculty", value);
+      form.setValue("memoireDepartment", "");
+    }
+  };
+
+  const handleDepartmentSelect = (value: string) => {
+    if (value === OTHER_VALUE) {
+      setDepartmentOther(true);
+      form.setValue("memoireDepartment", "");
+      setCustomDepartment("");
+    } else {
+      setDepartmentOther(false);
+      setCustomDepartment("");
+      form.setValue("memoireDepartment", value);
+    }
+  };
+
+  const handleMethodologySelect = (value: string) => {
+    if (value === OTHER_VALUE) {
+      setMethodologyOther(true);
+      form.setValue("memoireMethodology", "");
+    } else {
+      setMethodologyOther(false);
+      form.setValue("memoireMethodology", value);
+    }
+  };
+
+  const handleCitationSelect = (value: string) => {
+    if (value === OTHER_VALUE) {
+      setCitationOther(true);
+      form.setValue("memoireCitationStyle", "");
+    } else {
+      setCitationOther(false);
+      form.setValue("memoireCitationStyle", value);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -451,12 +588,15 @@ export default function NewMemoire() {
                       <FormLabel>إشكالية البحث</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="اشرح إشكالية البحث الرئيسية والتساؤلات التي يسعى البحث للإجابة عنها..."
+                          placeholder="صِغ إشكالية بحثك الأكاديمية: ما هي الفجوة المعرفية أو المشكلة العلمية التي يسعى بحثك لمعالجتها؟ ما هو السؤال المحوري الذي تطرحه؟"
                           className="min-h-[120px]"
                           {...field}
                           data-testid="input-main-idea"
                         />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        حدد الفجوة البحثية أو التناقض العلمي الذي تتناوله، والسؤال المحوري الذي يسعى البحث للإجابة عنه
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -488,7 +628,7 @@ export default function NewMemoire() {
                 <CardContent className="p-5 sm:p-8 space-y-6">
                   <div className="space-y-2 mb-6">
                     <h2 className="font-serif text-xl sm:text-2xl font-bold">معلومات الجامعة</h2>
-                    <p className="text-sm text-muted-foreground">أدخل بيانات جامعتك لتكييف المذكرة حسب معاييرها</p>
+                    <p className="text-sm text-muted-foreground">اختر جامعتك وكليتك لتكييف المذكرة حسب معاييرها الأكاديمية</p>
                   </div>
 
                   <FormField control={form.control} name="memoireCountry" render={({ field }) => (
@@ -513,9 +653,50 @@ export default function NewMemoire() {
                   <FormField control={form.control} name="memoireUniversity" render={({ field }) => (
                     <FormItem>
                       <FormLabel>اسم الجامعة</FormLabel>
-                      <FormControl>
-                        <Input placeholder="مثال: جامعة الجزائر 1 بن يوسف بن خدة" {...field} data-testid="input-university" />
-                      </FormControl>
+                      {!universityOther && universities.length > 0 ? (
+                        <Select
+                          onValueChange={handleUniversitySelect}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-university">
+                              <SelectValue placeholder="اختر الجامعة" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {universities.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                            <SelectItem value={OTHER_VALUE}>أخرى (إدخال يدوي)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : universityOther || universities.length === 0 ? (
+                        <div className="space-y-2">
+                          <FormControl>
+                            <Input
+                              placeholder="أدخل اسم الجامعة"
+                              value={customUniversity}
+                              onChange={(e) => {
+                                setCustomUniversity(e.target.value);
+                                field.onChange(e.target.value);
+                              }}
+                              data-testid="input-university"
+                            />
+                          </FormControl>
+                          {universities.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="text-xs p-0 h-auto"
+                              onClick={() => { setUniversityOther(false); setFacultyOther(false); setDepartmentOther(false); form.setValue("memoireUniversity", ""); }}
+                              data-testid="button-back-to-university-list"
+                            >
+                              العودة إلى القائمة
+                            </Button>
+                          )}
+                        </div>
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -524,9 +705,50 @@ export default function NewMemoire() {
                     <FormField control={form.control} name="memoireFaculty" render={({ field }) => (
                       <FormItem>
                         <FormLabel>الكلية</FormLabel>
-                        <FormControl>
-                          <Input placeholder="مثال: كلية الحقوق" {...field} data-testid="input-faculty" />
-                        </FormControl>
+                        {!facultyOther && faculties.length > 0 ? (
+                          <Select
+                            onValueChange={handleFacultySelect}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-faculty">
+                                <SelectValue placeholder="اختر الكلية" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {faculties.map((f) => (
+                                <SelectItem key={f} value={f}>{f}</SelectItem>
+                              ))}
+                              <SelectItem value={OTHER_VALUE}>أخرى (إدخال يدوي)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="space-y-2">
+                            <FormControl>
+                              <Input
+                                placeholder="أدخل اسم الكلية"
+                                value={customFaculty}
+                                onChange={(e) => {
+                                  setCustomFaculty(e.target.value);
+                                  field.onChange(e.target.value);
+                                }}
+                                data-testid="input-faculty"
+                              />
+                            </FormControl>
+                            {faculties.length > 0 && (
+                              <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                className="text-xs p-0 h-auto"
+                                onClick={() => { setFacultyOther(false); setDepartmentOther(false); form.setValue("memoireFaculty", ""); }}
+                                data-testid="button-back-to-faculty-list"
+                              >
+                                العودة إلى القائمة
+                              </Button>
+                            )}
+                          </div>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -534,9 +756,50 @@ export default function NewMemoire() {
                     <FormField control={form.control} name="memoireDepartment" render={({ field }) => (
                       <FormItem>
                         <FormLabel>القسم</FormLabel>
-                        <FormControl>
-                          <Input placeholder="مثال: قسم القانون العام" {...field} data-testid="input-department" />
-                        </FormControl>
+                        {!departmentOther && departments.length > 0 ? (
+                          <Select
+                            onValueChange={handleDepartmentSelect}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-department">
+                                <SelectValue placeholder="اختر القسم" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {departments.map((d) => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                              <SelectItem value={OTHER_VALUE}>أخرى (إدخال يدوي)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="space-y-2">
+                            <FormControl>
+                              <Input
+                                placeholder="أدخل اسم القسم"
+                                value={customDepartment}
+                                onChange={(e) => {
+                                  setCustomDepartment(e.target.value);
+                                  field.onChange(e.target.value);
+                                }}
+                                data-testid="input-department"
+                              />
+                            </FormControl>
+                            {departments.length > 0 && (
+                              <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                className="text-xs p-0 h-auto"
+                                onClick={() => { setDepartmentOther(false); form.setValue("memoireDepartment", ""); }}
+                                data-testid="button-back-to-department-list"
+                              >
+                                العودة إلى القائمة
+                              </Button>
+                            )}
+                          </div>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -554,22 +817,62 @@ export default function NewMemoire() {
                     <p className="text-sm text-muted-foreground">حدد المنهجية ونظام التوثيق وتفاصيل أخرى</p>
                   </div>
 
+                  {recommendedCitation && !universityOther && (
+                    <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-3 flex items-start gap-2 text-sm">
+                      <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                      <span className="text-muted-foreground">
+                        تم تحديد نظام التوثيق وتصفية المنهجيات المتاحة بناءً على معايير
+                        <span className="font-medium text-foreground"> {watchedUniversity} </span>
+                        في تخصص
+                        <span className="font-medium text-foreground"> {ACADEMIC_FIELDS.find(f => f.value === watchedField)?.label || watchedField}</span>.
+                        يمكنك تعديلها حسب الحاجة.
+                      </span>
+                    </div>
+                  )}
+
                   <div className="grid sm:grid-cols-2 gap-4">
                     <FormField control={form.control} name="memoireMethodology" render={({ field }) => (
                       <FormItem>
                         <FormLabel>منهجية البحث</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-methodology">
-                              <SelectValue placeholder="اختر المنهجية" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {METHODOLOGY_OPTIONS.map((m) => (
-                              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {!methodologyOther ? (
+                          <Select onValueChange={handleMethodologySelect} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-methodology">
+                                <SelectValue placeholder="اختر المنهجية" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {contextMethodologies.map((m) => (
+                                <SelectItem key={m} value={m}>{m}</SelectItem>
+                              ))}
+                              <SelectItem value={OTHER_VALUE}>أخرى (إدخال يدوي)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="space-y-2">
+                            <FormControl>
+                              <Input
+                                placeholder="أدخل المنهجية"
+                                value={customMethodology}
+                                onChange={(e) => {
+                                  setCustomMethodology(e.target.value);
+                                  field.onChange(e.target.value);
+                                }}
+                                data-testid="input-methodology"
+                              />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="text-xs p-0 h-auto"
+                              onClick={() => { setMethodologyOther(false); form.setValue("memoireMethodology", ""); }}
+                              data-testid="button-back-to-methodology-list"
+                            >
+                              العودة إلى القائمة
+                            </Button>
+                          </div>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -577,18 +880,45 @@ export default function NewMemoire() {
                     <FormField control={form.control} name="memoireCitationStyle" render={({ field }) => (
                       <FormItem>
                         <FormLabel>نظام التوثيق</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-citation-style">
-                              <SelectValue placeholder="اختر نظام التوثيق" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {CITATION_STYLE_OPTIONS.map((c) => (
-                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {!citationOther ? (
+                          <Select onValueChange={handleCitationSelect} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-citation-style">
+                                <SelectValue placeholder="اختر نظام التوثيق" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {ALL_CITATION_STYLES.map((c) => (
+                                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                              ))}
+                              <SelectItem value={OTHER_VALUE}>أخرى (إدخال يدوي)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="space-y-2">
+                            <FormControl>
+                              <Input
+                                placeholder="أدخل نظام التوثيق"
+                                value={customCitation}
+                                onChange={(e) => {
+                                  setCustomCitation(e.target.value);
+                                  field.onChange(e.target.value);
+                                }}
+                                data-testid="input-citation"
+                              />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="text-xs p-0 h-auto"
+                              onClick={() => { setCitationOther(false); form.setValue("memoireCitationStyle", ""); }}
+                              data-testid="button-back-to-citation-list"
+                            >
+                              العودة إلى القائمة
+                            </Button>
+                          </div>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -739,16 +1069,14 @@ export default function NewMemoire() {
                       {watchedMethodology && (
                         <div className="flex gap-2">
                           <span className="text-muted-foreground shrink-0">المنهجية:</span>
-                          <span className="font-medium" data-testid="text-summary-methodology">
-                            {METHODOLOGY_OPTIONS.find(m => m.value === watchedMethodology)?.label || watchedMethodology}
-                          </span>
+                          <span className="font-medium" data-testid="text-summary-methodology">{watchedMethodology}</span>
                         </div>
                       )}
                       {watchedCitationStyle && (
                         <div className="flex gap-2">
                           <span className="text-muted-foreground shrink-0">نظام التوثيق:</span>
                           <span className="font-medium" data-testid="text-summary-citation">
-                            {CITATION_STYLE_OPTIONS.find(c => c.value === watchedCitationStyle)?.label || watchedCitationStyle}
+                            {ALL_CITATION_STYLES.find(c => c.value === watchedCitationStyle)?.label || watchedCitationStyle}
                           </span>
                         </div>
                       )}
