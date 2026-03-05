@@ -1305,150 +1305,28 @@ export default function ProjectDetail() {
               )}
             </div>
           </div>
-          {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
-            <>
-              <div className="hidden sm:flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    window.open(`/api/projects/${projectId}/export/pdf`, "_blank");
-                  }}
-                  data-testid="button-download-pdf"
-                >
-                  <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل PDF</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
+              <Button
+                size="sm"
+                onClick={() => window.open(`/api/projects/${projectId}/export/pdf`, "_blank")}
+                data-testid="button-download-pdf"
+              >
+                <Download className="w-4 h-4 ml-1.5" /> <span className="hidden sm:inline">تحميل PDF</span>
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-actions-menu">
+                  <MoreVertical className="w-4 h-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    window.open(`/api/projects/${projectId}/export/epub`, "_blank");
-                  }}
-                  data-testid="button-download-epub"
-                >
-                  <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل EPUB</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    window.open(`/api/projects/${projectId}/export/docx`, "_blank");
-                  }}
-                  data-testid="button-download-docx"
-                >
-                  <Download className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">تحميل DOCX</span>
-                </Button>
-                {project.shareToken ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const url = `${window.location.origin}/shared/${project.shareToken}`;
-                      navigator.clipboard.writeText(url);
-                      toast({ title: "تم نسخ رابط المشاركة" });
-                    }}
-                    data-testid="button-copy-share-link"
-                  >
-                    <Copy className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">نسخ الرابط</span>
-                  </Button>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant={project.shareToken ? "destructive" : "secondary"}
-                  onClick={async () => {
-                    try {
-                      if (project.shareToken) {
-                        await apiRequest("DELETE", `/api/projects/${projectId}/share`);
-                        toast({ title: "تم إلغاء المشاركة" });
-                      } else {
-                        await apiRequest("POST", `/api/projects/${projectId}/share`);
-                        toast({ title: "تم إنشاء رابط المشاركة" });
-                      }
-                      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                    } catch {
-                      toast({ title: "حدث خطأ", variant: "destructive" });
-                    }
-                  }}
-                  data-testid="button-toggle-share"
-                >
-                  {project.shareToken ? (
-                    <><X className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">إلغاء المشاركة</span></>
-                  ) : (
-                    <><Share2 className="w-4 h-4 sm:ml-1.5" /> <span className="hidden sm:inline">مشاركة</span></>
-                  )}
-                </Button>
-                {project.shareToken && (
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="publish-to-gallery"
-                      checked={!!project.publishedToGallery}
-                      onCheckedChange={async (checked) => {
-                        try {
-                          if (checked) {
-                            await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
-                            toast({ title: project.projectType === "memoire" ? "تم نشر المذكرة في صفحة المذكرات الأكاديمية" : "تم نشر المشروع في المعرض" });
-                          } else {
-                            await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
-                            toast({ title: project.projectType === "memoire" ? "تم إلغاء النشر من صفحة المذكرات" : "تم إلغاء النشر من المعرض" });
-                          }
-                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                        } catch {
-                          toast({ title: "حدث خطأ", variant: "destructive" });
-                        }
-                      }}
-                      data-testid="switch-publish-to-gallery"
-                    />
-                    <Label
-                      htmlFor="publish-to-gallery"
-                      className="text-xs cursor-pointer whitespace-nowrap"
-                      data-testid="label-publish-to-gallery"
-                      title={project.projectType === "memoire" ? "عند التفعيل، ستظهر مذكرتك في صفحة المذكرات الأكاديمية" : "عند التفعيل، سيظهر مشروعك في المعرض العام ليقرأه الجميع"}
-                    >
-                      {project.projectType === "memoire" ? "نشر في صفحة المذكرات" : "نشر في المعرض"}
-                    </Label>
-                  </div>
-                )}
-                {project.projectType === "essay" && project.shareToken && (
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="publish-to-news"
-                      checked={!!project.publishedToNews}
-                      onCheckedChange={async (checked) => {
-                        try {
-                          if (checked) {
-                            await apiRequest("POST", `/api/projects/${projectId}/publish-to-news`);
-                            toast({ title: "تم نشر المقال في صفحة المقالات" });
-                          } else {
-                            await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-news`);
-                            toast({ title: "تم إلغاء النشر من صفحة المقالات" });
-                          }
-                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                        } catch {
-                          toast({ title: "حدث خطأ", variant: "destructive" });
-                        }
-                      }}
-                      data-testid="switch-publish-to-news"
-                    />
-                    <Label
-                      htmlFor="publish-to-news"
-                      className="text-xs cursor-pointer whitespace-nowrap"
-                      data-testid="label-publish-to-news"
-                      title="عند التفعيل، سيظهر مقالك في صفحة المقالات العامة ليقرأه الجميع"
-                    >
-                      نشر في صفحة المقالات
-                    </Label>
-                  </div>
-                )}
-              </div>
-              <div className="flex sm:hidden shrink-0">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" data-testid="button-mobile-actions">
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" dir="rtl" className="w-56" data-testid="dropdown-mobile-actions">
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" dir="rtl" className="w-56" data-testid="dropdown-actions-menu">
+                {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
+                  <>
                     <DropdownMenuItem
                       onClick={() => window.open(`/api/projects/${projectId}/export/pdf`, "_blank")}
+                      className="sm:hidden"
                       data-testid="menu-download-pdf"
                     >
                       <Download className="w-4 h-4 ml-2" />
@@ -1469,7 +1347,7 @@ export default function ProjectDetail() {
                       تحميل DOCX
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {project.shareToken ? (
+                    {project.shareToken && (
                       <DropdownMenuItem
                         onClick={() => {
                           const url = `${window.location.origin}/shared/${project.shareToken}`;
@@ -1481,7 +1359,7 @@ export default function ProjectDetail() {
                         <Copy className="w-4 h-4 ml-2" />
                         نسخ الرابط
                       </DropdownMenuItem>
-                    ) : null}
+                    )}
                     <DropdownMenuItem
                       onClick={async () => {
                         try {
@@ -1509,7 +1387,7 @@ export default function ProjectDetail() {
                       <>
                         <DropdownMenuSeparator />
                         <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                          <Label className="text-xs cursor-pointer" data-testid="label-publish-gallery-mobile">{project.projectType === "memoire" ? "نشر في صفحة المذكرات" : "نشر في المعرض"}</Label>
+                          <Label className="text-xs cursor-pointer" data-testid="label-publish-gallery">{project.projectType === "memoire" ? "نشر في صفحة المذكرات" : "نشر في المعرض"}</Label>
                           <Switch
                             checked={!!project.publishedToGallery}
                             onCheckedChange={async (checked) => {
@@ -1526,12 +1404,12 @@ export default function ProjectDetail() {
                                 toast({ title: "حدث خطأ", variant: "destructive" });
                               }
                             }}
-                            data-testid="switch-publish-gallery-mobile"
+                            data-testid="switch-publish-gallery"
                           />
                         </div>
                         {project.projectType === "essay" && (
                           <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                            <Label className="text-xs cursor-pointer" data-testid="label-publish-news-mobile">نشر في المقالات</Label>
+                            <Label className="text-xs cursor-pointer" data-testid="label-publish-news">نشر في المقالات</Label>
                             <Switch
                               checked={!!project.publishedToNews}
                               onCheckedChange={async (checked) => {
@@ -1548,60 +1426,33 @@ export default function ProjectDetail() {
                                   toast({ title: "حدث خطأ", variant: "destructive" });
                                 }
                               }}
-                              data-testid="switch-publish-news-mobile"
+                              data-testid="switch-publish-news"
                             />
                           </div>
                         )}
                       </>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setShowShortcutsDialog(true)}
-                      data-testid="menu-shortcuts"
-                    >
-                      <Keyboard className="w-4 h-4 ml-2" />
-                      اختصارات لوحة المفاتيح
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="text-destructive focus:text-destructive"
-                      data-testid="menu-delete-project"
-                    >
-                      <Trash2 className="w-4 h-4 ml-2" />
-                      حذف المشروع
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </>
-          )}
-          {!(project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0) && (
-            <div className="flex sm:hidden shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" data-testid="button-mobile-actions-minimal">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" dir="rtl" className="w-48" data-testid="dropdown-mobile-actions-minimal">
-                  <DropdownMenuItem
-                    onClick={() => setShowShortcutsDialog(true)}
-                    data-testid="menu-shortcuts-minimal"
-                  >
-                    <Keyboard className="w-4 h-4 ml-2" />
-                    اختصارات لوحة المفاتيح
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="text-destructive focus:text-destructive"
-                    data-testid="menu-delete-minimal"
-                  >
-                    <Trash2 className="w-4 h-4 ml-2" />
-                    حذف المشروع
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  </>
+                )}
+                <DropdownMenuItem
+                  onClick={() => setShowShortcutsDialog(true)}
+                  data-testid="menu-shortcuts"
+                >
+                  <Keyboard className="w-4 h-4 ml-2" />
+                  اختصارات لوحة المفاتيح
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-destructive focus:text-destructive"
+                  data-testid="menu-delete-project"
+                >
+                  <Trash2 className="w-4 h-4 ml-2" />
+                  حذف المشروع
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           )}
           <ThemeToggle />
           <div className="hidden sm:flex items-center gap-1 shrink-0">
