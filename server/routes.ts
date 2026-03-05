@@ -17,6 +17,7 @@ import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import { apiCache } from "./cache";
 import { runLearningSession } from "./learning-engine";
+import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -851,6 +852,15 @@ ${pages.map(p => `  <url>
       try {
         const parsed = JSON.parse(jsonMatch[0]);
         res.json(parsed);
+
+        dispatchWebhook({
+          input: `Suggest full project (${safeType})${safeHint ? `: ${safeHint}` : ""}`,
+          output: content,
+          category: mapProjectTypeToCategory(safeType),
+          correction: null,
+          timestamp: new Date().toISOString(),
+          metadata: { session_id: `suggest-${req.user.claims.sub}`, language: "ar", word_count: countWords(content) },
+        });
       } catch {
         return res.status(500).json({ error: "فشل في تحليل الاقتراح" });
       }
@@ -1646,6 +1656,15 @@ ${pages.map(p => `  <url>
       }
 
       res.json(updated);
+
+      dispatchWebhook({
+        input: `Generate outline for "${project.title}" (${pType})`,
+        output: outline,
+        category: mapProjectTypeToCategory(pType),
+        correction: null,
+        timestamp: new Date().toISOString(),
+        metadata: { session_id: `project-${id}`, language: "ar", word_count: countWords(outline) },
+      });
     } catch (error) {
       console.error("Error generating outline:", error);
       res.status(500).json({ error: "فشل في توليد المخطط" });
@@ -1933,6 +1952,15 @@ ${pages.map(p => `  <url>
         }).catch(() => {});
       }
 
+      dispatchWebhook({
+        input: `Generate chapter "${chapter.title}" for project "${project.title}"`,
+        output: fullContent,
+        category: mapProjectTypeToCategory(pType),
+        correction: null,
+        timestamp: new Date().toISOString(),
+        metadata: { session_id: `project-${projectId}`, language: "ar", word_count: countWords(fullContent) },
+      });
+
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (error) {
@@ -2047,6 +2075,15 @@ ${pages.map(p => `  <url>
 
       const reply = response.choices[0]?.message?.content || "عذراً، لم أتمكن من الرد.";
       res.json({ reply });
+
+      dispatchWebhook({
+        input: message,
+        output: reply,
+        category: "general",
+        correction: null,
+        timestamp: new Date().toISOString(),
+        metadata: { session_id: `chat-${req.user.claims.sub}`, language: "ar", word_count: countWords(reply) },
+      });
     } catch (error) {
       console.error("Error in general chat:", error);
       res.status(500).json({ error: "فشل في الحصول على رد من أبو هاشم" });
@@ -2089,6 +2126,15 @@ ${pages.map(p => `  <url>
 
       const reply = response.choices[0]?.message?.content || "عذراً، لم أتمكن من الرد.";
       res.json({ reply });
+
+      dispatchWebhook({
+        input: message,
+        output: reply,
+        category: mapProjectTypeToCategory(project.projectType),
+        correction: null,
+        timestamp: new Date().toISOString(),
+        metadata: { session_id: `project-${id}`, language: "ar", word_count: countWords(reply) },
+      });
     } catch (error) {
       console.error("Error in project chat:", error);
       res.status(500).json({ error: "فشل في الحصول على رد من أبو هاشم" });
@@ -4085,6 +4131,15 @@ ${glossaryParagraphs}
       }
 
       res.json({ rewrittenContent });
+
+      dispatchWebhook({
+        input: content,
+        output: rewrittenContent,
+        category: mapProjectTypeToCategory(project.projectType),
+        correction: null,
+        timestamp: new Date().toISOString(),
+        metadata: { session_id: `project-${project.id}`, language: "ar", word_count: countWords(rewrittenContent) },
+      });
     } catch (error) {
       console.error("Error rewriting chapter:", error);
       res.status(500).json({ error: "فشل في إعادة كتابة النص" });
@@ -5560,6 +5615,15 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
       }
 
       res.json({ content: result.fixedContent, changes: result.changes || "تم الإصلاح" });
+
+      dispatchWebhook({
+        input: issue.description,
+        output: result.fixedContent,
+        category: mapProjectTypeToCategory(project.projectType),
+        correction: result.changes || null,
+        timestamp: new Date().toISOString(),
+        metadata: { session_id: `project-${project.id}`, language: "ar", word_count: countWords(result.fixedContent) },
+      });
     } catch (error) {
       console.error("Error fixing continuity issue:", error);
       res.status(500).json({ error: "فشل في إصلاح المشكلة" });
@@ -6595,6 +6659,63 @@ ${ch.content}
       res.json({ enabled: !!enabled });
     } catch (error) {
       res.status(500).json({ error: "فشل في تحديث إعداد التعلم التلقائي" });
+    }
+  });
+
+  app.get("/api/admin/webhook-deliveries", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const deliveries = await storage.getWebhookDeliveries(50);
+      res.json(deliveries);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب سجل الـ Webhook" });
+    }
+  });
+
+  app.post("/api/admin/webhook-test", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const testPayload: WebhookPayload = {
+        input: "هذه رسالة اختبار من لوحة التحكم",
+        output: "تم استلام الرسالة بنجاح — هذا رد تجريبي من أبو هاشم",
+        category: "general",
+        correction: null,
+        timestamp: new Date().toISOString(),
+        metadata: { session_id: "test-webhook", language: "ar", word_count: 8 },
+      };
+
+      const webhookUrl = process.env.TRAINING_WEBHOOK_URL;
+      const webhookSecret = process.env.WEBHOOK_SECRET;
+
+      if (!webhookUrl) {
+        return res.status(400).json({ error: "TRAINING_WEBHOOK_URL غير مُعدّ" });
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(webhookSecret ? { "X-Webhook-Secret": webhookSecret } : {}),
+        },
+        body: JSON.stringify(testPayload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      await storage.createWebhookDelivery({
+        payload: testPayload,
+        status: response.ok ? "delivered" : "failed",
+        statusCode: response.status,
+        errorMessage: response.ok ? null : `HTTP ${response.status}`,
+        retryCount: 0,
+      });
+
+      res.json({ success: response.ok, statusCode: response.status });
+    } catch (error: any) {
+      const errorMsg = error.name === "AbortError" ? "Request timeout" : error.message;
+      res.status(500).json({ error: `فشل اختبار الـ Webhook: ${errorMsg}` });
     }
   });
 

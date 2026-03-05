@@ -631,3 +631,19 @@ export const learningSessions = pgTable("learning_sessions", {
 export const insertLearningSessionSchema = createInsertSchema(learningSessions).omit({ id: true, startedAt: true, completedAt: true });
 export type InsertLearningSession = z.infer<typeof insertLearningSessionSchema>;
 export type LearningSession = typeof learningSessions.$inferSelect;
+
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  id: serial("id").primaryKey(),
+  payload: jsonb("payload").notNull(),
+  status: varchar("status").notNull().default("pending"),
+  statusCode: integer("status_code"),
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").notNull().default(0),
+  nextRetryAt: timestamp("next_retry_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  deliveredAt: timestamp("delivered_at"),
+});
+
+export const insertWebhookDeliverySchema = createInsertSchema(webhookDeliveries).omit({ id: true, createdAt: true, deliveredAt: true });
+export type InsertWebhookDelivery = z.infer<typeof insertWebhookDeliverySchema>;
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;

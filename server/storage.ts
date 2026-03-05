@@ -21,6 +21,7 @@ import {
   contentReports, type ContentReport, type InsertContentReport,
   knowledgeEntries, type KnowledgeEntry, type InsertKnowledgeEntry,
   learningSessions, type LearningSession, type InsertLearningSession,
+  webhookDeliveries, type WebhookDelivery, type InsertWebhookDelivery,
   PLAN_PRICES,
 } from "@shared/schema";
 import { db } from "./db";
@@ -128,6 +129,10 @@ export interface IStorage {
   updateLearningSession(id: number, data: Partial<LearningSession>): Promise<LearningSession>;
   getLearningSessions(limit?: number): Promise<LearningSession[]>;
   getLearningStats(): Promise<{ totalEntries: number; validatedEntries: number; rejectedEntries: number; pendingEntries: number; totalSessions: number; lastSessionDate: string | null }>;
+  createWebhookDelivery(data: InsertWebhookDelivery): Promise<WebhookDelivery>;
+  updateWebhookDelivery(id: number, data: Partial<WebhookDelivery>): Promise<WebhookDelivery>;
+  getWebhookDeliveries(limit?: number): Promise<WebhookDelivery[]>;
+  getPendingWebhookRetries(): Promise<WebhookDelivery[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -923,6 +928,7 @@ export class DatabaseStorage implements IStorage {
       { featureKey: "export_epub", name: "تصدير EPUB", description: "تصدير المشاريع بصيغة EPUB" },
       { featureKey: "export_docx", name: "تصدير DOCX", description: "تصدير المشاريع بصيغة DOCX" },
       { featureKey: "auto_learning", name: "التعلم التلقائي", description: "تشغيل جلسات تعلم ذاتي تلقائية كل 24 ساعة" },
+      { featureKey: "training_webhook", name: "Webhook التدريب", description: "إرسال بيانات التفاعلات إلى خادم التدريب الخارجي تلقائياً" },
     ];
 
     for (const feat of defaults) {
@@ -1190,6 +1196,30 @@ export class DatabaseStorage implements IStorage {
       totalSessions: sessions.count,
       lastSessionDate: lastSession?.startedAt?.toISOString() || null,
     };
+  }
+
+  async createWebhookDelivery(data: InsertWebhookDelivery): Promise<WebhookDelivery> {
+    const [delivery] = await db.insert(webhookDeliveries).values(data).returning();
+    return delivery;
+  }
+
+  async updateWebhookDelivery(id: number, data: Partial<WebhookDelivery>): Promise<WebhookDelivery> {
+    const [delivery] = await db.update(webhookDeliveries).set(data).where(eq(webhookDeliveries.id, id)).returning();
+    return delivery;
+  }
+
+  async getWebhookDeliveries(limit: number = 50): Promise<WebhookDelivery[]> {
+    return db.select().from(webhookDeliveries).orderBy(desc(webhookDeliveries.createdAt)).limit(limit);
+  }
+
+  async getPendingWebhookRetries(): Promise<WebhookDelivery[]> {
+    return db.select().from(webhookDeliveries)
+      .where(and(
+        eq(webhookDeliveries.status, "pending"),
+        lt(webhookDeliveries.nextRetryAt, new Date()),
+      ))
+      .orderBy(asc(webhookDeliveries.nextRetryAt))
+      .limit(20);
   }
 }
 

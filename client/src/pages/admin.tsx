@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck, Brain, PlayCircle, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck, Brain, PlayCircle, CheckCircle, XCircle, RefreshCw, Webhook, Send } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -141,7 +141,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -331,6 +331,25 @@ export default function Admin() {
       queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin/learning/entries") });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/learning/stats"] });
       toast({ title: "تم حذف المعرفة" });
+    },
+  });
+
+  const { data: webhookDeliveries } = useQuery<Array<{ id: number; payload: any; status: string; statusCode: number | null; errorMessage: string | null; retryCount: number; createdAt: string | null }>>({
+    queryKey: ["/api/admin/webhook-deliveries"],
+    enabled: activeTab === "webhook",
+    refetchInterval: activeTab === "webhook" ? 10000 : false,
+  });
+
+  const webhookTestMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/admin/webhook-test", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/webhook-deliveries"] });
+      toast({ title: "تم إرسال اختبار الـ Webhook" });
+    },
+    onError: () => {
+      toast({ title: "فشل اختبار الـ Webhook", variant: "destructive" });
     },
   });
 
@@ -942,6 +961,7 @@ export default function Admin() {
                   { key: "promos" as const, icon: Tag, label: "رموز الخصم" },
                   { key: "features" as const, icon: Settings, label: "المميزات" },
                   { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
+                  { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -1049,6 +1069,7 @@ export default function Admin() {
                         { key: "promos" as const, icon: Tag, label: "رموز الخصم" },
                         { key: "features" as const, icon: Settings, label: "المميزات" },
                         { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
+                        { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
                       ].map((item) => (
                         <button
                           key={item.key}
@@ -3928,6 +3949,114 @@ export default function Admin() {
                 <p className="text-sm text-muted-foreground text-center py-6">لا توجد معارف مكتسبة بعد. قم بتشغيل أول جلسة تعلم لاستخلاص المعارف من بيانات المنصة.</p>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === "webhook" && (
+          <div className="space-y-6" data-testid="webhook-panel">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-serif font-bold" data-testid="text-webhook-heading">Webhook التدريب</h2>
+                <p className="text-sm text-muted-foreground mt-1">إرسال بيانات التفاعلات إلى خادم التدريب الخارجي</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  webhookTestMutation.mutate();
+                }}
+                disabled={webhookTestMutation.isPending}
+                data-testid="button-test-webhook"
+              >
+                {webhookTestMutation.isPending ? <Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> : <Send className="w-4 h-4 ml-1.5" />}
+                اختبار الاتصال
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium">تم التوصيل</span>
+                </div>
+                <p className="text-2xl font-bold" data-testid="text-webhook-delivered">
+                  {webhookDeliveries?.filter((d: any) => d.status === "delivered").length || 0}
+                </p>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <span className="text-sm font-medium">في الانتظار</span>
+                </div>
+                <p className="text-2xl font-bold" data-testid="text-webhook-pending">
+                  {webhookDeliveries?.filter((d: any) => d.status === "pending").length || 0}
+                </p>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm font-medium">فشل</span>
+                </div>
+                <p className="text-2xl font-bold" data-testid="text-webhook-failed">
+                  {webhookDeliveries?.filter((d: any) => d.status === "failed").length || 0}
+                </p>
+              </Card>
+            </div>
+
+            <Card>
+              <div className="p-4 border-b">
+                <h3 className="font-semibold">سجل عمليات التسليم</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" data-testid="table-webhook-deliveries">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-right p-3 font-medium">الوقت</th>
+                      <th className="text-right p-3 font-medium">الحالة</th>
+                      <th className="text-right p-3 font-medium">الفئة</th>
+                      <th className="text-right p-3 font-medium">حجم البيانات</th>
+                      <th className="text-right p-3 font-medium">كود الاستجابة</th>
+                      <th className="text-right p-3 font-medium">المحاولات</th>
+                      <th className="text-right p-3 font-medium">الخطأ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {webhookDeliveries && webhookDeliveries.length > 0 ? (
+                      webhookDeliveries.map((d: any) => (
+                        <tr key={d.id} className="border-b hover:bg-muted/30" data-testid={`row-webhook-${d.id}`}>
+                          <td className="p-3 whitespace-nowrap text-xs">
+                            {d.createdAt ? new Date(d.createdAt).toLocaleString("ar-DZ") : "-"}
+                          </td>
+                          <td className="p-3">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              d.status === "delivered" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+                              d.status === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
+                              "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            }`}>
+                              {d.status === "delivered" ? <CheckCircle className="w-3 h-3" /> :
+                               d.status === "pending" ? <Clock className="w-3 h-3" /> :
+                               <XCircle className="w-3 h-3" />}
+                              {d.status === "delivered" ? "تم" : d.status === "pending" ? "انتظار" : "فشل"}
+                            </span>
+                          </td>
+                          <td className="p-3 text-xs">{(d.payload as any)?.category || "-"}</td>
+                          <td className="p-3 text-xs">{d.payload ? `${JSON.stringify(d.payload).length} bytes` : "-"}</td>
+                          <td className="p-3 text-xs">{d.statusCode || "-"}</td>
+                          <td className="p-3 text-xs">{d.retryCount}</td>
+                          <td className="p-3 text-xs text-red-500 max-w-[200px] truncate">{d.errorMessage || "-"}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                          لا توجد عمليات تسليم بعد
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           </div>
         )}
 
