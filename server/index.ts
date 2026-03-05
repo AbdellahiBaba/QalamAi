@@ -8,6 +8,8 @@ import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
 import { checkSmtpStatus } from "./email";
 import { processAllExpiredTrials } from "./trial-processor";
+import { runLearningSession } from "./learning-engine";
+import { storage } from "./storage";
 
 const app = express();
 app.use(compression());
@@ -178,6 +180,20 @@ app.use((req, res, next) => {
         );
       }, TRIAL_CHECK_INTERVAL);
       log("Trial expiry background job started (every 5 minutes)");
+
+      const LEARNING_INTERVAL = 24 * 60 * 60 * 1000;
+      setInterval(async () => {
+        try {
+          const isEnabled = await storage.isFeatureEnabled("auto_learning");
+          if (!isEnabled) return;
+          log("Starting auto learning session...", "learning");
+          await runLearningSession("auto_scheduled");
+          log("Auto learning session completed", "learning");
+        } catch (err: any) {
+          console.error("[LearningEngine] Auto learning error:", err.message);
+        }
+      }, LEARNING_INTERVAL);
+      log("Auto-learning background job registered (every 24 hours)");
     },
   );
 })();

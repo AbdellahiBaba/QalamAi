@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck, Brain, PlayCircle, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -141,7 +141,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -265,6 +265,83 @@ export default function Admin() {
   const { data: adminFeatures, isLoading: featuresLoading } = useQuery<PlatformFeature[]>({
     queryKey: ["/api/admin/features"],
     enabled: activeTab === "features",
+  });
+
+  const { data: learningStats, isLoading: learningStatsLoading } = useQuery<{ totalEntries: number; validatedEntries: number; rejectedEntries: number; pendingEntries: number; totalSessions: number; lastSessionDate: string | null; autoLearningEnabled: boolean }>({
+    queryKey: ["/api/admin/learning/stats"],
+    enabled: activeTab === "learning",
+  });
+
+  const { data: learningSessions, isLoading: learningSessionsLoading } = useQuery<Array<{ id: number; triggeredBy: string; status: string; dataSourcesProcessed: number; entriesGenerated: number; entriesValidated: number; entriesRejected: number; summary: string | null; startedAt: string; completedAt: string | null }>>({
+    queryKey: ["/api/admin/learning/sessions"],
+    enabled: activeTab === "learning",
+  });
+
+  const [learningCategoryFilter, setLearningCategoryFilter] = useState("");
+  const [learningContentTypeFilter, setLearningContentTypeFilter] = useState("");
+  const [learningStatusFilter, setLearningStatusFilter] = useState("all");
+  const [learningSearch, setLearningSearch] = useState("");
+
+  const learningEntriesUrl = (() => {
+    const params = new URLSearchParams();
+    if (learningCategoryFilter && learningCategoryFilter !== "all") params.set("category", learningCategoryFilter);
+    if (learningContentTypeFilter && learningContentTypeFilter !== "all") params.set("contentType", learningContentTypeFilter);
+    if (learningStatusFilter === "validated") { params.set("validated", "true"); params.set("rejected", "false"); }
+    if (learningStatusFilter === "pending") { params.set("validated", "false"); params.set("rejected", "false"); }
+    if (learningStatusFilter === "rejected") { params.set("rejected", "true"); }
+    if (learningSearch) params.set("search", learningSearch);
+    const qs = params.toString();
+    return `/api/admin/learning/entries${qs ? `?${qs}` : ""}`;
+  })();
+  const { data: learningEntries, isLoading: learningEntriesLoading } = useQuery<Array<{ id: number; category: string; contentType: string; knowledge: string; source: string; confidence: number; usageCount: number; validated: boolean; rejected: boolean; createdAt: string }>>({
+    queryKey: [learningEntriesUrl],
+    enabled: activeTab === "learning",
+  });
+
+  const triggerLearningMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/admin/learning/trigger", {});
+    },
+    onSuccess: () => {
+      toast({ title: "تم بدء جلسة التعلم بنجاح" });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/learning/sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/learning/stats"] });
+        queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin/learning/entries") });
+      }, 5000);
+    },
+  });
+
+  const updateEntryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { validated?: boolean; rejected?: boolean } }) => {
+      await apiRequest("PATCH", `/api/admin/learning/entries/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin/learning/entries") });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/learning/stats"] });
+      toast({ title: "تم تحديث المعرفة" });
+    },
+  });
+
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/admin/learning/entries/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin/learning/entries") });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/learning/stats"] });
+      toast({ title: "تم حذف المعرفة" });
+    },
+  });
+
+  const toggleAutoLearningMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      await apiRequest("POST", "/api/admin/learning/auto-learning", { enabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/learning/stats"] });
+      toast({ title: "تم تحديث إعداد التعلم التلقائي" });
+    },
   });
 
   const [featureEdits, setFeatureEdits] = useState<Record<string, { disabledMessage: string; betaUserIds: string[] }>>({});
@@ -864,6 +941,7 @@ export default function Admin() {
                 {[
                   { key: "promos" as const, icon: Tag, label: "رموز الخصم" },
                   { key: "features" as const, icon: Settings, label: "المميزات" },
+                  { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -970,6 +1048,7 @@ export default function Admin() {
                       {[
                         { key: "promos" as const, icon: Tag, label: "رموز الخصم" },
                         { key: "features" as const, icon: Settings, label: "المميزات" },
+                        { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                       ].map((item) => (
                         <button
                           key={item.key}
@@ -3633,6 +3712,222 @@ export default function Admin() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "learning" && (
+          <div className="space-y-6" data-testid="learning-panel">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-serif font-bold" data-testid="text-learning-heading">التعلم الذاتي لأبو هاشم</h2>
+                <p className="text-sm text-muted-foreground mt-1">نظام استخلاص المعارف من تفاعلات المستخدمين وتحسين جودة الكتابة تلقائيا</p>
+              </div>
+              <Button
+                onClick={() => triggerLearningMutation.mutate()}
+                disabled={triggerLearningMutation.isPending}
+                data-testid="button-trigger-learning"
+              >
+                {triggerLearningMutation.isPending ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <PlayCircle className="w-4 h-4 ml-2" />}
+                بدء جلسة تعلم جديدة
+              </Button>
+            </div>
+
+            {learningStatsLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+              </div>
+            ) : learningStats && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="learning-stats">
+                <Card><CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold" dir="ltr" data-testid="text-total-entries">{learningStats.totalEntries}</p>
+                  <p className="text-xs text-muted-foreground">إجمالي المعارف</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold text-green-600" dir="ltr" data-testid="text-validated-entries">{learningStats.validatedEntries}</p>
+                  <p className="text-xs text-muted-foreground">معتمدة</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-600" dir="ltr" data-testid="text-pending-entries">{learningStats.pendingEntries}</p>
+                  <p className="text-xs text-muted-foreground">قيد المراجعة</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold text-red-600" dir="ltr" data-testid="text-rejected-entries">{learningStats.rejectedEntries}</p>
+                  <p className="text-xs text-muted-foreground">مرفوضة</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold" dir="ltr" data-testid="text-total-sessions">{learningStats.totalSessions}</p>
+                  <p className="text-xs text-muted-foreground">جلسات التعلم</p>
+                </CardContent></Card>
+                <Card><CardContent className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <Switch
+                      checked={learningStats.autoLearningEnabled}
+                      onCheckedChange={(checked) => toggleAutoLearningMutation.mutate(checked)}
+                      data-testid="switch-auto-learning"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{learningStats.autoLearningEnabled ? "تعلم تلقائي مفعّل" : "تعلم تلقائي معطّل"}</p>
+                </CardContent></Card>
+              </div>
+            )}
+
+            <div>
+              <h3 className="font-semibold mb-3">سجل جلسات التعلم</h3>
+              {learningSessionsLoading ? (
+                <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+              ) : learningSessions && learningSessions.length > 0 ? (
+                <div className="space-y-2">
+                  {learningSessions.map((session) => (
+                    <Card key={session.id} data-testid={`card-session-${session.id}`}>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {session.status === "completed" && <CheckCircle className="w-4 h-4 text-green-500" />}
+                            {session.status === "running" && <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />}
+                            {session.status === "failed" && <XCircle className="w-4 h-4 text-red-500" />}
+                            <Badge variant={session.triggeredBy === "admin_manual" ? "default" : "secondary"} data-testid={`badge-trigger-${session.id}`}>
+                              {session.triggeredBy === "admin_manual" ? "يدوي" : "تلقائي"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground" dir="ltr">
+                              {new Date(session.startedAt).toLocaleDateString("ar-DZ")} {new Date(session.startedAt).toLocaleTimeString("ar-DZ", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="text-green-600" data-testid={`text-session-validated-${session.id}`}>{session.entriesValidated} معتمدة</span>
+                            <span className="text-red-600" data-testid={`text-session-rejected-${session.id}`}>{session.entriesRejected} مرفوضة</span>
+                            <span className="text-muted-foreground">{session.entriesGenerated} مستخلصة</span>
+                          </div>
+                        </div>
+                        {session.summary && <p className="text-sm text-muted-foreground">{session.summary}</p>}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">لا توجد جلسات تعلم بعد. اضغط "بدء جلسة تعلم جديدة" لبدء أول جلسة.</p>
+              )}
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-3">قاعدة المعارف المكتسبة</h3>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Select value={learningCategoryFilter} onValueChange={setLearningCategoryFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-category-filter"><SelectValue placeholder="كل التصنيفات" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل التصنيفات</SelectItem>
+                    <SelectItem value="writing_pattern">أنماط كتابة</SelectItem>
+                    <SelectItem value="correction">تصحيحات</SelectItem>
+                    <SelectItem value="style_insight">رؤى أسلوبية</SelectItem>
+                    <SelectItem value="domain_expertise">خبرة تخصصية</SelectItem>
+                    <SelectItem value="user_preference">تفضيلات</SelectItem>
+                    <SelectItem value="quality_standard">معايير جودة</SelectItem>
+                    <SelectItem value="terminology">مصطلحات</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={learningContentTypeFilter} onValueChange={setLearningContentTypeFilter}>
+                  <SelectTrigger className="w-40" data-testid="select-content-type-filter"><SelectValue placeholder="كل الأنواع" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الأنواع</SelectItem>
+                    <SelectItem value="novel">رواية</SelectItem>
+                    <SelectItem value="essay">مقال</SelectItem>
+                    <SelectItem value="scenario">سيناريو</SelectItem>
+                    <SelectItem value="short_story">قصة قصيرة</SelectItem>
+                    <SelectItem value="khawater">خواطر</SelectItem>
+                    <SelectItem value="social_media">تواصل اجتماعي</SelectItem>
+                    <SelectItem value="poetry">شعر</SelectItem>
+                    <SelectItem value="memoire">مذكرة تخرج</SelectItem>
+                    <SelectItem value="general">عام</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={learningStatusFilter} onValueChange={setLearningStatusFilter}>
+                  <SelectTrigger className="w-36" data-testid="select-status-filter"><SelectValue placeholder="كل الحالات" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الحالات</SelectItem>
+                    <SelectItem value="validated">معتمدة</SelectItem>
+                    <SelectItem value="pending">قيد المراجعة</SelectItem>
+                    <SelectItem value="rejected">مرفوضة</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="بحث في المعارف..."
+                    value={learningSearch}
+                    onChange={(e) => setLearningSearch(e.target.value)}
+                    className="pr-10"
+                    data-testid="input-learning-search"
+                  />
+                </div>
+              </div>
+
+              {learningEntriesLoading ? (
+                <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
+              ) : learningEntries && learningEntries.length > 0 ? (
+                <div className="space-y-2">
+                  {learningEntries.map((entry) => {
+                    const categoryLabels: Record<string, string> = { writing_pattern: "نمط كتابة", correction: "تصحيح", style_insight: "رؤية أسلوبية", domain_expertise: "خبرة تخصصية", user_preference: "تفضيل", quality_standard: "معيار جودة", terminology: "مصطلح" };
+                    const contentTypeLabels: Record<string, string> = { novel: "رواية", essay: "مقال", scenario: "سيناريو", short_story: "قصة قصيرة", khawater: "خواطر", social_media: "تواصل", poetry: "شعر", memoire: "مذكرة", general: "عام" };
+                    const confidenceColor = entry.confidence > 0.8 ? "text-green-600" : entry.confidence >= 0.6 ? "text-amber-600" : "text-red-600";
+
+                    return (
+                      <Card key={entry.id} className={`${entry.rejected ? "opacity-60 border-red-300" : entry.validated ? "border-green-300/50" : ""}`} data-testid={`card-entry-${entry.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                <Badge variant="outline" className="text-[10px]">{categoryLabels[entry.category] || entry.category}</Badge>
+                                <Badge variant="secondary" className="text-[10px]">{contentTypeLabels[entry.contentType] || entry.contentType}</Badge>
+                                <span className={`text-[10px] font-mono ${confidenceColor}`} dir="ltr" data-testid={`text-confidence-${entry.id}`}>{(entry.confidence * 100).toFixed(0)}%</span>
+                                {entry.validated && <CheckCircle className="w-3 h-3 text-green-500" />}
+                                {entry.rejected && <XCircle className="w-3 h-3 text-red-500" />}
+                                <span className="text-[10px] text-muted-foreground" dir="ltr">({entry.usageCount}x)</span>
+                              </div>
+                              <p className="text-sm leading-relaxed" data-testid={`text-knowledge-${entry.id}`}>{entry.knowledge}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">المصدر: {entry.source} | {new Date(entry.createdAt).toLocaleDateString("ar-DZ")}</p>
+                            </div>
+                            <div className="flex flex-col gap-1 shrink-0">
+                              {!entry.validated && !entry.rejected && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-green-600"
+                                  onClick={() => updateEntryMutation.mutate({ id: entry.id, data: { validated: true, rejected: false } })}
+                                  data-testid={`button-validate-${entry.id}`}
+                                >
+                                  <Check className="w-3 h-3 ml-1" />اعتماد
+                                </Button>
+                              )}
+                              {!entry.rejected && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-600"
+                                  onClick={() => updateEntryMutation.mutate({ id: entry.id, data: { validated: false, rejected: true } })}
+                                  data-testid={`button-reject-${entry.id}`}
+                                >
+                                  <X className="w-3 h-3 ml-1" />رفض
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-muted-foreground"
+                                onClick={() => deleteEntryMutation.mutate(entry.id)}
+                                data-testid={`button-delete-entry-${entry.id}`}
+                              >
+                                <Trash2 className="w-3 h-3 ml-1" />حذف
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">لا توجد معارف مكتسبة بعد. قم بتشغيل أول جلسة تعلم لاستخلاص المعارف من بيانات المنصة.</p>
+              )}
+            </div>
           </div>
         )}
 

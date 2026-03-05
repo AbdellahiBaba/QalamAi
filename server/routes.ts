@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
 import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
@@ -16,6 +16,7 @@ import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import { apiCache } from "./cache";
+import { runLearningSession } from "./learning-engine";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -1455,6 +1456,8 @@ ${pages.map(p => `  <url>
         promptResult = buildOutlinePrompt(project, chars, rels, chars);
       }
 
+      promptResult = await enhanceWithKnowledge(promptResult, pType);
+
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
@@ -1868,6 +1871,8 @@ ${pages.map(p => `  <url>
           promptResult = buildChapterPrompt(project, chars, updatedChapter!, previousChapters, project.outline || "", part, totalParts);
         }
 
+        promptResult = await enhanceWithKnowledge(promptResult, pType);
+
         const stream = await openai.chat.completions.create({
           model: "gpt-5.2",
           messages: [
@@ -2017,10 +2022,10 @@ ${pages.map(p => `  <url>
       const { message, history } = req.body;
       if (!message || typeof message !== "string") return res.status(400).json({ error: "الرسالة مطلوبة" });
 
-      const { system, user: userMsg } = buildGeneralChatPrompt(message);
+      const generalChat = await enhanceWithKnowledge(buildGeneralChatPrompt(message), "general");
 
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: system },
+        { role: "system", content: generalChat.system },
       ];
 
       if (Array.isArray(history)) {
@@ -2031,7 +2036,7 @@ ${pages.map(p => `  <url>
         }
       }
 
-      messages.push({ role: "user", content: userMsg });
+      messages.push({ role: "user", content: generalChat.user });
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -2060,7 +2065,7 @@ ${pages.map(p => `  <url>
       if (!message || typeof message !== "string") return res.status(400).json({ error: "الرسالة مطلوبة" });
 
       const characters = await storage.getCharactersByProject(id);
-      const { system, user: userMsg } = buildProjectChatPrompt({
+      const projectChatEnhanced = await enhanceWithKnowledge(buildProjectChatPrompt({
         project,
         characters,
         chapters: project.chapters.map((ch: any) => ({
@@ -2070,13 +2075,13 @@ ${pages.map(p => `  <url>
           status: ch.status,
         })),
         userMessage: message,
-      });
+      }), project.projectType || "general");
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
-          { role: "system", content: system },
-          { role: "user", content: userMsg },
+          { role: "system", content: projectChatEnhanced.system },
+          { role: "user", content: projectChatEnhanced.user },
         ],
         max_completion_tokens: 2000,
         temperature: 0.7,
@@ -6493,6 +6498,103 @@ ${ch.content}
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب المميزات" });
+    }
+  });
+
+  app.post("/api/admin/learning/trigger", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      res.json({ message: "جاري بدء جلسة التعلم...", status: "started" });
+      runLearningSession("admin_manual").catch((err) =>
+        console.error("[LearningEngine] Manual trigger error:", err)
+      );
+    } catch (error) {
+      res.status(500).json({ error: "فشل في بدء جلسة التعلم" });
+    }
+  });
+
+  app.get("/api/admin/learning/sessions", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const sessions = await storage.getLearningSessions(limit);
+      res.json(sessions);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب سجل الجلسات" });
+    }
+  });
+
+  app.get("/api/admin/learning/entries", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.category) filters.category = req.query.category;
+      if (req.query.contentType) filters.contentType = req.query.contentType;
+      if (req.query.validated === "true") filters.validated = true;
+      if (req.query.validated === "false") filters.validated = false;
+      if (req.query.rejected === "true") filters.rejected = true;
+      if (req.query.rejected === "false") filters.rejected = false;
+      if (req.query.search) filters.search = req.query.search;
+      filters.limit = parseInt(req.query.limit as string) || 50;
+      filters.offset = parseInt(req.query.offset as string) || 0;
+
+      const entries = await storage.getKnowledgeEntries(filters);
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المعارف" });
+    }
+  });
+
+  app.patch("/api/admin/learning/entries/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "معرف غير صالح" });
+
+      const schema = z.object({
+        validated: z.boolean().optional(),
+        rejected: z.boolean().optional(),
+        knowledge: z.string().min(1).optional(),
+      }).refine(data => !(data.validated === true && data.rejected === true), {
+        message: "لا يمكن اعتماد ورفض المعرفة في نفس الوقت",
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message || "بيانات غير صالحة" });
+
+      const entry = await storage.updateKnowledgeEntry(id, parsed.data);
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث المعرفة" });
+    }
+  });
+
+  app.delete("/api/admin/learning/entries/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteKnowledgeEntry(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف المعرفة" });
+    }
+  });
+
+  app.get("/api/admin/learning/stats", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const stats = await storage.getLearningStats();
+      const autoLearningEnabled = await storage.isFeatureEnabled("auto_learning");
+      res.json({ ...stats, autoLearningEnabled });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الإحصائيات" });
+    }
+  });
+
+  app.post("/api/admin/learning/auto-learning", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { enabled } = req.body;
+      const feature = await storage.getFeature("auto_learning");
+      if (feature) {
+        await storage.updateFeature("auto_learning", { enabled: !!enabled });
+      }
+      res.json({ enabled: !!enabled });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث إعداد التعلم التلقائي" });
     }
   });
 

@@ -1,5 +1,19 @@
 import type { Character, CharacterRelationship, NovelProject, Chapter } from "@shared/schema";
 import { getMeterInfo, ERAS, POETRY_THEMES, POETRY_TONES, buildProsodyPromptSection, buildEraStyleSection, buildRhymeRulesSection } from "./arabic-prosody";
+import { buildKnowledgeContext } from "./knowledge-memory";
+
+export async function enhanceWithKnowledge(
+  prompt: { system: string; user: string },
+  contentType: string
+): Promise<{ system: string; user: string }> {
+  try {
+    const knowledgeContext = await buildKnowledgeContext(contentType);
+    if (knowledgeContext) {
+      return { system: prompt.system + knowledgeContext, user: prompt.user };
+    }
+  } catch {}
+  return prompt;
+}
 
 function buildDialectInstruction(allowDialect: boolean, projectType: string): string {
   if (allowDialect) {

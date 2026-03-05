@@ -22,6 +22,7 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
 - **Content Reporting System:** A multi-step reporting dialog for public users, categorizing issues by type and severity. Backend captures reporter metadata for administrative review.
 - **Free Plan:** Offers limited monthly project and chapter generations with upgrade calls to action.
 - **Admin Tools:** A comprehensive admin panel for managing users, content moderation, reports, reviews, API usage, analytics, and promo codes. Includes specific analytics for memoires and a feature toggle system.
+- **Abu Hashim Self-Learning System:** A RAG-based intelligence engine that extracts knowledge from user interactions (style analyses, rewrites, published projects, terminology), validates entries via GPT-5.2 quality checks, and injects curated knowledge into all AI prompts. Admin dashboard provides manual learning triggers, session history, knowledge base management, auto-learning toggle (24h cycle), and quality filtering. Tables: `knowledge_entries`, `learning_sessions`. Files: `server/learning-engine.ts`, `server/knowledge-memory.ts`, `server/abu-hashim.ts` (enhanceWithKnowledge).
 - **AI Profile Avatar & Chat:** Users can generate AI profile images using DALL-E. A contextual AI chat, "Abu Hashim," provides literary advice and brainstorming in general and project-specific modes.
 
 ## External Dependencies

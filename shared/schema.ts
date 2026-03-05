@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean, unique, index, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -592,3 +592,42 @@ export const contentReports = pgTable("content_reports", {
 export const insertContentReportSchema = createInsertSchema(contentReports).omit({ id: true, createdAt: true, status: true, priority: true, adminNote: true, actionTaken: true, reviewedBy: true, reviewedAt: true, resolvedAt: true });
 export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
 export type ContentReport = typeof contentReports.$inferSelect;
+
+export const knowledgeEntries = pgTable("knowledge_entries", {
+  id: serial("id").primaryKey(),
+  category: varchar("category").notNull(),
+  contentType: varchar("content_type").notNull(),
+  knowledge: text("knowledge").notNull(),
+  source: varchar("source").notNull(),
+  confidence: real("confidence").default(0.5).notNull(),
+  usageCount: integer("usage_count").default(0).notNull(),
+  validated: boolean("validated").default(false).notNull(),
+  rejected: boolean("rejected").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_knowledge_content_type").on(table.contentType),
+  index("idx_knowledge_category").on(table.category),
+  index("idx_knowledge_validated").on(table.validated, table.rejected),
+]);
+
+export const insertKnowledgeEntrySchema = createInsertSchema(knowledgeEntries).omit({ id: true, usageCount: true, createdAt: true, updatedAt: true });
+export type InsertKnowledgeEntry = z.infer<typeof insertKnowledgeEntrySchema>;
+export type KnowledgeEntry = typeof knowledgeEntries.$inferSelect;
+
+export const learningSessions = pgTable("learning_sessions", {
+  id: serial("id").primaryKey(),
+  triggeredBy: varchar("triggered_by").notNull(),
+  status: varchar("status").default("running").notNull(),
+  dataSourcesProcessed: integer("data_sources_processed").default(0).notNull(),
+  entriesGenerated: integer("entries_generated").default(0).notNull(),
+  entriesValidated: integer("entries_validated").default(0).notNull(),
+  entriesRejected: integer("entries_rejected").default(0).notNull(),
+  summary: text("summary"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertLearningSessionSchema = createInsertSchema(learningSessions).omit({ id: true, startedAt: true, completedAt: true });
+export type InsertLearningSession = z.infer<typeof insertLearningSessionSchema>;
+export type LearningSession = typeof learningSessions.$inferSelect;

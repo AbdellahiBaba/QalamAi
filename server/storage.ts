@@ -19,10 +19,12 @@ import {
   socialMediaLinks, type SocialMediaLink, type InsertSocialMediaLink,
   platformFeatures, type PlatformFeature,
   contentReports, type ContentReport, type InsertContentReport,
+  knowledgeEntries, type KnowledgeEntry, type InsertKnowledgeEntry,
+  learningSessions, type LearningSession, type InsertLearningSession,
   PLAN_PRICES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql, count, isNotNull, avg, lt, inArray } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count, isNotNull, avg, lt, inArray, like, or } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -118,6 +120,14 @@ export interface IStorage {
   }>;
   checkAndResetFreeMonthly(userId: string): Promise<{ projectsUsed: number; generationsUsed: number }>;
   incrementFreeMonthlyUsage(userId: string, type: "project" | "generation"): Promise<void>;
+  createKnowledgeEntry(data: InsertKnowledgeEntry): Promise<KnowledgeEntry>;
+  getKnowledgeEntries(filters: { category?: string; contentType?: string; validated?: boolean; rejected?: boolean; search?: string; limit?: number; offset?: number }): Promise<KnowledgeEntry[]>;
+  updateKnowledgeEntry(id: number, data: Partial<KnowledgeEntry>): Promise<KnowledgeEntry>;
+  deleteKnowledgeEntry(id: number): Promise<void>;
+  createLearningSession(data: InsertLearningSession): Promise<LearningSession>;
+  updateLearningSession(id: number, data: Partial<LearningSession>): Promise<LearningSession>;
+  getLearningSessions(limit?: number): Promise<LearningSession[]>;
+  getLearningStats(): Promise<{ totalEntries: number; validatedEntries: number; rejectedEntries: number; pendingEntries: number; totalSessions: number; lastSessionDate: string | null }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -912,6 +922,7 @@ export class DatabaseStorage implements IStorage {
       { featureKey: "export_pdf", name: "تصدير PDF", description: "تصدير المشاريع بصيغة PDF" },
       { featureKey: "export_epub", name: "تصدير EPUB", description: "تصدير المشاريع بصيغة EPUB" },
       { featureKey: "export_docx", name: "تصدير DOCX", description: "تصدير المشاريع بصيغة DOCX" },
+      { featureKey: "auto_learning", name: "التعلم التلقائي", description: "تشغيل جلسات تعلم ذاتي تلقائية كل 24 ساعة" },
     ];
 
     for (const feat of defaults) {
@@ -1089,6 +1100,96 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(essayReactions).where(eq(essayReactions.projectId, id));
       await tx.delete(novelProjects).where(eq(novelProjects.id, id));
     });
+  }
+
+  async createKnowledgeEntry(data: InsertKnowledgeEntry): Promise<KnowledgeEntry> {
+    const [entry] = await db.insert(knowledgeEntries).values(data).returning();
+    return entry;
+  }
+
+  async getKnowledgeEntries(filters: { category?: string; contentType?: string; validated?: boolean; rejected?: boolean; search?: string; limit?: number; offset?: number }): Promise<KnowledgeEntry[]> {
+    const conditions = [];
+
+    if (filters.category) {
+      conditions.push(eq(knowledgeEntries.category, filters.category));
+    }
+    if (filters.contentType) {
+      conditions.push(eq(knowledgeEntries.contentType, filters.contentType));
+    }
+    if (filters.validated !== undefined) {
+      conditions.push(eq(knowledgeEntries.validated, filters.validated));
+    }
+    if (filters.rejected !== undefined) {
+      conditions.push(eq(knowledgeEntries.rejected, filters.rejected));
+    }
+    if (filters.search) {
+      conditions.push(like(knowledgeEntries.knowledge, `%${filters.search}%`));
+    }
+
+    const query = db
+      .select()
+      .from(knowledgeEntries)
+      .orderBy(desc(knowledgeEntries.createdAt))
+      .limit(filters.limit || 50)
+      .offset(filters.offset || 0);
+
+    if (conditions.length > 0) {
+      return query.where(and(...conditions));
+    }
+    return query;
+  }
+
+  async updateKnowledgeEntry(id: number, data: Partial<KnowledgeEntry>): Promise<KnowledgeEntry> {
+    const [entry] = await db
+      .update(knowledgeEntries)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(knowledgeEntries.id, id))
+      .returning();
+    return entry;
+  }
+
+  async deleteKnowledgeEntry(id: number): Promise<void> {
+    await db.delete(knowledgeEntries).where(eq(knowledgeEntries.id, id));
+  }
+
+  async createLearningSession(data: InsertLearningSession): Promise<LearningSession> {
+    const [session] = await db.insert(learningSessions).values(data).returning();
+    return session;
+  }
+
+  async updateLearningSession(id: number, data: Partial<LearningSession>): Promise<LearningSession> {
+    const [session] = await db
+      .update(learningSessions)
+      .set(data)
+      .where(eq(learningSessions.id, id))
+      .returning();
+    return session;
+  }
+
+  async getLearningSessions(limit: number = 20): Promise<LearningSession[]> {
+    return db
+      .select()
+      .from(learningSessions)
+      .orderBy(desc(learningSessions.startedAt))
+      .limit(limit);
+  }
+
+  async getLearningStats(): Promise<{ totalEntries: number; validatedEntries: number; rejectedEntries: number; pendingEntries: number; totalSessions: number; lastSessionDate: string | null }> {
+    const [total] = await db.select({ count: count() }).from(knowledgeEntries);
+    const [validated] = await db.select({ count: count() }).from(knowledgeEntries).where(eq(knowledgeEntries.validated, true));
+    const [rejected] = await db.select({ count: count() }).from(knowledgeEntries).where(eq(knowledgeEntries.rejected, true));
+    const [pending] = await db.select({ count: count() }).from(knowledgeEntries).where(and(eq(knowledgeEntries.validated, false), eq(knowledgeEntries.rejected, false)));
+    const [sessions] = await db.select({ count: count() }).from(learningSessions);
+    const [lastSession] = await db.select({ startedAt: learningSessions.startedAt }).from(learningSessions).orderBy(desc(learningSessions.startedAt)).limit(1);
+
+    return {
+      totalEntries: total.count,
+      validatedEntries: validated.count,
+      rejectedEntries: rejected.count,
+      pendingEntries: pending.count,
+      totalSessions: sessions.count,
+      lastSessionDate: lastSession?.startedAt?.toISOString() || null,
+    };
   }
 }
 
