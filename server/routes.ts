@@ -1571,6 +1571,7 @@ ${pages.map(p => `  <url>
         if (chapterMatches && chapterMatches.length > 0) {
           let num = 1;
           for (const match of chapterMatches) {
+            if (num > memoireChapterCount) break;
             const titleMatch = match.match(new RegExp(`الفصل\\s+(?:${arabicOrdinals}|[\\d١٢٣٤٥٦٧٨٩٠]+)\\s*[:\\-—–ـ]\\s*(.+)`));
             const chTitle = titleMatch?.[1]?.trim() || `الفصل ${num}`;
             await storage.createChapter({
