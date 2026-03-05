@@ -25,6 +25,8 @@ import {
   getDepartmentsByFaculty,
   getMethodologiesByContext,
   getCitationStyleByContext,
+  getMethodologiesByFaculty,
+  getCitationStylesByFaculty,
   ALL_METHODOLOGY_OPTIONS,
   ALL_CITATION_STYLES,
 } from "@/data/universities";
@@ -164,13 +166,31 @@ export default function NewMemoire() {
   const departments = (watchedCountry && watchedUniversity && watchedFaculty && !universityOther && !facultyOther)
     ? getDepartmentsByFaculty(watchedCountry, watchedUniversity, watchedFaculty) : [];
 
-  const contextMethodologies = (watchedCountry && watchedUniversity && watchedField && !universityOther)
-    ? getMethodologiesByContext(watchedCountry, watchedUniversity, watchedField)
+  const contextMethodologies = (watchedCountry && watchedUniversity && !universityOther)
+    ? (watchedFaculty && !facultyOther
+        ? getMethodologiesByFaculty(watchedCountry, watchedUniversity, watchedFaculty, watchedField || "")
+        : watchedField
+          ? getMethodologiesByContext(watchedCountry, watchedUniversity, watchedField)
+          : ALL_METHODOLOGY_OPTIONS.map(m => m.value))
     : ALL_METHODOLOGY_OPTIONS.map(m => m.value);
 
-  const recommendedCitation = (watchedCountry && watchedUniversity && watchedField && !universityOther)
-    ? getCitationStyleByContext(watchedCountry, watchedUniversity, watchedField)
-    : "";
+  const contextCitationStyles = (watchedCountry && watchedUniversity && !universityOther)
+    ? (watchedFaculty && !facultyOther
+        ? getCitationStylesByFaculty(watchedCountry, watchedUniversity, watchedFaculty, watchedField || "")
+        : watchedField
+          ? (() => {
+              const recommended = getCitationStyleByContext(watchedCountry, watchedUniversity, watchedField);
+              const allMap = new Map(ALL_CITATION_STYLES.map(c => [c.value, c]));
+              const primary = allMap.get(recommended);
+              if (!primary) return ALL_CITATION_STYLES;
+              const result = [primary];
+              for (const c of ALL_CITATION_STYLES) {
+                if (c.value !== primary.value) result.push(c);
+              }
+              return result;
+            })()
+          : ALL_CITATION_STYLES)
+    : ALL_CITATION_STYLES;
 
   useEffect(() => {
     if (watchedCountry && !aiPopulatingRef.current) {
@@ -202,14 +222,22 @@ export default function NewMemoire() {
       form.setValue("memoireDepartment", "");
       setDepartmentOther(false);
       setCustomDepartment("");
+      setMethodologyOther(false);
+      setCustomMethodology("");
+      form.setValue("memoireMethodology", "");
+      setCitationOther(false);
+      setCustomCitation("");
+      form.setValue("memoireCitationStyle", "");
     }
   }, [watchedFaculty, facultyOther, form]);
 
+  const primaryCitationValue = contextCitationStyles.length > 0 ? contextCitationStyles[0].value : "";
+  const citationTrigger = `${primaryCitationValue}_${watchedFaculty}_${watchedField}`;
   useEffect(() => {
-    if (recommendedCitation && !citationOther) {
-      form.setValue("memoireCitationStyle", recommendedCitation);
+    if (primaryCitationValue && !citationOther && !aiPopulatingRef.current) {
+      form.setValue("memoireCitationStyle", primaryCitationValue);
     }
-  }, [recommendedCitation, citationOther, form]);
+  }, [citationTrigger, citationOther, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: MemoireFormData) => {
@@ -852,7 +880,7 @@ export default function NewMemoire() {
                     <p className="text-sm text-muted-foreground">حدد المنهجية ونظام التوثيق وتفاصيل أخرى</p>
                   </div>
 
-                  {recommendedCitation && !universityOther && (
+                  {primaryCitationValue && !universityOther && (
                     <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-3 flex items-start gap-2 text-sm">
                       <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                       <span className="text-muted-foreground">
@@ -923,7 +951,7 @@ export default function NewMemoire() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {ALL_CITATION_STYLES.map((c) => (
+                              {contextCitationStyles.map((c) => (
                                 <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                               ))}
                               <SelectItem value={OTHER_VALUE}>أخرى (إدخال يدوي)</SelectItem>

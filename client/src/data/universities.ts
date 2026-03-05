@@ -1597,6 +1597,29 @@ export function getDepartmentsByFaculty(countryCode: string, universityName: str
   return uni.faculties[facultyName] || [];
 }
 
+export function mapFacultyToField(facultyName: string): string {
+  const name = facultyName;
+  if (/شريعة|إسلامية|أصول الدين|الحديث|القرآن|الدعوة/.test(name)) return "islamic_studies";
+  if (/حقوق|قانون/.test(name)) return "law";
+  if (/طب الأسنان/.test(name)) return "medicine";
+  if (/صيدلة/.test(name)) return "pharmacy";
+  if (/طب|صحية|صحة|تمريض|علوم طبية/.test(name)) return "medicine";
+  if (/حاسب|حاسوب|حوسبة|إعلام الآلي|إعلاميات|معلوماتية|معلومات/.test(name) && !/إدارية/.test(name)) return "computer_science";
+  if (/عمارة|معمارية|تصميم|تخطيط/.test(name)) return "architecture";
+  if (/هندسة|تكنولوجيا|تقنيات|مهندسين/.test(name) && !/زراعية|طبية|اجتماعية/.test(name)) return "engineering";
+  if (/إعلام|اتصال|صحافة/.test(name) && !/سلكية/.test(name)) return "media";
+  if (/تربية|تعليم/.test(name)) return "education";
+  if (/نفس/.test(name) && !/اجتماعية|إنسانية/.test(name)) return "psychology";
+  if (/اجتماع|اجتماعية/.test(name) && !/اقتصاد|قانون/.test(name)) return "sociology";
+  if (/اقتصاد|تجار|إدار|تسيير|محاسبة|مالية|أعمال/.test(name)) return "economics";
+  if (/زراع|بيطري|أغذية/.test(name)) return "agriculture";
+  if (/آداب|لغ|ترجمة|علوم إنسانية|دراسات إنسانية|دار العلوم|فنون/.test(name)) return "literature";
+  if (/علوم سياسية|سياسية|علاقات دولية/.test(name)) return "political_science";
+  if (/علوم دقيقة|علوم طبيعة|رياضيات|فيزياء|كيمياء|بيولوجيا|أرض|جيولوجيا/.test(name)) return "sciences";
+  if (/علوم/.test(name)) return "sciences";
+  return "_default";
+}
+
 export function getMethodologiesByContext(countryCode: string, universityName: string, fieldValue: string): string[] {
   const uni = UNIVERSITIES_DB[countryCode]?.[universityName];
   if (!uni) {
@@ -1609,6 +1632,77 @@ export function getCitationStyleByContext(countryCode: string, universityName: s
   const uni = UNIVERSITIES_DB[countryCode]?.[universityName];
   if (!uni) return "APA";
   return uni.citationStyle[fieldValue] || uni.citationStyle._default || "APA";
+}
+
+const DEFAULT_METHODOLOGIES = ["وصفي تحليلي", "كمّي", "نوعي (كيفي)", "مختلط (نوعي وكمّي)", "تجريبي", "مقارن"];
+
+export function getMethodologiesByFaculty(countryCode: string, universityName: string, facultyName: string, fieldValue: string): string[] {
+  const uni = UNIVERSITIES_DB[countryCode]?.[universityName];
+  if (!uni) return DEFAULT_METHODOLOGIES;
+
+  const facultyField = mapFacultyToField(facultyName);
+
+  if (facultyField !== "_default" && uni.methodology[facultyField]) {
+    return uni.methodology[facultyField];
+  }
+
+  if (fieldValue && uni.methodology[fieldValue]) {
+    return uni.methodology[fieldValue];
+  }
+
+  return uni.methodology._default || DEFAULT_METHODOLOGIES;
+}
+
+export function getCitationStylesByFaculty(countryCode: string, universityName: string, facultyName: string, fieldValue: string): { value: string; label: string }[] {
+  const uni = UNIVERSITIES_DB[countryCode]?.[universityName];
+
+  let primaryStyle = "APA";
+  if (uni) {
+    const facultyField = mapFacultyToField(facultyName);
+    if (facultyField !== "_default" && uni.citationStyle[facultyField]) {
+      primaryStyle = uni.citationStyle[facultyField];
+    } else if (fieldValue && uni.citationStyle[fieldValue]) {
+      primaryStyle = uni.citationStyle[fieldValue];
+    } else {
+      primaryStyle = uni.citationStyle._default || "APA";
+    }
+  }
+
+  const allMap = new Map(ALL_CITATION_STYLES.map(c => [c.value, c]));
+
+  const primaryEntry = allMap.get(primaryStyle);
+  if (!primaryEntry) {
+    return ALL_CITATION_STYLES;
+  }
+
+  const result: { value: string; label: string }[] = [primaryEntry];
+
+  const facultyField = mapFacultyToField(facultyName);
+  const effectiveField = facultyField !== "_default" ? facultyField : (fieldValue || "_default");
+  const relatedStyles: Record<string, string[]> = {
+    medicine: ["Vancouver", "APA"],
+    pharmacy: ["Vancouver", "APA"],
+    engineering: ["IEEE", "APA"],
+    computer_science: ["IEEE", "APA"],
+    law: ["حسب نظام الجامعة (الحواشي السفلية)", "حسب نظام الجامعة", "APA"],
+    islamic_studies: ["حسب نظام الجامعة (الحواشي السفلية)", "حسب نظام الجامعة", "حسب نظام الأزهر (الحواشي السفلية)", "APA"],
+    _default: ["APA", "MLA", "Chicago"],
+  };
+
+  const related = relatedStyles[effectiveField] || relatedStyles._default;
+  for (const style of related) {
+    const entry = allMap.get(style);
+    if (entry && !result.find(r => r.value === entry.value)) {
+      result.push(entry);
+    }
+  }
+
+  if (!result.find(r => r.value === "APA")) {
+    const apa = allMap.get("APA");
+    if (apa) result.push(apa);
+  }
+
+  return result;
 }
 
 export const ALL_METHODOLOGY_OPTIONS = [
