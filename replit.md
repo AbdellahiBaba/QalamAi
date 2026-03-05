@@ -25,6 +25,14 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - **AI Profile Avatar:** Users can generate an AI profile image in various styles using DALL-E.
 - **Abu Hashim Chat:** Contextual AI chat available in general and project-specific modes for literary advice and brainstorming.
 
+## Performance Optimizations
+- **Gzip Compression**: All HTTP responses compressed via `compression` middleware in `server/index.ts` (60-80% transfer size reduction).
+- **Static Asset Caching**: Hashed assets served with `maxAge: 1y, immutable: true` via `server/static.ts`; `index.html` served with `no-cache`.
+- **API Response Cache**: In-memory LRU cache (`server/cache.ts`) with ETag/304 support for public endpoints: gallery (60s), memoires (60s), essays (60s), reviews (120s), tracking-pixels (300s), social-links (300s). Cache invalidated on relevant mutations.
+- **N+1 Query Fixes**: `getGalleryProjects` uses JOIN + batch rating query (was 1+2N queries); `getEssayAnalytics`/`getMemoireAnalytics` use SQL aggregation with LEFT JOIN subqueries (was 2N queries each); `getProjectWithDetails` uses `Promise.all` for parallel sub-queries; `getAnalytics` word counting moved to SQL `regexp_split_to_array` (no longer loads chapter content into Node.js memory).
+- **Vite Code Splitting**: Manual chunks in `vite.config.ts`: `vendor-react`, `vendor-ui`, `vendor-query`, `vendor-form` — vendor chunks stay cached across app code changes.
+- **Database Indexes**: `idx_projects_user_id`, `idx_projects_type_gallery`, `idx_projects_share_token`, `idx_chapters_project_id`, `idx_api_usage_user_id`, `idx_api_usage_created_at`, `idx_content_reports_status`, `idx_content_reports_project_id` — defined in `shared/schema.ts`.
+
 ## External Dependencies
 - **OpenAI GPT-5.2**: For all AI-powered content generation, analysis, and assistance.
 - **PostgreSQL**: The primary relational database for all application data.
@@ -35,6 +43,7 @@ The platform's brand identity uses a palette of gold, deep blue, warm sand, and 
 - **jsPDF**: Client-side library for PDF preview and download functionalities.
 - **archiver**: Used for generating EPUB files.
 - **docx (npm package)**: For generating DOCX format documents with professional formatting.
+- **compression**: Express middleware for gzip/deflate HTTP response compression.
 
 ## UX Polish Features
 - **SharedNavbar Active Route**: Uses `useLocation()` from wouter to highlight the active navigation link in both desktop and mobile menus (text-foreground + font-semibold + border indicator).

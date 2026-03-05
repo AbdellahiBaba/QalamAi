@@ -15,6 +15,7 @@ import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
+import { apiCache } from "./cache";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -26,6 +27,28 @@ const openai = new OpenAI({
 });
 
 const FREE_ACCESS_USER_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+
+function serveCached(req: any, res: any, cacheKey: string, ttl: number, fetcher: () => Promise<any>) {
+  const cached = apiCache.get(cacheKey);
+  if (cached) {
+    const clientEtag = req.headers["if-none-match"];
+    if (clientEtag && clientEtag === cached.etag) {
+      return res.status(304).end();
+    }
+    res.setHeader("ETag", cached.etag);
+    res.setHeader("Cache-Control", `public, max-age=${ttl}`);
+    return res.json(cached.data);
+  }
+  return fetcher().then(data => {
+    const entry = apiCache.set(cacheKey, data, ttl);
+    res.setHeader("ETag", entry.etag);
+    res.setHeader("Cache-Control", `public, max-age=${ttl}`);
+    res.json(data);
+  }).catch(err => {
+    console.error(`Cache fetch error for ${cacheKey}:`, err);
+    res.status(500).json({ error: "خطأ في الخادم" });
+  });
+}
 
 async function checkApiSuspension(userId: string, res: any): Promise<boolean> {
   const user = await storage.getUser(userId);
@@ -4327,10 +4350,10 @@ ${glossaryParagraphs}
     }
   });
 
-  app.get("/api/gallery", async (_req, res) => {
-    try {
+  app.get("/api/gallery", async (req, res) => {
+    serveCached(req, res, "gallery", 60, async () => {
       const projects = await storage.getGalleryProjects();
-      res.json(projects.map(p => ({
+      return projects.map(p => ({
         id: p.id,
         title: p.title,
         projectType: p.projectType,
@@ -4340,17 +4363,15 @@ ${glossaryParagraphs}
         authorName: p.authorName,
         authorId: p.authorId,
         authorAverageRating: p.authorAverageRating,
-      })));
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب المعرض" });
-    }
+      }));
+    });
   });
 
-  app.get("/api/public/memoires", async (_req, res) => {
-    try {
+  app.get("/api/public/memoires", async (req, res) => {
+    serveCached(req, res, "memoires", 60, async () => {
       const projects = await storage.getGalleryProjects();
       const memoires = projects.filter(p => p.projectType === "memoire");
-      res.json(memoires.map(p => ({
+      return memoires.map(p => ({
         id: p.id,
         title: p.title,
         coverImageUrl: p.coverImageUrl,
@@ -4366,21 +4387,21 @@ ${glossaryParagraphs}
         memoireMethodology: p.memoireMethodology,
         memoireCitationStyle: p.memoireCitationStyle,
         memoireKeywords: p.memoireKeywords,
-      })));
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب المذكرات الأكاديمية" });
-    }
+      }));
+    });
   });
 
-  app.get("/api/public/essays", async (_req, res) => {
-    try {
+  app.get("/api/public/essays", async (req, res) => {
+    serveCached(req, res, "essays", 60, async () => {
       const publishedEssays = await storage.getPublishedEssays();
       const essaysWithStats = await Promise.all(publishedEssays.map(async (p: any) => {
-        const views = await storage.getEssayViewCount(p.id);
-        const clicks = await storage.getEssayClickCount(p.id);
-        const reactions = await storage.getEssayReactionCounts(p.id);
-        const chapters = await storage.getChaptersByProject(p.id);
-        const totalWords = chapters.reduce((sum: number, ch: any) => sum + (ch.content ? ch.content.split(/\s+/).length : 0), 0);
+        const [views, clicks, reactions, chaps] = await Promise.all([
+          storage.getEssayViewCount(p.id),
+          storage.getEssayClickCount(p.id),
+          storage.getEssayReactionCounts(p.id),
+          storage.getChaptersByProject(p.id),
+        ]);
+        const totalWords = chaps.reduce((sum: number, ch: any) => sum + (ch.content ? ch.content.split(/\s+/).length : 0), 0);
         const [user] = await db.select().from(users).where(eq(users.id, p.userId));
         const { average: authorAverageRating } = await storage.getAuthorAverageRating(p.userId);
         return {
@@ -4401,10 +4422,8 @@ ${glossaryParagraphs}
         };
       }));
       essaysWithStats.sort((a, b) => b.clicks - a.clicks);
-      res.json(essaysWithStats);
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب المقالات" });
-    }
+      return essaysWithStats;
+    });
   });
 
   app.post("/api/public/essays/:id/view", async (req, res) => {
@@ -4467,6 +4486,9 @@ ${glossaryParagraphs}
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المشروع أولاً" });
       await storage.updateProject(projectId, { publishedToGallery: true } as any);
+      apiCache.invalidate("gallery");
+      apiCache.invalidate("memoires");
+      apiCache.invalidate("essays");
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "حدث خطأ" });
@@ -5865,8 +5887,8 @@ ${ch.content}
   });
 
   // ===== Platform Reviews =====
-  app.get("/api/reviews", async (_req, res) => {
-    try {
+  app.get("/api/reviews", async (req, res) => {
+    serveCached(req, res, "reviews", 120, async () => {
       const reviews = await storage.getApprovedReviews();
       const enriched = await Promise.all(reviews.map(async (review) => {
         const user = await storage.getUser(review.userId);
@@ -5874,10 +5896,8 @@ ${ch.content}
         const liveName = user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || review.reviewerName;
         return { ...review, reviewerBio: liveBio, reviewerName: liveName };
       }));
-      res.json(enriched);
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب المراجعات" });
-    }
+      return enriched;
+    });
   });
 
   app.post("/api/reviews", isAuthenticated, async (req: any, res) => {
@@ -5895,6 +5915,7 @@ ${ch.content}
       const reviewerName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || "مستخدم";
       const reviewerBio = (user as any).bio || null;
       const review = await storage.createPlatformReview({ userId, reviewerName, reviewerBio, content: content.trim(), rating });
+      apiCache.invalidate("reviews");
       res.json({ success: true, message: "تم إرسال مراجعتك بنجاح وسيتم نشرها بعد مراجعة الإدارة", review });
     } catch (error) {
       res.status(500).json({ error: "فشل في إرسال المراجعة" });
@@ -5921,6 +5942,7 @@ ${ch.content}
     try {
       const id = parseInt(req.params.id);
       const review = await storage.approvePlatformReview(id);
+      apiCache.invalidate("reviews");
       res.json(review);
     } catch (error) {
       res.status(500).json({ error: "فشل في الموافقة على المراجعة" });
@@ -5931,6 +5953,7 @@ ${ch.content}
     try {
       const id = parseInt(req.params.id);
       await storage.deletePlatformReview(id);
+      apiCache.invalidate("reviews");
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "فشل في حذف المراجعة" });
@@ -5938,13 +5961,11 @@ ${ch.content}
   });
 
   // ===== Tracking Pixels =====
-  app.get("/api/tracking-pixels", async (_req, res) => {
-    try {
+  app.get("/api/tracking-pixels", async (req, res) => {
+    serveCached(req, res, "tracking-pixels", 300, async () => {
       const pixels = await storage.getTrackingPixels();
-      res.json(pixels.filter(p => p.enabled).map(p => ({ platform: p.platform, pixelId: p.pixelId })));
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب بيانات التتبع" });
-    }
+      return pixels.filter(p => p.enabled).map(p => ({ platform: p.platform, pixelId: p.pixelId }));
+    });
   });
 
   app.get("/api/admin/tracking-pixels", isAuthenticated, isAdmin, async (_req: any, res) => {
@@ -5984,6 +6005,7 @@ ${ch.content}
         enabled: !!enabled,
       });
       invalidatePixelCache();
+      apiCache.invalidate("tracking-pixels");
       res.json({
         id: pixel.id,
         platform: pixel.platform,
@@ -5997,13 +6019,10 @@ ${ch.content}
     }
   });
 
-  app.get("/api/public/social-links", async (_req, res) => {
-    try {
-      const links = await storage.getEnabledSocialMediaLinks();
-      res.json(links);
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب روابط التواصل" });
-    }
+  app.get("/api/public/social-links", async (req, res) => {
+    serveCached(req, res, "social-links", 300, async () => {
+      return await storage.getEnabledSocialMediaLinks();
+    });
   });
 
   app.get("/api/admin/social-links", isAuthenticated, isAdmin, async (_req: any, res) => {
@@ -6027,6 +6046,7 @@ ${ch.content}
         return res.status(400).json({ error: parsed.error.errors[0]?.message || "بيانات غير صالحة" });
       }
       const link = await storage.upsertSocialMediaLink(parsed.data);
+      apiCache.invalidate("social-links");
       res.json(link);
     } catch (error) {
       res.status(500).json({ error: "فشل في حفظ رابط التواصل" });
@@ -6037,6 +6057,7 @@ ${ch.content}
     try {
       const id = parseInt(req.params.id);
       await storage.deleteSocialMediaLink(id);
+      apiCache.invalidate("social-links");
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "فشل في حذف رابط التواصل" });

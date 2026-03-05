@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean, unique, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -197,7 +197,11 @@ export const novelProjects = pgTable("novel_projects", {
   memoireUserData: text("memoire_user_data"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_projects_user_id").on(table.userId),
+  index("idx_projects_type_gallery").on(table.projectType, table.publishedToGallery),
+  index("idx_projects_share_token").on(table.shareToken),
+]);
 
 export const characters = pgTable("characters", {
   id: serial("id").primaryKey(),
@@ -229,7 +233,9 @@ export const chapters = pgTable("chapters", {
   summary: text("summary"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_chapters_project_id").on(table.projectId),
+]);
 
 export const chapterVersions = pgTable("chapter_versions", {
   id: serial("id").primaryKey(),
@@ -433,7 +439,10 @@ export const apiUsageLogs = pgTable("api_usage_logs", {
   totalTokens: integer("total_tokens").default(0),
   estimatedCostMicro: integer("estimated_cost_micro").default(0),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_api_usage_user_id").on(table.userId),
+  index("idx_api_usage_created_at").on(table.createdAt),
+]);
 
 export const insertApiUsageLogSchema = createInsertSchema(apiUsageLogs).omit({ id: true, createdAt: true });
 export type InsertApiUsageLog = z.infer<typeof insertApiUsageLogSchema>;
@@ -575,7 +584,10 @@ export const contentReports = pgTable("content_reports", {
   reporterIsp: varchar("reporter_isp"),
   reporterGeoData: text("reporter_geo_data"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_content_reports_status").on(table.status),
+  index("idx_content_reports_project_id").on(table.projectId),
+]);
 
 export const insertContentReportSchema = createInsertSchema(contentReports).omit({ id: true, createdAt: true, status: true, priority: true, adminNote: true, actionTaken: true, reviewedBy: true, reviewedAt: true, resolvedAt: true });
 export type InsertContentReport = z.infer<typeof insertContentReportSchema>;

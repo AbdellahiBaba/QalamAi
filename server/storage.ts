@@ -22,7 +22,7 @@ import {
   PLAN_PRICES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql, count, isNotNull, avg, lt } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count, isNotNull, avg, lt, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -166,9 +166,11 @@ export class DatabaseStorage implements IStorage {
     const project = await this.getProject(id);
     if (!project) return undefined;
 
-    const chars = await this.getCharactersByProject(id);
-    const chaps = await this.getChaptersByProject(id);
-    const rels = await db.select().from(characterRelationships).where(eq(characterRelationships.projectId, id));
+    const [chars, chaps, rels] = await Promise.all([
+      this.getCharactersByProject(id),
+      this.getChaptersByProject(id),
+      db.select().from(characterRelationships).where(eq(characterRelationships.projectId, id)),
+    ]);
 
     return { ...project, characters: chars, chapters: chaps, relationships: rels };
   }
@@ -362,14 +364,12 @@ export class DatabaseStorage implements IStorage {
     planBreakdown: { plan: string; count: number }[];
     revenueData?: any;
   }> {
-    const totalUsersResult = await db.select({ value: count() }).from(users);
-    const totalProjectsResult = await db.select({ value: count() }).from(novelProjects);
-    const projectsByType = await db.execute(
-      sql`SELECT COALESCE(project_type, 'novel') as type, COUNT(*)::int as count FROM novel_projects GROUP BY COALESCE(project_type, 'novel')`
-    );
-    const planBreakdown = await db.execute(
-      sql`SELECT COALESCE(plan, 'free') as plan, COUNT(*)::int as count FROM users GROUP BY COALESCE(plan, 'free')`
-    );
+    const [totalUsersResult, totalProjectsResult, projectsByType, planBreakdown] = await Promise.all([
+      db.select({ value: count() }).from(users),
+      db.select({ value: count() }).from(novelProjects),
+      db.execute(sql`SELECT COALESCE(project_type, 'novel') as type, COUNT(*)::int as count FROM novel_projects GROUP BY COALESCE(project_type, 'novel')`),
+      db.execute(sql`SELECT COALESCE(plan, 'free') as plan, COUNT(*)::int as count FROM users GROUP BY COALESCE(plan, 'free')`),
+    ]);
 
     let revenueData = null;
     try {
@@ -404,45 +404,49 @@ export class DatabaseStorage implements IStorage {
     let writingActivity: { date: string; words: number; projects: number }[] = [];
     let topWriters: { userId: string; name: string; words: number }[] = [];
     try {
-      const userWordMap: Record<string, number> = {};
-      const dailyMap: Record<string, { words: number; projectIds: Set<string> }> = {};
+      const [totalWordsResult, dailyActivity, topWritersResult] = await Promise.all([
+        db.execute(sql`SELECT COALESCE(SUM(array_length(regexp_split_to_array(TRIM(content), '\s+'), 1)), 0)::int as total FROM chapters WHERE content IS NOT NULL AND TRIM(content) != ''`),
+        db.execute(sql`
+          SELECT c.created_at::date as day,
+            SUM(array_length(regexp_split_to_array(TRIM(c.content), '\s+'), 1))::int as words,
+            COUNT(DISTINCT c.project_id)::int as projects
+          FROM chapters c
+          WHERE c.content IS NOT NULL AND TRIM(c.content) != '' AND c.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          GROUP BY c.created_at::date ORDER BY day
+        `),
+        db.execute(sql`
+          SELECT p.user_id as "userId",
+            COALESCE(u.display_name, TRIM(CONCAT(u.first_name, ' ', u.last_name)), u.email, 'مجهول') as name,
+            SUM(array_length(regexp_split_to_array(TRIM(c.content), '\s+'), 1))::int as words
+          FROM chapters c
+          INNER JOIN novel_projects p ON c.project_id = p.id
+          INNER JOIN users u ON p.user_id = u.id
+          WHERE c.content IS NOT NULL AND TRIM(c.content) != ''
+          GROUP BY p.user_id, u.display_name, u.first_name, u.last_name, u.email
+          ORDER BY words DESC LIMIT 5
+        `),
+      ]);
 
-      const allChaptersWithProject = await db.select({
-        content: chapters.content,
-        createdAt: chapters.createdAt,
-        userId: novelProjects.userId,
-        projectId: chapters.projectId,
-      }).from(chapters).innerJoin(novelProjects, eq(chapters.projectId, novelProjects.id));
+      totalWords = (totalWordsResult.rows[0] as any)?.total || 0;
 
-      for (const ch of allChaptersWithProject) {
-        if (!ch.content) continue;
-        const words = ch.content.split(/\s+/).filter((w: string) => w.trim()).length;
-        totalWords += words;
-        userWordMap[ch.userId] = (userWordMap[ch.userId] || 0) + words;
-        const dateKey = new Date(ch.createdAt).toISOString().split("T")[0];
-        if (!dailyMap[dateKey]) dailyMap[dateKey] = { words: 0, projectIds: new Set() };
-        dailyMap[dateKey].words += words;
-        dailyMap[dateKey].projectIds.add(String(ch.projectId));
+      const dailyMap = new Map<string, { words: number; projects: number }>();
+      for (const row of dailyActivity.rows as any[]) {
+        dailyMap.set(new Date(row.day).toISOString().split("T")[0], { words: row.words || 0, projects: row.projects || 0 });
       }
-
       const today = new Date();
       for (let i = 29; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const key = d.toISOString().split("T")[0];
-        const entry = dailyMap[key];
-        writingActivity.push({ date: key, words: entry?.words || 0, projects: entry?.projectIds?.size || 0 });
+        const entry = dailyMap.get(key);
+        writingActivity.push({ date: key, words: entry?.words || 0, projects: entry?.projects || 0 });
       }
 
-      const topUserIds = Object.entries(userWordMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      for (const [uid, words] of topUserIds) {
-        const [u] = await db.select().from(users).where(eq(users.id, uid));
-        topWriters.push({
-          userId: uid,
-          name: u?.displayName || `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.email || 'مجهول',
-          words,
-        });
-      }
+      topWriters = (topWritersResult.rows as any[]).map((r: any) => ({
+        userId: r.userId,
+        name: r.name || 'مجهول',
+        words: r.words || 0,
+      }));
     } catch (e) {
       console.error("Error fetching extended analytics:", e);
     }
@@ -539,20 +543,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGalleryProjects(): Promise<(NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]> {
-    const projects = await db.select().from(novelProjects).where(and(isNotNull(novelProjects.shareToken), eq(novelProjects.publishedToGallery, true))).orderBy(desc(novelProjects.updatedAt));
-    const result: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[] = [];
-    for (const p of projects) {
-      const [user] = await db.select().from(users).where(eq(users.id, p.userId));
-      if (user) {
-        const { average } = await this.getAuthorAverageRating(user.id);
-        result.push({
-          ...p,
-          authorName: user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'كاتب مجهول',
-          authorId: user.id,
-          authorAverageRating: average,
-        });
+    const projectsWithAuthors = await db.select({
+      project: novelProjects,
+      authorDisplayName: users.displayName,
+      authorFirstName: users.firstName,
+      authorLastName: users.lastName,
+      authorId: users.id,
+    }).from(novelProjects)
+      .innerJoin(users, eq(novelProjects.userId, users.id))
+      .where(and(isNotNull(novelProjects.shareToken), eq(novelProjects.publishedToGallery, true)))
+      .orderBy(desc(novelProjects.updatedAt));
+
+    const uniqueAuthorIds = [...new Set(projectsWithAuthors.map(r => r.authorId))];
+    const ratingsMap = new Map<string, number>();
+    if (uniqueAuthorIds.length > 0) {
+      const ratingsResult = await db.select({
+        authorId: authorRatings.authorId,
+        average: sql<number>`coalesce(avg(${authorRatings.rating}), 0)::float`,
+      }).from(authorRatings)
+        .where(inArray(authorRatings.authorId, uniqueAuthorIds))
+        .groupBy(authorRatings.authorId);
+      for (const r of ratingsResult) {
+        ratingsMap.set(r.authorId, Math.round((r.average || 0) * 10) / 10);
       }
     }
+
+    const result = projectsWithAuthors.map(row => ({
+      ...row.project,
+      authorName: row.authorDisplayName || `${row.authorFirstName || ''} ${row.authorLastName || ''}`.trim() || 'كاتب مجهول',
+      authorId: row.authorId,
+      authorAverageRating: ratingsMap.get(row.authorId) || 0,
+    }));
     result.sort((a, b) => b.authorAverageRating - a.authorAverageRating || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return result;
   }
@@ -714,36 +735,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEssayAnalytics(): Promise<Array<{ projectId: number; title: string; views: number; clicks: number }>> {
-    const projects = await db.select().from(novelProjects)
-      .where(and(eq(novelProjects.projectType, "essay"), isNotNull(novelProjects.shareToken)));
-    const results = [];
-    for (const p of projects) {
-      const views = await this.getEssayViewCount(p.id);
-      const clicks = await this.getEssayClickCount(p.id);
-      results.push({ projectId: p.id, title: p.title, views, clicks });
-    }
-    return results.sort((a, b) => b.clicks - a.clicks);
+    const results = await db.execute(sql`
+      SELECT p.id as "projectId", p.title,
+        COALESCE(v.view_count, 0)::int as views,
+        COALESCE(c.click_count, 0)::int as clicks
+      FROM novel_projects p
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) v ON v.project_id = p.id
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as click_count FROM essay_clicks GROUP BY project_id) c ON c.project_id = p.id
+      WHERE p.project_type = 'essay' AND p.share_token IS NOT NULL
+      ORDER BY clicks DESC
+    `);
+    return results.rows as any[];
   }
 
   async getMemoireAnalytics(): Promise<Array<{ projectId: number; title: string; university: string | null; memoireField: string | null; memoireMethodology: string | null; memoireCountry: string | null; views: number; clicks: number }>> {
-    const projects = await db.select().from(novelProjects)
-      .where(and(eq(novelProjects.projectType, "memoire"), isNotNull(novelProjects.shareToken)));
-    const results = [];
-    for (const p of projects) {
-      const views = await this.getEssayViewCount(p.id);
-      const clicks = await this.getEssayClickCount(p.id);
-      results.push({
-        projectId: p.id,
-        title: p.title,
-        university: p.university || null,
-        memoireField: p.memoireField || null,
-        memoireMethodology: p.memoireMethodology || null,
-        memoireCountry: p.memoireCountry || null,
-        views,
-        clicks,
-      });
-    }
-    return results.sort((a, b) => b.clicks - a.clicks);
+    const results = await db.execute(sql`
+      SELECT p.id as "projectId", p.title,
+        p.memoire_university as "university",
+        p.memoire_field as "memoireField",
+        p.memoire_methodology as "memoireMethodology",
+        p.memoire_country as "memoireCountry",
+        COALESCE(v.view_count, 0)::int as views,
+        COALESCE(c.click_count, 0)::int as clicks
+      FROM novel_projects p
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) v ON v.project_id = p.id
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as click_count FROM essay_clicks GROUP BY project_id) c ON c.project_id = p.id
+      WHERE p.project_type = 'memoire' AND p.share_token IS NOT NULL
+      ORDER BY clicks DESC
+    `);
+    return results.rows as any[];
   }
 
   async getAllReviews(): Promise<PlatformReview[]> {

@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -9,6 +10,7 @@ import { checkSmtpStatus } from "./email";
 import { processAllExpiredTrials } from "./trial-processor";
 
 const app = express();
+app.use(compression());
 const httpServer = createServer(app);
 
 declare module "http" {
