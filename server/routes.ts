@@ -2307,39 +2307,67 @@ ${pages.map(p => `  <url>
         architecture: "الهندسة المعمارية والعمران",
       };
 
+      const navyBlue = "#1B365D";
+      const goldAccent = "#C4A265";
+      const darkBrown = "#2C1810";
+      const mutedBrown = "#6B5B4F";
+      const lightGold = "#E8D5B5";
+
       const drawBorder = () => {
-        doc.rect(36, 36, fullPageWidth - 72, pageHeight - 72)
-          .lineWidth(1.5)
-          .strokeColor("#8B7355")
+        doc.rect(30, 30, fullPageWidth - 60, pageHeight - 60)
+          .lineWidth(2)
+          .strokeColor(navyBlue)
           .stroke();
-        doc.rect(42, 42, fullPageWidth - 84, pageHeight - 84)
+        doc.rect(36, 36, fullPageWidth - 72, pageHeight - 72)
           .lineWidth(0.5)
-          .strokeColor("#C4A882")
+          .strokeColor(goldAccent)
+          .stroke();
+        doc.rect(33, 33, fullPageWidth - 66, pageHeight - 66)
+          .lineWidth(0.3)
+          .strokeColor(goldAccent)
+          .dash(3, { space: 3 })
+          .stroke();
+        doc.undash();
+      };
+
+      const drawSimpleBorder = () => {
+        doc.rect(36, 36, fullPageWidth - 72, pageHeight - 72)
+          .lineWidth(1)
+          .strokeColor(navyBlue)
           .stroke();
       };
 
-      const drawPageFooter = (num: number) => {
-        doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(fixBidi(`\u2014 ${num} \u2014`), 0, footerY, { width: fullPageWidth, align: "center", lineBreak: false });
+      const drawPageFooter = (num: number | string) => {
+        const numStr = typeof num === "string" ? num : String(num);
+        doc.font("Arabic").fontSize(9).fillColor("#888");
+        doc.text(fixBidi(`\u2014  ${numStr}  \u2014`), 0, footerY, { width: fullPageWidth, align: "center", lineBreak: false });
+      };
+
+      const drawRunningHeader = (leftText: string, rightText: string) => {
+        doc.font("Arabic").fontSize(8).fillColor("#999");
+        doc.text(fixBidi(rightText), contentMarginX, 52, { width: pageWidth, align: "right", features: ["rtla"], lineBreak: false });
+        doc.text(fixBidi(leftText), contentMarginX, 52, { width: pageWidth, align: "left", features: ["rtla"], lineBreak: false });
+        doc.moveTo(contentMarginX, 64).lineTo(fullPageWidth - contentMarginX, 64).lineWidth(0.3).strokeColor(goldAccent).stroke();
       };
 
       const drawPageHeader = (chapterTitle: string) => {
-        doc.font("Arabic").fontSize(9).fillColor("#999");
-        doc.text(fixBidi(chapterTitle), contentMarginX, 50, {
-          width: pageWidth,
-          align: "right",
-          features: ["rtla"],
-          lineBreak: false,
-        });
+        drawRunningHeader(project.title, chapterTitle);
       };
 
-      const drawOrnamentalDivider = (y: number) => {
+      const drawOrnamentalDivider = (y: number, dividerWidth?: number) => {
         const centerX = fullPageWidth / 2;
-        const dividerWidth = 180;
-        doc.moveTo(centerX - dividerWidth / 2, y).lineTo(centerX - 30, y).lineWidth(1).strokeColor("#C4A882").stroke();
-        doc.moveTo(centerX + 30, y).lineTo(centerX + dividerWidth / 2, y).lineWidth(1).strokeColor("#C4A882").stroke();
-        doc.font("Arabic").fontSize(12).fillColor("#C4A882");
-        doc.text("\u2726 \u2726 \u2726", centerX - 25, y - 6, { width: 50, align: "center", lineBreak: false });
+        const dw = dividerWidth || 220;
+        doc.moveTo(centerX - dw / 2, y).lineTo(centerX - 15, y).lineWidth(0.8).strokeColor(goldAccent).stroke();
+        doc.moveTo(centerX + 15, y).lineTo(centerX + dw / 2, y).lineWidth(0.8).strokeColor(goldAccent).stroke();
+        doc.font("Arabic").fontSize(14).fillColor(goldAccent);
+        doc.text("\u2766", centerX - 7, y - 7, { width: 14, align: "center", lineBreak: false });
+      };
+
+      const drawHeavyDivider = (y: number) => {
+        const centerX = fullPageWidth / 2;
+        const dw = 300;
+        doc.moveTo(centerX - dw / 2, y).lineTo(centerX + dw / 2, y).lineWidth(1.5).strokeColor(navyBlue).stroke();
+        doc.moveTo(centerX - dw / 2 + 10, y + 3).lineTo(centerX + dw / 2 - 10, y + 3).lineWidth(0.4).strokeColor(goldAccent).stroke();
       };
 
       const drawCenteredArabic = (text: string, y: number, fontSize: number, color: string, bold?: boolean) => {
@@ -2348,6 +2376,68 @@ ${pages.map(p => `  <url>
         const w = doc.widthOfString(t, { features: ["rtla"] });
         doc.text(t, (fullPageWidth - w) / 2, y, { width: w + 4, features: ["rtla"], lineBreak: false });
         return doc.heightOfString(t, { width: w + 4 }) + 4;
+      };
+
+      const drawCenteredMultiline = (text: string, y: number, fontSize: number, color: string, bold?: boolean) => {
+        const t = fixBidi(text);
+        doc.font(bold ? "ArabicBold" : "Arabic").fontSize(fontSize).fillColor(color);
+        const h = doc.heightOfString(t, { width: pageWidth, align: "center", lineGap: 6 });
+        doc.text(t, contentMarginX, y, { width: pageWidth, align: "center", features: ["rtla"], lineGap: 6 });
+        return h + 4;
+      };
+
+      const drawDecorativeBox = (x: number, y: number, w: number, h: number) => {
+        doc.rect(x, y, w, h).lineWidth(1.5).strokeColor(navyBlue).stroke();
+        doc.rect(x + 3, y + 3, w - 6, h - 6).lineWidth(0.5).strokeColor(goldAccent).stroke();
+      };
+
+      const drawDottedLeader = (fromX: number, toX: number, y: number) => {
+        doc.save();
+        doc.font("Arabic").fontSize(9).fillColor("#bbb");
+        let x = fromX + 3;
+        while (x < toX - 8) {
+          doc.text(".", x, y + 1, { width: 4, lineBreak: false });
+          x += 5;
+        }
+        doc.restore();
+      };
+
+      const toRoman = (num: number): string => {
+        const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+        const syms = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"];
+        let result = "";
+        for (let i = 0; i < vals.length; i++) {
+          while (num >= vals[i]) { result += syms[i]; num -= vals[i]; }
+        }
+        return result;
+      };
+
+      const getCountryHeader = (code: string): { republic: string; ministry: string } => {
+        const map: Record<string, { republic: string; ministry: string }> = {
+          dz: { republic: "\u0627\u0644\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u062C\u0632\u0627\u0626\u0631\u064A\u0629 \u0627\u0644\u062F\u064A\u0645\u0642\u0631\u0627\u0637\u064A\u0629 \u0627\u0644\u0634\u0639\u0628\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          ma: { republic: "\u0627\u0644\u0645\u0645\u0644\u0643\u0629 \u0627\u0644\u0645\u063A\u0631\u0628\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A \u0648\u0627\u0644\u0627\u0628\u062A\u0643\u0627\u0631" },
+          tn: { republic: "\u0627\u0644\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u062A\u0648\u0646\u0633\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          eg: { republic: "\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0645\u0635\u0631 \u0627\u0644\u0639\u0631\u0628\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          sa: { republic: "\u0627\u0644\u0645\u0645\u0644\u0643\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0627\u0644\u0633\u0639\u0648\u062F\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645" },
+          iq: { republic: "\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u0639\u0631\u0627\u0642", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          sy: { republic: "\u0627\u0644\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0627\u0644\u0633\u0648\u0631\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          jo: { republic: "\u0627\u0644\u0645\u0645\u0644\u0643\u0629 \u0627\u0644\u0623\u0631\u062F\u0646\u064A\u0629 \u0627\u0644\u0647\u0627\u0634\u0645\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          lb: { republic: "\u0627\u0644\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u0644\u0628\u0646\u0627\u0646\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0631\u0628\u064A\u0629 \u0648\u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A" },
+          ps: { republic: "\u062F\u0648\u0644\u0629 \u0641\u0644\u0633\u0637\u064A\u0646", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          ly: { republic: "\u062F\u0648\u0644\u0629 \u0644\u064A\u0628\u064A\u0627", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          ye: { republic: "\u0627\u0644\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u064A\u0645\u0646\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          ae: { republic: "\u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062A \u0627\u0644\u0639\u0631\u0628\u064A\u0629 \u0627\u0644\u0645\u062A\u062D\u062F\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0631\u0628\u064A\u0629 \u0648\u0627\u0644\u062A\u0639\u0644\u064A\u0645" },
+          kw: { republic: "\u062F\u0648\u0644\u0629 \u0627\u0644\u0643\u0648\u064A\u062A", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A" },
+          bh: { republic: "\u0645\u0645\u0644\u0643\u0629 \u0627\u0644\u0628\u062D\u0631\u064A\u0646", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0631\u0628\u064A\u0629 \u0648\u0627\u0644\u062A\u0639\u0644\u064A\u0645" },
+          qa: { republic: "\u062F\u0648\u0644\u0629 \u0642\u0637\u0631", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0631\u0628\u064A\u0629 \u0648\u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A" },
+          sd: { republic: "\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u0633\u0648\u062F\u0627\u0646", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          om: { republic: "\u0633\u0644\u0637\u0646\u0629 \u0639\u064F\u0645\u0627\u0646", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A \u0648\u0627\u0644\u0627\u0628\u062A\u0643\u0627\u0631" },
+          mr: { republic: "\u0627\u0644\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u0625\u0633\u0644\u0627\u0645\u064A\u0629 \u0627\u0644\u0645\u0648\u0631\u064A\u062A\u0627\u0646\u064A\u0629", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B \u0627\u0644\u0639\u0644\u0645\u064A" },
+          so: { republic: "\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u0627\u0644\u0635\u0648\u0645\u0627\u0644", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A" },
+          dj: { republic: "\u062C\u0645\u0647\u0648\u0631\u064A\u0629 \u062C\u064A\u0628\u0648\u062A\u064A", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0639\u0644\u064A\u0645 \u0627\u0644\u0639\u0627\u0644\u064A \u0648\u0627\u0644\u0628\u062D\u062B" },
+          km: { republic: "\u0627\u062A\u062D\u0627\u062F \u062C\u0632\u0631 \u0627\u0644\u0642\u0645\u0631", ministry: "\u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u062A\u0631\u0628\u064A\u0629 \u0627\u0644\u0648\u0637\u0646\u064A\u0629" },
+        };
+        return map[code.toLowerCase()] || { republic: "", ministry: "" };
       };
 
       doc.addPage();
@@ -2368,7 +2458,7 @@ ${pages.map(p => `  <url>
 
       if (!coverRendered) {
         drawBorder();
-        doc.font("ArabicBold").fontSize(28).fillColor("#2C1810");
+        doc.font("ArabicBold").fontSize(28).fillColor(darkBrown);
         const coverTitleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
         const coverTitleY = Math.max(300, 380 - coverTitleH / 2);
         doc.text(fixBidi(project.title), contentMarginX, coverTitleY, {
@@ -2377,157 +2467,232 @@ ${pages.map(p => `  <url>
           features: ["rtla"],
         });
 
-        doc.font("Arabic").fontSize(14).fillColor("#6B5B4F");
+        doc.font("Arabic").fontSize(14).fillColor(mutedBrown);
         const coverSubY = coverTitleY + coverTitleH + 30;
-        drawCenteredArabic(`تأليف ${pdfAuthorName}`, coverSubY, 14, "#6B5B4F");
+        drawCenteredArabic(`\u062A\u0623\u0644\u064A\u0641 ${pdfAuthorName}`, coverSubY, 14, mutedBrown);
       }
+
+      let frontMatterPageNum = 0;
 
       if (isMemoire) {
         const memoireFieldAr = memoireFieldMap[(project as any).memoireField || ""] || (project as any).memoireField || "";
         const memoireUniv = (project as any).memoireUniversity || "";
         const memoireFac = (project as any).memoireFaculty || "";
         const memoireDept = (project as any).memoireDepartment || "";
-        const memoireCountry = (project as any).memoireCountry || "";
+        const memoireCountryCode = (project as any).memoireCountry || "";
         const memoireMethodology = (project as any).memoireMethodology || "";
         const memoireCitation = (project as any).memoireCitationStyle || "";
-        const memoireKeywords = (project as any).memoireKeywords || "";
-        const memoireHypotheses = (project as any).memoireHypotheses || "";
+        const memoireKeywords = ((project as any).memoireKeywords || "").trim();
+        const memoireHypotheses = ((project as any).memoireHypotheses || "").trim();
         const currentYear = new Date().getFullYear();
         const academicYear = `${currentYear - 1} / ${currentYear}`;
+        const pdfDegreeLevel = (project as any).memoireDegreeLevel || "licence";
+        const pdfDegreeLevelMap: Record<string, string> = { licence: "\u0644\u064A\u0633\u0627\u0646\u0633", master: "\u0645\u0627\u0633\u062A\u0631", doctorate: "\u062F\u0643\u062A\u0648\u0631\u0627\u0647" };
+        const pdfDegreeLabelMap: Record<string, string> = { licence: "\u0634\u0647\u0627\u062F\u0629 \u0627\u0644\u0644\u064A\u0633\u0627\u0646\u0633", master: "\u0634\u0647\u0627\u062F\u0629 \u0627\u0644\u0645\u0627\u0633\u062A\u0631", doctorate: "\u0634\u0647\u0627\u062F\u0629 \u0627\u0644\u062F\u0643\u062A\u0648\u0631\u0627\u0647" };
+        const degreeName = pdfDegreeLevelMap[pdfDegreeLevel] || pdfDegreeLevel;
+        const degreeLabel = pdfDegreeLabelMap[pdfDegreeLevel] || `\u0634\u0647\u0627\u062F\u0629 ${pdfDegreeLevel}`;
+        const methodologyMap: Record<string, string> = {
+          descriptive: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0648\u0635\u0641\u064A",
+          analytical: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u062A\u062D\u0644\u064A\u0644\u064A",
+          experimental: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A",
+          historical: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u062A\u0627\u0631\u064A\u062E\u064A",
+          comparative: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0645\u0642\u0627\u0631\u0646",
+          survey: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0645\u0633\u062D\u064A",
+          case_study: "\u062F\u0631\u0627\u0633\u0629 \u062D\u0627\u0644\u0629",
+          inductive: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0627\u0633\u062A\u0642\u0631\u0627\u0626\u064A",
+          deductive: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0627\u0633\u062A\u0646\u0628\u0627\u0637\u064A",
+          mixed: "\u0645\u0646\u0647\u062C \u0645\u062E\u062A\u0644\u0637",
+          qualitative: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0646\u0648\u0639\u064A",
+          quantitative: "\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0643\u0645\u0651\u064A",
+        };
+        const pdfCitationMap: Record<string, string> = { apa: "APA", mla: "MLA", chicago: "\u0634\u064A\u0643\u0627\u063A\u0648", harvard: "\u0647\u0627\u0631\u0641\u0627\u0631\u062F", ieee: "IEEE", iso690: "ISO 690", islamic: "\u0627\u0644\u062A\u0648\u062B\u064A\u0642 \u0627\u0644\u0625\u0633\u0644\u0627\u0645\u064A", university_specific: "\u062D\u0633\u0628 \u0646\u0638\u0627\u0645 \u0627\u0644\u062C\u0627\u0645\u0639\u0629", custom_arabic: "\u0627\u0644\u062D\u0648\u0627\u0634\u064A \u0627\u0644\u0633\u0641\u0644\u064A\u0629" };
+        const methodAr = methodologyMap[memoireMethodology] || memoireMethodology || "";
+        const citationAr = pdfCitationMap[memoireCitation] || memoireCitation || "";
+        const countryHeader = getCountryHeader(memoireCountryCode);
 
         doc.addPage();
         drawBorder();
+        let metaY = 65;
 
-        let metaY = 100;
-
-        if (memoireUniv) {
-          metaY += drawCenteredArabic(memoireUniv, metaY, 18, "#2C1810", true);
+        if (countryHeader.republic) {
+          metaY += drawCenteredArabic(countryHeader.republic, metaY, 13, navyBlue, true);
+          metaY += 2;
+        }
+        if (countryHeader.ministry) {
+          metaY += drawCenteredArabic(countryHeader.ministry, metaY, 11, mutedBrown);
           metaY += 8;
         }
-        if (memoireFac) {
-          metaY += drawCenteredArabic(memoireFac, metaY, 14, "#6B5B4F");
+        drawHeavyDivider(metaY);
+        metaY += 14;
+
+        if (memoireUniv) {
+          metaY += drawCenteredArabic(memoireUniv, metaY, 17, navyBlue, true);
           metaY += 4;
+        }
+        if (memoireFac) {
+          metaY += drawCenteredArabic(memoireFac, metaY, 13, mutedBrown);
+          metaY += 2;
         }
         if (memoireDept) {
-          metaY += drawCenteredArabic(memoireDept, metaY, 13, "#8B7355");
-          metaY += 4;
+          metaY += drawCenteredArabic(memoireDept, metaY, 12, "#888");
+          metaY += 2;
         }
 
-        metaY += 20;
-        doc.moveTo(fullPageWidth * 0.3, metaY).lineTo(fullPageWidth * 0.7, metaY).lineWidth(0.5).strokeColor("#C4A882").stroke();
-        metaY += 30;
+        metaY += 10;
+        drawOrnamentalDivider(metaY, 280);
+        metaY += 18;
 
-        metaY += drawCenteredArabic("مذكرة تخرج", metaY, 16, "#8B7355");
-        metaY += 15;
-
-        doc.font("ArabicBold").fontSize(24).fillColor("#2C1810");
-        const titleH = doc.heightOfString(project.title, { width: pageWidth, align: "center" });
-        doc.text(fixBidi(project.title), contentMarginX, metaY, { width: pageWidth, align: "center", features: ["rtla"] });
-        metaY += titleH + 20;
-
-        doc.moveTo(fullPageWidth * 0.3, metaY).lineTo(fullPageWidth * 0.7, metaY).lineWidth(0.5).strokeColor("#C4A882").stroke();
-        metaY += 30;
-
+        metaY += drawCenteredArabic(`\u0645\u0630\u0643\u0631\u0629 \u0645\u0642\u062F\u0645\u0629 \u0644\u0646\u064A\u0644 ${degreeLabel}`, metaY, 14, mutedBrown);
+        metaY += 4;
         if (memoireFieldAr) {
-          metaY += drawCenteredArabic(`التخصص: ${memoireFieldAr}`, metaY, 13, "#6B5B4F");
-          metaY += 6;
-        }
-        const pdfDegreeLevel = (project as any).memoireDegreeLevel || "";
-        if (pdfDegreeLevel) {
-          const pdfDegreeLevelMap: Record<string, string> = { licence: "ليسانس / بكالوريوس", master: "ماستر / ماجستير", doctorate: "دكتوراه" };
-          metaY += drawCenteredArabic(`المستوى: ${pdfDegreeLevelMap[pdfDegreeLevel] || pdfDegreeLevel}`, metaY, 13, "#6B5B4F");
-          metaY += 6;
-        }
-        if (memoireMethodology) {
-          const methodologyMap: Record<string, string> = {
-            descriptive: "المنهج الوصفي",
-            analytical: "المنهج التحليلي",
-            experimental: "المنهج التجريبي",
-            historical: "المنهج التاريخي",
-            comparative: "المنهج المقارن",
-            survey: "المنهج المسحي",
-            case_study: "دراسة حالة",
-            inductive: "المنهج الاستقرائي",
-            deductive: "المنهج الاستنباطي",
-            mixed: "منهج مختلط",
-          };
-          const methodAr = methodologyMap[memoireMethodology] || memoireMethodology;
-          metaY += drawCenteredArabic(`المنهج: ${methodAr}`, metaY, 13, "#6B5B4F");
-          metaY += 6;
-        }
-        if (memoireCitation) {
-          const pdfCitationMap: Record<string, string> = { apa: "APA", mla: "MLA", chicago: "شيكاغو", harvard: "هارفارد", ieee: "IEEE", iso690: "ISO 690", islamic: "التوثيق الإسلامي", university_specific: "حسب نظام الجامعة" };
-          metaY += drawCenteredArabic(`نظام التوثيق: ${pdfCitationMap[memoireCitation] || memoireCitation}`, metaY, 12, "#8B7355");
-          metaY += 6;
+          metaY += drawCenteredArabic(`\u0641\u064A \u062A\u062E\u0635\u0635: ${memoireFieldAr}`, metaY, 13, mutedBrown);
+          metaY += 8;
         }
 
-        metaY += 20;
-        metaY += drawCenteredArabic(`إعداد الطالب(ة): ${pdfAuthorName}`, metaY, 14, "#333333");
-        metaY += 15;
+        const titleBoxPadding = 15;
+        doc.font("ArabicBold").fontSize(22).fillColor(navyBlue);
+        const titleH = doc.heightOfString(project.title, { width: pageWidth - 60, align: "center" });
+        const titleBoxH = titleH + titleBoxPadding * 2;
+        const titleBoxX = 60;
+        const titleBoxW = fullPageWidth - 120;
+        drawDecorativeBox(titleBoxX, metaY, titleBoxW, titleBoxH);
+        doc.font("ArabicBold").fontSize(22).fillColor(navyBlue);
+        doc.text(fixBidi(project.title), titleBoxX + 20, metaY + titleBoxPadding, { width: titleBoxW - 40, align: "center", features: ["rtla"] });
+        metaY += titleBoxH + 18;
 
-        metaY += drawCenteredArabic("بمساعدة أبو هاشم — QalamAI", metaY, 12, "#8B7355");
-        metaY += 20;
+        drawOrnamentalDivider(metaY, 280);
+        metaY += 22;
 
-        if (memoireCountry) {
-          metaY += drawCenteredArabic(memoireCountry, metaY, 12, "#8B7355");
+        if (methodAr) {
+          metaY += drawCenteredArabic(`\u0627\u0644\u0645\u0646\u0647\u062C \u0627\u0644\u0645\u062A\u0628\u0639: ${methodAr}`, metaY, 12, mutedBrown);
           metaY += 4;
         }
-        metaY += drawCenteredArabic(`السنة الجامعية: ${academicYear}`, metaY, 13, "#6B5B4F");
-        metaY += 25;
+        if (citationAr) {
+          metaY += drawCenteredArabic(`\u0646\u0638\u0627\u0645 \u0627\u0644\u062A\u0648\u062B\u064A\u0642: ${citationAr}`, metaY, 12, mutedBrown);
+          metaY += 10;
+        }
 
-        doc.font("Arabic").fontSize(11).fillColor("#8B7355");
-        const rightsAcademic = `جميع الحقوق محفوظة © ${currentYear} ${pdfAuthorName}`;
-        const rightsFixed = fixBidi(rightsAcademic);
-        const rightsW = doc.widthOfString(rightsFixed, { features: ["rtla"] });
-        doc.text(rightsFixed, (fullPageWidth - rightsW) / 2, Math.min(metaY, pageHeight - 120), { width: rightsW + 4, features: ["rtla"], lineBreak: false });
+        metaY += drawCenteredArabic(`\u0625\u0639\u062F\u0627\u062F \u0627\u0644\u0637\u0627\u0644\u0628(\u0629): ${pdfAuthorName}`, metaY, 14, darkBrown, true);
+        metaY += 20;
+
+        const bottomSection = Math.max(metaY, pageHeight - 160);
+        drawHeavyDivider(bottomSection);
+        drawCenteredArabic(`\u0627\u0644\u0633\u0646\u0629 \u0627\u0644\u062C\u0627\u0645\u0639\u064A\u0629: ${academicYear}`, bottomSection + 14, 13, navyBlue, true);
+
+        doc.font("Arabic").fontSize(9).fillColor("#aaa");
+        const rightsAcademic = fixBidi(`\u062C\u0645\u064A\u0639 \u0627\u0644\u062D\u0642\u0648\u0642 \u0645\u062D\u0641\u0648\u0638\u0629 \u00A9 ${currentYear} ${pdfAuthorName} \u2014 QalamAI`);
+        const rightsW = doc.widthOfString(rightsAcademic, { features: ["rtla"] });
+        doc.text(rightsAcademic, (fullPageWidth - rightsW) / 2, pageHeight - 65, { width: rightsW + 4, features: ["rtla"], lineBreak: false });
 
         doc.addPage();
         drawBorder();
-        doc.font("ArabicBold").fontSize(36).fillColor("#2C1810");
+        const bismCenterY = pageHeight / 2 - 50;
+        drawOrnamentalDivider(bismCenterY - 40, 250);
+        doc.font("ArabicBold").fontSize(42).fillColor(navyBlue);
         const bismillah = "\uFDFD";
         const bismW = doc.widthOfString(bismillah);
-        doc.text(bismillah, (fullPageWidth - bismW) / 2, 340, { width: bismW + 4, lineBreak: false });
-        doc.font("Arabic").fontSize(14).fillColor("#8B7355");
-        drawCenteredArabic("بسم الله الرحمن الرحيم", 400, 14, "#8B7355");
+        doc.text(bismillah, (fullPageWidth - bismW) / 2, bismCenterY, { width: bismW + 4, lineBreak: false });
+        drawCenteredArabic("\u0628\u0633\u0645 \u0627\u0644\u0644\u0647 \u0627\u0644\u0631\u062D\u0645\u0646 \u0627\u0644\u0631\u062D\u064A\u0645", bismCenterY + 65, 16, goldAccent, true);
+        drawOrnamentalDivider(bismCenterY + 100, 250);
+        frontMatterPageNum++;
+        drawPageFooter(toRoman(frontMatterPageNum));
 
+        doc.addPage();
+        drawSimpleBorder();
+        frontMatterPageNum++;
+        const dedY = pageHeight / 2 - 60;
+        drawOrnamentalDivider(dedY - 30, 200);
+        drawCenteredArabic("\u0627\u0644\u0625\u0647\u062F\u0627\u0621", dedY, 24, navyBlue, true);
+        drawOrnamentalDivider(dedY + 35, 200);
+        drawCenteredArabic("\u0625\u0644\u0649 \u0643\u0644 \u0645\u0646 \u0633\u0627\u0647\u0645 \u0641\u064A \u0625\u062A\u0645\u0627\u0645 \u0647\u0630\u0627 \u0627\u0644\u0639\u0645\u0644...", dedY + 65, 14, mutedBrown);
+        drawCenteredArabic("\u0625\u0644\u0649 \u0648\u0627\u0644\u062F\u064A\u0651 \u0627\u0644\u0643\u0631\u064A\u0645\u064A\u0646 \u0648\u0623\u0633\u0627\u062A\u0630\u062A\u064A \u0627\u0644\u0623\u0641\u0627\u0636\u0644...", dedY + 95, 14, mutedBrown);
+        drawCenteredArabic("\u0625\u0644\u0649 \u0643\u0644 \u0637\u0627\u0644\u0628 \u0639\u0644\u0645 \u064A\u0633\u0639\u0649 \u0644\u0644\u0645\u0639\u0631\u0641\u0629...", dedY + 125, 14, mutedBrown);
+        drawPageFooter(toRoman(frontMatterPageNum));
+
+        doc.addPage();
+        drawSimpleBorder();
+        frontMatterPageNum++;
+        let ackY = contentStartY;
+        drawCenteredArabic("\u0627\u0644\u0634\u0643\u0631 \u0648\u0627\u0644\u062A\u0642\u062F\u064A\u0631", ackY, 22, navyBlue, true);
+        ackY += 35;
+        drawHeavyDivider(ackY);
+        ackY += 25;
+        const ackText = `\u0627\u0644\u062D\u0645\u062F \u0644\u0644\u0647 \u0631\u0628 \u0627\u0644\u0639\u0627\u0644\u0645\u064A\u0646 \u0627\u0644\u0630\u064A \u0623\u0639\u0627\u0646\u0646\u0627 \u0639\u0644\u0649 \u0625\u062A\u0645\u0627\u0645 \u0647\u0630\u0627 \u0627\u0644\u0639\u0645\u0644 \u0627\u0644\u0645\u062A\u0648\u0627\u0636\u0639\u060C \u0648\u0627\u0644\u0635\u0644\u0627\u0629 \u0648\u0627\u0644\u0633\u0644\u0627\u0645 \u0639\u0644\u0649 \u0623\u0634\u0631\u0641 \u0627\u0644\u0645\u0631\u0633\u0644\u064A\u0646.\n\n\u0646\u062A\u0642\u062F\u0645 \u0628\u062C\u0632\u064A\u0644 \u0627\u0644\u0634\u0643\u0631 \u0648\u0627\u0644\u0639\u0631\u0641\u0627\u0646 \u0625\u0644\u0649 \u0643\u0644 \u0645\u0646 \u0633\u0627\u0647\u0645 \u0641\u064A \u0625\u0646\u062C\u0627\u0632 \u0647\u0630\u0627 \u0627\u0644\u0628\u062D\u062B\u060C \u0648\u0646\u062E\u0635 \u0628\u0627\u0644\u0630\u0643\u0631 \u0623\u0633\u0627\u062A\u0630\u062A\u0646\u0627 \u0627\u0644\u0643\u0631\u0627\u0645 \u0627\u0644\u0630\u064A\u0646 \u0644\u0645 \u064A\u0628\u062E\u0644\u0648\u0627 \u0639\u0644\u064A\u0646\u0627 \u0628\u062A\u0648\u062C\u064A\u0647\u0627\u062A\u0647\u0645 \u0627\u0644\u0633\u062F\u064A\u062F\u0629 \u0648\u0646\u0635\u0627\u0626\u062D\u0647\u0645 \u0627\u0644\u0642\u064A\u0651\u0645\u0629.\n\n\u0643\u0645\u0627 \u0646\u0634\u0643\u0631 ${memoireUniv || "\u062C\u0627\u0645\u0639\u062A\u0646\u0627"} \u0639\u0644\u0649 \u062A\u0648\u0641\u064A\u0631 \u0627\u0644\u0628\u064A\u0626\u0629 \u0627\u0644\u0639\u0644\u0645\u064A\u0629 \u0627\u0644\u0645\u0646\u0627\u0633\u0628\u0629 \u0644\u0625\u0646\u062C\u0627\u0632 \u0647\u0630\u0627 \u0627\u0644\u0639\u0645\u0644.`;
+        const ackParas = ackText.split(/\n+/).filter(Boolean);
+        for (const p of ackParas) {
+          doc.font("Arabic").fontSize(13).fillColor("#333");
+          const h = doc.heightOfString(fixBidi(p.trim()), { width: pageWidth - 40, align: "right", lineGap: 10 });
+          doc.text(fixBidi(p.trim()), contentMarginX + 20, ackY, { width: pageWidth - 40, align: "right", features: ["rtla"], lineGap: 10 });
+          ackY += h + 14;
+        }
+        drawPageFooter(toRoman(frontMatterPageNum));
+
+        doc.addPage();
+        drawSimpleBorder();
+        frontMatterPageNum++;
+        let absY = contentStartY;
+        drawCenteredArabic("\u0645\u0644\u062E\u0635 \u0627\u0644\u0628\u062D\u062B", absY, 22, navyBlue, true);
+        absY += 35;
+        drawHeavyDivider(absY);
+        absY += 25;
+        if (project.mainIdea) {
+          absY += drawCenteredMultiline(project.mainIdea, absY, 13, "#333");
+          absY += 15;
+        }
         if (memoireKeywords) {
+          drawOrnamentalDivider(absY, 180);
+          absY += 20;
+          drawCenteredArabic("\u0627\u0644\u0643\u0644\u0645\u0627\u062A \u0627\u0644\u0645\u0641\u062A\u0627\u062D\u064A\u0629:", absY, 13, navyBlue, true);
+          absY += 22;
+          drawCenteredArabic(memoireKeywords, absY, 12, mutedBrown);
+          absY += 20;
+        }
+        drawPageFooter(toRoman(frontMatterPageNum));
+
+        const parsedKeywords = memoireKeywords ? memoireKeywords.split(/[,\u060C\n]+/).map((k: string) => k.trim()).filter(Boolean) : [];
+        if (parsedKeywords.length > 0) {
           doc.addPage();
-          drawBorder();
-          doc.font("ArabicBold").fontSize(20).fillColor("#2C1810");
-          doc.text("الكلمات المفتاحية", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
-          doc.moveTo(contentMarginX, 120).lineTo(fullPageWidth - contentMarginX, 120).lineWidth(0.5).strokeColor("#C4A882").stroke();
-          doc.font("Arabic").fontSize(13).fillColor("#333333");
-          const keywords = memoireKeywords.split(/[,،\n]+/).map((k: string) => k.trim()).filter(Boolean);
-          let kwY = 140;
-          for (const kw of keywords) {
-            doc.font("Arabic").fontSize(13).fillColor("#333333");
+          drawSimpleBorder();
+          frontMatterPageNum++;
+          drawCenteredArabic("\u0627\u0644\u0643\u0644\u0645\u0627\u062A \u0627\u0644\u0645\u0641\u062A\u0627\u062D\u064A\u0629", contentStartY, 22, navyBlue, true);
+          let kwDivY = contentStartY + 35;
+          drawHeavyDivider(kwDivY);
+          let kwY = kwDivY + 20;
+          for (const kw of parsedKeywords) {
+            doc.font("Arabic").fontSize(13).fillColor("#333");
             const kwText = `\u25C6  ${kw}`;
-            doc.text(fixBidi(kwText), contentMarginX, kwY, { width: pageWidth, align: "right", features: ["rtla"] });
+            doc.text(fixBidi(kwText), contentMarginX + 20, kwY, { width: pageWidth - 40, align: "right", features: ["rtla"] });
             kwY += 28;
           }
+          drawPageFooter(toRoman(frontMatterPageNum));
         }
 
-        if (memoireHypotheses) {
+        const parsedHypotheses = memoireHypotheses ? memoireHypotheses.split(/\n+/).map((h: string) => h.trim()).filter(Boolean) : [];
+        if (parsedHypotheses.length > 0) {
           doc.addPage();
-          drawBorder();
-          doc.font("ArabicBold").fontSize(20).fillColor("#2C1810");
-          doc.text("فرضيات البحث", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
-          doc.moveTo(contentMarginX, 120).lineTo(fullPageWidth - contentMarginX, 120).lineWidth(0.5).strokeColor("#C4A882").stroke();
-          doc.font("Arabic").fontSize(13).fillColor("#333333");
-          const hypotheses = memoireHypotheses.split(/\n+/).map((h: string) => h.trim()).filter(Boolean);
-          let hyY = 140;
-          for (let hi = 0; hi < hypotheses.length; hi++) {
-            if (hyY > pageHeight - 100) {
+          drawSimpleBorder();
+          frontMatterPageNum++;
+          drawCenteredArabic("\u0641\u0631\u0636\u064A\u0627\u062A \u0627\u0644\u0628\u062D\u062B", contentStartY, 22, navyBlue, true);
+          let hyDivY = contentStartY + 35;
+          drawHeavyDivider(hyDivY);
+          let hyY = hyDivY + 20;
+          for (let hi = 0; hi < parsedHypotheses.length; hi++) {
+            if (hyY > contentBottomLimit - 30) {
+              drawPageFooter(toRoman(frontMatterPageNum));
               doc.addPage();
-              drawBorder();
+              drawSimpleBorder();
+              frontMatterPageNum++;
               hyY = contentStartY;
             }
-            const hyText = `${hi + 1}.  ${hypotheses[hi]}`;
-            const hyH = doc.heightOfString(fixBidi(hyText), { width: pageWidth, features: ["rtla"] });
-            doc.text(fixBidi(hyText), contentMarginX, hyY, { width: pageWidth, align: "right", features: ["rtla"] });
-            hyY += hyH + 12;
+            doc.font("Arabic").fontSize(13).fillColor("#333");
+            const hyText = `${hi + 1}.  ${parsedHypotheses[hi]}`;
+            const hyH = doc.heightOfString(fixBidi(hyText), { width: pageWidth - 40, features: ["rtla"], lineGap: 8 });
+            doc.text(fixBidi(hyText), contentMarginX + 20, hyY, { width: pageWidth - 40, align: "right", features: ["rtla"], lineGap: 8 });
+            hyY += hyH + 14;
           }
+          drawPageFooter(toRoman(frontMatterPageNum));
         }
+
       } else {
         doc.addPage();
         drawBorder();
@@ -2554,29 +2719,45 @@ ${pages.map(p => `  <url>
         .filter((ch: any) => ch.content && ch.status === "completed")
         .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber);
 
-      const tocMinEntryHeight = 28;
-      const tocEntrySpacing = 6;
+      const tocMinEntryHeight = 24;
+      const tocEntrySpacing = 5;
       const tocFirstPageStartY = 145;
       const tocContPageStartY = contentStartY;
-      const tocEntryWidth = pageWidth - 90;
+      const tocEntryWidth = pageWidth - 80;
 
       let tocPageCount = 1;
       let simTocY = tocFirstPageStartY;
       doc.font("Arabic").fontSize(13);
+      const memoireFrontMatterEntries = isMemoire ? 6 : 0;
+      for (let si = 0; si < memoireFrontMatterEntries; si++) {
+        simTocY += tocMinEntryHeight + tocEntrySpacing;
+        if (simTocY > contentBottomLimit) { tocPageCount++; simTocY = tocContPageStartY; }
+      }
       for (const ch of chapters) {
         const chTitle = ch.title || `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`;
         const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
         const entryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
         const totalH = Math.max(entryH, tocMinEntryHeight) + tocEntrySpacing;
-        if (simTocY + totalH > contentBottomLimit) {
-          tocPageCount++;
-          simTocY = tocContPageStartY;
-        }
+        if (simTocY + totalH > contentBottomLimit) { tocPageCount++; simTocY = tocContPageStartY; }
         simTocY += totalH;
+        if (isMemoire) {
+          const subs = extractMemoireSubSections((ch as any).content || "");
+          for (const sub of subs) {
+            const subH = tocMinEntryHeight + tocEntrySpacing;
+            if (simTocY + subH > contentBottomLimit) { tocPageCount++; simTocY = tocContPageStartY; }
+            simTocY += subH;
+          }
+        }
+      }
+      if (isMemoire) {
+        for (let si = 0; si < 3; si++) {
+          simTocY += tocMinEntryHeight + tocEntrySpacing;
+          if (simTocY > contentBottomLimit) { tocPageCount++; simTocY = tocContPageStartY; }
+        }
       }
 
-      const extraPagesBeforeChapters = isMemoire ? (2 + ((project as any).memoireKeywords ? 1 : 0) + ((project as any).memoireHypotheses ? 1 : 0)) : 1;
-      const pagesBeforeChapters = 1 + extraPagesBeforeChapters + tocPageCount;
+      const extraPagesBeforeChapters = isMemoire ? (frontMatterPageNum + 1) : 1;
+      const pagesBeforeChapters = 1 + extraPagesBeforeChapters + tocPageCount + (isMemoire ? 1 : 0);
       let estimatedPage = pagesBeforeChapters + 1;
       const chapterStartPages: number[] = [];
 
@@ -2585,72 +2766,94 @@ ${pages.map(p => `  <url>
         const chTitleEst = chapter.title || `${chapterLabel} ${toArabicOrdinal(chapter.chapterNumber)}`;
         doc.font("ArabicBold").fontSize(22);
         const estTitleH = doc.heightOfString(chTitleEst, { width: pageWidth, align: "right" });
-        const estContentStartY = contentStartY + estTitleH + 40;
+        const estContentStartY = contentStartY + estTitleH + 60;
         const paragraphs = (chapter.content || "").split(/\n+/).filter((p: string) => p.trim());
         let estY = estContentStartY;
         doc.font("Arabic").fontSize(13);
         for (const para of paragraphs) {
-          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth - 20, align: "right", lineGap: 8 });
+          const textHeight = doc.heightOfString(para.trim(), { width: pageWidth - 40, align: "right", lineGap: 8 });
           if (estY + textHeight > contentBottomLimit) {
             estimatedPage++;
             estY = continuationStartY;
           }
-          estY += textHeight + 12;
+          estY += textHeight + 14;
         }
         estimatedPage++;
       }
 
       doc.addPage();
       drawBorder();
+      if (isMemoire) {
+        frontMatterPageNum++;
+      }
 
-      doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
-      doc.text("فهرس المحتويات", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+      drawCenteredArabic("\u0641\u0647\u0631\u0633 \u0627\u0644\u0645\u062D\u062A\u0648\u064A\u0627\u062A", contentStartY, 22, navyBlue, true);
+      const tocDivY = contentStartY + 32;
+      doc.moveTo(contentMarginX, tocDivY).lineTo(fullPageWidth - contentMarginX, tocDivY).lineWidth(1.5).strokeColor(navyBlue).stroke();
+      doc.moveTo(contentMarginX, tocDivY + 3).lineTo(fullPageWidth - contentMarginX, tocDivY + 3).lineWidth(0.4).strokeColor(goldAccent).stroke();
 
-      doc.moveTo(contentMarginX, 125).lineTo(fullPageWidth - contentMarginX, 125).lineWidth(1).strokeColor("#8B7355").stroke();
-      doc.moveTo(contentMarginX, 128).lineTo(fullPageWidth - contentMarginX, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
-
-      doc.font("Arabic").fontSize(13).fillColor("#333333");
-      let tocY = 145;
+      let tocY = tocFirstPageStartY;
 
       if (isMemoire) {
-        const addTocEntry = (text: string, pageNum: string | number, indent: number, fontSize: number, color: string, bold: boolean) => {
+        const addTocEntry = (text: string, pageNum: string | number, indent: number, fontSize: number, color: string, bold: boolean, useLeader?: boolean) => {
           doc.font(bold ? "ArabicBold" : "Arabic").fontSize(fontSize).fillColor(color);
           const entryW = tocEntryWidth - indent;
           const entryH = doc.heightOfString(text, { width: entryW, align: "right" });
           const entryHeight = Math.max(entryH, tocMinEntryHeight);
           if (tocY + entryHeight + tocEntrySpacing > contentBottomLimit) {
+            drawPageFooter(toRoman(frontMatterPageNum));
             doc.addPage();
-            drawBorder();
-            tocY = contentStartY;
+            drawSimpleBorder();
+            frontMatterPageNum++;
+            tocY = tocContPageStartY;
           }
           doc.font(bold ? "ArabicBold" : "Arabic").fontSize(fontSize).fillColor(color);
-          doc.text(fixBidi(text), 100 + indent, tocY, { width: entryW, align: "right", features: ["rtla"] });
-          if (pageNum) {
-            doc.font("Arabic").fontSize(fontSize).fillColor("#8B7355");
-            doc.text(String(pageNum), contentMarginX, tocY, { width: 50, align: "left", lineBreak: false });
+          const textX = 90 + indent;
+          doc.text(fixBidi(text), textX, tocY, { width: entryW, align: "right", features: ["rtla"] });
+
+          if (pageNum && useLeader !== false) {
+            const textW = doc.widthOfString(fixBidi(text), { features: ["rtla"] });
+            const leaderStartX = contentMarginX + 50;
+            const leaderEndX = textX + entryW - textW - 5;
+            if (leaderEndX > leaderStartX + 20) {
+              drawDottedLeader(leaderStartX, leaderEndX, tocY);
+            }
+            doc.font("Arabic").fontSize(fontSize).fillColor(goldAccent);
+            doc.text(String(pageNum), contentMarginX, tocY, { width: 45, align: "left", lineBreak: false });
           }
           tocY += entryHeight + tocEntrySpacing;
         };
 
-        addTocEntry("المقدمة العامة", chapterStartPages[0] || "", 0, 13, "#333333", true);
+        let fmPage = 2;
+        addTocEntry("\u0627\u0644\u0625\u0647\u062F\u0627\u0621", toRoman(fmPage), 0, 12, mutedBrown, false); fmPage++;
+        addTocEntry("\u0627\u0644\u0634\u0643\u0631 \u0648\u0627\u0644\u062A\u0642\u062F\u064A\u0631", toRoman(fmPage), 0, 12, mutedBrown, false); fmPage++;
+        addTocEntry("\u0645\u0644\u062E\u0635 \u0627\u0644\u0628\u062D\u062B", toRoman(fmPage), 0, 12, mutedBrown, false); fmPage++;
+        if (parsedKeywords.length > 0) { addTocEntry("\u0627\u0644\u0643\u0644\u0645\u0627\u062A \u0627\u0644\u0645\u0641\u062A\u0627\u062D\u064A\u0629", toRoman(fmPage), 0, 12, mutedBrown, false); fmPage++; }
+        if (parsedHypotheses.length > 0) { addTocEntry("\u0641\u0631\u0636\u064A\u0627\u062A \u0627\u0644\u0628\u062D\u062B", toRoman(fmPage), 0, 12, mutedBrown, false); fmPage++; }
+
+        tocY += 6;
+        addTocEntry("\u0627\u0644\u0645\u0642\u062F\u0645\u0629 \u0627\u0644\u0639\u0627\u0645\u0629", chapterStartPages[0] || "", 0, 13, darkBrown, true);
 
         for (let ci = 0; ci < chapters.length; ci++) {
           const ch = chapters[ci];
           const chTitle = ch.title || `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`;
           const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
-          addTocEntry(tocEntry, chapterStartPages[ci] || "", 0, 13, "#333333", true);
+          addTocEntry(tocEntry, chapterStartPages[ci] || "", 0, 13, darkBrown, true);
 
           const subSections = extractMemoireSubSections(ch.content || "");
           for (const sub of subSections) {
-            const subIndent = sub.type === "matlab" ? 60 : 30;
-            const subFontSize = sub.type === "matlab" ? 11 : 12;
-            addTocEntry(sub.text, "", subIndent, subFontSize, "#6B5B4F", false);
+            const subIndent = sub.type === "matlab" ? 50 : 25;
+            const subFontSize = sub.type === "matlab" ? 10 : 11;
+            const subColor = sub.type === "matlab" ? "#888" : mutedBrown;
+            addTocEntry(sub.text, "", subIndent, subFontSize, subColor, false, false);
           }
         }
 
-        addTocEntry("الخاتمة العامة", "", 0, 13, "#333333", true);
-        addTocEntry("قائمة المراجع", "", 0, 13, "#333333", true);
-        addTocEntry("الملاحق", "", 0, 13, "#333333", true);
+        tocY += 6;
+        addTocEntry("\u0627\u0644\u062E\u0627\u062A\u0645\u0629 \u0627\u0644\u0639\u0627\u0645\u0629", "", 0, 13, darkBrown, true);
+        addTocEntry("\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0631\u0627\u062C\u0639", "", 0, 13, darkBrown, true);
+        addTocEntry("\u0627\u0644\u0645\u0644\u0627\u062D\u0642", "", 0, 13, darkBrown, true);
+        drawPageFooter(toRoman(frontMatterPageNum));
       } else {
         for (let ci = 0; ci < chapters.length; ci++) {
           const ch = chapters[ci];
@@ -2658,21 +2861,18 @@ ${pages.map(p => `  <url>
           const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
           const pageNum = chapterStartPages[ci] || "";
 
-          doc.font("Arabic").fontSize(13).fillColor("#333333");
+          doc.font("Arabic").fontSize(13).fillColor("#333");
           const tocEntryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
           const entryHeight = Math.max(tocEntryH, tocMinEntryHeight);
-          doc.text(fixBidi(tocEntry), 100, tocY, {
-            width: pageWidth - 90,
-            align: "right",
-            features: ["rtla"],
-          });
+          doc.text(fixBidi(tocEntry), 90, tocY, { width: tocEntryWidth, align: "right", features: ["rtla"] });
 
-          doc.font("Arabic").fontSize(13).fillColor("#8B7355");
-          doc.text(String(pageNum), contentMarginX, tocY, {
-            width: 50,
-            align: "left",
-            lineBreak: false,
-          });
+          if (pageNum) {
+            const textW = doc.widthOfString(fixBidi(tocEntry), { features: ["rtla"] });
+            const leaderEnd = 90 + tocEntryWidth - textW - 5;
+            if (leaderEnd > contentMarginX + 55) drawDottedLeader(contentMarginX + 50, leaderEnd, tocY);
+            doc.font("Arabic").fontSize(13).fillColor(goldAccent);
+            doc.text(String(pageNum), contentMarginX, tocY, { width: 45, align: "left", lineBreak: false });
+          }
 
           tocY += entryHeight + tocEntrySpacing;
           if (tocY > contentBottomLimit) {
@@ -2685,6 +2885,17 @@ ${pages.map(p => `  <url>
 
       let pageNumber = pagesBeforeChapters;
 
+      if (isMemoire) {
+        doc.addPage();
+        pageNumber++;
+        drawBorder();
+        const introY = pageHeight / 2 - 50;
+        drawOrnamentalDivider(introY - 35, 280);
+        drawCenteredArabic("\u0627\u0644\u0645\u0642\u062F\u0645\u0629 \u0627\u0644\u0639\u0627\u0645\u0629", introY, 28, navyBlue, true);
+        drawOrnamentalDivider(introY + 40, 280);
+        drawPageFooter(pageNumber);
+      }
+
       for (const chapter of chapters) {
         doc.addPage();
         pageNumber++;
@@ -2692,25 +2903,43 @@ ${pages.map(p => `  <url>
 
         const chTitle = chapter.title || `${chapterLabel} ${toArabicOrdinal(chapter.chapterNumber)}`;
 
-        doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
-        const titleHeight = doc.heightOfString(chTitle, { width: pageWidth, align: "right" });
-        doc.text(fixBidi(chTitle), contentMarginX, contentStartY, {
-          width: pageWidth,
-          align: "right",
-          features: ["rtla"],
-        });
+        let chapterContentStartY: number;
+        if (isMemoire) {
+          const chNumLabel = `${chapterLabel} ${toArabicOrdinal(chapter.chapterNumber)}`;
+          const chBoxY = contentStartY;
+          const chBoxH = 50;
+          const chBoxX = fullPageWidth * 0.25;
+          const chBoxW = fullPageWidth * 0.5;
+          doc.rect(chBoxX, chBoxY, chBoxW, chBoxH).lineWidth(1.5).strokeColor(navyBlue).fill("#F8F5F0").stroke();
+          doc.rect(chBoxX + 2, chBoxY + 2, chBoxW - 4, chBoxH - 4).lineWidth(0.4).strokeColor(goldAccent).stroke();
+          doc.font("ArabicBold").fontSize(18).fillColor(navyBlue);
+          const numW = doc.widthOfString(fixBidi(chNumLabel), { features: ["rtla"] });
+          doc.text(fixBidi(chNumLabel), (fullPageWidth - numW) / 2, chBoxY + 16, { width: numW + 4, features: ["rtla"], lineBreak: false });
 
-        const dividerY = contentStartY + titleHeight + 15;
-        drawOrnamentalDivider(dividerY);
-        const chapterContentStartY = dividerY + 25;
+          const titleY = chBoxY + chBoxH + 18;
+          doc.font("ArabicBold").fontSize(20).fillColor(darkBrown);
+          const titleHeight = doc.heightOfString(chTitle, { width: pageWidth - 40, align: "center" });
+          doc.text(fixBidi(chTitle), contentMarginX + 20, titleY, { width: pageWidth - 40, align: "center", features: ["rtla"] });
 
-        doc.font("Arabic").fontSize(13).fillColor("#333333");
+          const divY = titleY + titleHeight + 12;
+          drawOrnamentalDivider(divY, 250);
+          chapterContentStartY = divY + 25;
+        } else {
+          doc.font("ArabicBold").fontSize(22).fillColor(darkBrown);
+          const titleHeight = doc.heightOfString(chTitle, { width: pageWidth, align: "right" });
+          doc.text(fixBidi(chTitle), contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+          const dividerY = contentStartY + titleHeight + 15;
+          drawOrnamentalDivider(dividerY);
+          chapterContentStartY = dividerY + 25;
+        }
+
+        doc.font("Arabic").fontSize(13).fillColor("#333");
 
         const paragraphs = (chapter.content || "").split(/\n+/).filter((p: string) => p.trim());
         let yPos = chapterContentStartY;
+        const paraWidth = pageWidth - 40;
 
         for (const para of paragraphs) {
-          const paraWidth = pageWidth - 20;
           const trimmedPara = para.trim();
 
           if (isMemoire) {
@@ -2718,55 +2947,53 @@ ${pages.map(p => `  <url>
             if (headerInfo) {
               const headerText = headerInfo.text;
               if (headerInfo.type === "mabhath" || headerInfo.type === "intro" || headerInfo.type === "conclusion") {
-                doc.font("ArabicBold").fontSize(16).fillColor("#2C1810");
+                doc.font("ArabicBold").fontSize(16).fillColor(navyBlue);
                 const headerHeight = doc.heightOfString(headerText, { width: paraWidth, align: "right", lineGap: 6 });
+                if (yPos + headerHeight + 25 > contentBottomLimit) {
+                  drawPageFooter(pageNumber);
+                  doc.addPage(); pageNumber++;
+                  drawSimpleBorder();
+                  drawPageHeader(chTitle);
+                  yPos = continuationStartY;
+                }
+                yPos += 14;
+                doc.rect(contentMarginX + 5, yPos - 4, 3, headerHeight + 8).fill(navyBlue);
+                doc.font("ArabicBold").fontSize(16).fillColor(navyBlue);
+                doc.text(fixBidi(headerText), contentMarginX + 15, yPos, { width: paraWidth, align: "right", lineGap: 6, features: ["rtla"] });
+                yPos += headerHeight + 6;
+                doc.moveTo(contentMarginX + 40, yPos).lineTo(fullPageWidth - contentMarginX - 40, yPos).lineWidth(0.4).strokeColor(goldAccent).stroke();
+                yPos += 14;
+                continue;
+              } else if (headerInfo.type === "matlab") {
+                doc.font("ArabicBold").fontSize(14).fillColor("#4A3728");
+                const headerHeight = doc.heightOfString(headerText, { width: paraWidth - 30, align: "right", lineGap: 6 });
                 if (yPos + headerHeight + 20 > contentBottomLimit) {
                   drawPageFooter(pageNumber);
-                  doc.addPage();
-                  pageNumber++;
-                  drawBorder();
+                  doc.addPage(); pageNumber++;
+                  drawSimpleBorder();
                   drawPageHeader(chTitle);
                   yPos = continuationStartY;
                 }
                 yPos += 10;
-                doc.font("ArabicBold").fontSize(16).fillColor("#2C1810");
-                doc.text(fixBidi(headerText), contentMarginX + 10, yPos, { width: paraWidth, align: "right", lineGap: 6, features: ["rtla"] });
-                yPos += headerHeight + 8;
-                const divCenterX = fullPageWidth / 2;
-                doc.moveTo(divCenterX - 60, yPos).lineTo(divCenterX + 60, yPos).lineWidth(0.5).strokeColor("#C4A882").stroke();
-                yPos += 12;
-                continue;
-              } else if (headerInfo.type === "matlab") {
+                doc.rect(contentMarginX + 25, yPos - 2, 2, headerHeight + 4).fill(goldAccent);
                 doc.font("ArabicBold").fontSize(14).fillColor("#4A3728");
-                const headerHeight = doc.heightOfString(headerText, { width: paraWidth, align: "right", lineGap: 6 });
-                if (yPos + headerHeight + 16 > contentBottomLimit) {
-                  drawPageFooter(pageNumber);
-                  doc.addPage();
-                  pageNumber++;
-                  drawBorder();
-                  drawPageHeader(chTitle);
-                  yPos = continuationStartY;
-                }
-                yPos += 8;
-                doc.font("ArabicBold").fontSize(14).fillColor("#4A3728");
-                doc.text(fixBidi(headerText), contentMarginX + 30, yPos, { width: paraWidth - 20, align: "right", lineGap: 6, features: ["rtla"] });
-                yPos += headerHeight + 10;
+                doc.text(fixBidi(headerText), contentMarginX + 35, yPos, { width: paraWidth - 30, align: "right", lineGap: 6, features: ["rtla"] });
+                yPos += headerHeight + 12;
                 continue;
               } else if (headerInfo.type === "tamheed" || headerInfo.type === "khulasat") {
-                doc.font("ArabicBold").fontSize(15).fillColor("#6B5B4F");
+                doc.font("ArabicBold").fontSize(15).fillColor(mutedBrown);
                 const headerHeight = doc.heightOfString(headerText, { width: paraWidth, align: "right", lineGap: 6 });
-                if (yPos + headerHeight + 16 > contentBottomLimit) {
+                if (yPos + headerHeight + 20 > contentBottomLimit) {
                   drawPageFooter(pageNumber);
-                  doc.addPage();
-                  pageNumber++;
-                  drawBorder();
+                  doc.addPage(); pageNumber++;
+                  drawSimpleBorder();
                   drawPageHeader(chTitle);
                   yPos = continuationStartY;
                 }
-                yPos += 8;
-                doc.font("ArabicBold").fontSize(15).fillColor("#6B5B4F");
-                doc.text(fixBidi(headerText), contentMarginX + 15, yPos, { width: paraWidth, align: "right", lineGap: 6, features: ["rtla"] });
-                yPos += headerHeight + 10;
+                yPos += 10;
+                doc.font("ArabicBold").fontSize(15).fillColor(mutedBrown);
+                doc.text(fixBidi(headerText), contentMarginX + 20, yPos, { width: paraWidth, align: "right", lineGap: 6, features: ["rtla"] });
+                yPos += headerHeight + 12;
                 continue;
               }
             }
@@ -2777,67 +3004,90 @@ ${pages.map(p => `  <url>
             drawPageFooter(pageNumber);
             doc.addPage();
             pageNumber++;
-            drawBorder();
+            if (isMemoire) { drawSimpleBorder(); } else { drawBorder(); }
             drawPageHeader(chTitle);
             yPos = continuationStartY;
           }
-          doc.font("Arabic").fontSize(13).fillColor("#333333");
-          doc.text(fixBidi(trimmedPara), contentMarginX + 20, yPos, {
+          doc.font("Arabic").fontSize(13).fillColor("#333");
+          doc.text(fixBidi(trimmedPara), contentMarginX + 25, yPos, {
             width: paraWidth,
             align: "right",
             lineGap: 8,
             features: ["rtla"],
+            indent: 20,
           });
-          yPos += textHeight + 12;
+          yPos += textHeight + 14;
         }
 
+        drawPageFooter(pageNumber);
+      }
+
+      if (isMemoire) {
+        doc.addPage();
+        pageNumber++;
+        drawBorder();
+        const concY = pageHeight / 2 - 50;
+        drawOrnamentalDivider(concY - 35, 280);
+        drawCenteredArabic("\u0627\u0644\u062E\u0627\u062A\u0645\u0629 \u0627\u0644\u0639\u0627\u0645\u0629", concY, 28, navyBlue, true);
+        drawOrnamentalDivider(concY + 40, 280);
         drawPageFooter(pageNumber);
       }
 
       if (project.glossary) {
         doc.addPage();
         pageNumber++;
-        drawBorder();
+        if (isMemoire) { drawSimpleBorder(); } else { drawBorder(); }
 
-        const glossaryTitle = isMemoire ? "الفهرس الأكاديمي" : "المسرد";
-        doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
-        doc.text(glossaryTitle, contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+        const glossaryTitle = isMemoire ? "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0631\u0627\u062C\u0639" : "\u0627\u0644\u0645\u0633\u0631\u062F";
+        drawCenteredArabic(glossaryTitle, contentStartY, 22, navyBlue, true);
+        const glDivY = contentStartY + 32;
+        doc.moveTo(contentMarginX, glDivY).lineTo(fullPageWidth - contentMarginX, glDivY).lineWidth(1.5).strokeColor(navyBlue).stroke();
+        doc.moveTo(contentMarginX, glDivY + 3).lineTo(fullPageWidth - contentMarginX, glDivY + 3).lineWidth(0.4).strokeColor(goldAccent).stroke();
 
-        doc.moveTo(contentMarginX, 125).lineTo(fullPageWidth - contentMarginX, 125).lineWidth(1).strokeColor("#8B7355").stroke();
-        doc.moveTo(contentMarginX, 128).lineTo(fullPageWidth - contentMarginX, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
-
-        doc.font("Arabic").fontSize(12).fillColor("#333333");
         const glossaryLines = project.glossary.split(/\n+/).filter((l: string) => l.trim());
-        let yPos = 145;
+        let yPos = glDivY + 18;
         for (const line of glossaryLines) {
           const trimmedLine = line.trim();
           let lineFont = "Arabic";
           let lineFontSize = 12;
-          let lineColor = "#333333";
+          let lineColor = "#333";
           if (isMemoire) {
-            if (/^(فهرس المحتويات|قائمة المختصرات|فهرس المراجع|مراجع عربية|مراجع أجنبية|مواقع إلكترونية|رسائل جامعية)/.test(trimmedLine)) {
-              lineFont = "ArabicBold";
-              lineFontSize = 15;
-              lineColor = "#2C1810";
-            } else if (/^(المقدمة العامة|الخاتمة العامة|قائمة المراجع|الملاحق|الفصل\s)/.test(trimmedLine)) {
-              lineFont = "ArabicBold";
-              lineFontSize = 13;
-              lineColor = "#4A3728";
+            if (/^(\u0641\u0647\u0631\u0633 \u0627\u0644\u0645\u062D\u062A\u0648\u064A\u0627\u062A|\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u062E\u062A\u0635\u0631\u0627\u062A|\u0641\u0647\u0631\u0633 \u0627\u0644\u0645\u0631\u0627\u062C\u0639|\u0645\u0631\u0627\u062C\u0639 \u0639\u0631\u0628\u064A\u0629|\u0645\u0631\u0627\u062C\u0639 \u0623\u062C\u0646\u0628\u064A\u0629|\u0645\u0648\u0627\u0642\u0639 \u0625\u0644\u0643\u062A\u0631\u0648\u0646\u064A\u0629|\u0631\u0633\u0627\u0626\u0644 \u062C\u0627\u0645\u0639\u064A\u0629)/.test(trimmedLine)) {
+              lineFont = "ArabicBold"; lineFontSize = 15; lineColor = navyBlue;
+            } else if (/^(\u0627\u0644\u0645\u0642\u062F\u0645\u0629 \u0627\u0644\u0639\u0627\u0645\u0629|\u0627\u0644\u062E\u0627\u062A\u0645\u0629 \u0627\u0644\u0639\u0627\u0645\u0629|\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0631\u0627\u062C\u0639|\u0627\u0644\u0645\u0644\u0627\u062D\u0642|\u0627\u0644\u0641\u0635\u0644\s)/.test(trimmedLine)) {
+              lineFont = "ArabicBold"; lineFontSize = 13; lineColor = "#4A3728";
             }
           }
           doc.font(lineFont).fontSize(lineFontSize).fillColor(lineColor);
-          const textHeight = doc.heightOfString(trimmedLine, { width: pageWidth, align: "right", lineGap: 6 });
+          const textHeight = doc.heightOfString(trimmedLine, { width: pageWidth - 20, align: "right", lineGap: 6 });
           if (yPos + textHeight > contentBottomLimit) {
             drawPageFooter(pageNumber);
-            doc.addPage();
-            pageNumber++;
-            drawBorder();
+            doc.addPage(); pageNumber++;
+            if (isMemoire) { drawSimpleBorder(); } else { drawBorder(); }
             drawPageHeader(glossaryTitle);
             yPos = continuationStartY;
           }
           doc.font(lineFont).fontSize(lineFontSize).fillColor(lineColor);
-          doc.text(fixBidi(trimmedLine), contentMarginX, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
-          yPos += textHeight + 8;
+          doc.text(fixBidi(trimmedLine), contentMarginX + 10, yPos, { width: pageWidth - 20, align: "right", lineGap: 6, features: ["rtla"] });
+          yPos += textHeight + 10;
+        }
+        drawPageFooter(pageNumber);
+      } else if (isMemoire) {
+        doc.addPage();
+        pageNumber++;
+        drawSimpleBorder();
+        drawCenteredArabic("\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0631\u0627\u062C\u0639", contentStartY, 22, navyBlue, true);
+        const refDivY = contentStartY + 32;
+        doc.moveTo(contentMarginX, refDivY).lineTo(fullPageWidth - contentMarginX, refDivY).lineWidth(1.5).strokeColor(navyBlue).stroke();
+        doc.moveTo(contentMarginX, refDivY + 3).lineTo(fullPageWidth - contentMarginX, refDivY + 3).lineWidth(0.4).strokeColor(goldAccent).stroke();
+        let refY = refDivY + 25;
+        const refSections = ["\u0645\u0631\u0627\u062C\u0639 \u0639\u0631\u0628\u064A\u0629", "\u0645\u0631\u0627\u062C\u0639 \u0623\u062C\u0646\u0628\u064A\u0629", "\u0645\u0648\u0627\u0642\u0639 \u0625\u0644\u0643\u062A\u0631\u0648\u0646\u064A\u0629"];
+        for (const sec of refSections) {
+          doc.font("ArabicBold").fontSize(14).fillColor(navyBlue);
+          doc.text(fixBidi(sec), contentMarginX + 15, refY, { width: pageWidth - 30, align: "right", features: ["rtla"] });
+          refY += 25;
+          doc.moveTo(contentMarginX + 40, refY).lineTo(fullPageWidth - contentMarginX - 40, refY).lineWidth(0.3).strokeColor(goldAccent).stroke();
+          refY += 30;
         }
         drawPageFooter(pageNumber);
       }
