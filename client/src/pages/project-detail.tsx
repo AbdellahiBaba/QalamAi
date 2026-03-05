@@ -1453,29 +1453,7 @@ export default function ProjectDetail() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          )}
           <ThemeToggle />
-          <div className="hidden sm:flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowShortcutsDialog(true)}
-              title="اختصارات لوحة المفاتيح"
-              data-testid="button-show-shortcuts"
-            >
-              <Keyboard className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowDeleteDialog(true)}
-              title="حذف المشروع"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              data-testid="button-delete-project"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
       </header>
 
