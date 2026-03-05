@@ -1385,10 +1385,10 @@ export default function ProjectDetail() {
                         try {
                           if (checked) {
                             await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
-                            toast({ title: "تم نشر المشروع في المعرض" });
+                            toast({ title: project.projectType === "memoire" ? "تم نشر المذكرة في صفحة المذكرات الأكاديمية" : "تم نشر المشروع في المعرض" });
                           } else {
                             await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
-                            toast({ title: "تم إلغاء النشر من المعرض" });
+                            toast({ title: project.projectType === "memoire" ? "تم إلغاء النشر من صفحة المذكرات" : "تم إلغاء النشر من المعرض" });
                           }
                           queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                         } catch {
@@ -1401,9 +1401,9 @@ export default function ProjectDetail() {
                       htmlFor="publish-to-gallery"
                       className="text-xs cursor-pointer whitespace-nowrap"
                       data-testid="label-publish-to-gallery"
-                      title="عند التفعيل، سيظهر مشروعك في المعرض العام ليقرأه الجميع"
+                      title={project.projectType === "memoire" ? "عند التفعيل، ستظهر مذكرتك في صفحة المذكرات الأكاديمية" : "عند التفعيل، سيظهر مشروعك في المعرض العام ليقرأه الجميع"}
                     >
-                      نشر في المعرض
+                      {project.projectType === "memoire" ? "نشر في صفحة المذكرات" : "نشر في المعرض"}
                     </Label>
                   </div>
                 )}
@@ -1509,17 +1509,17 @@ export default function ProjectDetail() {
                       <>
                         <DropdownMenuSeparator />
                         <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                          <Label className="text-xs cursor-pointer" data-testid="label-publish-gallery-mobile">نشر في المعرض</Label>
+                          <Label className="text-xs cursor-pointer" data-testid="label-publish-gallery-mobile">{project.projectType === "memoire" ? "نشر في صفحة المذكرات" : "نشر في المعرض"}</Label>
                           <Switch
                             checked={!!project.publishedToGallery}
                             onCheckedChange={async (checked) => {
                               try {
                                 if (checked) {
                                   await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
-                                  toast({ title: "تم نشر المشروع في المعرض" });
+                                  toast({ title: project.projectType === "memoire" ? "تم نشر المذكرة في صفحة المذكرات الأكاديمية" : "تم نشر المشروع في المعرض" });
                                 } else {
                                   await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
-                                  toast({ title: "تم إلغاء النشر من المعرض" });
+                                  toast({ title: project.projectType === "memoire" ? "تم إلغاء النشر من صفحة المذكرات" : "تم إلغاء النشر من المعرض" });
                                 }
                                 queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                               } catch {

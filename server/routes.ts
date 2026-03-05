@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
 import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
@@ -183,6 +183,36 @@ async function overlayTitleOnCover(base64Image: string, title: string): Promise<
   ctx.stroke();
 
   return canvas.toBuffer("image/png").toString("base64");
+}
+
+function extractMemoireSubSections(content: string): { type: string; text: string }[] {
+  const subs: { type: string; text: string }[] = [];
+  const lines = (content || "").split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim().replace(/^#{1,3}\s*/, "");
+    if (!trimmed) continue;
+    if (/^(تمهيد الفصل|تمهيد)(\s|$|:)/.test(trimmed)) {
+      subs.push({ type: "tamheed", text: trimmed.replace(/[:\s]*$/, "") });
+    } else if (/^(المبحث\s|مبحث\s)/.test(trimmed)) {
+      subs.push({ type: "mabhath", text: trimmed.replace(/[:\s]*$/, "") });
+    } else if (/^(المطلب\s|مطلب\s)/.test(trimmed)) {
+      subs.push({ type: "matlab", text: trimmed.replace(/[:\s]*$/, "") });
+    } else if (/^(خلاصة الفصل|خلاصة)(\s|$|:)/.test(trimmed)) {
+      subs.push({ type: "khulasat", text: trimmed.replace(/[:\s]*$/, "") });
+    }
+  }
+  return subs;
+}
+
+function isMemoireAcademicHeader(text: string): { type: string; text: string } | null {
+  const trimmed = text.trim().replace(/^#{1,3}\s*/, "");
+  if (/^(تمهيد الفصل|تمهيد)(\s|$|:|\.|-|—)/.test(trimmed)) return { type: "tamheed", text: trimmed };
+  if (/^(المبحث\s|مبحث\s)/.test(trimmed)) return { type: "mabhath", text: trimmed };
+  if (/^(المطلب\s|مطلب\s)/.test(trimmed)) return { type: "matlab", text: trimmed };
+  if (/^(خلاصة الفصل|خلاصة)(\s|$|:|\.|-|—)/.test(trimmed)) return { type: "khulasat", text: trimmed };
+  if (/^(المقدمة العامة|المقدمة)(\s|$|:|\.|-|—)/.test(trimmed)) return { type: "intro", text: trimmed };
+  if (/^(الخاتمة العامة|الخاتمة)(\s|$|:|\.|-|—)/.test(trimmed)) return { type: "conclusion", text: trimmed };
+  return null;
 }
 
 export async function registerRoutes(
@@ -1521,12 +1551,14 @@ ${pages.map(p => `  <url>
           }
         }
       } else if (pType === "memoire") {
-        const chapterRegex = /الفصل\s+(\d+)\s*[:\-—–]\s*(.+)/g;
-        const chapterMatches = outline.match(chapterRegex);
-        if (chapterMatches) {
+        const arabicOrdinals = "الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر";
+        const memoireChapterRegex = new RegExp(`الفصل\\s+(?:${arabicOrdinals}|[\\d١٢٣٤٥٦٧٨٩٠]+)\\s*[:\\-—–ـ]\\s*(.+)`, "g");
+        const chapterMatches = outline.match(memoireChapterRegex);
+        const memoireChapterCount = project.memoireChapterCount || 5;
+        if (chapterMatches && chapterMatches.length > 0) {
           let num = 1;
           for (const match of chapterMatches) {
-            const titleMatch = match.match(/الفصل\s+\d+\s*[:\-—–]\s*(.+)/);
+            const titleMatch = match.match(new RegExp(`الفصل\\s+(?:${arabicOrdinals}|[\\d١٢٣٤٥٦٧٨٩٠]+)\\s*[:\\-—–ـ]\\s*(.+)`));
             const chTitle = titleMatch?.[1]?.trim() || `الفصل ${num}`;
             await storage.createChapter({
               projectId: id,
@@ -1536,15 +1568,48 @@ ${pages.map(p => `  <url>
             });
             num++;
           }
-        } else {
-          const memoireChapterCount = project.memoireChapterCount || 5;
-          for (let i = 1; i <= memoireChapterCount; i++) {
+          for (let i = num; i <= memoireChapterCount; i++) {
+            const looseFallback = outline.match(new RegExp(`الفصل\\s+(?:${arabicOrdinals}|[\\d١٢٣٤٥٦٧٨٩٠]*${i})[^\\n]*?[:\\-—–ـ]\\s*([^\\n]+)`, "i"));
             await storage.createChapter({
               projectId: id,
               chapterNumber: i,
-              title: `الفصل ${i}`,
+              title: looseFallback?.[1]?.trim() || `الفصل ${i}`,
               summary: null,
             });
+          }
+        } else {
+          const lines = outline.split("\n").filter(l => l.trim());
+          const chapterLines = lines.filter(l => /الفصل\s/.test(l) && /[:\-—–ـ]/.test(l));
+          if (chapterLines.length > 0) {
+            let num = 1;
+            for (const line of chapterLines) {
+              const titlePart = line.replace(/^.*?[:\-—–ـ]\s*/, "").trim();
+              await storage.createChapter({
+                projectId: id,
+                chapterNumber: num,
+                title: titlePart || `الفصل ${num}`,
+                summary: null,
+              });
+              num++;
+              if (num > memoireChapterCount) break;
+            }
+            for (let i = num; i <= memoireChapterCount; i++) {
+              await storage.createChapter({
+                projectId: id,
+                chapterNumber: i,
+                title: `الفصل ${i}`,
+                summary: null,
+              });
+            }
+          } else {
+            for (let i = 1; i <= memoireChapterCount; i++) {
+              await storage.createChapter({
+                projectId: id,
+                chapterNumber: i,
+                title: `الفصل ${i}`,
+                summary: null,
+              });
+            }
           }
         }
       } else {
@@ -2495,33 +2560,74 @@ ${pages.map(p => `  <url>
       doc.font("Arabic").fontSize(13).fillColor("#333333");
       let tocY = 145;
 
-      for (let ci = 0; ci < chapters.length; ci++) {
-        const ch = chapters[ci];
-        const chTitle = ch.title || `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`;
-        const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
-        const pageNum = chapterStartPages[ci] || "";
+      if (isMemoire) {
+        const addTocEntry = (text: string, pageNum: string | number, indent: number, fontSize: number, color: string, bold: boolean) => {
+          doc.font(bold ? "ArabicBold" : "Arabic").fontSize(fontSize).fillColor(color);
+          const entryW = tocEntryWidth - indent;
+          const entryH = doc.heightOfString(text, { width: entryW, align: "right" });
+          const entryHeight = Math.max(entryH, tocMinEntryHeight);
+          if (tocY + entryHeight + tocEntrySpacing > contentBottomLimit) {
+            doc.addPage();
+            drawBorder();
+            tocY = contentStartY;
+          }
+          doc.font(bold ? "ArabicBold" : "Arabic").fontSize(fontSize).fillColor(color);
+          doc.text(fixBidi(text), 100 + indent, tocY, { width: entryW, align: "right", features: ["rtla"] });
+          if (pageNum) {
+            doc.font("Arabic").fontSize(fontSize).fillColor("#8B7355");
+            doc.text(String(pageNum), contentMarginX, tocY, { width: 50, align: "left", lineBreak: false });
+          }
+          tocY += entryHeight + tocEntrySpacing;
+        };
 
-        doc.font("Arabic").fontSize(13).fillColor("#333333");
-        const tocEntryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
-        const entryHeight = Math.max(tocEntryH, tocMinEntryHeight);
-        doc.text(fixBidi(tocEntry), 100, tocY, {
-          width: pageWidth - 90,
-          align: "right",
-          features: ["rtla"],
-        });
+        addTocEntry("المقدمة العامة", chapterStartPages[0] || "", 0, 13, "#333333", true);
 
-        doc.font("Arabic").fontSize(13).fillColor("#8B7355");
-        doc.text(String(pageNum), contentMarginX, tocY, {
-          width: 50,
-          align: "left",
-          lineBreak: false,
-        });
+        for (let ci = 0; ci < chapters.length; ci++) {
+          const ch = chapters[ci];
+          const chTitle = ch.title || `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`;
+          const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
+          addTocEntry(tocEntry, chapterStartPages[ci] || "", 0, 13, "#333333", true);
 
-        tocY += entryHeight + tocEntrySpacing;
-        if (tocY > contentBottomLimit) {
-          doc.addPage();
-          drawBorder();
-          tocY = contentStartY;
+          const subSections = extractMemoireSubSections(ch.content || "");
+          for (const sub of subSections) {
+            const subIndent = sub.type === "matlab" ? 60 : 30;
+            const subFontSize = sub.type === "matlab" ? 11 : 12;
+            addTocEntry(sub.text, "", subIndent, subFontSize, "#6B5B4F", false);
+          }
+        }
+
+        addTocEntry("الخاتمة العامة", "", 0, 13, "#333333", true);
+        addTocEntry("قائمة المراجع", "", 0, 13, "#333333", true);
+        addTocEntry("الملاحق", "", 0, 13, "#333333", true);
+      } else {
+        for (let ci = 0; ci < chapters.length; ci++) {
+          const ch = chapters[ci];
+          const chTitle = ch.title || `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}`;
+          const tocEntry = `${chapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${chTitle}`;
+          const pageNum = chapterStartPages[ci] || "";
+
+          doc.font("Arabic").fontSize(13).fillColor("#333333");
+          const tocEntryH = doc.heightOfString(tocEntry, { width: tocEntryWidth, align: "right" });
+          const entryHeight = Math.max(tocEntryH, tocMinEntryHeight);
+          doc.text(fixBidi(tocEntry), 100, tocY, {
+            width: pageWidth - 90,
+            align: "right",
+            features: ["rtla"],
+          });
+
+          doc.font("Arabic").fontSize(13).fillColor("#8B7355");
+          doc.text(String(pageNum), contentMarginX, tocY, {
+            width: 50,
+            align: "left",
+            lineBreak: false,
+          });
+
+          tocY += entryHeight + tocEntrySpacing;
+          if (tocY > contentBottomLimit) {
+            doc.addPage();
+            drawBorder();
+            tocY = contentStartY;
+          }
         }
       }
 
@@ -2553,7 +2659,68 @@ ${pages.map(p => `  <url>
 
         for (const para of paragraphs) {
           const paraWidth = pageWidth - 20;
-          const textHeight = doc.heightOfString(para.trim(), { width: paraWidth, align: "right", lineGap: 8 });
+          const trimmedPara = para.trim();
+
+          if (isMemoire) {
+            const headerInfo = isMemoireAcademicHeader(trimmedPara);
+            if (headerInfo) {
+              const headerText = headerInfo.text;
+              if (headerInfo.type === "mabhath" || headerInfo.type === "intro" || headerInfo.type === "conclusion") {
+                doc.font("ArabicBold").fontSize(16).fillColor("#2C1810");
+                const headerHeight = doc.heightOfString(headerText, { width: paraWidth, align: "right", lineGap: 6 });
+                if (yPos + headerHeight + 20 > contentBottomLimit) {
+                  drawPageFooter(pageNumber);
+                  doc.addPage();
+                  pageNumber++;
+                  drawBorder();
+                  drawPageHeader(chTitle);
+                  yPos = continuationStartY;
+                }
+                yPos += 10;
+                doc.font("ArabicBold").fontSize(16).fillColor("#2C1810");
+                doc.text(fixBidi(headerText), contentMarginX + 10, yPos, { width: paraWidth, align: "right", lineGap: 6, features: ["rtla"] });
+                yPos += headerHeight + 8;
+                const divCenterX = fullPageWidth / 2;
+                doc.moveTo(divCenterX - 60, yPos).lineTo(divCenterX + 60, yPos).lineWidth(0.5).strokeColor("#C4A882").stroke();
+                yPos += 12;
+                continue;
+              } else if (headerInfo.type === "matlab") {
+                doc.font("ArabicBold").fontSize(14).fillColor("#4A3728");
+                const headerHeight = doc.heightOfString(headerText, { width: paraWidth, align: "right", lineGap: 6 });
+                if (yPos + headerHeight + 16 > contentBottomLimit) {
+                  drawPageFooter(pageNumber);
+                  doc.addPage();
+                  pageNumber++;
+                  drawBorder();
+                  drawPageHeader(chTitle);
+                  yPos = continuationStartY;
+                }
+                yPos += 8;
+                doc.font("ArabicBold").fontSize(14).fillColor("#4A3728");
+                doc.text(fixBidi(headerText), contentMarginX + 30, yPos, { width: paraWidth - 20, align: "right", lineGap: 6, features: ["rtla"] });
+                yPos += headerHeight + 10;
+                continue;
+              } else if (headerInfo.type === "tamheed" || headerInfo.type === "khulasat") {
+                doc.font("ArabicBold").fontSize(15).fillColor("#6B5B4F");
+                const headerHeight = doc.heightOfString(headerText, { width: paraWidth, align: "right", lineGap: 6 });
+                if (yPos + headerHeight + 16 > contentBottomLimit) {
+                  drawPageFooter(pageNumber);
+                  doc.addPage();
+                  pageNumber++;
+                  drawBorder();
+                  drawPageHeader(chTitle);
+                  yPos = continuationStartY;
+                }
+                yPos += 8;
+                doc.font("ArabicBold").fontSize(15).fillColor("#6B5B4F");
+                doc.text(fixBidi(headerText), contentMarginX + 15, yPos, { width: paraWidth, align: "right", lineGap: 6, features: ["rtla"] });
+                yPos += headerHeight + 10;
+                continue;
+              }
+            }
+          }
+
+          const textHeight = doc.heightOfString(trimmedPara, { width: paraWidth, align: "right", lineGap: 8 });
           if (yPos + textHeight > contentBottomLimit) {
             drawPageFooter(pageNumber);
             doc.addPage();
@@ -2563,7 +2730,7 @@ ${pages.map(p => `  <url>
             yPos = continuationStartY;
           }
           doc.font("Arabic").fontSize(13).fillColor("#333333");
-          doc.text(fixBidi(para.trim()), contentMarginX + 20, yPos, {
+          doc.text(fixBidi(trimmedPara), contentMarginX + 20, yPos, {
             width: paraWidth,
             align: "right",
             lineGap: 8,
@@ -2580,8 +2747,9 @@ ${pages.map(p => `  <url>
         pageNumber++;
         drawBorder();
 
+        const glossaryTitle = isMemoire ? "الفهرس الأكاديمي" : "المسرد";
         doc.font("ArabicBold").fontSize(22).fillColor("#2C1810");
-        doc.text("المسرد", contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
+        doc.text(glossaryTitle, contentMarginX, contentStartY, { width: pageWidth, align: "right", features: ["rtla"] });
 
         doc.moveTo(contentMarginX, 125).lineTo(fullPageWidth - contentMarginX, 125).lineWidth(1).strokeColor("#8B7355").stroke();
         doc.moveTo(contentMarginX, 128).lineTo(fullPageWidth - contentMarginX, 128).lineWidth(0.5).strokeColor("#C4A882").stroke();
@@ -2590,17 +2758,33 @@ ${pages.map(p => `  <url>
         const glossaryLines = project.glossary.split(/\n+/).filter((l: string) => l.trim());
         let yPos = 145;
         for (const line of glossaryLines) {
-          const textHeight = doc.heightOfString(line.trim(), { width: pageWidth, align: "right", lineGap: 6 });
+          const trimmedLine = line.trim();
+          let lineFont = "Arabic";
+          let lineFontSize = 12;
+          let lineColor = "#333333";
+          if (isMemoire) {
+            if (/^(فهرس المحتويات|قائمة المختصرات|فهرس المراجع|مراجع عربية|مراجع أجنبية|مواقع إلكترونية|رسائل جامعية)/.test(trimmedLine)) {
+              lineFont = "ArabicBold";
+              lineFontSize = 15;
+              lineColor = "#2C1810";
+            } else if (/^(المقدمة العامة|الخاتمة العامة|قائمة المراجع|الملاحق|الفصل\s)/.test(trimmedLine)) {
+              lineFont = "ArabicBold";
+              lineFontSize = 13;
+              lineColor = "#4A3728";
+            }
+          }
+          doc.font(lineFont).fontSize(lineFontSize).fillColor(lineColor);
+          const textHeight = doc.heightOfString(trimmedLine, { width: pageWidth, align: "right", lineGap: 6 });
           if (yPos + textHeight > contentBottomLimit) {
             drawPageFooter(pageNumber);
             doc.addPage();
             pageNumber++;
             drawBorder();
-            drawPageHeader("المسرد");
+            drawPageHeader(glossaryTitle);
             yPos = continuationStartY;
           }
-          doc.font("Arabic").fontSize(12).fillColor("#333333");
-          doc.text(fixBidi(line.trim()), contentMarginX, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
+          doc.font(lineFont).fontSize(lineFontSize).fillColor(lineColor);
+          doc.text(fixBidi(trimmedLine), contentMarginX, yPos, { width: pageWidth, align: "right", lineGap: 6, features: ["rtla"] });
           yPos += textHeight + 8;
         }
         drawPageFooter(pageNumber);
@@ -2874,9 +3058,29 @@ h2 { color: #8B7355; font-size: 0.9em; text-align: center; margin-bottom: 1em; }
 p { text-indent: 2em; margin: 0.5em 0; text-align: justify; }
 hr { border: none; border-top: 1px solid #D4A574; margin: 1.5em auto; width: 40%; }`, { name: "OEBPS/style.css" });
 
-      const tocItems = completedChapters
-        .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}</a></li>`)
-        .join("\n");
+      let tocItemsHtml: string;
+      if (isMemoire) {
+        const escHtmlEpub = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        let memoireTocItems = `      <li><span>المقدمة العامة</span></li>\n`;
+        for (let i = 0; i < completedChapters.length; i++) {
+          const ch = completedChapters[i];
+          const subSections = extractMemoireSubSections(ch.content || "");
+          let subList = "";
+          if (subSections.length > 0) {
+            const subItems = subSections.map((s: any) => `          <li><span>${escHtmlEpub(s.text)}</span></li>`).join("\n");
+            subList = `\n        <ol>\n${subItems}\n        </ol>`;
+          }
+          memoireTocItems += `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${escHtmlEpub(ch.title)}</a>${subList}</li>\n`;
+        }
+        memoireTocItems += `      <li><span>الخاتمة العامة</span></li>\n`;
+        memoireTocItems += `      <li><span>قائمة المراجع</span></li>\n`;
+        memoireTocItems += `      <li><span>الملاحق</span></li>`;
+        tocItemsHtml = memoireTocItems;
+      } else {
+        tocItemsHtml = completedChapters
+          .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}</a></li>`)
+          .join("\n");
+      }
 
       archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -2886,7 +3090,7 @@ hr { border: none; border-top: 1px solid #D4A574; margin: 1.5em auto; width: 40%
   <h1>${project.title}</h1>
   <nav epub:type="toc">
     <ol>
-${tocItems}
+${tocItemsHtml}
     </ol>
   </nav>
 </body>
@@ -2894,9 +3098,33 @@ ${tocItems}
 
       for (let i = 0; i < completedChapters.length; i++) {
         const ch = completedChapters[i];
-        const paragraphs = (ch.content || "").split("\n").filter((p: string) => p.trim())
-          .map((p: string) => `<p>${p.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
-          .join("\n");
+        const escHtmlContent = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        let chapterContentHtml: string;
+
+        if (isMemoire) {
+          const lines = (ch.content || "").split("\n").filter((p: string) => p.trim());
+          chapterContentHtml = lines.map((p: string) => {
+            const trimmed = p.trim().replace(/^#{1,3}\s*/, "");
+            const escaped = escHtmlContent(trimmed);
+            if (/^(المبحث\s|مبحث\s)/.test(trimmed)) {
+              return `<h3 style="text-indent: 0; font-size: 1.3em; color: #2C1810; margin-top: 1.5em; border-bottom: 1px solid #D4A574; padding-bottom: 0.3em;">${escaped}</h3>`;
+            }
+            if (/^(المطلب\s|مطلب\s)/.test(trimmed)) {
+              return `<h4 style="text-indent: 0; font-size: 1.1em; color: #4A3728; margin-top: 1em; margin-right: 1em;">${escaped}</h4>`;
+            }
+            if (/^(تمهيد الفصل|تمهيد)(\s|$|:|\.|-|—)/.test(trimmed) || /^(خلاصة الفصل|خلاصة)(\s|$|:|\.|-|—)/.test(trimmed)) {
+              return `<h3 style="text-indent: 0; font-size: 1.2em; color: #6B5B4F; margin-top: 1.5em; font-style: italic;">${escaped}</h3>`;
+            }
+            if (/^(المقدمة العامة|المقدمة|الخاتمة العامة|الخاتمة)(\s|$|:|\.|-|—)/.test(trimmed)) {
+              return `<h3 style="text-indent: 0; font-size: 1.3em; color: #2C1810; margin-top: 1.5em;">${escaped}</h3>`;
+            }
+            return `<p>${escaped}</p>`;
+          }).join("\n");
+        } else {
+          chapterContentHtml = (ch.content || "").split("\n").filter((p: string) => p.trim())
+            .map((p: string) => `<p>${escHtmlContent(p.trim())}</p>`)
+            .join("\n");
+        }
 
         archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -2906,22 +3134,30 @@ ${tocItems}
   <h2>${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}</h2>
   <h1>${ch.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h1>
   <hr/>
-${paragraphs}
+${chapterContentHtml}
 </body>
 </html>`, { name: `OEBPS/chapter${i + 1}.xhtml` });
       }
 
       if (project.glossary) {
+        const epubGlossaryTitle = isMemoire ? "الفهرس الأكاديمي" : "المسرد";
         const glossaryParagraphs = project.glossary.split("\n").filter((p: string) => p.trim())
-          .map((p: string) => `<p>${p.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
+          .map((p: string) => {
+            const trimmed = p.trim();
+            const escaped = trimmed.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            if (isMemoire && /^(فهرس المحتويات|قائمة المختصرات|فهرس المراجع|مراجع عربية|مراجع أجنبية|مواقع إلكترونية|رسائل جامعية)/.test(trimmed)) {
+              return `<h3 style="text-indent: 0; font-size: 1.2em; color: #2C1810; margin-top: 1.5em; border-bottom: 1px solid #D4A574; padding-bottom: 0.3em;">${escaped}</h3>`;
+            }
+            return `<p>${escaped}</p>`;
+          })
           .join("\n");
 
         archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
-<head><title>المسرد</title><link rel="stylesheet" href="style.css"/></head>
+<head><title>${epubGlossaryTitle}</title><link rel="stylesheet" href="style.css"/></head>
 <body>
-  <h1>المسرد</h1>
+  <h1>${epubGlossaryTitle}</h1>
   <hr/>
 ${glossaryParagraphs}
 </body>
@@ -3411,6 +3647,21 @@ ${glossaryParagraphs}
         }),
         decoratorLine({ after: 400 }),
       ];
+
+      if (isMemoireProject) {
+        tocChildren.push(
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            bidirectional: true,
+            spacing: { after: 200 },
+            indent: { right: 400 },
+            children: [
+              new TextRun({ text: "المقدمة العامة", bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }),
+        );
+      }
+
       for (const ch of completedChapters) {
         tocChildren.push(
           new Paragraph({
@@ -3424,7 +3675,59 @@ ${glossaryParagraphs}
             ],
           }),
         );
+
+        if (isMemoireProject) {
+          const subSections = extractMemoireSubSections(ch.content || "");
+          for (const sub of subSections) {
+            const subIndent = sub.type === "matlab" ? 1200 : 800;
+            const subSize = sub.type === "matlab" ? 22 : 24;
+            tocChildren.push(
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                bidirectional: true,
+                spacing: { after: 120 },
+                indent: { right: subIndent },
+                children: [
+                  new TextRun({ text: sub.text, size: subSize, font: mainFont, rightToLeft: true, color: subtleColor }),
+                ],
+              }),
+            );
+          }
+        }
       }
+
+      if (isMemoireProject) {
+        tocChildren.push(
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            bidirectional: true,
+            spacing: { after: 200 },
+            indent: { right: 400 },
+            children: [
+              new TextRun({ text: "الخاتمة العامة", bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            bidirectional: true,
+            spacing: { after: 200 },
+            indent: { right: 400 },
+            children: [
+              new TextRun({ text: "قائمة المراجع", bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            bidirectional: true,
+            spacing: { after: 200 },
+            indent: { right: 400 },
+            children: [
+              new TextRun({ text: "الملاحق", bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+            ],
+          }),
+        );
+      }
+
       if (project.glossary) {
         tocChildren.push(
           new Paragraph({
@@ -3433,7 +3736,7 @@ ${glossaryParagraphs}
             spacing: { after: 200 },
             indent: { right: 400 },
             children: [
-              new TextRun({ text: "المسرد", bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
+              new TextRun({ text: isMemoireProject ? "الفهرس الأكاديمي" : "المسرد", bold: true, size: 26, font: mainFont, rightToLeft: true, color: bodyColor }),
             ],
           }),
         );
@@ -3504,6 +3807,53 @@ ${glossaryParagraphs}
             }));
           } else if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
             contentChildren.push(decoratorLine({ before: 300, after: 300 }));
+          } else if (isMemoireProject) {
+            const headerInfo = isMemoireAcademicHeader(trimmed);
+            if (headerInfo) {
+              if (headerInfo.type === "mabhath" || headerInfo.type === "intro" || headerInfo.type === "conclusion") {
+                contentChildren.push(new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  bidirectional: true,
+                  spacing: { before: 500, after: 250 },
+                  heading: HeadingLevel.HEADING_2,
+                  children: makeBidiTextRuns(headerInfo.text, { bold: true, size: 34, color: accentColor }),
+                }));
+                contentChildren.push(decoratorLine({ after: 200 }));
+              } else if (headerInfo.type === "matlab") {
+                contentChildren.push(new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  bidirectional: true,
+                  spacing: { before: 400, after: 200 },
+                  indent: { right: 400 },
+                  heading: HeadingLevel.HEADING_3,
+                  children: makeBidiTextRuns(headerInfo.text, { bold: true, size: 30, color: accentColor }),
+                }));
+              } else if (headerInfo.type === "tamheed" || headerInfo.type === "khulasat") {
+                contentChildren.push(new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  bidirectional: true,
+                  spacing: { before: 400, after: 200 },
+                  heading: HeadingLevel.HEADING_3,
+                  children: makeBidiTextRuns(headerInfo.text, { bold: true, size: 30, color: subtleColor, italics: true }),
+                }));
+              } else {
+                contentChildren.push(new Paragraph({
+                  alignment: AlignmentType.BOTH,
+                  bidirectional: true,
+                  spacing: { after: 180, line: 360 },
+                  indent: { firstLine: 720 },
+                  children: parseFormattedText(trimmed, 28, bodyColor),
+                }));
+              }
+            } else {
+              contentChildren.push(new Paragraph({
+                alignment: AlignmentType.BOTH,
+                bidirectional: true,
+                spacing: { after: 180, line: 360 },
+                indent: { firstLine: 720 },
+                children: parseFormattedText(trimmed, 28, bodyColor),
+              }));
+            }
           } else {
             contentChildren.push(new Paragraph({
               alignment: AlignmentType.BOTH,
@@ -3517,6 +3867,7 @@ ${glossaryParagraphs}
       }
 
       if (project.glossary) {
+        const docxGlossaryTitle = isMemoireProject ? "الفهرس الأكاديمي" : "المسرد";
         contentChildren.push(
           new Paragraph({
             pageBreakBefore: true,
@@ -3525,7 +3876,7 @@ ${glossaryParagraphs}
             spacing: { before: 1200, after: 300 },
             heading: HeadingLevel.HEADING_1,
             children: [
-              new TextRun({ text: "المسرد", bold: true, size: 44, font: mainFont, rightToLeft: true, color: accentColor }),
+              new TextRun({ text: docxGlossaryTitle, bold: true, size: 44, font: mainFont, rightToLeft: true, color: accentColor }),
             ],
           }),
           decoratorLine({ after: 400 }),
@@ -3533,7 +3884,16 @@ ${glossaryParagraphs}
         const glossaryLines = project.glossary.split("\n").filter((p: string) => p.trim());
         for (const line of glossaryLines) {
           const trimmed = line.trim();
-          if (trimmed.includes(":") || trimmed.includes("：")) {
+          if (isMemoireProject && /^(فهرس المحتويات|قائمة المختصرات|فهرس المراجع|مراجع عربية|مراجع أجنبية|مواقع إلكترونية|رسائل جامعية)/.test(trimmed)) {
+            contentChildren.push(new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              bidirectional: true,
+              spacing: { before: 400, after: 200 },
+              heading: HeadingLevel.HEADING_2,
+              children: makeBidiTextRuns(trimmed, { bold: true, size: 32, color: accentColor }),
+            }));
+            contentChildren.push(decoratorLine({ after: 150 }));
+          } else if (trimmed.includes(":") || trimmed.includes("：")) {
             const sepIdx = trimmed.indexOf(":") !== -1 ? trimmed.indexOf(":") : trimmed.indexOf("：");
             const term = trimmed.slice(0, sepIdx).trim();
             const def = trimmed.slice(sepIdx + 1).trim();
@@ -4897,7 +5257,16 @@ ${glossaryParagraphs}
 
       if (!allContent) return res.status(400).json({ error: "لا يوجد محتوى لإنشاء الفهرس" });
 
-      const { system, user } = buildGlossaryPrompt(allContent, project.title, project.projectType || "novel");
+      const { system, user } = project.projectType === "memoire"
+        ? buildMemoireGlossaryPrompt(
+            allContent,
+            project.title,
+            project.chapters
+              .filter((ch: any) => ch.content)
+              .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
+              .map((ch: any) => ({ chapterNumber: ch.chapterNumber, title: ch.title }))
+          )
+        : buildGlossaryPrompt(allContent, project.title, project.projectType || "novel");
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
         messages: [
@@ -5229,12 +5598,21 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
         .map((ch: any) => `${chapterLabel} ${ch.chapterNumber}: ${ch.title}\n${ch.content?.substring(0, 4000)}`)
         .join("\n\n---\n\n");
 
-      const { system, user } = buildStyleAnalysisPrompt(
-        allContent,
-        project.title,
-        project.projectType,
-        project.narrativeTechnique || undefined
-      );
+      const methodologyMap: Record<string, string> = { descriptive: "المنهج الوصفي", analytical: "المنهج التحليلي", experimental: "المنهج التجريبي", historical: "المنهج التاريخي", comparative: "المنهج المقارن", survey: "المنهج المسحي", case_study: "دراسة حالة", mixed: "مختلط", qualitative: "نوعي", quantitative: "كمّي" };
+      const fieldMap: Record<string, string> = { sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون", medicine: "الطب", engineering: "الهندسة", economics: "الاقتصاد", education: "التربية", literature: "الآداب", computer_science: "الحاسوب", islamic_studies: "العلوم الإسلامية", political_science: "العلوم السياسية", psychology: "علم النفس", sociology: "علم الاجتماع" };
+      const { system, user } = project.projectType === "memoire"
+        ? buildMemoireStyleAnalysisPrompt(
+            allContent,
+            project.title,
+            methodologyMap[project.memoireMethodology || ""] || project.memoireMethodology || undefined,
+            fieldMap[project.memoireField || ""] || project.memoireField || undefined
+          )
+        : buildStyleAnalysisPrompt(
+            allContent,
+            project.title,
+            project.projectType,
+            project.narrativeTechnique || undefined
+          );
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
