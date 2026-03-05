@@ -104,6 +104,8 @@ export interface IStorage {
   updateFeature(key: string, data: Partial<PlatformFeature>): Promise<PlatformFeature>;
   isFeatureEnabled(key: string, userId?: string): Promise<boolean>;
   seedDefaultFeatures(): Promise<void>;
+  getProjectStatsForUser(userId: string): Promise<Record<number, { realWordCount: number; realPageCount: number }>>;
+  getWritingStatsForUser(userId: string): Promise<{ totalWords: number; totalProjects: number; completedProjects: number; avgWordsPerProject: number; dailyWordCounts: { date: string; words: number }[]; projectBreakdown: { projectId: number; title: string; type: string; words: number; chapters: number; completedChapters: number }[] }>;
   deleteProject(id: number): Promise<void>;
   createContentReport(report: InsertContentReport): Promise<ContentReport>;
   getContentReports(status?: string): Promise<(ContentReport & { projectTitle?: string })[]>;
@@ -1082,6 +1084,100 @@ export class DatabaseStorage implements IStorage {
         freeMonthlyGenerationsUsed: sql`COALESCE(${users.freeMonthlyGenerationsUsed}, 0) + 1`,
       }).where(eq(users.id, userId));
     }
+  }
+
+  async getProjectStatsForUser(userId: string): Promise<Record<number, { realWordCount: number; realPageCount: number }>> {
+    const rows = await db
+      .select({
+        projectId: novelProjects.id,
+        content: chapters.content,
+      })
+      .from(novelProjects)
+      .leftJoin(chapters, eq(chapters.projectId, novelProjects.id))
+      .where(eq(novelProjects.userId, userId));
+
+    const statsMap: Record<number, { realWordCount: number; realPageCount: number }> = {};
+    for (const row of rows) {
+      if (!statsMap[row.projectId]) {
+        statsMap[row.projectId] = { realWordCount: 0, realPageCount: 0 };
+      }
+      if (row.content) {
+        statsMap[row.projectId].realWordCount += row.content.split(/\s+/).filter((w: string) => w.trim()).length;
+      }
+    }
+    for (const id of Object.keys(statsMap)) {
+      const s = statsMap[Number(id)];
+      s.realPageCount = s.realWordCount > 0 ? Math.max(1, Math.ceil(s.realWordCount / 250)) : 0;
+    }
+    return statsMap;
+  }
+
+  async getWritingStatsForUser(userId: string): Promise<{ totalWords: number; totalProjects: number; completedProjects: number; avgWordsPerProject: number; dailyWordCounts: { date: string; words: number }[]; projectBreakdown: { projectId: number; title: string; type: string; words: number; chapters: number; completedChapters: number }[] }> {
+    const rows = await db
+      .select({
+        projectId: novelProjects.id,
+        projectTitle: novelProjects.title,
+        projectType: novelProjects.projectType,
+        projectStatus: novelProjects.status,
+        chapterId: chapters.id,
+        chapterContent: chapters.content,
+        chapterStatus: chapters.status,
+        chapterCreatedAt: chapters.createdAt,
+      })
+      .from(novelProjects)
+      .leftJoin(chapters, eq(chapters.projectId, novelProjects.id))
+      .where(eq(novelProjects.userId, userId));
+
+    const projectMap: Record<number, { title: string; type: string; status: string; words: number; chapters: number; completedChapters: number }> = {};
+    const dailyMap: Record<string, number> = {};
+    let totalWords = 0;
+
+    for (const row of rows) {
+      if (!projectMap[row.projectId]) {
+        projectMap[row.projectId] = { title: row.projectTitle, type: row.projectType || "novel", status: row.projectStatus || "", words: 0, chapters: 0, completedChapters: 0 };
+      }
+      const pm = projectMap[row.projectId];
+      if (row.chapterId !== null) {
+        pm.chapters++;
+        if (row.chapterStatus === "completed") pm.completedChapters++;
+        if (row.chapterContent) {
+          const words = row.chapterContent.split(/\s+/).filter((w: string) => w.trim()).length;
+          pm.words += words;
+          totalWords += words;
+          if (row.chapterCreatedAt) {
+            const dateKey = new Date(row.chapterCreatedAt).toISOString().split("T")[0];
+            dailyMap[dateKey] = (dailyMap[dateKey] || 0) + words;
+          }
+        }
+      }
+    }
+
+    const projectIds = Object.keys(projectMap).map(Number);
+    let completedProjects = 0;
+    const projectBreakdown: { projectId: number; title: string; type: string; words: number; chapters: number; completedChapters: number }[] = [];
+    for (const pid of projectIds) {
+      const pm = projectMap[pid];
+      if (pm.status === "completed" || pm.status === "finished") completedProjects++;
+      projectBreakdown.push({ projectId: pid, title: pm.title, type: pm.type, words: pm.words, chapters: pm.chapters, completedChapters: pm.completedChapters });
+    }
+
+    const today = new Date();
+    const dailyWordCounts: { date: string; words: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      dailyWordCounts.push({ date: key, words: dailyMap[key] || 0 });
+    }
+
+    return {
+      totalWords,
+      totalProjects: projectIds.length,
+      completedProjects,
+      avgWordsPerProject: projectIds.length > 0 ? Math.round(totalWords / projectIds.length) : 0,
+      dailyWordCounts,
+      projectBreakdown: projectBreakdown.sort((a, b) => b.words - a.words),
+    };
   }
 
   async deleteProject(id: number): Promise<void> {
