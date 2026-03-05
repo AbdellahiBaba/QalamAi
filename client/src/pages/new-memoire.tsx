@@ -345,10 +345,6 @@ export default function NewMemoire() {
       if (data.memoireKeywords) form.setValue("memoireKeywords", data.memoireKeywords, { shouldValidate: true });
       if (data.memoireMethodology) form.setValue("memoireMethodology", data.memoireMethodology, { shouldValidate: true });
       if (data.memoireCitationStyle) form.setValue("memoireCitationStyle", data.memoireCitationStyle, { shouldValidate: true });
-      if (data.memoireCountry) form.setValue("memoireCountry", data.memoireCountry, { shouldValidate: true });
-      if (data.memoireUniversity) form.setValue("memoireUniversity", data.memoireUniversity, { shouldValidate: true });
-      if (data.memoireFaculty) form.setValue("memoireFaculty", data.memoireFaculty, { shouldValidate: true });
-      if (data.memoireDepartment) form.setValue("memoireDepartment", data.memoireDepartment, { shouldValidate: true });
       if (data.memoireHypotheses) form.setValue("memoireHypotheses", data.memoireHypotheses, { shouldValidate: true });
       if (data.memoireChapterCount) form.setValue("memoireChapterCount", Number(data.memoireChapterCount), { shouldValidate: true });
       if (data.memoirePageTarget) form.setValue("memoirePageTarget", Number(data.memoirePageTarget), { shouldValidate: true });
