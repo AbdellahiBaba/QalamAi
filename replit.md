@@ -34,3 +34,10 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
 - **pdfkit**: Server-side PDF generation.
 - **archiver**: EPUB file generation.
 - **docx (npm package)**: DOCX document generation.
+- **Training Webhook System**: Automatically sends AI interaction data (prompts, responses, metadata) to an external training server via configurable webhook. Includes retry queue with exponential backoff, admin delivery log, and test endpoint. Files: `server/webhook-dispatcher.ts`. DB table: `webhook_deliveries`. Feature flag: `training_webhook`. Env vars: `TRAINING_WEBHOOK_URL`, `WEBHOOK_SECRET`.
+
+## Key Environment Variables
+- `TRAINING_WEBHOOK_URL`: External webhook endpoint for sending AI interaction training data
+- `WEBHOOK_SECRET`: Shared secret for authenticating webhook requests (sent as X-Webhook-Secret header)
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: Email configuration
+- `SESSION_SECRET`: Session encryption key

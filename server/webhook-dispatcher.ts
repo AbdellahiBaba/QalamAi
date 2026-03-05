@@ -95,6 +95,9 @@ async function sendWebhookAsync(payload: WebhookPayload): Promise<void> {
 }
 
 export async function processRetryQueue(): Promise<void> {
+  const enabled = await isWebhookEnabled();
+  if (!enabled) return;
+
   const pending = await storage.getPendingWebhookRetries();
   if (pending.length === 0) return;
 
