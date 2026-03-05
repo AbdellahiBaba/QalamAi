@@ -1,0 +1,29 @@
+Add a webhook system to QalamAI.net that automatically sends user interaction data (prompts, AI responses, corrections, and metadata) to an external training server whenever a conversation happens.
+
+What to build:
+
+Webhook dispatcher — After every completed AI interaction (user sends a prompt and receives a response), send a POST request to a configurable external webhook URL with the interaction data.
+
+Payload format — Each webhook POST should send JSON in this exact structure:
+
+{
+  "input": "the user's prompt text",
+  "output": "the AI response text",
+  "category": "article/novel/script/academic/poetry/essay/dialogue/summary/translation/general",
+  "correction": "human-edited correction if available, otherwise null",
+  "timestamp": "ISO 8601 timestamp",
+  "metadata": {
+    "session_id": "unique session identifier",
+    "language": "ar or en",
+    "word_count": 150
+  }
+}
+Configuration — Add an environment variable called TRAINING_WEBHOOK_URL that holds the destination URL. The webhook URL will be: https://<abu-hashim-replit-url>/api/qalam-webhook
+
+Reliability — If the webhook POST fails (timeout, server down), log the failure and store the payload locally in a retry queue. Retry failed webhooks up to 3 times with exponential backoff (5s, 30s, 120s). Don't let webhook failures block or slow down the user's experience — send webhooks asynchronously.
+
+Security — Include an X-Webhook-Secret header with a shared secret (from an environment variable called WEBHOOK_SECRET) so the receiving server can verify the request is authentic.
+
+Admin control — Add a simple toggle in the admin settings to enable/disable the webhook, and a log page showing recent webhook deliveries (timestamp, status, payload size).
+
+The webhook should fire for all interaction types — chat conversations, writing assistance, corrections, and any other prompt/response exchanges on the platform. Do not send incomplete interactions (e.g., where the user abandoned before getting a response).
