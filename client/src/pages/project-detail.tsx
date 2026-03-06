@@ -411,6 +411,7 @@ export default function ProjectDetail() {
       await apiRequest("DELETE", `/api/projects/${projectId}`);
     },
     onSuccess: () => {
+      setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       toast({ title: "تم حذف المشروع بنجاح" });
       setLocation("/");
