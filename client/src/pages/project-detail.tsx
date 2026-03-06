@@ -211,6 +211,7 @@ export default function ProjectDetail() {
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<{ currentPart: number; totalParts: number } | null>(null);
   const [confirmRegenerate, setConfirmRegenerate] = useState<number | null>(null);
+  const [confirmDeleteChapter, setConfirmDeleteChapter] = useState<number | null>(null);
   const [editingChapter, setEditingChapter] = useState<number | null>(null);
   const [editContent, setEditContent] = useState("");
   const [confirmOutlineRegen, setConfirmOutlineRegen] = useState(false);
@@ -370,6 +371,21 @@ export default function ProjectDetail() {
     },
     onError: () => {
       toast({ title: "فشل في حفظ التعديلات", variant: "destructive" });
+    },
+  });
+
+  const deleteChapterMutation = useMutation({
+    mutationFn: async (chapterId: number) => {
+      const res = await apiRequest("DELETE", `/api/projects/${projectId}/chapters/${chapterId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تم حذف الفصل" });
+      setConfirmDeleteChapter(null);
+    },
+    onError: () => {
+      toast({ title: "فشل في حذف الفصل", variant: "destructive" });
     },
   });
 
@@ -2986,7 +3002,7 @@ export default function ProjectDetail() {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
                       <div className="flex items-center gap-3">
                         <span className="text-sm text-muted-foreground">
-                          {completedCount}/{totalCount} {labels.chapterSingular} مكتمل
+                          {completedCount}/{totalCount} {totalCount > 2 ? labels.chaptersLabel : labels.chapterSingular} {completedCount > 2 ? "مكتملة" : "مكتمل"}
                         </span>
                         <div className="w-24 sm:w-32 h-2 rounded-full bg-muted overflow-hidden">
                           <div
@@ -3156,6 +3172,49 @@ export default function ProjectDetail() {
                                   جزء {generationProgress.currentPart}/{generationProgress.totalParts}
                                 </span>
                               )}
+                            </div>
+                          )}
+                          {!isGenerating && confirmDeleteChapter !== chapter.id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-muted-foreground hover:text-destructive h-7 w-7 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteChapter(chapter.id);
+                              }}
+                              data-testid={`button-delete-chapter-${chapter.id}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                          {confirmDeleteChapter === chapter.id && !isGenerating && (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <span className="text-xs text-destructive">حذف؟</span>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="text-xs h-7 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteChapterMutation.mutate(chapter.id);
+                                }}
+                                data-testid={`button-confirm-delete-chapter-${chapter.id}`}
+                              >
+                                نعم
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-xs h-7 px-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDeleteChapter(null);
+                                }}
+                                data-testid={`button-cancel-delete-chapter-${chapter.id}`}
+                              >
+                                لا
+                              </Button>
                             </div>
                           )}
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}

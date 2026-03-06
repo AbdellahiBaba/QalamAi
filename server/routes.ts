@@ -1366,14 +1366,12 @@ ${pages.map(p => `  <url>
         return res.status(400).json({ error: "لا يمكن إعادة إنشاء المخطط بعد اعتماده" });
       }
 
-      if (project.outline) {
-        const existingChapters = await storage.getChaptersByProject(id);
-        for (const ch of existingChapters) {
-          await storage.deleteChapter(ch.id);
-        }
-        if (forceRegenerate && project.outlineApproved === 1) {
-          await storage.updateProject(id, { outlineApproved: 0 } as any);
-        }
+      const existingChapters = await storage.getChaptersByProject(id);
+      for (const ch of existingChapters) {
+        await storage.deleteChapter(ch.id);
+      }
+      if (forceRegenerate && project.outlineApproved === 1) {
+        await storage.updateProject(id, { outlineApproved: 0 } as any);
       }
 
       const chars = await storage.getCharactersByProject(id);
@@ -1491,6 +1489,10 @@ ${pages.map(p => `  <url>
           }
         }
       } else if (pType === "memoire") {
+        const safetyChapters = await storage.getChaptersByProject(id);
+        for (const ch of safetyChapters) {
+          await storage.deleteChapter(ch.id);
+        }
         const arabicOrdinals = "الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي عشر|الثاني عشر|الثالث عشر|الرابع عشر|الخامس عشر";
         const memoireChapterRegex = new RegExp(`الفصل\\s+(?:${arabicOrdinals}|[\\d١٢٣٤٥٦٧٨٩٠]+)\\s*[:\\-—–ـ]\\s*(.+)`, "g");
         const chapterMatches = outline.match(memoireChapterRegex);
@@ -1714,6 +1716,32 @@ ${pages.map(p => `  <url>
     } catch (error) {
       console.error("Error refining outline:", error);
       res.status(500).json({ error: "فشل في تحسين المخطط" });
+    }
+  });
+
+  app.delete("/api/projects/:projectId/chapters/:chapterId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectId = parseInt(req.params.projectId);
+      const chapterId = parseInt(req.params.chapterId);
+      if (isNaN(projectId) || isNaN(chapterId)) {
+        return res.status(400).json({ error: "معرّف غير صالح" });
+      }
+
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
+
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter || chapter.projectId !== projectId) {
+        return res.status(404).json({ error: "الفصل غير موجود" });
+      }
+
+      await storage.deleteChapter(chapterId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting chapter:", error);
+      res.status(500).json({ error: "فشل في حذف الفصل" });
     }
   });
 
