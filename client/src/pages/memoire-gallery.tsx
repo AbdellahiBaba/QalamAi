@@ -58,6 +58,23 @@ const CITATION_LABELS: Record<string, string> = {
   ieee: "IEEE", iso690: "ISO 690", islamic: "التوثيق الإسلامي", university_specific: "حسب نظام الجامعة",
 };
 
+const FIELD_LABELS: Record<string, string> = {
+  sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون والحقوق",
+  medicine: "الطب والعلوم الصحية", engineering: "الهندسة", economics: "الاقتصاد والتجارة",
+  education: "علوم التربية", literature: "الأدب واللغات", media: "الإعلام والاتصال",
+  computer_science: "علوم الحاسوب والمعلوماتية", political_science: "العلوم السياسية",
+  sociology: "علم الاجتماع", psychology: "علم النفس", islamic_studies: "الدراسات الإسلامية",
+  agriculture: "العلوم الزراعية", architecture: "العمارة والتخطيط", pharmacy: "الصيدلة",
+  management: "الإدارة والتسيير",
+};
+
+const COUNTRY_LABELS: Record<string, string> = {
+  dz: "الجزائر", ma: "المغرب", tn: "تونس", eg: "مصر", sa: "السعودية",
+  ae: "الإمارات", iq: "العراق", jo: "الأردن", lb: "لبنان", sy: "سوريا",
+  kw: "الكويت", qa: "قطر", bh: "البحرين", om: "عُمان", ye: "اليمن", ly: "ليبيا",
+  sd: "السودان", mr: "موريتانيا", so: "الصومال", dj: "جيبوتي", km: "جزر القمر", ps: "فلسطين",
+};
+
 export default function MemoireGallery() {
   useDocumentTitle("مذكرات التخرج الأكاديمية — قلم AI");
   const [, navigate] = useLocation();
@@ -201,7 +218,7 @@ export default function MemoireGallery() {
                   onClick={() => setFieldFilter(field)}
                   data-testid={`filter-field-${field}`}
                 >
-                  {field}
+                  {FIELD_LABELS[field] || field}
                 </Badge>
               ))}
             </div>
@@ -357,7 +374,7 @@ export default function MemoireGallery() {
                       {memoire.memoireCountry && (
                         <Badge variant="secondary" className="text-xs gap-1" data-testid={`badge-memoire-country-${memoire.id}`}>
                           <MapPin className="w-3 h-3" />
-                          {memoire.memoireCountry}
+                          {COUNTRY_LABELS[memoire.memoireCountry] || memoire.memoireCountry}
                         </Badge>
                       )}
                     </div>
@@ -366,7 +383,7 @@ export default function MemoireGallery() {
                       {memoire.memoireField && (
                         <Badge variant="outline" className="text-xs gap-1" data-testid={`badge-memoire-field-${memoire.id}`}>
                           <BookOpen className="w-3 h-3" />
-                          {memoire.memoireField}
+                          {FIELD_LABELS[memoire.memoireField] || memoire.memoireField}
                         </Badge>
                       )}
                       {memoire.memoireDegreeLevel && (
