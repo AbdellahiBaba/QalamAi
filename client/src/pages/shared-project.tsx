@@ -184,9 +184,11 @@ export default function SharedProject() {
     if (!project?.id || reactingType) return;
     setReactingType(reactionType);
     try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
       const res = await fetch(`/api/public/essays/${project.id}/react`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
         body: JSON.stringify({ reactionType }),
       });
       if (res.ok) {

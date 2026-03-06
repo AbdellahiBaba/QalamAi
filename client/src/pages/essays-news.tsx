@@ -55,8 +55,10 @@ export default function EssaysNews() {
   });
 
   const handleCardClick = (essay: PublicEssay) => {
-    fetch(`/api/public/essays/${essay.id}/view`, { method: "POST" }).catch((e: unknown) => console.warn("Failed to track essay view:", e));
-    fetch(`/api/public/essays/${essay.id}/click`, { method: "POST" }).catch((e: unknown) => console.warn("Failed to track essay click:", e));
+    const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+    const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+    fetch(`/api/public/essays/${essay.id}/view`, { method: "POST", headers: { "X-CSRF-Token": csrfVal } }).catch((e: unknown) => console.warn("Failed to track essay view:", e));
+    fetch(`/api/public/essays/${essay.id}/click`, { method: "POST", headers: { "X-CSRF-Token": csrfVal } }).catch((e: unknown) => console.warn("Failed to track essay click:", e));
   };
 
   const filteredEssays = useMemo(() => {

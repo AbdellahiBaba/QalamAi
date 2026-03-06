@@ -33,6 +33,8 @@ export const users = pgTable("users", {
   publicProfile: boolean("public_profile").default(false),
   onboardingCompleted: boolean("onboarding_completed").default(false),
   apiSuspended: boolean("api_suspended").default(false),
+  failedLoginAttempts: integer("failed_login_attempts").default(0),
+  lockedUntil: timestamp("locked_until"),
   trialActive: boolean("trial_active").default(false),
   trialStartedAt: timestamp("trial_started_at"),
   trialEndsAt: timestamp("trial_ends_at"),

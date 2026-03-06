@@ -500,9 +500,11 @@ export default function Admin() {
 
   const updateReportMutation = useMutation({
     mutationFn: async ({ id, status, adminNote, actionTaken, priority }: { id: number; status?: string; adminNote?: string; actionTaken?: string; priority?: string }) => {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
       const res = await fetch(`/api/admin/reports/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
         credentials: "include",
         body: JSON.stringify({ status, adminNote, actionTaken, priority }),
       });

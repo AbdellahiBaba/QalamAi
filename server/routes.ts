@@ -18,6 +18,7 @@ import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import { apiCache } from "./cache";
 import { runLearningSession } from "./learning-engine";
 import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
+import { sanitizeText } from "./sanitize";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -1118,14 +1119,14 @@ ${allPages.map(p => `  <url>
       const updates: Partial<NovelProject> = {};
 
       if (typeof req.body.title === "string" && req.body.title.trim().length > 0) {
-        updates.title = req.body.title.trim().slice(0, 200);
+        updates.title = sanitizeText(req.body.title).slice(0, 200);
       }
 
       if (typeof req.body.timeSetting === "string") {
-        updates.timeSetting = req.body.timeSetting.slice(0, 500);
+        updates.timeSetting = sanitizeText(req.body.timeSetting).slice(0, 500);
       }
       if (typeof req.body.placeSetting === "string") {
-        updates.placeSetting = req.body.placeSetting.slice(0, 500);
+        updates.placeSetting = sanitizeText(req.body.placeSetting).slice(0, 500);
       }
       if (typeof req.body.narrativeTechnique === "string") {
         if (req.body.narrativeTechnique === "" || NARRATIVE_TECHNIQUE_MAP[req.body.narrativeTechnique]) {
@@ -1293,10 +1294,10 @@ ${allPages.map(p => `  <url>
 
       const project = await storage.createProject({
         userId,
-        title,
-        mainIdea: mainIdea || title,
-        timeSetting: timeSetting || "",
-        placeSetting: placeSetting || "",
+        title: sanitizeText(title).slice(0, 200),
+        mainIdea: sanitizeText(mainIdea || title).slice(0, 5000),
+        timeSetting: sanitizeText(timeSetting || "").slice(0, 500),
+        placeSetting: sanitizeText(placeSetting || "").slice(0, 500),
         narrativePov: narrativePov || "third_person",
         pageCount: validPageCount,
         allowedWords: 0,
@@ -4420,7 +4421,13 @@ ${glossaryParagraphs}
         return res.status(400).json({ error: "جميع الحقول مطلوبة" });
       }
       const userId = req.user?.claims?.sub || null;
-      const ticket = await storage.createTicket({ name, email, subject, message, userId });
+      const ticket = await storage.createTicket({
+        name: sanitizeText(name).slice(0, 200),
+        email: sanitizeText(email).slice(0, 200),
+        subject: sanitizeText(subject).slice(0, 200),
+        message: sanitizeText(message).slice(0, 5000),
+        userId,
+      });
       res.status(201).json(ticket);
     } catch (error) {
       console.error("Error creating ticket:", error);
@@ -6636,7 +6643,7 @@ ${ch.content}
       if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
       const reviewerName = user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || "مستخدم";
       const reviewerBio = (user as any).bio || null;
-      const review = await storage.createPlatformReview({ userId, reviewerName, reviewerBio, content: content.trim(), rating });
+      const review = await storage.createPlatformReview({ userId, reviewerName: sanitizeText(reviewerName).slice(0, 200), reviewerBio: reviewerBio ? sanitizeText(reviewerBio).slice(0, 500) : null, content: sanitizeText(content).slice(0, 2000), rating });
       apiCache.invalidate("reviews");
       res.json({ success: true, message: "تم إرسال مراجعتك بنجاح وسيتم نشرها بعد مراجعة الإدارة", review });
     } catch (error) {
@@ -7091,9 +7098,9 @@ ${ch.content}
         reason,
         subReason: subReason || null,
         severity: severity || null,
-        details: details ? String(details).slice(0, 2000) : null,
+        details: details ? sanitizeText(String(details)).slice(0, 2000) : null,
         reportNumber,
-        reporterEmail: reporterEmail ? String(reporterEmail).slice(0, 255) : null,
+        reporterEmail: reporterEmail ? sanitizeText(String(reporterEmail)).slice(0, 255) : null,
         reporterUserAgent: userAgent || null,
         reporterDeviceType: deviceType,
         reporterDeviceName: deviceName,

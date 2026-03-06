@@ -19,9 +19,11 @@ export default function ForgotPassword() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
         body: JSON.stringify({ email }),
       });
       const data = await res.json();

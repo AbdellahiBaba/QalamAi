@@ -50,8 +50,8 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password.length < 6) {
-      toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون 6 أحرف على الأقل", variant: "destructive" });
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+      toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون ٨ أحرف على الأقل وتحتوي على حرف كبير وصغير ورقم", variant: "destructive" });
       return;
     }
 
@@ -63,9 +63,11 @@ export default function ResetPassword() {
     setIsSubmitting(true);
     setTokenError("");
     try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
         body: JSON.stringify({ token, password }),
       });
       const data = await res.json();

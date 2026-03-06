@@ -772,9 +772,12 @@ export default function ProjectDetail() {
     setStreamedContent("");
     setGenerationProgress(null);
 
+    const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+    const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
     const res = await fetch(`/api/projects/${projectId}/chapters/${chapterId}/generate`, {
       method: "POST",
       credentials: "include",
+      headers: { "X-CSRF-Token": csrfVal },
     });
 
     if (!res.ok) {

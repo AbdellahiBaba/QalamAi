@@ -17,9 +17,14 @@ async function fetchUser(): Promise<User | null> {
   return response.json();
 }
 
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
 async function logout(): Promise<void> {
   try {
-    const res = await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    const res = await fetch("/api/auth/logout", { method: "POST", credentials: "include", headers: { "X-CSRF-Token": getCsrfToken() } });
     const data = await res.json();
     if (data.oidcLogout) {
       window.location.href = data.oidcLogout;

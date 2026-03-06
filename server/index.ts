@@ -1,5 +1,9 @@
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
+import helmet from "helmet";
+import cors from "cors";
+import crypto from "crypto";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -15,6 +19,64 @@ import { storage } from "./storage";
 
 const app = express();
 app.set("trust proxy", 1);
+
+app.disable("x-powered-by");
+
+const allowedOrigins = [
+  "https://qalamai.net",
+  "https://www.qalamai.net",
+];
+
+const replitDomains = process.env.REPLIT_DOMAINS?.split(",").map(d => `https://${d}`) || [];
+allowedOrigins.push(...replitDomains);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.some(allowed => origin === allowed || origin.endsWith(".replit.dev"))) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "X-CSRF-Token", "Stripe-Signature"],
+  maxAge: 86400,
+}));
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://analytics.tiktok.com", "https://connect.facebook.net", "https://js.stripe.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
+      connectSrc: ["'self'", "https://api.stripe.com", "https://analytics.tiktok.com", "https://www.facebook.com", "wss:", "ws:"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  xContentTypeOptions: true,
+  xFrameOptions: { action: "deny" },
+}));
+
+app.use((_req, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(self)");
+  next();
+});
+
 app.use(compression());
 const httpServer = createServer(app);
 
@@ -89,14 +151,46 @@ app.post(
 
 app.use(
   express.json({
-    limit: "5mb",
+    limit: "1mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (!req.cookies?.["csrf-token"] && !req.path.startsWith("/api/stripe/webhook")) {
+    const csrfToken = crypto.randomBytes(32).toString("hex");
+    res.cookie("csrf-token", csrfToken, {
+      httpOnly: false,
+      secure: true,
+      sameSite: "strict",
+      path: "/",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+  }
+  next();
+});
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    return next();
+  }
+  if (req.path === "/api/stripe/webhook") {
+    return next();
+  }
+
+  const cookieToken = req.cookies?.["csrf-token"];
+  const headerToken = req.headers["x-csrf-token"];
+
+  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    return res.status(403).json({ error: "رمز الحماية غير صالح" });
+  }
+  next();
+});
 
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -107,8 +201,16 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
-app.use("/api/auth/forgot-password", authLimiter);
-app.use("/api/auth/reset-password", authLimiter);
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "طلبات كثيرة جداً — حاول مرة أخرى بعد دقيقة" },
+});
+app.use("/api/auth/forgot-password", passwordResetLimiter);
+app.use("/api/auth/reset-password", passwordResetLimiter);
 
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -124,6 +226,30 @@ app.use("/api/projects/:id/generate-cover", aiLimiter);
 app.use("/api/chat", aiLimiter);
 app.use("/api/projects/suggest-titles", aiLimiter);
 app.use("/api/projects/suggest-full", aiLimiter);
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "طلبات كثيرة جداً — حاول مرة أخرى بعد دقيقة" },
+});
+app.use("/api/profile/avatar", uploadLimiter);
+app.use("/api/profile/generate-avatar", uploadLimiter);
+
+const projectCreateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "طلبات كثيرة جداً — حاول مرة أخرى بعد دقيقة" },
+});
+app.use("/api/projects", (req, res, next) => {
+  if (req.method === "POST") {
+    return projectCreateLimiter(req, res, next);
+  }
+  next();
+});
 
 const publicLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -156,6 +282,19 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+const SENSITIVE_FIELDS = ["password", "token", "secret", "access_token", "refresh_token", "client_secret"];
+
+function sanitizeLogData(data: any): string {
+  if (!data) return "";
+  const str = JSON.stringify(data);
+  let sanitized = str;
+  for (const field of SENSITIVE_FIELDS) {
+    const regex = new RegExp(`"${field}"\\s*:\\s*"[^"]*"`, "gi");
+    sanitized = sanitized.replace(regex, `"${field}":"[REDACTED]"`);
+  }
+  return sanitized;
+}
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -172,7 +311,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        logLine += ` :: ${sanitizeLogData(capturedJsonResponse)}`;
       }
 
       log(logLine);
@@ -182,12 +321,19 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Pragma", "no-cache");
+  }
+  next();
+});
+
 (async () => {
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
 
     console.error("Internal Server Error:", err);
 
@@ -195,12 +341,11 @@ app.use((req, res, next) => {
       return next(err);
     }
 
-    return res.status(status).json({ message });
+    const clientMessage = status >= 500 ? "حدث خطأ داخلي في الخادم" : (err.message || "حدث خطأ");
+
+    return res.status(status).json({ message: clientMessage });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -208,10 +353,6 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {

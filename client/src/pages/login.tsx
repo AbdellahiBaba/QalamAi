@@ -47,9 +47,11 @@ export default function Login() {
     setFieldErrors({});
     setIsSubmitting(true);
     try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
         body: JSON.stringify({ email, password }),
         credentials: "include",
       });

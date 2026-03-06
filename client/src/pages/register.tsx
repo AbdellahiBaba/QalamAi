@@ -21,7 +21,10 @@ const registerSchema = z.object({
   password: z
     .string()
     .min(1, "كلمة المرور مطلوبة")
-    .min(6, "كلمة المرور يجب أن تكون ٦ أحرف على الأقل"),
+    .min(8, "كلمة المرور يجب أن تكون ٨ أحرف على الأقل")
+    .regex(/[a-z]/, "كلمة المرور يجب أن تحتوي على حرف صغير واحد على الأقل")
+    .regex(/[A-Z]/, "كلمة المرور يجب أن تحتوي على حرف كبير واحد على الأقل")
+    .regex(/[0-9]/, "كلمة المرور يجب أن تحتوي على رقم واحد على الأقل"),
   confirmPassword: z.string().min(1, "تأكيد كلمة المرور مطلوب"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "كلمتا المرور غير متطابقتين",
@@ -72,9 +75,11 @@ export default function Register() {
     setFieldErrors({});
     setIsSubmitting(true);
     try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
         body: JSON.stringify({ email: email.trim(), password, firstName, lastName }),
         credentials: "include",
       });
@@ -159,7 +164,7 @@ export default function Register() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setFieldErrors((prev) => ({ ...prev, password: "" })); }}
-                    placeholder="٦ أحرف على الأقل"
+                    placeholder="٨ أحرف على الأقل (حرف كبير + صغير + رقم)"
                     className="pl-10"
                     data-testid="input-password"
                   />

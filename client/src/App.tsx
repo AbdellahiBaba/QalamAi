@@ -159,7 +159,9 @@ function AppRouter() {
       
       const abortController = new AbortController();
       
-      fetch("/api/trial/check-expiry", { method: "POST", credentials: "include", signal: abortController.signal })
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+      fetch("/api/trial/check-expiry", { method: "POST", credentials: "include", signal: abortController.signal, headers: { "X-CSRF-Token": csrfVal } })
         .then(res => res.json())
         .then(data => {
           if (!data.trialActive) {
