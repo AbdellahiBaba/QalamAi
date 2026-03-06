@@ -104,7 +104,7 @@ export default function Contact() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@email.com"
+                      placeholder="أدخل بريدك الإلكتروني"
                       required
                       data-testid="input-email"
                     />

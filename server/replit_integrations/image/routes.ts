@@ -8,7 +8,7 @@ export function registerImageRoutes(app: Express): void {
       const { prompt, size = "1024x1024" } = req.body;
 
       if (!prompt) {
-        return res.status(400).json({ error: "Prompt is required" });
+        return res.status(400).json({ error: "الوصف مطلوب" });
       }
 
       const response = await openai.images.generate({
@@ -25,7 +25,7 @@ export function registerImageRoutes(app: Express): void {
       });
     } catch (error) {
       console.error("Error generating image:", error);
-      res.status(500).json({ error: "Failed to generate image" });
+      res.status(500).json({ error: "فشل في إنشاء الصورة" });
     }
   });
 }

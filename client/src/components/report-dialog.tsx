@@ -273,7 +273,7 @@ export function ReportDialog({ projectId, projectTitle, open, onOpenChange }: Re
                 type="email"
                 value={reporterEmail}
                 onChange={(e) => setReporterEmail(e.target.value)}
-                placeholder="example@email.com"
+                placeholder="أدخل بريدك الإلكتروني"
                 dir="ltr"
                 className="text-left"
                 data-testid="input-reporter-email"

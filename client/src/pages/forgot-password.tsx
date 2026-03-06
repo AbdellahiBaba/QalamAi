@@ -84,7 +84,7 @@ export default function ForgotPassword() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@email.com"
+                      placeholder="أدخل بريدك الإلكتروني"
                       required
                       className="pl-10"
                       data-testid="input-email"

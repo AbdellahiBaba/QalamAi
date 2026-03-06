@@ -5496,7 +5496,7 @@ ${glossaryParagraphs}
       const { suggestions, flaggedPhrases } = req.body;
 
       if (!Array.isArray(suggestions) || !Array.isArray(flaggedPhrases)) {
-        return res.status(400).json({ error: "suggestions و flaggedPhrases يجب أن يكونا مصفوفات" });
+        return res.status(400).json({ error: "الاقتراحات والعبارات المُعلَّمة يجب أن تكون مصفوفات" });
       }
       const cleanSuggestions = suggestions.filter((s: any) => typeof s === "string").slice(0, 20);
       const cleanFlagged = flaggedPhrases.filter((s: any) => typeof s === "string").slice(0, 20);
@@ -6931,7 +6931,7 @@ ${ch.content}
       const webhookSecret = process.env.WEBHOOK_SECRET;
 
       if (!webhookUrl) {
-        return res.status(400).json({ error: "TRAINING_WEBHOOK_URL غير مُعدّ" });
+        return res.status(400).json({ error: "رابط خدمة التدريب غير مُعدّ" });
       }
 
       const controller = new AbortController();

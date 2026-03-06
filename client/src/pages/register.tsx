@@ -146,7 +146,7 @@ export default function Register() {
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setFieldErrors((prev) => ({ ...prev, email: "" })); }}
-                  placeholder="example@email.com"
+                  placeholder="أدخل بريدك الإلكتروني"
                   data-testid="input-email"
                 />
                 {fieldErrors.email && <p className="text-xs text-red-500" data-testid="error-email">{fieldErrors.email}</p>}

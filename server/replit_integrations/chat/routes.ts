@@ -16,7 +16,7 @@ export function registerChatRoutes(app: Express): void {
       res.json(conversations);
     } catch (error) {
       console.error("Error fetching conversations:", error);
-      res.status(500).json({ error: "Failed to fetch conversations" });
+      res.status(500).json({ error: "فشل في جلب المحادثات" });
     }
   });
 
@@ -26,13 +26,13 @@ export function registerChatRoutes(app: Express): void {
       const id = parseInt(req.params.id);
       const conversation = await chatStorage.getConversation(id);
       if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
+        return res.status(404).json({ error: "المحادثة غير موجودة" });
       }
       const messages = await chatStorage.getMessagesByConversation(id);
       res.json({ ...conversation, messages });
     } catch (error) {
       console.error("Error fetching conversation:", error);
-      res.status(500).json({ error: "Failed to fetch conversation" });
+      res.status(500).json({ error: "فشل في جلب المحادثة" });
     }
   });
 
@@ -40,11 +40,11 @@ export function registerChatRoutes(app: Express): void {
   app.post("/api/conversations", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { title } = req.body;
-      const conversation = await chatStorage.createConversation(title || "New Chat");
+      const conversation = await chatStorage.createConversation(title || "محادثة جديدة");
       res.status(201).json(conversation);
     } catch (error) {
       console.error("Error creating conversation:", error);
-      res.status(500).json({ error: "Failed to create conversation" });
+      res.status(500).json({ error: "فشل في إنشاء المحادثة" });
     }
   });
 
@@ -56,7 +56,7 @@ export function registerChatRoutes(app: Express): void {
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting conversation:", error);
-      res.status(500).json({ error: "Failed to delete conversation" });
+      res.status(500).json({ error: "فشل في حذف المحادثة" });
     }
   });
 
@@ -108,10 +108,10 @@ export function registerChatRoutes(app: Express): void {
       console.error("Error sending message:", error);
       // Check if headers already sent (SSE streaming started)
       if (res.headersSent) {
-        res.write(`data: ${JSON.stringify({ error: "Failed to send message" })}\n\n`);
+        res.write(`data: ${JSON.stringify({ error: "فشل في إرسال الرسالة" })}\n\n`);
         res.end();
       } else {
-        res.status(500).json({ error: "Failed to send message" });
+        res.status(500).json({ error: "فشل في إرسال الرسالة" });
       }
     }
   });

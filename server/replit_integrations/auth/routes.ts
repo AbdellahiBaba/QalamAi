@@ -18,11 +18,11 @@ export function registerAuthRoutes(app: Express): void {
         const { password: _, ...safeUser } = user;
         res.json(safeUser);
       } else {
-        res.status(404).json({ message: "User not found" });
+        res.status(404).json({ message: "المستخدم غير موجود" });
       }
     } catch (error) {
       console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      res.status(500).json({ message: "فشل في جلب بيانات المستخدم" });
     }
   });
 
@@ -114,7 +114,7 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       const [updated] = await db.update(users).set({ ...updateData, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
-      if (!updated) return res.status(404).json({ message: "User not found" });
+      if (!updated) return res.status(404).json({ message: "المستخدم غير موجود" });
       const { password: _, ...safeUser } = updated;
       res.json(safeUser);
     } catch (error) {

@@ -288,7 +288,7 @@ export default function SharedProject() {
         <div className="text-center mb-10">
           <h1 className="text-3xl font-serif font-bold mb-2" data-testid="text-shared-title">{project.title}</h1>
           <div className="flex items-center justify-center gap-2 flex-wrap">
-            <p className="text-muted-foreground">{typeLabel} — QalamAI</p>
+            <p className="text-muted-foreground">{typeLabel} — قلم AI</p>
             {totalWords > 0 && (
               <Badge variant="secondary" className="no-default-active-elevate" data-testid="badge-reading-time">
                 <Clock className="w-3 h-3 ml-1" />
@@ -400,7 +400,7 @@ export default function SharedProject() {
         )}
 
         <div className="text-center mt-10 pt-6 border-t text-sm text-muted-foreground">
-          <p>تم إنشاء هذا المحتوى بواسطة QalamAI — منصّة الكتابة العربية بالذكاء الاصطناعي</p>
+          <p>تم إنشاء هذا المحتوى بواسطة قلم AI — منصّة الكتابة العربية بالذكاء الاصطناعي</p>
         </div>
       </div>
 

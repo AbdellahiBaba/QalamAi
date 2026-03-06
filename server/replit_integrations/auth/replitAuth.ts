@@ -135,7 +135,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user?.claims?.sub) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return res.status(401).json({ message: "غير مصرّح" });
   }
 
   if (!user.expires_at) {
@@ -149,7 +149,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
+    res.status(401).json({ message: "غير مصرّح" });
     return;
   }
 
@@ -159,7 +159,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     updateUserSession(user, tokenResponse);
     return next();
   } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
+    res.status(401).json({ message: "غير مصرّح" });
     return;
   }
 };

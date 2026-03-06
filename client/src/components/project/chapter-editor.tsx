@@ -1400,7 +1400,7 @@ export function ChapterEditor({
           </div>
           <div className="focus-mode-footer">
             <span className="text-amber-200/30 text-xs">
-              اضغط Escape للخروج
+              اضغط Esc للخروج
             </span>
           </div>
         </div>

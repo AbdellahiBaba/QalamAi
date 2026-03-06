@@ -2456,7 +2456,7 @@ export default function Admin() {
                 <SelectContent>
                   <SelectItem value="clicks">الأكثر نقراً</SelectItem>
                   <SelectItem value="views">الأكثر مشاهدة</SelectItem>
-                  <SelectItem value="ctr">أعلى CTR</SelectItem>
+                  <SelectItem value="ctr">أعلى نسبة النقر</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2503,7 +2503,7 @@ export default function Admin() {
                           })()}%
                         </LtrNum>
                       </div>
-                      <div className="text-xs text-muted-foreground">متوسط CTR</div>
+                      <div className="text-xs text-muted-foreground">متوسط نسبة النقر</div>
                     </CardContent>
                   </Card>
                 </div>
@@ -2517,7 +2517,7 @@ export default function Admin() {
                           <th className="text-right p-3 font-medium text-muted-foreground">العنوان</th>
                           <th className="text-right p-3 font-medium text-muted-foreground">المشاهدات</th>
                           <th className="text-right p-3 font-medium text-muted-foreground">النقرات</th>
-                          <th className="text-right p-3 font-medium text-muted-foreground">CTR</th>
+                          <th className="text-right p-3 font-medium text-muted-foreground">نسبة النقر</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2570,7 +2570,7 @@ export default function Admin() {
                               <LtrNum>{essay.clicks.toLocaleString()}</LtrNum> نقرة
                             </div>
                             <Badge variant="secondary" className="text-[10px]">
-                              CTR: <LtrNum>{ctr}%</LtrNum>
+                              نسبة النقر: <LtrNum>{ctr}%</LtrNum>
                             </Badge>
                           </div>
                         </CardContent>
@@ -2604,7 +2604,7 @@ export default function Admin() {
                 <SelectContent>
                   <SelectItem value="clicks">الأكثر نقراً</SelectItem>
                   <SelectItem value="views">الأكثر مشاهدة</SelectItem>
-                  <SelectItem value="ctr">أعلى CTR</SelectItem>
+                  <SelectItem value="ctr">أعلى نسبة النقر</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2661,7 +2661,7 @@ export default function Admin() {
                             })()}%
                           </LtrNum>
                         </div>
-                        <div className="text-xs text-muted-foreground">متوسط CTR</div>
+                        <div className="text-xs text-muted-foreground">متوسط نسبة النقر</div>
                       </CardContent>
                     </Card>
                   </div>
@@ -2679,7 +2679,7 @@ export default function Admin() {
                             <th className="text-right p-3 font-medium text-muted-foreground">البلد</th>
                             <th className="text-right p-3 font-medium text-muted-foreground">المشاهدات</th>
                             <th className="text-right p-3 font-medium text-muted-foreground">النقرات</th>
-                            <th className="text-right p-3 font-medium text-muted-foreground">CTR</th>
+                            <th className="text-right p-3 font-medium text-muted-foreground">نسبة النقر</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2743,7 +2743,7 @@ export default function Admin() {
                                 <LtrNum>{m.clicks.toLocaleString()}</LtrNum> نقرة
                               </div>
                               <Badge variant="secondary" className="text-[10px]">
-                                CTR: <LtrNum>{ctr}%</LtrNum>
+                                نسبة النقر: <LtrNum>{ctr}%</LtrNum>
                               </Badge>
                             </div>
                           </CardContent>
