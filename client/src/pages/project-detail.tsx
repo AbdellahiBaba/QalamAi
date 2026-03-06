@@ -250,6 +250,40 @@ export default function ProjectDetail() {
   const [refineInstruction, setRefineInstruction] = useState("");
   const [showRefineInput, setShowRefineInput] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
+
+  const handleExportDownload = async (format: "pdf" | "epub" | "docx") => {
+    if (downloadingFormat) return;
+    setDownloadingFormat(format);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/export/${format}`, { credentials: "include" });
+      if (!res.ok) {
+        let errMsg = `فشل في تحميل ملف ${format.toUpperCase()}`;
+        try {
+          const errData = await res.json();
+          if (errData.error) errMsg = errData.error;
+        } catch {}
+        toast({ title: errMsg, variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const disposition = res.headers.get("Content-Disposition");
+      const filenameMatch = disposition?.match(/filename="?(.+?)"?$/);
+      a.download = filenameMatch ? decodeURIComponent(filenameMatch[1]) : `${project?.title || "export"}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(`Export ${format} failed:`, err);
+      toast({ title: `فشل في تحميل ملف ${format.toUpperCase()}`, variant: "destructive" });
+    } finally {
+      setDownloadingFormat(null);
+    }
+  };
   const [editingSettings, setEditingSettings] = useState(false);
   const [editTimeSetting, setEditTimeSetting] = useState("");
   const [editPlaceSetting, setEditPlaceSetting] = useState("");
@@ -1331,10 +1365,11 @@ export default function ProjectDetail() {
             {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
               <Button
                 size="sm"
-                onClick={() => window.open(`/api/projects/${projectId}/export/pdf`, "_blank")}
+                onClick={() => handleExportDownload("pdf")}
+                disabled={!!downloadingFormat}
                 data-testid="button-download-pdf"
               >
-                <Download className="w-4 h-4 ml-1.5" /> <span className="hidden sm:inline">تحميل PDF</span>
+                {downloadingFormat === "pdf" ? <Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> : <Download className="w-4 h-4 ml-1.5" />} <span className="hidden sm:inline">تحميل PDF</span>
               </Button>
             )}
             <DropdownMenu>
@@ -1347,26 +1382,29 @@ export default function ProjectDetail() {
                 {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
                   <>
                     <DropdownMenuItem
-                      onClick={() => window.open(`/api/projects/${projectId}/export/pdf`, "_blank")}
+                      onClick={() => handleExportDownload("pdf")}
+                      disabled={!!downloadingFormat}
                       className="sm:hidden"
                       data-testid="menu-download-pdf"
                     >
-                      <Download className="w-4 h-4 ml-2" />
-                      تحميل PDF
+                      {downloadingFormat === "pdf" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
+                      {downloadingFormat === "pdf" ? "جاري التحميل..." : "تحميل PDF"}
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => window.open(`/api/projects/${projectId}/export/epub`, "_blank")}
+                      onClick={() => handleExportDownload("epub")}
+                      disabled={!!downloadingFormat}
                       data-testid="menu-download-epub"
                     >
-                      <Download className="w-4 h-4 ml-2" />
-                      تحميل EPUB
+                      {downloadingFormat === "epub" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
+                      {downloadingFormat === "epub" ? "جاري التحميل..." : "تحميل EPUB"}
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => window.open(`/api/projects/${projectId}/export/docx`, "_blank")}
+                      onClick={() => handleExportDownload("docx")}
+                      disabled={!!downloadingFormat}
                       data-testid="menu-download-docx"
                     >
-                      <Download className="w-4 h-4 ml-2" />
-                      تحميل DOCX
+                      {downloadingFormat === "docx" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
+                      {downloadingFormat === "docx" ? "جاري التحميل..." : "تحميل DOCX"}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {project.shareToken && (
