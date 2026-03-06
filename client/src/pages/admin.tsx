@@ -85,7 +85,7 @@ const priorityLabels: Record<string, string> = {
 };
 
 const priorityColors: Record<string, string> = {
-  low: "text-gray-500",
+  low: "text-gray-500 dark:text-gray-400",
   normal: "text-blue-500",
   high: "text-amber-500",
   urgent: "text-red-500",
@@ -746,7 +746,7 @@ export default function Admin() {
     { label: "مفتوح", value: getStatCount("open"), color: "text-blue-500" },
     { label: "قيد المعالجة", value: getStatCount("in_progress"), color: "text-amber-500" },
     { label: "تم الحل", value: getStatCount("resolved"), color: "text-green-500" },
-    { label: "مغلق", value: getStatCount("closed"), color: "text-gray-500" },
+    { label: "مغلق", value: getStatCount("closed"), color: "text-gray-500 dark:text-gray-400" },
   ];
 
   const handleViewProjects = (userId: string) => {
@@ -876,7 +876,7 @@ export default function Admin() {
               </AvatarFallback>
             </Avatar>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
+            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout" aria-label="تسجيل الخروج">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -982,7 +982,7 @@ export default function Admin() {
           <div className="flex items-center gap-3 mb-6 sm:mb-8">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="lg:hidden shrink-0" data-testid="button-admin-menu">
+                <Button variant="outline" size="icon" className="lg:hidden shrink-0" data-testid="button-admin-menu" aria-label="قائمة الإدارة">
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
@@ -2316,7 +2316,7 @@ export default function Admin() {
                           onClick={() => setTiktokConfig(c => ({ ...c, enabled: !c.enabled }))}
                           data-testid="toggle-tiktok-enabled"
                         >
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${tiktokConfig.enabled ? "translate-x-1" : "translate-x-6"}`} />
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-gray-200 transition-transform ${tiktokConfig.enabled ? "translate-x-1" : "translate-x-6"}`} />
                         </button>
                       </label>
                     </div>
@@ -2383,7 +2383,7 @@ export default function Admin() {
                           onClick={() => setFacebookConfig(c => ({ ...c, enabled: !c.enabled }))}
                           data-testid="toggle-facebook-enabled"
                         >
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${facebookConfig.enabled ? "translate-x-1" : "translate-x-6"}`} />
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-gray-200 transition-transform ${facebookConfig.enabled ? "translate-x-1" : "translate-x-6"}`} />
                         </button>
                       </label>
                     </div>

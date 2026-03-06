@@ -95,7 +95,7 @@ const sections = [
 ];
 
 export default function Terms() {
-  useDocumentTitle("شروط الاستخدام — QalamAI");
+  useDocumentTitle("شروط الاستخدام — QalamAI", "اقرأ شروط وأحكام استخدام منصة QalamAI: ملكية المحتوى، الاستخدام المقبول، شروط الدفع، وسياسة الحسابات.");
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">

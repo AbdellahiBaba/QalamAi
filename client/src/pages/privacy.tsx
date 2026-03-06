@@ -28,7 +28,7 @@ const dataCollectionItems = [
 ];
 
 export default function Privacy() {
-  useDocumentTitle("سياسة الخصوصية — QalamAI");
+  useDocumentTitle("سياسة الخصوصية — QalamAI", "اطّلع على سياسة الخصوصية لمنصة QalamAI: كيف نجمع بياناتك ونستخدمها ونحميها، وحقوقك فيما يتعلق ببياناتك الشخصية.");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />

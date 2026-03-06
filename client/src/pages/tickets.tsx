@@ -91,7 +91,7 @@ export default function Tickets() {
               </span>
             </div>
             <ThemeToggle />
-            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
+            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout" aria-label="تسجيل الخروج">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>

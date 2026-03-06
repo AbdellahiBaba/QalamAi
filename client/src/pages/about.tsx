@@ -40,7 +40,7 @@ const values = [
 ];
 
 export default function About() {
-  useDocumentTitle("عن قلم AI — منصة الكتابة بالذكاء الاصطناعي");
+  useDocumentTitle("عن قلم AI — منصة الكتابة بالذكاء الاصطناعي", "تعرّف على QalamAI، المنصة العربية الأولى للكتابة الأدبية بالذكاء الاصطناعي. اكتشف رسالتنا ورؤيتنا وشخصية أبو هاشم الأدبية الرقمية.");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />

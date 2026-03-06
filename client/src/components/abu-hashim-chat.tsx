@@ -94,7 +94,7 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
             data-testid="button-toggle-chat"
             aria-label="تحدث مع أبو هاشم — مستشارك الأدبي"
           >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 dark:bg-white/30 flex items-center justify-center shrink-0">
               <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="text-right">

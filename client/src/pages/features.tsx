@@ -259,7 +259,7 @@ function ContentSection({ icon: SectionIcon, title, subtitle, features, ctaText,
 }
 
 export default function Features() {
-  useDocumentTitle("مميزات قلم AI — أدوات الكتابة الإبداعية");
+  useDocumentTitle("مميزات قلم AI — أدوات الكتابة الإبداعية", "استكشف مميزات QalamAI: كتابة الروايات، المقالات، السيناريوهات، ومذكرات التخرج الأكاديمية بالذكاء الاصطناعي باللغة العربية الفصحى.");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />

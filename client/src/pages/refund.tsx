@@ -5,7 +5,7 @@ import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
 
 export default function Refund() {
-  useDocumentTitle("سياسة الاسترداد — QalamAI");
+  useDocumentTitle("سياسة الاسترداد — QalamAI", "تعرّف على سياسة الاسترداد في QalamAI: شروط الأهلية، مدة المعالجة، وكيفية طلب استرداد المبالغ المدفوعة.");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />

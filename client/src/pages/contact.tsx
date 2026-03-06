@@ -15,7 +15,7 @@ import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
 
 export default function Contact() {
-  useDocumentTitle("تواصل معنا — قلم AI");
+  useDocumentTitle("تواصل معنا — قلم AI", "تواصل مع فريق QalamAI للدعم الفني أو الاستفسارات. نسعد بمساعدتك عبر نموذج التواصل أو البريد الإلكتروني.");
   const { user } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState(user?.firstName || "");

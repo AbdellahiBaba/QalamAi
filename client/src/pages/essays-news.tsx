@@ -43,7 +43,7 @@ function calcReadingTime(wordCount: number): number {
 }
 
 export default function EssaysNews() {
-  useDocumentTitle("المقالات السياسية والرأي العام — قلم AI");
+  useDocumentTitle("المقالات السياسية والرأي العام — قلم AI", "اكتشف أحدث المقالات والتحليلات السياسية ومقالات الرأي من كتّاب عرب مميزين على منصة QalamAI.");
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
@@ -157,6 +157,8 @@ export default function EssaysNews() {
                       <img
                         src={essay.coverImageUrl}
                         alt={essay.title}
+                        width={640}
+                        height={360}
                         className="w-full h-full object-cover"
                         loading="lazy"
                         data-testid={`img-essay-cover-${essay.id}`}

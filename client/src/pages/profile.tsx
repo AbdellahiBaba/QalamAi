@@ -310,7 +310,7 @@ export default function Profile() {
               } else {
                 logout();
               }
-            }} data-testid="button-logout">
+            }} data-testid="button-logout" aria-label="تسجيل الخروج">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>

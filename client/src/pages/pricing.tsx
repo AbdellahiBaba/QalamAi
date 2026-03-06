@@ -247,7 +247,7 @@ function CardCaptureForm({ onSuccess, onError }: {
 }
 
 export default function Pricing() {
-  useDocumentTitle("أسعار الخطط — قلم AI");
+  useDocumentTitle("أسعار الخطط — قلم AI", "اختر الخطة المناسبة لك على QalamAI: خطة المقالات، السيناريوهات، الروايات، أو الخطة الشاملة. أسعار تنافسية ودفعة واحدة.");
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);

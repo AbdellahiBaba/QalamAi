@@ -23,6 +23,7 @@ interface SharedChapter {
 interface SharedProject {
   id: number;
   title: string;
+  mainIdea: string;
   projectType: string;
   coverImageUrl: string | null;
   chapters: SharedChapter[];
@@ -57,7 +58,6 @@ const REACTION_CONFIG = [
 
 export default function SharedProject() {
   const { token } = useParams<{ token: string }>();
-  useDocumentTitle("مشروع مشارك — قلم AI");
   const { toast } = useToast();
 
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -77,6 +77,11 @@ export default function SharedProject() {
     },
     enabled: !!token,
   });
+
+  const dynamicTitle = project ? `${project.title} — قلم AI` : "مشروع مشارك — قلم AI";
+  const dynamicDescription = project?.mainIdea || undefined;
+  const dynamicOgImage = project?.coverImageUrl || undefined;
+  useDocumentTitle(dynamicTitle, dynamicDescription, "article", dynamicOgImage);
 
   const { data: relatedEssays } = useQuery<RelatedEssay[]>({
     queryKey: ["/api/public/essays", project?.id, "related"],
@@ -278,6 +283,8 @@ export default function SharedProject() {
             <img
               src={project.coverImageUrl}
               alt={project.title}
+              width={640}
+              height={480}
               className="max-h-80 rounded-lg shadow-lg"
               loading="lazy"
               data-testid="img-shared-cover"
@@ -370,6 +377,8 @@ export default function SharedProject() {
                           <img
                             src={essay.coverImageUrl}
                             alt={essay.title}
+                            width={640}
+                            height={360}
                             className="w-full h-full object-cover"
                             loading="lazy"
                           />
@@ -410,6 +419,7 @@ export default function SharedProject() {
           <Button
             size="icon"
             variant="ghost"
+            aria-label="مشاركة على X"
             data-testid="button-share-x"
             onClick={() => {
               const url = encodeURIComponent(window.location.href);
@@ -422,6 +432,7 @@ export default function SharedProject() {
           <Button
             size="icon"
             variant="ghost"
+            aria-label="مشاركة على فيسبوك"
             data-testid="button-share-facebook"
             onClick={() => {
               const url = encodeURIComponent(window.location.href);
@@ -433,6 +444,7 @@ export default function SharedProject() {
           <Button
             size="icon"
             variant="ghost"
+            aria-label="مشاركة على واتساب"
             data-testid="button-share-whatsapp"
             onClick={() => {
               const text = encodeURIComponent(project.title + " — QalamAI\n" + window.location.href);
@@ -444,6 +456,7 @@ export default function SharedProject() {
           <Button
             size="icon"
             variant="ghost"
+            aria-label="مشاركة على تيليجرام"
             data-testid="button-share-telegram"
             onClick={() => {
               const url = encodeURIComponent(window.location.href);
@@ -456,6 +469,7 @@ export default function SharedProject() {
           <Button
             size="icon"
             variant="ghost"
+            aria-label="نسخ الرابط"
             data-testid="button-share-copy-link"
             onClick={async () => {
               try {

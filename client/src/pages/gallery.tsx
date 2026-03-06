@@ -49,7 +49,7 @@ const filterOptions = [
 ];
 
 export default function Gallery() {
-  useDocumentTitle("معرض الأعمال — قلم AI");
+  useDocumentTitle("معرض الأعمال — قلم AI", "استكشف معرض الأعمال الأدبية على QalamAI: روايات، مقالات، سيناريوهات، قصص قصيرة، وخواطر من كتّاب عرب مبدعين.");
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
@@ -207,6 +207,8 @@ export default function Gallery() {
                       <img
                         src={project.coverImageUrl}
                         alt={project.title}
+                        width={400}
+                        height={400}
                         className="w-full h-full object-cover"
                         loading="lazy"
                         data-testid={`img-gallery-cover-${project.id}`}

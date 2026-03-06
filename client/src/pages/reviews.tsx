@@ -151,7 +151,7 @@ export default function Reviews() {
         <div className="flex items-center justify-between gap-4 flex-wrap mb-8">
           <div className="flex items-center gap-3 flex-wrap">
             <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <Button variant="ghost" size="icon" data-testid="button-back-home" aria-label="العودة للرئيسية">
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>

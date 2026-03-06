@@ -80,7 +80,7 @@ export default function Home() {
     staleTime: 60 * 1000,
   });
 
-  const { data: notifications } = useQuery<Notification[]>({
+  const { data: notifications, isLoading: isLoadingNotifications } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
     staleTime: 30 * 1000,
   });
@@ -391,7 +391,7 @@ export default function Home() {
             </Link>
             <Popover open={desktopNotifOpen} onOpenChange={setDesktopNotifOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+                <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications" aria-label="الإشعارات">
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -left-0.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1" data-testid="badge-unread-count">
@@ -417,7 +417,17 @@ export default function Home() {
                   )}
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {notifications && notifications.length > 0 ? (
+                  {isLoadingNotifications ? (
+                    <div className="space-y-0" data-testid="skeleton-notifications">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-3 border-b last:border-b-0 space-y-2" data-testid={`skeleton-notification-${i}`}>
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-2.5 w-1/3" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : notifications && notifications.length > 0 ? (
                     notifications.map((notif) => (
                       <a
                         key={notif.id}
@@ -478,7 +488,7 @@ export default function Home() {
                 </span>
               </div>
             </Link>
-            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
+            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout" aria-label="تسجيل الخروج">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -486,7 +496,7 @@ export default function Home() {
             <ThemeToggle />
             <Popover open={mobileNotifOpen} onOpenChange={setMobileNotifOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications-mobile">
+                <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications-mobile" aria-label="الإشعارات">
                   <Bell className="w-4 h-4" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -left-0.5 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5" data-testid="badge-unread-count-mobile">
@@ -506,7 +516,16 @@ export default function Home() {
                   )}
                 </div>
                 <div className="max-h-64 overflow-y-auto">
-                  {notifications && notifications.length > 0 ? notifications.map((notif) => (
+                  {isLoadingNotifications ? (
+                    <div className="space-y-0" data-testid="skeleton-notifications-mobile">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-3 border-b last:border-b-0 space-y-1.5" data-testid={`skeleton-notification-mobile-${i}`}>
+                          <Skeleton className="h-4 w-2/3" />
+                          <Skeleton className="h-3 w-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : notifications && notifications.length > 0 ? notifications.map((notif) => (
                     <a key={notif.id} href={notif.link || "#"} className={`block p-3 border-b last:border-b-0 ${!notif.read ? "bg-primary/5" : ""}`} data-testid={`notification-item-mobile-${notif.id}`}>
                       <span className="font-medium text-sm line-clamp-1">{notif.title}</span>
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{notif.message}</p>
@@ -519,7 +538,7 @@ export default function Home() {
             </Popover>
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" data-testid="button-mobile-menu">
+                <Button variant="ghost" size="icon" data-testid="button-mobile-menu" aria-label="القائمة">
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
@@ -1076,6 +1095,7 @@ export default function Home() {
                     toggleFavoriteMutation.mutate(project.id);
                   }}
                   data-testid={`button-favorite-${project.id}`}
+                  aria-label={favoritesSet.has(project.id) ? "إزالة من المفضلة" : "إضافة للمفضلة"}
                 >
                   <Heart className={`w-4 h-4 ${favoritesSet.has(project.id) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
                 </Button>

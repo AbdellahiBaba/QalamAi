@@ -634,7 +634,7 @@ export default function NewProject() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back">
+              <Button variant="ghost" size="icon" data-testid="button-back" aria-label="العودة للرئيسية">
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>

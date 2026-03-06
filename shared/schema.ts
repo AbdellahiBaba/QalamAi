@@ -243,7 +243,9 @@ export const chapterVersions = pgTable("chapter_versions", {
   content: text("content").notNull(),
   source: text("source").notNull().default("ai_generated"),
   savedAt: timestamp("saved_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_chapter_versions_chapter_id").on(table.chapterId),
+]);
 
 export const novelProjectsRelations = relations(novelProjects, ({ many }) => ({
   characters: many(characters),
@@ -380,7 +382,10 @@ export const projectFavorites = pgTable("project_favorites", {
   userId: varchar("user_id").notNull(),
   projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_project_favorites_user_project").on(table.userId, table.projectId),
+  unique("unique_user_project_favorite").on(table.userId, table.projectId),
+]);
 
 export const insertNovelProjectSchema = createInsertSchema(novelProjects).omit({
   id: true,
@@ -482,7 +487,9 @@ export const platformReviews = pgTable("platform_reviews", {
   rating: integer("rating").notNull(),
   approved: boolean("approved").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_platform_reviews_approved").on(table.approved),
+]);
 
 export const insertPlatformReviewSchema = createInsertSchema(platformReviews).omit({ id: true, createdAt: true, approved: true });
 export type InsertPlatformReview = z.infer<typeof insertPlatformReviewSchema>;
@@ -531,7 +538,9 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").default(false),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_password_reset_tokens_user_id").on(table.userId),
+]);
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 

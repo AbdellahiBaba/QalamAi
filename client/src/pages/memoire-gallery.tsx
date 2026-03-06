@@ -76,7 +76,7 @@ const COUNTRY_LABELS: Record<string, string> = {
 };
 
 export default function MemoireGallery() {
-  useDocumentTitle("مذكرات التخرج الأكاديمية — قلم AI");
+  useDocumentTitle("مذكرات التخرج الأكاديمية — قلم AI", "استعرض مذكرات التخرج والأبحاث الأكاديمية المنشورة على QalamAI من طلاب وباحثين عرب في مختلف التخصصات والجامعات.");
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
@@ -310,6 +310,8 @@ export default function MemoireGallery() {
                       <img
                         src={memoire.coverImageUrl}
                         alt={memoire.title}
+                        width={640}
+                        height={360}
                         className="w-full h-full object-cover"
                         loading="lazy"
                         data-testid={`img-memoire-cover-${memoire.id}`}

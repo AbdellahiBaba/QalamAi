@@ -225,35 +225,64 @@ export async function registerRoutes(
   registerAuthRoutes(app);
   await storage.seedDefaultFeatures();
 
-  app.get("/sitemap.xml", (_req, res) => {
-    const baseUrl = "https://qalamai.net";
-    const pages = [
-      { loc: "/", priority: "1.0", changefreq: "weekly" },
-      { loc: "/about", priority: "0.8", changefreq: "monthly" },
-      { loc: "/features", priority: "0.8", changefreq: "monthly" },
-      { loc: "/pricing", priority: "0.9", changefreq: "weekly" },
-      { loc: "/contact", priority: "0.6", changefreq: "monthly" },
-      { loc: "/gallery", priority: "0.7", changefreq: "daily" },
-      { loc: "/reviews", priority: "0.6", changefreq: "weekly" },
-      { loc: "/abu-hashim", priority: "0.7", changefreq: "monthly" },
-      { loc: "/promo", priority: "0.8", changefreq: "monthly" },
-      { loc: "/novel-theme", priority: "0.6", changefreq: "monthly" },
-      { loc: "/memoires", priority: "0.7", changefreq: "daily" },
-      { loc: "/login", priority: "0.5", changefreq: "yearly" },
-      { loc: "/register", priority: "0.5", changefreq: "yearly" },
-    ];
-    const today = new Date().toISOString().split("T")[0];
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  app.get("/sitemap.xml", async (_req, res) => {
+    try {
+      const baseUrl = "https://qalamai.net";
+      const staticPages = [
+        { loc: "/", priority: "1.0", changefreq: "weekly" },
+        { loc: "/about", priority: "0.8", changefreq: "monthly" },
+        { loc: "/features", priority: "0.8", changefreq: "monthly" },
+        { loc: "/pricing", priority: "0.9", changefreq: "weekly" },
+        { loc: "/contact", priority: "0.6", changefreq: "monthly" },
+        { loc: "/gallery", priority: "0.7", changefreq: "daily" },
+        { loc: "/reviews", priority: "0.6", changefreq: "weekly" },
+        { loc: "/abu-hashim", priority: "0.7", changefreq: "monthly" },
+        { loc: "/promo", priority: "0.8", changefreq: "monthly" },
+        { loc: "/novel-theme", priority: "0.6", changefreq: "monthly" },
+        { loc: "/memoires", priority: "0.7", changefreq: "daily" },
+        { loc: "/essays", priority: "0.7", changefreq: "daily" },
+        { loc: "/login", priority: "0.5", changefreq: "yearly" },
+        { loc: "/register", priority: "0.5", changefreq: "yearly" },
+        { loc: "/privacy", priority: "0.3", changefreq: "yearly" },
+        { loc: "/terms", priority: "0.3", changefreq: "yearly" },
+        { loc: "/refund", priority: "0.3", changefreq: "yearly" },
+      ];
+      const today = new Date().toISOString().split("T")[0];
+
+      const sharedProjects = await storage.getGalleryProjects();
+      const sharedUrls = sharedProjects
+        .filter((p: any) => p.shareToken)
+        .slice(0, 500)
+        .map((p: any) => ({
+          loc: `/shared/${p.shareToken}`,
+          priority: "0.6",
+          changefreq: "weekly",
+        }));
+
+      const authorIds = new Set<string>();
+      sharedProjects.forEach((p: any) => { if (p.userId) authorIds.add(p.userId); });
+      const authorUrls = Array.from(authorIds).slice(0, 200).map((id) => ({
+        loc: `/author/${id}`,
+        priority: "0.5",
+        changefreq: "weekly",
+      }));
+
+      const allPages = [...staticPages, ...sharedUrls, ...authorUrls];
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages.map(p => `  <url>
+${allPages.map(p => `  <url>
     <loc>${baseUrl}${p.loc}</loc>
     <lastmod>${today}</lastmod>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
   </url>`).join("\n")}
 </urlset>`;
-    res.set("Content-Type", "application/xml");
-    res.send(xml);
+      res.set("Content-Type", "application/xml");
+      res.send(xml);
+    } catch (error) {
+      console.error("Sitemap generation error:", error);
+      res.status(500).send("خطأ في إنشاء خريطة الموقع");
+    }
   });
 
   app.get("/api/user/plan", isAuthenticated, async (req: any, res) => {
@@ -4755,6 +4784,7 @@ ${glossaryParagraphs}
       res.json({
         id: project.id,
         title: details.title,
+        mainIdea: details.mainIdea,
         projectType: details.projectType,
         coverImageUrl: details.coverImageUrl,
         chapters: details.chapters
