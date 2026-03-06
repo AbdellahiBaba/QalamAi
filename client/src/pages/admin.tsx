@@ -2690,9 +2690,22 @@ export default function Admin() {
                                 <td className="p-3 text-muted-foreground"><LtrNum>{idx + 1}</LtrNum></td>
                                 <td className="p-3 font-medium max-w-[250px] truncate" data-testid={`text-memoire-title-${m.projectId}`}>{m.title}</td>
                                 <td className="p-3 text-xs max-w-[150px] truncate" data-testid={`text-memoire-university-${m.projectId}`}>{m.university || "-"}</td>
-                                <td className="p-3 text-xs max-w-[120px] truncate" data-testid={`text-memoire-field-${m.projectId}`}>{m.memoireField || "-"}</td>
+                                <td className="p-3 text-xs max-w-[120px] truncate" data-testid={`text-memoire-field-${m.projectId}`}>{({
+                                  sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون والحقوق",
+                                  medicine: "الطب والعلوم الصحية", engineering: "الهندسة", economics: "الاقتصاد والتجارة",
+                                  education: "علوم التربية", literature: "الأدب واللغات", media: "الإعلام والاتصال",
+                                  computer_science: "علوم الحاسوب والمعلوماتية", political_science: "العلوم السياسية",
+                                  sociology: "علم الاجتماع", psychology: "علم النفس", islamic_studies: "الدراسات الإسلامية",
+                                  agriculture: "العلوم الزراعية", architecture: "العمارة والتخطيط", pharmacy: "الصيدلة",
+                                  management: "الإدارة والتسيير",
+                                } as Record<string, string>)[m.memoireField || ""] || m.memoireField || "-"}</td>
                                 <td className="p-3 text-xs" data-testid={`text-memoire-methodology-${m.projectId}`}>{m.memoireMethodology || "-"}</td>
-                                <td className="p-3 text-xs" data-testid={`text-memoire-country-${m.projectId}`}>{m.memoireCountry || "-"}</td>
+                                <td className="p-3 text-xs" data-testid={`text-memoire-country-${m.projectId}`}>{({
+                                  dz: "الجزائر", ma: "المغرب", tn: "تونس", eg: "مصر", sa: "السعودية",
+                                  ae: "الإمارات", iq: "العراق", jo: "الأردن", lb: "لبنان", sy: "سوريا",
+                                  kw: "الكويت", qa: "قطر", bh: "البحرين", om: "عُمان", ye: "اليمن", ly: "ليبيا",
+                                  sd: "السودان", mr: "موريتانيا", so: "الصومال", dj: "جيبوتي", km: "جزر القمر", ps: "فلسطين",
+                                } as Record<string, string>)[m.memoireCountry || ""] || m.memoireCountry || "-"}</td>
                                 <td className="p-3" data-testid={`text-memoire-views-${m.projectId}`}>
                                   <div className="flex items-center gap-1.5">
                                     <Eye className="w-3.5 h-3.5 text-blue-500" />
@@ -2729,8 +2742,21 @@ export default function Admin() {
                             {(m.university || m.memoireField || m.memoireCountry) && (
                               <div className="flex flex-wrap gap-1">
                                 {m.university && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-university-${m.projectId}`}>{m.university}</Badge>}
-                                {m.memoireField && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-field-${m.projectId}`}>{m.memoireField}</Badge>}
-                                {m.memoireCountry && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-country-${m.projectId}`}>{m.memoireCountry}</Badge>}
+                                {m.memoireField && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-field-${m.projectId}`}>{({
+                                  sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون والحقوق",
+                                  medicine: "الطب والعلوم الصحية", engineering: "الهندسة", economics: "الاقتصاد والتجارة",
+                                  education: "علوم التربية", literature: "الأدب واللغات", media: "الإعلام والاتصال",
+                                  computer_science: "علوم الحاسوب والمعلوماتية", political_science: "العلوم السياسية",
+                                  sociology: "علم الاجتماع", psychology: "علم النفس", islamic_studies: "الدراسات الإسلامية",
+                                  agriculture: "العلوم الزراعية", architecture: "العمارة والتخطيط", pharmacy: "الصيدلة",
+                                  management: "الإدارة والتسيير",
+                                } as Record<string, string>)[m.memoireField] || m.memoireField}</Badge>}
+                                {m.memoireCountry && <Badge variant="outline" className="text-[10px]" data-testid={`badge-memoire-country-${m.projectId}`}>{({
+                                  dz: "الجزائر", ma: "المغرب", tn: "تونس", eg: "مصر", sa: "السعودية",
+                                  ae: "الإمارات", iq: "العراق", jo: "الأردن", lb: "لبنان", sy: "سوريا",
+                                  kw: "الكويت", qa: "قطر", bh: "البحرين", om: "عُمان", ye: "اليمن", ly: "ليبيا",
+                                  sd: "السودان", mr: "موريتانيا", so: "الصومال", dj: "جيبوتي", km: "جزر القمر", ps: "فلسطين",
+                                } as Record<string, string>)[m.memoireCountry] || m.memoireCountry}</Badge>}
                               </div>
                             )}
                             <div className="flex items-center gap-3 flex-wrap">

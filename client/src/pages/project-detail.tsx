@@ -2425,13 +2425,29 @@ export default function ProjectDetail() {
                           {(project as any).memoireFaculty && (
                             <div className="flex justify-between gap-2">
                               <span className="text-muted-foreground">الكلية:</span>
-                              <span className="font-medium">{(project as any).memoireFaculty}</span>
+                              <span className="font-medium">{({
+                                sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون والحقوق",
+                                medicine: "الطب والعلوم الصحية", engineering: "الهندسة", economics: "الاقتصاد والتجارة",
+                                education: "علوم التربية", literature: "الأدب واللغات", media: "الإعلام والاتصال",
+                                computer_science: "علوم الحاسوب والمعلوماتية", political_science: "العلوم السياسية",
+                                sociology: "علم الاجتماع", psychology: "علم النفس", islamic_studies: "الدراسات الإسلامية",
+                                agriculture: "العلوم الزراعية", architecture: "العمارة والتخطيط", pharmacy: "الصيدلة",
+                                management: "الإدارة والتسيير",
+                              } as Record<string, string>)[(project as any).memoireFaculty] || (project as any).memoireFaculty}</span>
                             </div>
                           )}
                           {(project as any).memoireDepartment && (
                             <div className="flex justify-between gap-2">
                               <span className="text-muted-foreground">القسم:</span>
-                              <span className="font-medium">{(project as any).memoireDepartment}</span>
+                              <span className="font-medium">{({
+                                sciences: "العلوم", humanities: "العلوم الإنسانية", law: "القانون والحقوق",
+                                medicine: "الطب والعلوم الصحية", engineering: "الهندسة", economics: "الاقتصاد والتجارة",
+                                education: "علوم التربية", literature: "الأدب واللغات", media: "الإعلام والاتصال",
+                                computer_science: "علوم الحاسوب والمعلوماتية", political_science: "العلوم السياسية",
+                                sociology: "علم الاجتماع", psychology: "علم النفس", islamic_studies: "الدراسات الإسلامية",
+                                agriculture: "العلوم الزراعية", architecture: "العمارة والتخطيط", pharmacy: "الصيدلة",
+                                management: "الإدارة والتسيير",
+                              } as Record<string, string>)[(project as any).memoireDepartment] || (project as any).memoireDepartment}</span>
                             </div>
                           )}
                           {(project as any).memoireField && (
