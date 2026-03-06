@@ -252,7 +252,8 @@ async function validateKnowledgeEntry(
       valid: result.valid === true && (result.confidence || 0) >= 0.6,
       confidence: result.confidence || 0,
     };
-  } catch {
+  } catch (e) {
+    console.warn("[LearningEngine] Failed to validate knowledge entry:", e);
     return { valid: false, confidence: 0 };
   }
 }
@@ -368,7 +369,9 @@ export async function runLearningSession(triggeredBy: string): Promise<LearningS
         temperature: 0.3,
       });
       summary = summaryRes.choices[0]?.message?.content?.trim() || summary;
-    } catch {}
+    } catch (e) {
+      console.warn("[LearningEngine] Failed to generate summary text:", e);
+    }
 
     const [completed] = await db
       .update(learningSessions)

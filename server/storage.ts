@@ -323,8 +323,8 @@ export class DatabaseStorage implements IStorage {
     const existing = await db.select().from(chapterVersions)
       .where(eq(chapterVersions.chapterId, chapterId))
       .orderBy(desc(chapterVersions.savedAt));
-    if (existing.length > 5) {
-      const toDelete = existing.slice(5);
+    if (existing.length > 10) {
+      const toDelete = existing.slice(10);
       for (const v of toDelete) {
         await db.delete(chapterVersions).where(eq(chapterVersions.id, v.id));
       }
@@ -1027,28 +1027,35 @@ export class DatabaseStorage implements IStorage {
     byReason: Record<string, number>;
     resolvedThisWeek: number;
   }> {
-    const allReports = await db.select({
-      status: contentReports.status,
-      severity: contentReports.severity,
-      reason: contentReports.reason,
-      resolvedAt: contentReports.resolvedAt,
+    const [totals] = await db.select({
+      total: count(),
+      pending: sql<number>`count(*) filter (where ${contentReports.status} = 'pending')`,
+      resolvedThisWeek: sql<number>`count(*) filter (where ${contentReports.resolvedAt} > now() - interval '7 days')`,
     }).from(contentReports);
 
-    const total = allReports.length;
-    const pending = allReports.filter(r => r.status === "pending").length;
+    const severityRows = await db.select({
+      severity: sql<string>`coalesce(${contentReports.severity}, 'unset')`,
+      cnt: count(),
+    }).from(contentReports).groupBy(sql`coalesce(${contentReports.severity}, 'unset')`);
+
+    const reasonRows = await db.select({
+      reason: contentReports.reason,
+      cnt: count(),
+    }).from(contentReports).groupBy(contentReports.reason);
 
     const bySeverity: Record<string, number> = {};
+    for (const r of severityRows) bySeverity[r.severity] = Number(r.cnt);
+
     const byReason: Record<string, number> = {};
-    for (const r of allReports) {
-      const sev = r.severity || "unset";
-      bySeverity[sev] = (bySeverity[sev] || 0) + 1;
-      byReason[r.reason] = (byReason[r.reason] || 0) + 1;
-    }
+    for (const r of reasonRows) byReason[r.reason] = Number(r.cnt);
 
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const resolvedThisWeek = allReports.filter(r => r.resolvedAt && r.resolvedAt > weekAgo).length;
-
-    return { total, pending, bySeverity, byReason, resolvedThisWeek };
+    return {
+      total: Number(totals?.total || 0),
+      pending: Number(totals?.pending || 0),
+      bySeverity,
+      byReason,
+      resolvedThisWeek: Number(totals?.resolvedThisWeek || 0),
+    };
   }
 
   async checkAndResetFreeMonthly(userId: string): Promise<{ projectsUsed: number; generationsUsed: number }> {

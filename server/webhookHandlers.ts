@@ -15,17 +15,31 @@ export class WebhookHandlers {
       );
     }
 
+    const stripe = await getUncachableStripeClient();
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event: any;
+    if (webhookSecret) {
+      try {
+        event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+      } catch (err: any) {
+        console.error('[Webhook] Signature verification failed:', err.message);
+        throw new Error('Webhook signature verification failed');
+      }
+    } else {
+      console.warn('[Webhook] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (INSECURE)');
+      event = JSON.parse(payload.toString());
+    }
+
     const sync = await getStripeSync();
     await sync.processWebhook(payload, signature);
 
-    const event = JSON.parse(payload.toString());
     console.log(`[Webhook] Received event: ${event.type} (id: ${event.id})`);
 
     try {
       if (event.type === 'checkout.session.completed' && event.data?.object) {
         const sessionId = event.data.object.id;
         if (sessionId) {
-          const stripe = await getUncachableStripeClient();
           const verifiedSession = await stripe.checkout.sessions.retrieve(sessionId);
           await WebhookHandlers.handleCheckoutCompleted(verifiedSession);
         }
@@ -96,7 +110,7 @@ export class WebhookHandlers {
       }
 
       if (user.email) {
-        sendPlanActivationEmail(user.email, planType).catch(() => {});
+        sendPlanActivationEmail(user.email, planType).catch((err) => console.error('[Webhook] Failed to send plan activation email:', err.message));
       }
 
       const planLabels: Record<string, string> = { essay: "خطة المقالات", scenario: "خطة السيناريو", all_in_one: "الخطة الشاملة" };
@@ -106,7 +120,7 @@ export class WebhookHandlers {
         title: "تم تفعيل خطتك!",
         message: `تم تفعيل ${planLabels[planType] || planType} بنجاح.`,
         link: "/pricing",
-      }).catch(() => {});
+      }).catch((err) => console.error('[Webhook] Failed to create notification:', err.message));
     } catch (err) {
       console.error('[Webhook] Error activating plan:', err);
     }
@@ -135,7 +149,7 @@ export class WebhookHandlers {
 
       const user = await storage.getUser(userId);
       if (user?.email) {
-        sendProjectPaymentEmail(user.email, project.title, projectId, project.projectType || 'novel').catch(() => {});
+        sendProjectPaymentEmail(user.email, project.title, projectId, project.projectType || 'novel').catch((err) => console.error('[Webhook] Failed to send project payment email:', err.message));
       }
 
       storage.createNotification({
@@ -144,7 +158,7 @@ export class WebhookHandlers {
         title: "تم تأكيد الدفع!",
         message: `تم تأكيد الدفع لمشروعك "${project.title}".`,
         link: `/project/${projectId}`,
-      }).catch(() => {});
+      }).catch((err) => console.error('[Webhook] Failed to create notification:', err.message));
     } catch (err) {
       console.error('[Webhook] Error activating project:', err);
     }

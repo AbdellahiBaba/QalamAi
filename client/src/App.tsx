@@ -143,7 +143,9 @@ function AppRouter() {
       const returnTo = localStorage.getItem("returnTo");
       if (returnTo) {
         localStorage.removeItem("returnTo");
-        setLocation(returnTo);
+        if (returnTo.startsWith("/") && !returnTo.includes("//")) {
+          setLocation(returnTo);
+        }
       }
     }
   }, [user, setLocation]);
@@ -154,7 +156,10 @@ function AppRouter() {
       const lastCheck = sessionStorage.getItem(checkKey);
       if (lastCheck && Date.now() - parseInt(lastCheck) < 30000) return;
       sessionStorage.setItem(checkKey, String(Date.now()));
-      fetch("/api/trial/check-expiry", { method: "POST", credentials: "include" })
+      
+      const abortController = new AbortController();
+      
+      fetch("/api/trial/check-expiry", { method: "POST", credentials: "include", signal: abortController.signal })
         .then(res => res.json())
         .then(data => {
           if (!data.trialActive) {
@@ -163,7 +168,13 @@ function AppRouter() {
             queryClient.invalidateQueries({ queryKey: ["/api/trial/status"] });
           }
         })
-        .catch(() => {});
+        .catch((e: unknown) => {
+          if (e instanceof Error && e.name !== "AbortError") {
+            console.warn("Failed to check trial expiry:", e);
+          }
+        });
+      
+      return () => abortController.abort();
     }
   }, [user]);
 

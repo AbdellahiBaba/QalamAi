@@ -98,7 +98,9 @@ export default function SharedProject() {
             setReadChapters(new Set(parsed));
           }
         }
-      } catch {}
+      } catch (e) {
+        console.warn("Failed to load reading progress from localStorage:", e);
+      }
     }
   }, [token]);
 
@@ -109,7 +111,9 @@ export default function SharedProject() {
       if (token) {
         try {
           localStorage.setItem(`qalam-shared-read-${token}`, JSON.stringify(Array.from(next)));
-        } catch {}
+        } catch (e) {
+          console.warn("Failed to save reading progress to localStorage:", e);
+        }
       }
       return next;
     });
@@ -167,7 +171,7 @@ export default function SharedProject() {
       fetch(`/api/public/essays/${project.id}/reactions`)
         .then(res => res.ok ? res.json() : null)
         .then(data => { if (data) setReactionCounts(data); })
-        .catch(() => {});
+        .catch((e: unknown) => console.warn("Failed to fetch reaction counts:", e));
     }
   }, [project?.id, project?.projectType]);
 

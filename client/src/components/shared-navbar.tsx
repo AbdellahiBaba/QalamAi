@@ -116,7 +116,7 @@ export function SharedNavbar() {
                   </span>
                 </div>
               </Link>
-              <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
+              <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout" aria-label="تسجيل الخروج">
                 <LogOut className="w-4 h-4" />
               </Button>
             </>
@@ -125,7 +125,7 @@ export function SharedNavbar() {
               <Link href="/login">
                 <Button variant="outline" size="sm" className="text-xs sm:text-sm" data-testid="button-login">تسجيل الدخول</Button>
               </Link>
-              <Link href="/login">
+              <Link href="/register">
                 <Button size="sm" className="hidden sm:inline-flex text-xs sm:text-sm" data-testid="button-signup">إنشاء حساب جديد</Button>
               </Link>
             </>
@@ -137,6 +137,7 @@ export function SharedNavbar() {
             className="md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             data-testid="button-mobile-menu"
+            aria-label={mobileMenuOpen ? "إغلاق القائمة" : "فتح القائمة"}
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>

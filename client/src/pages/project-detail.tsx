@@ -35,6 +35,7 @@ import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
 import { toArabicOrdinal, estimateReadingTime } from "@shared/utils";
 import { AbuHashimChat } from "@/components/abu-hashim-chat";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -576,10 +577,10 @@ export default function ProjectDetail() {
   useEffect(() => {
     if (project && projectId === loadedProjectId) {
       if (project.continuityCheckResult) {
-        try { setContinuityResult(JSON.parse(project.continuityCheckResult)); } catch {}
+        try { setContinuityResult(JSON.parse(project.continuityCheckResult)); } catch (e) { console.warn("Failed to parse continuity check result:", e); }
       }
       if (project.styleAnalysisResult) {
-        try { setStyleResult(JSON.parse(project.styleAnalysisResult)); } catch {}
+        try { setStyleResult(JSON.parse(project.styleAnalysisResult)); } catch (e) { console.warn("Failed to parse style analysis result:", e); }
       }
       ttqTrack("ViewContent", {
         contentId: String(project.id),
@@ -639,7 +640,9 @@ export default function ProjectDetail() {
               const parsed = JSON.parse(msgParts.slice(1).join(": "));
               if (parsed.alreadyRedeemed) isAlreadyRedeemed = true;
             }
-          } catch {}
+          } catch (parseErr) {
+            console.warn("Failed to parse analysis payment error:", parseErr);
+          }
           if (isAlreadyRedeemed) {
             toast({ title: "تم تفعيل الاستخدامات الإضافية سابقاً" });
             refetchAnalysisUsage();
@@ -1236,7 +1239,7 @@ export default function ProjectDetail() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back-home">
+              <Button variant="ghost" size="icon" data-testid="button-back-home" aria-label="العودة للرئيسية">
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
@@ -1261,14 +1264,15 @@ export default function ProjectDetail() {
                       onClick={handleSuggestTitles}
                       disabled={isSuggestingTitles}
                       title="اقتراح عناوين بالذكاء الاصطناعي"
+                      aria-label="اقتراح عناوين بالذكاء الاصطناعي"
                       data-testid="button-suggest-titles"
                     >
                       {isSuggestingTitles ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSaveTitle} disabled={saveSettingsMutation.isPending} data-testid="button-save-title">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSaveTitle} disabled={saveSettingsMutation.isPending} data-testid="button-save-title" aria-label="حفظ التعديلات">
                       {saveSettingsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => { setEditingTitle(false); setTitleSuggestions([]); }} data-testid="button-cancel-title">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => { setEditingTitle(false); setTitleSuggestions([]); }} data-testid="button-cancel-title" aria-label="إلغاء التعديل">
                       <X className="w-3 h-3" />
                     </Button>
                   </div>
@@ -1285,7 +1289,7 @@ export default function ProjectDetail() {
                           <Sparkles className="w-3 h-3 text-amber-500" />
                           اقتراحات أبو هاشم
                         </span>
-                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setTitleSuggestions([])} data-testid="button-close-suggestions">
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setTitleSuggestions([])} data-testid="button-close-suggestions" aria-label="إغلاق الاقتراحات">
                           <X className="w-3 h-3" />
                         </Button>
                       </div>
@@ -1314,6 +1318,7 @@ export default function ProjectDetail() {
                     className="h-6 w-6 edit-btn-pulse shrink-0"
                     onClick={() => { setEditTitleValue(project.title); setEditingTitle(true); setTitleSuggestions([]); }}
                     data-testid="button-edit-title"
+                    aria-label="تحرير عنوان المشروع"
                   >
                     <Pencil className="w-3 h-3" />
                   </Button>
@@ -1333,7 +1338,7 @@ export default function ProjectDetail() {
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" data-testid="button-actions-menu">
+                <Button variant="ghost" size="icon" data-testid="button-actions-menu" aria-label="خيارات إضافية">
                   <MoreVertical className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -1473,7 +1478,9 @@ export default function ProjectDetail() {
         </div>
       </header>
 
-      <AbuHashimChat mode="project" projectId={projectId} quickQuestions={projectQuickQuestions} />
+      <ErrorBoundary fallbackMode="inline" label="المساعد الأدبي">
+        <AbuHashimChat mode="project" projectId={projectId} quickQuestions={projectQuickQuestions} />
+      </ErrorBoundary>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {!hasAccess && (
@@ -2628,6 +2635,7 @@ export default function ProjectDetail() {
                         className="h-7 w-7 edit-btn-pulse"
                         onClick={() => { setEditingMainIdea(true); setEditMainIdeaValue(project.mainIdea || ""); }}
                         data-testid="button-edit-main-idea"
+                        aria-label="تحرير الفكرة الرئيسية"
                       >
                         <Pencil className="w-3 h-3" />
                       </Button>
@@ -2986,6 +2994,7 @@ export default function ProjectDetail() {
           </TabsContent>}
 
           <TabsContent value="chapters" className="space-y-4">
+            <ErrorBoundary fallbackMode="inline" label="الفصول">
             {!project.outlineApproved ? (
               <div className="text-center py-16 text-muted-foreground">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
@@ -3184,6 +3193,7 @@ export default function ProjectDetail() {
                                 setConfirmDeleteChapter(chapter.id);
                               }}
                               data-testid={`button-delete-chapter-${chapter.id}`}
+                              aria-label="حذف الفصل"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
@@ -3403,6 +3413,7 @@ export default function ProjectDetail() {
                 <p>لا توجد فصول بعد</p>
               </div>
             )}
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="glossary" className="space-y-4">
@@ -3454,6 +3465,7 @@ export default function ProjectDetail() {
           </TabsContent>
 
           {project.projectType !== "memoire" && <TabsContent value="continuity" className="space-y-4">
+            <ErrorBoundary fallbackMode="inline" label="فحص الاستمرارية">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
                 <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
@@ -3506,7 +3518,9 @@ export default function ProjectDetail() {
                           if (parsed.error) errorMsg = parsed.error;
                           if (parsed.needsPayment) refetchAnalysisUsage();
                         }
-                      } catch {}
+                      } catch (parseErr) {
+                        console.warn("Failed to parse continuity check error:", parseErr);
+                      }
                       toast({ title: errorMsg, variant: "destructive" });
                     } finally {
                       setIsCheckingContinuity(false);
@@ -3784,9 +3798,11 @@ export default function ProjectDetail() {
                 <p className="text-xs mt-2">يتطلب فصلين مكتملين على الأقل</p>
               </div>
             )}
+            </ErrorBoundary>
           </TabsContent>}
 
           <TabsContent value="style" className="space-y-4">
+            <ErrorBoundary fallbackMode="inline" label="تحليل الأسلوب الأدبي">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
                 <h3 className="font-serif text-lg font-semibold flex items-center gap-2">
@@ -3839,7 +3855,9 @@ export default function ProjectDetail() {
                           if (parsed.error) errorMsg = parsed.error;
                           if (parsed.needsPayment) refetchAnalysisUsage();
                         }
-                      } catch {}
+                      } catch (parseErr) {
+                        console.warn("Failed to parse style analysis error:", parseErr);
+                      }
                       toast({ title: errorMsg, variant: "destructive" });
                     } finally {
                       setIsAnalyzingStyle(false);
@@ -4235,6 +4253,7 @@ export default function ProjectDetail() {
                 <p className="text-xs mt-2">يتطلب فصلاً مكتملاً واحداً على الأقل</p>
               </div>
             )}
+            </ErrorBoundary>
           </TabsContent>
         </Tabs>
 

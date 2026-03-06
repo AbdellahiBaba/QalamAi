@@ -1,7 +1,7 @@
 import { storage } from "./storage";
 import { getUncachableStripeClient } from "./stripeClient";
 import { TRIAL_CHARGE_AMOUNT } from "@shared/schema";
-import { sendTrialChargeSuccessEmail, sendTrialChargeFailedEmail } from "./email";
+import { sendTrialChargeSuccessEmail, sendTrialChargeFailedEmail, sendTrialRequiresActionEmail } from "./email";
 import { trackServerEvent } from "./tracking";
 
 const MAX_CHARGE_ATTEMPTS = 3;
@@ -48,7 +48,7 @@ export async function processTrialExpiry(userId: string, reqIp?: string, reqUser
         trialChargeStatus: "failed",
       });
       if (user.email) {
-        sendTrialChargeFailedEmail(user.email).catch(() => {});
+        sendTrialChargeFailedEmail(user.email).catch((e) => console.error("Failed to send trial charge failed email:", e));
       }
     }
     return { charged: false, chargeFailed: true, plan: "free", status: "max_attempts_reached" };
@@ -72,7 +72,7 @@ export async function processTrialExpiry(userId: string, reqIp?: string, reqUser
       trialLastChargeAttempt: new Date(),
     });
     if (user.email) {
-      sendTrialChargeFailedEmail(user.email).catch(() => {});
+      sendTrialChargeFailedEmail(user.email).catch((e) => console.error("Failed to send trial charge failed email:", e));
     }
     return { charged: false, chargeFailed: true, plan: "free", status: "missing_stripe_data" };
   }
@@ -117,7 +117,7 @@ export async function processTrialExpiry(userId: string, reqIp?: string, reqUser
       });
 
       if (user.email) {
-        sendTrialChargeSuccessEmail(user.email).catch(() => {});
+        sendTrialChargeSuccessEmail(user.email).catch((e) => console.error("Failed to send trial charge success email:", e));
       }
 
       return { charged: true, chargeFailed: false, plan: "all_in_one", status: "succeeded" };
@@ -132,14 +132,17 @@ export async function processTrialExpiry(userId: string, reqIp?: string, reqUser
           trialChargeStatus: "failed",
         });
         if (user.email) {
-          sendTrialChargeFailedEmail(user.email).catch(() => {});
+          sendTrialChargeFailedEmail(user.email).catch((e) => console.error("Failed to send trial charge failed email:", e));
         }
         return { charged: false, chargeFailed: true, plan: "free", status: "requires_action_final" };
       }
       await storage.updateUserTrial(userId, {
         trialChargeStatus: "requires_action",
       });
-      console.warn(`[TrialProcessor] PaymentIntent requires_action for user ${userId}, will retry (attempt ${newAttempts}/${MAX_CHARGE_ATTEMPTS})`);
+      if (user.email && paymentIntent.client_secret) {
+        sendTrialRequiresActionEmail(user.email, paymentIntent.client_secret).catch((e) => console.error("Failed to send 3DS email:", e));
+      }
+      console.warn(`[TrialProcessor] PaymentIntent requires_action for user ${userId}, sent 3DS email (attempt ${newAttempts}/${MAX_CHARGE_ATTEMPTS})`);
       return { charged: false, chargeFailed: false, plan: "trial", status: "requires_action" };
     }
 
@@ -150,7 +153,7 @@ export async function processTrialExpiry(userId: string, reqIp?: string, reqUser
         ...(isFinalAttempt ? { plan: "free", trialActive: false } : {}),
       });
       if (isFinalAttempt && user.email) {
-        sendTrialChargeFailedEmail(user.email).catch(() => {});
+        sendTrialChargeFailedEmail(user.email).catch((e) => console.error("Failed to send trial charge failed email:", e));
       }
       console.warn(`[TrialProcessor] Payment method failed for user ${userId} (attempt ${newAttempts}/${MAX_CHARGE_ATTEMPTS})`);
       return { charged: false, chargeFailed: true, plan: isFinalAttempt ? "free" : "trial", status: "payment_method_failed" };
@@ -174,7 +177,7 @@ export async function processTrialExpiry(userId: string, reqIp?: string, reqUser
         trialChargeStatus: "failed",
       });
       if (user.email) {
-        sendTrialChargeFailedEmail(user.email).catch(() => {});
+        sendTrialChargeFailedEmail(user.email).catch((e) => console.error("Failed to send trial charge failed email:", e));
       }
       return { charged: false, chargeFailed: true, plan: "free", status: "charge_error_final" };
     }

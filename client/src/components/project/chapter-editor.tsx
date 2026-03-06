@@ -84,7 +84,9 @@ export function ChapterEditor({
   const saveToLocalStorage = useCallback((chapterId: number, content: string) => {
     try {
       localStorage.setItem(getLocalStorageKey(chapterId), JSON.stringify({ content, timestamp: Date.now() }));
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to save draft to localStorage:", e);
+    }
   }, [getLocalStorageKey]);
 
   const loadFromLocalStorage = useCallback((chapterId: number): string | null => {
@@ -95,14 +97,18 @@ export function ChapterEditor({
       if (parsed && parsed.content && typeof parsed.content === "string") {
         return parsed.content;
       }
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to load draft from localStorage:", e);
+    }
     return null;
   }, [getLocalStorageKey]);
 
   const clearLocalStorageDraft = useCallback((chapterId: number) => {
     try {
       localStorage.removeItem(getLocalStorageKey(chapterId));
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to clear draft from localStorage:", e);
+    }
   }, [getLocalStorageKey]);
 
   useEffect(() => {
@@ -720,18 +726,22 @@ export function ChapterEditor({
                               data-testid={`textarea-edit-chapter-${chapter.id}`}
                             />
                             <div className="flex items-center gap-2 justify-end flex-wrap">
-                              {autoSaveStatus === "saving" && (
-                                <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="text-auto-save-saving">
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  جارٍ الحفظ التلقائي...
-                                </span>
-                              )}
-                              {autoSaveStatus === "saved" && (
-                                <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1" data-testid="text-auto-save-saved">
-                                  <Clock className="w-3 h-3" />
-                                  تم الحفظ التلقائي
-                                </span>
-                              )}
+                              <span
+                                className="text-xs text-muted-foreground flex items-center gap-1"
+                                style={{ visibility: autoSaveStatus === "saving" ? "visible" : "hidden" }}
+                                data-testid="text-auto-save-saving"
+                              >
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                جارٍ الحفظ التلقائي...
+                              </span>
+                              <span
+                                className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1"
+                                style={{ visibility: autoSaveStatus === "saved" ? "visible" : "hidden" }}
+                                data-testid="text-auto-save-saved"
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                                تم الحفظ التلقائي
+                              </span>
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1331,6 +1341,22 @@ export function ChapterEditor({
               </span>
             </div>
             <div className="flex items-center gap-3">
+              <span
+                className="text-amber-200/50 text-xs flex items-center gap-1"
+                style={{ visibility: autoSaveStatus === "saving" ? "visible" : "hidden" }}
+                data-testid="text-focus-auto-save-saving"
+              >
+                <Loader2 className="w-3 h-3 animate-spin" />
+                جارٍ الحفظ...
+              </span>
+              <span
+                className="text-green-400/70 text-xs flex items-center gap-1"
+                style={{ visibility: autoSaveStatus === "saved" ? "visible" : "hidden" }}
+                data-testid="text-focus-auto-save-saved"
+              >
+                <CheckCircle className="w-3 h-3" />
+                تم الحفظ
+              </span>
               <span className="text-amber-200/50 text-xs" data-testid="text-focus-word-count">
                 {focusWordCount} كلمة
               </span>

@@ -312,6 +312,35 @@ export async function sendTrialChargeSuccessEmail(email: string): Promise<void> 
   }
 }
 
+export async function sendTrialRequiresActionEmail(email: string, paymentIntentClientSecret: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const pricingUrl = `${getBaseUrl()}/pricing`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">انتهت فترتك التجريبية على <strong style="color:${BRAND_GOLD};">قلم AI</strong>.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">يتطلب الدفع مصادقة إضافية من البنك الخاص بك (3D Secure). يُرجى إتمام عملية الدفع يدوياً للاستمرار في استخدام الخطة الكاملة.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${pricingUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+إتمام الدفع الآن
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "مطلوب مصادقة إضافية لإتمام الدفع — QalamAI",
+      html: wrapInTemplate("مصادقة الدفع مطلوبة", body),
+    });
+    console.log(`[Email] Sent trial requires action email to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send trial requires action email:", err);
+  }
+}
+
 export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
   const t = getTransporter();
   if (!t) return;

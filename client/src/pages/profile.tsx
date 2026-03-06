@@ -175,7 +175,9 @@ export default function Profile() {
       try {
         const parsed = JSON.parse(err?.message?.replace(/^\d+:\s*/, "") || "{}");
         if (parsed.error) msg = parsed.error;
-      } catch {}
+      } catch (parseErr) {
+        console.warn("Failed to parse avatar upload error:", parseErr);
+      }
       toast({ title: msg, variant: "destructive" });
     },
   });
@@ -216,7 +218,9 @@ export default function Profile() {
       try {
         const parsed = JSON.parse(err?.message?.replace(/^\d+:\s*/, "") || "{}");
         if (parsed.error) msg = parsed.error;
-      } catch {}
+      } catch (parseErr) {
+        console.warn("Failed to parse avatar generation error:", parseErr);
+      }
       toast({ title: msg, variant: "destructive" });
     },
   });

@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/error-boundary";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -594,7 +595,9 @@ export default function Home() {
       </header>
 
       <Suspense fallback={null}>
-        <AbuHashimChat mode="general" quickQuestions={homeQuickQuestions} />
+        <ErrorBoundary fallbackMode="inline" label="المساعد الأدبي">
+          <AbuHashimChat mode="general" quickQuestions={homeQuickQuestions} />
+        </ErrorBoundary>
       </Suspense>
 
       {trialRemaining && (

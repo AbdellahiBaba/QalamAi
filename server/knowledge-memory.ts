@@ -82,7 +82,7 @@ export async function buildKnowledgeContext(contentType: string): Promise<string
 
   const entryIds = entries.map((e) => e.id);
   if (entryIds.length > 0) {
-    incrementUsageCount(entryIds).catch(() => {});
+    incrementUsageCount(entryIds).catch((e) => console.warn("Failed to increment knowledge entry usage count:", e));
   }
 
   return context;

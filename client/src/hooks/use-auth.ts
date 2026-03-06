@@ -25,7 +25,9 @@ async function logout(): Promise<void> {
       window.location.href = data.oidcLogout;
       return;
     }
-  } catch {}
+  } catch (e) {
+    console.warn("Failed to process logout response:", e);
+  }
   window.location.href = "/";
 }
 

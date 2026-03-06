@@ -301,7 +301,10 @@ export const supportTickets = pgTable("support_tickets", {
   priority: text("priority").notNull().default("normal"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_support_tickets_user_id").on(table.userId),
+  index("idx_support_tickets_status").on(table.status),
+]);
 
 export const ticketReplies = pgTable("ticket_replies", {
   id: serial("id").primaryKey(),
@@ -310,7 +313,9 @@ export const ticketReplies = pgTable("ticket_replies", {
   message: text("message").notNull(),
   isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_ticket_replies_ticket_id").on(table.ticketId),
+]);
 
 export const supportTicketsRelations = relations(supportTickets, ({ many }) => ({
   replies: many(ticketReplies),
@@ -332,7 +337,9 @@ export const notifications = pgTable("notifications", {
   read: boolean("read").notNull().default(false),
   link: text("link"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_notifications_user_id").on(table.userId),
+]);
 
 export const promoCodes = pgTable("promo_codes", {
   id: serial("id").primaryKey(),
@@ -353,7 +360,9 @@ export const readingProgress = pgTable("reading_progress", {
   lastChapterId: integer("last_chapter_id"),
   scrollPosition: integer("scroll_position").notNull().default(0),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_reading_progress_user_project").on(table.userId, table.projectId),
+]);
 
 export const bookmarks = pgTable("bookmarks", {
   id: serial("id").primaryKey(),
@@ -362,7 +371,9 @@ export const bookmarks = pgTable("bookmarks", {
   chapterId: integer("chapter_id").notNull().references(() => chapters.id, { onDelete: "cascade" }),
   note: text("note"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+}, (table) => [
+  index("idx_bookmarks_user_project").on(table.userId, table.projectId),
+]);
 
 export const projectFavorites = pgTable("project_favorites", {
   id: serial("id").primaryKey(),
@@ -496,7 +507,9 @@ export const essayViews = pgTable("essay_views", {
   visitorIp: varchar("visitor_ip").notNull(),
   viewedAt: timestamp("viewed_at").defaultNow(),
   referrer: text("referrer"),
-});
+}, (table) => [
+  index("idx_essay_views_project_id").on(table.projectId),
+]);
 
 export type EssayView = typeof essayViews.$inferSelect;
 
@@ -505,7 +518,9 @@ export const essayClicks = pgTable("essay_clicks", {
   projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
   visitorIp: varchar("visitor_ip").notNull(),
   clickedAt: timestamp("clicked_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_essay_clicks_project_id").on(table.projectId),
+]);
 
 export type EssayClick = typeof essayClicks.$inferSelect;
 
@@ -526,7 +541,9 @@ export const essayReactions = pgTable("essay_reactions", {
   visitorIp: varchar("visitor_ip").notNull(),
   reactionType: varchar("reaction_type").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_essay_reactions_project_id").on(table.projectId),
+]);
 
 export type EssayReaction = typeof essayReactions.$inferSelect;
 

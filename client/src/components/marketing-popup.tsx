@@ -59,6 +59,7 @@ export function MarketingPopup() {
           className="absolute top-2 left-2 z-10"
           onClick={dismiss}
           data-testid="button-close-marketing-popup"
+          aria-label="إغلاق النافذة"
         >
           <X className="w-4 h-4" />
         </Button>

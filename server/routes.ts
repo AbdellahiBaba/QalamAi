@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { eq } from "drizzle-orm";
+import { eq, and, or, gte, lt, desc, sql as dsql, count } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
@@ -270,7 +270,7 @@ ${pages.map(p => `  <url>
   app.post("/api/plans/purchase", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { plan } = req.body;
+      const { plan, promoCode } = req.body;
 
       if (!plan || !PLAN_PRICES[plan]) {
         return res.status(400).json({ error: "خطة غير صالحة" });
@@ -294,6 +294,20 @@ ${pages.map(p => `  <url>
         return res.json({ message: "تم تفعيل الخطة مجاناً", alreadyActive: true });
       }
 
+      let discountPercent = 0;
+      if (promoCode && typeof promoCode === "string") {
+        const promo = await storage.getPromoCode(promoCode.toUpperCase());
+        if (promo && promo.active) {
+          const notExpired = !promo.validUntil || new Date(promo.validUntil) >= new Date();
+          const notMaxed = !promo.maxUses || promo.usedCount < promo.maxUses;
+          const applicable = promo.applicableTo === "all" || promo.applicableTo === plan;
+          if (notExpired && notMaxed && applicable) {
+            discountPercent = promo.discountPercent;
+            await storage.incrementPromoUsage(promo.id);
+          }
+        }
+      }
+
       const stripe = await getUncachableStripeClient();
 
       let customerId = user.stripeCustomerId;
@@ -312,6 +326,11 @@ ${pages.map(p => `  <url>
         all_in_one: "الخطة الشاملة",
       };
 
+      const basePrice = PLAN_PRICES[plan];
+      const finalPrice = discountPercent > 0
+        ? Math.round(basePrice * (1 - discountPercent / 100))
+        : basePrice;
+
       const baseUrl = `${req.protocol}://${req.get("host")}`;
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
@@ -320,10 +339,12 @@ ${pages.map(p => `  <url>
           {
             price_data: {
               currency: "usd",
-              unit_amount: PLAN_PRICES[plan],
+              unit_amount: finalPrice,
               product_data: {
                 name: planNames[plan] || plan,
-                description: `QalamAI - ${planNames[plan] || plan}`,
+                description: discountPercent > 0
+                  ? `QalamAI - ${planNames[plan] || plan} (خصم ${discountPercent}%)`
+                  : `QalamAI - ${planNames[plan] || plan}`,
               },
             },
             quantity: 1,
@@ -336,6 +357,7 @@ ${pages.map(p => `  <url>
           userId,
           planType: plan,
           type: "plan_purchase",
+          ...(promoCode ? { promoCode: promoCode.toUpperCase(), discountPercent: String(discountPercent) } : {}),
         },
       });
 
@@ -590,19 +612,27 @@ ${pages.map(p => `  <url>
       if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
 
       const today = new Date().toISOString().split("T")[0];
-      const projects = await storage.getProjectsByUser(userId);
+      const todayStart = new Date(today + "T00:00:00.000Z");
+      const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      const todayChapters = await db
+        .select({ content: chapters.content })
+        .from(chapters)
+        .innerJoin(novelProjects, eq(chapters.projectId, novelProjects.id))
+        .where(
+          and(
+            eq(novelProjects.userId, userId),
+            or(
+              and(gte(chapters.updatedAt, todayStart), lt(chapters.updatedAt, tomorrowStart)),
+              and(gte(chapters.createdAt, todayStart), lt(chapters.createdAt, tomorrowStart))
+            )
+          )
+        );
+
       let todayWords = 0;
-      for (const project of projects) {
-        const full = await storage.getProjectWithDetails(project.id);
-        if (!full) continue;
-        for (const ch of full.chapters) {
-          if (ch.content && ch.updatedAt) {
-            const updatedDate = new Date(ch.updatedAt).toISOString().split("T")[0];
-            const createdDate = ch.createdAt ? new Date(ch.createdAt).toISOString().split("T")[0] : null;
-            if (updatedDate === today || createdDate === today) {
-              todayWords += ch.content.split(/\s+/).filter((w: string) => w.trim()).length;
-            }
-          }
+      for (const ch of todayChapters) {
+        if (ch.content) {
+          todayWords += ch.content.split(/\s+/).filter((w: string) => w.trim()).length;
         }
       }
 
@@ -1877,10 +1907,10 @@ ${pages.map(p => `  <url>
         await storage.saveChapterVersion(chapterId, fullContent, "ai_generated");
       }
 
-      updateWritingStreak(req.user.claims.sub).catch(() => {});
+      updateWritingStreak(req.user.claims.sub).catch((e) => console.warn("Failed to update writing streak:", e));
 
       if (chapterUser?.plan === "free" && !isFreeUser) {
-        storage.incrementFreeMonthlyUsage(req.user.claims.sub, "generation").catch(() => {});
+        storage.incrementFreeMonthlyUsage(req.user.claims.sub, "generation").catch((e) => console.warn("Failed to increment free monthly usage:", e));
       }
 
       const estCompletionTokens = Math.ceil(fullContent.length / 3);
@@ -1897,7 +1927,7 @@ ${pages.map(p => `  <url>
         await storage.updateProject(projectId, { status: "completed" });
         const projectOwner = await storage.getUser(project.userId);
         if (projectOwner?.email) {
-          sendNovelCompletionEmail(projectOwner.email, project.title, projectId, project.projectType || "novel").catch(() => {});
+          sendNovelCompletionEmail(projectOwner.email, project.title, projectId, project.projectType || "novel").catch((e) => console.error("Failed to send novel completion email:", e));
         }
         storage.createNotification({
           userId: project.userId,
@@ -1905,7 +1935,7 @@ ${pages.map(p => `  <url>
           title: "مشروعك مكتمل!",
           message: `مشروعك "${project.title}" مكتمل الآن. يمكنك تحميله.`,
           link: `/project/${projectId}`,
-        }).catch(() => {});
+        }).catch((e) => console.warn("Failed to create project completion notification:", e));
       }
 
       dispatchWebhook({
@@ -1928,7 +1958,9 @@ ${pages.map(p => `  <url>
             status: chapter.content ? "incomplete" : "pending"
           });
         }
-      } catch {}
+      } catch (cleanupErr) {
+        console.error("Error resetting chapter status after generation failure:", cleanupErr);
+      }
       if (res.headersSent) {
         res.write(`data: ${JSON.stringify({ error: "فشل في توليد الفصل" })}\n\n`);
         res.end();
@@ -1990,7 +2022,7 @@ ${pages.map(p => `  <url>
         await storage.incrementUsedWords(projectId, netWords);
       }
 
-      updateWritingStreak(req.user.claims.sub).catch(() => {});
+      updateWritingStreak(req.user.claims.sub).catch((e) => console.warn("Failed to update writing streak:", e));
 
       res.json(updated);
     } catch (error) {
@@ -4486,7 +4518,7 @@ ${glossaryParagraphs}
       if (!message) return res.status(400).json({ error: "الرسالة مطلوبة" });
       const reply = await storage.createTicketReply({ ticketId: id, userId: req.user.claims.sub, message, isAdmin: true });
       if (ticket.email) {
-        sendTicketReplyEmail(ticket.email, ticket.subject, message, id).catch(() => {});
+        sendTicketReplyEmail(ticket.email, ticket.subject, message, id).catch((e) => console.error("Failed to send ticket reply email:", e));
       }
       if (ticket.userId) {
         storage.createNotification({
@@ -4495,7 +4527,7 @@ ${glossaryParagraphs}
           title: "رد جديد على تذكرتك",
           message: `تم الرد على تذكرتك "${ticket.subject}".`,
           link: `/tickets/${id}`,
-        }).catch(() => {});
+        }).catch((e) => console.warn("Failed to create ticket reply notification:", e));
       }
       res.status(201).json(reply);
     } catch (error) {
@@ -4506,30 +4538,35 @@ ${glossaryParagraphs}
 
   app.get("/api/admin/users", isAuthenticated, isAdmin, async (_req: any, res) => {
     try {
-      const allUsers = await storage.getAllUsers();
-      const usersWithStats = await Promise.all(
-        allUsers.map(async (u) => {
-          const projectCount = await storage.getUserProjectCount(u.id);
-          return {
-            id: u.id,
-            email: u.email,
-            firstName: u.firstName,
-            lastName: u.lastName,
-            displayName: u.displayName,
-            bio: u.bio,
-            publicProfile: u.publicProfile,
-            profileImageUrl: u.profileImageUrl,
-            plan: u.plan || "free",
-            role: u.role,
-            createdAt: u.createdAt,
-            totalProjects: projectCount,
-            trialActive: u.trialActive,
-            trialEndsAt: u.trialEndsAt,
-            trialChargeStatus: u.trialChargeStatus,
-          };
+      const usersWithStats = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          displayName: users.displayName,
+          bio: users.bio,
+          publicProfile: users.publicProfile,
+          profileImageUrl: users.profileImageUrl,
+          plan: users.plan,
+          role: users.role,
+          createdAt: users.createdAt,
+          trialActive: users.trialActive,
+          trialEndsAt: users.trialEndsAt,
+          trialChargeStatus: users.trialChargeStatus,
+          totalProjects: count(novelProjects.id),
         })
-      );
-      res.json(usersWithStats);
+        .from(users)
+        .leftJoin(novelProjects, eq(users.id, novelProjects.userId))
+        .groupBy(users.id)
+        .orderBy(desc(users.createdAt));
+
+      const result = usersWithStats.map(u => ({
+        ...u,
+        plan: u.plan || "free",
+        totalProjects: Number(u.totalProjects),
+      }));
+      res.json(result);
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ error: "فشل في جلب المستخدمين" });
@@ -5439,7 +5476,9 @@ ${glossaryParagraphs}
         try {
           const result = JSON.parse(jsonMatch[0]);
           return res.json(result);
-        } catch {}
+        } catch (parseErr) {
+          console.warn("Failed to parse originality check JSON response:", parseErr);
+        }
       }
       res.json({ score: 0, analysis: content, flaggedPhrases: [] });
     } catch (error) {

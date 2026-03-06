@@ -125,7 +125,12 @@ export default function Gallery() {
       {itemListJsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(itemListJsonLd)
+              .replace(/</g, "\\u003c")
+              .replace(/>/g, "\\u003e")
+              .replace(/&/g, "\\u0026"),
+          }}
         />
       )}
       <div className="max-w-6xl mx-auto space-y-6">

@@ -9,6 +9,24 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { z } from "zod";
+
+const registerSchema = z.object({
+  firstName: z.string().min(1, "الاسم الأول مطلوب"),
+  lastName: z.string().optional(),
+  email: z
+    .string()
+    .min(1, "البريد الإلكتروني مطلوب")
+    .email("يرجى إدخال بريد إلكتروني صالح"),
+  password: z
+    .string()
+    .min(1, "كلمة المرور مطلوبة")
+    .min(6, "كلمة المرور يجب أن تكون ٦ أحرف على الأقل"),
+  confirmPassword: z.string().min(1, "تأكيد كلمة المرور مطلوب"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "كلمتا المرور غير متطابقتين",
+  path: ["confirmPassword"],
+});
 
 function getPasswordStrength(pw: string): { level: "weak" | "medium" | "strong"; label: string; color: string; width: string } {
   if (!pw) return { level: "weak", label: "", color: "", width: "0%" };
@@ -36,18 +54,22 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      toast({ title: "خطأ", description: "كلمتا المرور غير متطابقتين", variant: "destructive" });
+    const result = registerSchema.safeParse({ firstName, lastName, email: email.trim(), password, confirmPassword });
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        const key = issue.path[0] as string;
+        if (!errors[key]) errors[key] = issue.message;
+      }
+      setFieldErrors(errors);
       return;
     }
-    if (password.length < 6) {
-      toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون ٦ أحرف على الأقل", variant: "destructive" });
-      return;
-    }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/auth/register", {
@@ -91,19 +113,19 @@ export default function Register() {
 
         <Card>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">الاسم الأول</Label>
                   <Input
                     id="firstName"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={(e) => { setFirstName(e.target.value); setFieldErrors((prev) => ({ ...prev, firstName: "" })); }}
                     placeholder="الاسم الأول"
-                    required
                     maxLength={50}
                     data-testid="input-first-name"
                   />
+                  {fieldErrors.firstName && <p className="text-xs text-red-500" data-testid="error-first-name">{fieldErrors.firstName}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">اسم العائلة</Label>
@@ -123,11 +145,11 @@ export default function Register() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setFieldErrors((prev) => ({ ...prev, email: "" })); }}
                   placeholder="example@email.com"
-                  required
                   data-testid="input-email"
                 />
+                {fieldErrors.email && <p className="text-xs text-red-500" data-testid="error-email">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">كلمة المرور</Label>
@@ -136,9 +158,8 @@ export default function Register() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); setFieldErrors((prev) => ({ ...prev, password: "" })); }}
                     placeholder="٦ أحرف على الأقل"
-                    required
                     className="pl-10"
                     data-testid="input-password"
                   />
@@ -164,6 +185,7 @@ export default function Register() {
                     </p>
                   </div>
                 )}
+                {fieldErrors.password && <p className="text-xs text-red-500" data-testid="error-password">{fieldErrors.password}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
@@ -172,9 +194,8 @@ export default function Register() {
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((prev) => ({ ...prev, confirmPassword: "" })); }}
                     placeholder="أعد إدخال كلمة المرور"
-                    required
                     className="pl-10"
                     data-testid="input-confirm-password"
                   />
@@ -187,6 +208,7 @@ export default function Register() {
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {fieldErrors.confirmPassword && <p className="text-xs text-red-500" data-testid="error-confirm-password">{fieldErrors.confirmPassword}</p>}
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={isSubmitting} data-testid="button-register">
                 {isSubmitting ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}

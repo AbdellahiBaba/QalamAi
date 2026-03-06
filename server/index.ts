@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -13,6 +14,7 @@ import { processRetryQueue } from "./webhook-dispatcher";
 import { storage } from "./storage";
 
 const app = express();
+app.set("trust proxy", 1);
 app.use(compression());
 const httpServer = createServer(app);
 
@@ -95,6 +97,53 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "طلبات كثيرة جداً — حاول مرة أخرى بعد دقيقة" },
+});
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/forgot-password", authLimiter);
+app.use("/api/auth/reset-password", authLimiter);
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "طلبات كثيرة جداً — حاول مرة أخرى بعد دقيقة" },
+});
+app.use("/api/projects/:id/generate-outline", aiLimiter);
+app.use("/api/projects/:projectId/chapters/:chapterId/generate", aiLimiter);
+app.use("/api/projects/:id/chat", aiLimiter);
+app.use("/api/projects/:id/generate-cover", aiLimiter);
+app.use("/api/chat", aiLimiter);
+app.use("/api/projects/suggest-titles", aiLimiter);
+app.use("/api/projects/suggest-full", aiLimiter);
+
+const publicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "طلبات كثيرة جداً — حاول مرة أخرى بعد دقيقة" },
+});
+app.use("/api/tickets", publicLimiter);
+app.use("/api/reports", publicLimiter);
+
+const generalApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !req.path.startsWith("/api/"),
+  message: { error: "طلبات كثيرة جداً — حاول مرة أخرى بعد دقيقة" },
+});
+app.use(generalApiLimiter);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

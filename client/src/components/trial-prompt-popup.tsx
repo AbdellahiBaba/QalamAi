@@ -191,6 +191,7 @@ export function TrialPromptPopup({ userPlan, trialUsed }: TrialPromptPopupProps)
           className="absolute top-3 left-3 z-10 h-8 w-8 rounded-full hover:bg-black/10 dark:hover:bg-white/10"
           onClick={dismiss}
           data-testid="button-close-trial-prompt"
+          aria-label="إغلاق النافذة"
         >
           <X className="w-4 h-4" />
         </Button>

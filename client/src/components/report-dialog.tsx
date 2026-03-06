@@ -138,7 +138,9 @@ export function ReportDialog({ projectId, projectTitle, open, onOpenChange }: Re
       await navigator.clipboard.writeText(reportNumber);
       setRefCopied(true);
       setTimeout(() => setRefCopied(false), 2000);
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to copy report reference to clipboard:", e);
+    }
   };
 
   return (
@@ -332,6 +334,7 @@ export function ReportDialog({ projectId, projectTitle, open, onOpenChange }: Re
                     variant="ghost"
                     onClick={handleCopyRef}
                     data-testid="button-copy-report-number"
+                    aria-label="نسخ رقم التقرير"
                   >
                     {refCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                   </Button>

@@ -55,8 +55,8 @@ export default function EssaysNews() {
   });
 
   const handleCardClick = (essay: PublicEssay) => {
-    fetch(`/api/public/essays/${essay.id}/view`, { method: "POST" }).catch(() => {});
-    fetch(`/api/public/essays/${essay.id}/click`, { method: "POST" }).catch(() => {});
+    fetch(`/api/public/essays/${essay.id}/view`, { method: "POST" }).catch((e: unknown) => console.warn("Failed to track essay view:", e));
+    fetch(`/api/public/essays/${essay.id}/click`, { method: "POST" }).catch((e: unknown) => console.warn("Failed to track essay click:", e));
   };
 
   const filteredEssays = useMemo(() => {

@@ -11,7 +11,9 @@ export async function enhanceWithKnowledge(
     if (knowledgeContext) {
       return { system: prompt.system + knowledgeContext, user: prompt.user };
     }
-  } catch {}
+  } catch (e) {
+    console.warn("Failed to enhance prompt with knowledge context:", e);
+  }
   return prompt;
 }
 

@@ -9,6 +9,18 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, "البريد الإلكتروني مطلوب")
+    .email("يرجى إدخال بريد إلكتروني صالح"),
+  password: z
+    .string()
+    .min(1, "كلمة المرور مطلوبة")
+    .min(6, "كلمة المرور يجب أن تكون ٦ أحرف على الأقل"),
+});
 
 export default function Login() {
   useDocumentTitle("تسجيل الدخول — قلم AI");
@@ -18,9 +30,21 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const result = loginSchema.safeParse({ email: email.trim(), password });
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of result.error.issues) {
+        const key = issue.path[0] as string;
+        if (!errors[key]) errors[key] = issue.message;
+      }
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -63,18 +87,18 @@ export default function Login() {
 
         <Card>
           <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email">البريد الإلكتروني</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setFieldErrors((prev) => ({ ...prev, email: "" })); }}
                   placeholder="example@email.com"
-                  required
                   data-testid="input-email"
                 />
+                {fieldErrors.email && <p className="text-xs text-red-500" data-testid="error-email">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">كلمة المرور</Label>
@@ -83,9 +107,8 @@ export default function Login() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); setFieldErrors((prev) => ({ ...prev, password: "" })); }}
                     placeholder="أدخل كلمة المرور"
-                    required
                     className="pl-10"
                     data-testid="input-password"
                   />
@@ -98,6 +121,7 @@ export default function Login() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {fieldErrors.password && <p className="text-xs text-red-500" data-testid="error-password">{fieldErrors.password}</p>}
               </div>
               <div className="flex justify-start">
                 <Link href="/forgot-password">

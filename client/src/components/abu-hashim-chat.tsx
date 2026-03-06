@@ -30,7 +30,9 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
   useEffect(() => {
     try {
       localStorage.setItem("abu-hashim-visible", String(visible));
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to save chat visibility to localStorage:", e);
+    }
   }, [visible]);
 
   const handleSendChat = async () => {
@@ -143,7 +145,7 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
             <h3 className="font-bold text-sm">{title}</h3>
             <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
-          <Button variant="ghost" size="icon" className="mr-auto" onClick={() => setChatOpen(false)} data-testid="button-close-chat">
+          <Button variant="ghost" size="icon" className="mr-auto" onClick={() => setChatOpen(false)} data-testid="button-close-chat" aria-label="إغلاق الدردشة">
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -207,6 +209,7 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
               onClick={handleSendChat}
               disabled={chatLoading || !chatInput.trim()}
               data-testid="button-send-chat"
+              aria-label="إرسال الرسالة"
             >
               <ArrowRight className="w-4 h-4 rotate-180" />
             </Button>
