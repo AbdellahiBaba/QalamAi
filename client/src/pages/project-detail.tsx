@@ -1802,7 +1802,7 @@ export default function ProjectDetail() {
               </Card>
             )}
 
-            {project.projectType === "social_media" && project.genre === "reels" && project.paid && (
+            {project.projectType === "social_media" && project.paid && (
               <Card>
                 <CardContent className="p-6 space-y-4">
                   <div className="flex items-center justify-between">

@@ -2400,8 +2400,8 @@ ${allPages.map(p => `  <url>
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       if (!project.paid) return res.status(403).json({ error: "يجب إتمام الدفع أولاً" });
-      if (project.projectType !== "social_media" || project.genre !== "reels") {
-        return res.status(400).json({ error: "توليد الفيديو متاح فقط لمشاريع الريلز" });
+      if (project.projectType !== "social_media") {
+        return res.status(400).json({ error: "توليد الفيديو متاح فقط لمشاريع المحتوى" });
       }
       if (isVideoGenerating(id)) {
         return res.status(409).json({ error: "جارٍ إنشاء الفيديو بالفعل، يرجى الانتظار" });

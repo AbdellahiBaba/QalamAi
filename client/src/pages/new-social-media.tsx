@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
-import { ArrowRight, Share2, Loader2, Sparkles, X } from "lucide-react";
+import { ArrowRight, Share2, Loader2, Sparkles, X, Film } from "lucide-react";
 import { Link } from "wouter";
 
 const PLATFORM_OPTIONS = [
@@ -177,6 +177,21 @@ export default function NewSocialMedia() {
             <h1 className="font-serif text-xl sm:text-2xl font-bold" data-testid="text-page-title">محتوى سوشيال ميديا</h1>
           </div>
         </div>
+
+        <Link href="/project/new/reels">
+          <Card className="border-primary/50 bg-primary/5 cursor-pointer hover:border-primary transition-colors" data-testid="card-reels-banner">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Film className="w-6 h-6 text-primary" />
+                <div>
+                  <p className="font-semibold text-sm">تريد إنشاء ريلز / فيديو قصير؟</p>
+                  <p className="text-xs text-muted-foreground">إنشاء سكريبت + فيديو بالذكاء الاصطناعي مع صور وتعليق صوتي عربي</p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-primary rotate-180" />
+            </CardContent>
+          </Card>
+        </Link>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
