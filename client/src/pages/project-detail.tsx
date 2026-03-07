@@ -1840,7 +1840,7 @@ export default function ProjectDetail() {
                           onClick={async () => {
                             setIsGeneratingVideo(true);
                             try {
-                              await apiRequest("POST", `/api/projects/${projectId}/generate-video`);
+                              await apiRequest("POST", `/api/projects/${projectId}/generate-video`, { force: true });
                               setVideoPollingActive(true);
                               toast({ title: "جارٍ إعادة إنشاء الفيديو..." });
                             } catch {
@@ -1868,9 +1868,9 @@ export default function ProjectDetail() {
                         onClick={async () => {
                           setIsGeneratingVideo(true);
                           try {
-                            await apiRequest("POST", `/api/projects/${projectId}/generate-video`);
+                            await apiRequest("POST", `/api/projects/${projectId}/generate-video`, { force: true });
                             setVideoPollingActive(true);
-                            toast({ title: "أبو هاشم يعمل على إنشاء الفيديو... قد يستغرق ذلك دقيقتين" });
+                            toast({ title: "أبو هاشم يعمل على إنشاء الفيديو... قد يستغرق ذلك دقيقة" });
                           } catch (err: any) {
                             const errorMsg = err?.message || "فشل في بدء إنشاء الفيديو";
                             toast({ title: errorMsg, variant: "destructive" });

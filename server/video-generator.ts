@@ -18,6 +18,10 @@ export function isVideoGenerating(projectId: number): boolean {
   return activeJobs.has(projectId);
 }
 
+export function clearVideoLock(projectId: number): void {
+  activeJobs.delete(projectId);
+}
+
 interface ReelScene {
   sceneNumber: number;
   visualDescription: string;
@@ -57,7 +61,7 @@ async function parseScriptIntoScenes(
 }
 
 Rules:
-- Extract 3-5 scenes from the script
+- Extract exactly 3 scenes from the script
 - Visual descriptions must be in ENGLISH and describe a cinematic scene (not text/words)
 - Spoken text must be in ARABIC
 - Text overlay should be a short key phrase in ARABIC
@@ -96,7 +100,7 @@ async function generateSceneImage(
   const prompt = `Cinematic vertical 9:16 social media reel frame. ${visualDescription}. Professional quality, vibrant colors, high contrast, modern aesthetic. No text or watermarks.`;
 
   try {
-    const buffer = await generateImageBuffer(prompt, "1024x1024");
+    const buffer = await generateImageBuffer(prompt, "512x512");
     const imagePath = join(workDir, `scene_${sceneNumber}.png`);
     await writeFile(imagePath, buffer);
     return imagePath;
@@ -235,12 +239,12 @@ async function createSceneVideo(
 
   args.push(
     "-c:v", "libx264",
-    "-preset", "fast",
-    "-crf", "23",
+    "-preset", "ultrafast",
+    "-crf", "28",
     "-c:a", "aac",
-    "-b:a", "128k",
+    "-b:a", "96k",
     "-pix_fmt", "yuv420p",
-    "-r", "30",
+    "-r", "24",
     "-y",
     outputPath,
   );
@@ -272,10 +276,10 @@ async function concatenateClips(clipPaths: string[], workDir: string): Promise<s
       "-safe", "0",
       "-i", listPath,
       "-c:v", "libx264",
-      "-preset", "fast",
-      "-crf", "23",
+      "-preset", "ultrafast",
+      "-crf", "28",
       "-c:a", "aac",
-      "-b:a", "128k",
+      "-b:a", "96k",
       "-pix_fmt", "yuv420p",
       "-movflags", "+faststart",
       "-y",
@@ -321,19 +325,19 @@ export async function generateReelVideo(
       })
     );
 
-    console.log(`[VideoGen] Creating scene clips...`);
-    const clipPaths: string[] = [];
-    for (const { scene, imagePath, audioPath } of sceneAssets) {
-      const clipPath = await createSceneVideo(
-        imagePath,
-        audioPath,
-        scene.durationSeconds,
-        scene.textOverlay,
-        scene.sceneNumber,
-        workDir,
-      );
-      clipPaths.push(clipPath);
-    }
+    console.log(`[VideoGen] Creating scene clips in parallel...`);
+    const clipPaths = await Promise.all(
+      sceneAssets.map(({ scene, imagePath, audioPath }) =>
+        createSceneVideo(
+          imagePath,
+          audioPath,
+          scene.durationSeconds,
+          scene.textOverlay,
+          scene.sceneNumber,
+          workDir,
+        )
+      )
+    );
 
     console.log(`[VideoGen] Concatenating ${clipPaths.length} clips...`);
     const finalPath = await concatenateClips(clipPaths, workDir);

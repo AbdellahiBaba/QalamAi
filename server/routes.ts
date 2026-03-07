@@ -19,7 +19,7 @@ import { apiCache } from "./cache";
 import { runLearningSession } from "./learning-engine";
 import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
 import { sanitizeText } from "./sanitize";
-import { generateReelVideo, isVideoGenerating } from "./video-generator";
+import { generateReelVideo, isVideoGenerating, clearVideoLock } from "./video-generator";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -2404,7 +2404,11 @@ ${allPages.map(p => `  <url>
         return res.status(400).json({ error: "توليد الفيديو متاح فقط لمشاريع المحتوى" });
       }
       if (isVideoGenerating(id)) {
-        return res.status(409).json({ error: "جارٍ إنشاء الفيديو بالفعل، يرجى الانتظار" });
+        if (req.body?.force) {
+          clearVideoLock(id);
+        } else {
+          return res.status(409).json({ error: "جارٍ إنشاء الفيديو بالفعل، يرجى الانتظار" });
+        }
       }
 
       const projectChapters = await storage.getChaptersByProject(id);
