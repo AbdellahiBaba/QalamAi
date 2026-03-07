@@ -18,12 +18,12 @@ import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Ch
 import { Link } from "wouter";
 
 const PAGE_OPTIONS = [
-  { value: 10, label: "١٠ صفحات — ٨٠ دولار" },
-  { value: 15, label: "١٥ صفحة — ٨٠ دولار" },
-  { value: 20, label: "٢٠ صفحة — ٨٠ دولار" },
-  { value: 30, label: "٣٠ صفحة — ٨٠ دولار" },
-  { value: 40, label: "٤٠ صفحة — ٨٠ دولار" },
-  { value: 50, label: "٥٠ صفحة — ٨٠ دولار" },
+  { value: 10, label: "١٠ صفحات — ٢٩.٩٩ دولار" },
+  { value: 15, label: "١٥ صفحة — ٢٩.٩٩ دولار" },
+  { value: 20, label: "٢٠ صفحة — ٢٩.٩٩ دولار" },
+  { value: 30, label: "٣٠ صفحة — ٢٩.٩٩ دولار" },
+  { value: 40, label: "٤٠ صفحة — ٢٩.٩٩ دولار" },
+  { value: 50, label: "٥٠ صفحة — ٢٩.٩٩ دولار" },
 ];
 
 const GENRE_OPTIONS = [

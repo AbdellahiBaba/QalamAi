@@ -21,10 +21,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const PAGE_OPTIONS = [
-  { value: 150, label: "١٥٠ صفحة — ٣٠٠ دولار" },
-  { value: 200, label: "٢٠٠ صفحة — ٣٥٠ دولار" },
-  { value: 250, label: "٢٥٠ صفحة — ٤٥٠ دولار" },
-  { value: 300, label: "٣٠٠ صفحة — ٦٠٠ دولار" },
+  { value: 150, label: "١٥٠ صفحة — ٩٩.٩٩ دولار" },
+  { value: 200, label: "٢٠٠ صفحة — ١٢٩.٩٩ دولار" },
+  { value: 250, label: "٢٥٠ صفحة — ١٤٩.٩٩ دولار" },
+  { value: 300, label: "٣٠٠ صفحة — ١٩٩.٩٩ دولار" },
 ];
 
 const NARRATIVE_TECHNIQUE_OPTIONS = [
@@ -700,7 +700,7 @@ export default function NewProject() {
                     </div>
                     <div>
                       <h3 className="font-serif font-bold text-base">قصيدة عمودية (الشعر العمودي)</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">٤٩.٩٩ دولار</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">١٤.٩٩ دولار</p>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">اكتب قصيدة عمودية كلاسيكية بجميع البحور الشعرية والأوزان العروضية مع اختيار حرف الروي والعصر الأدبي</p>

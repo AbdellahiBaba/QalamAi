@@ -18,13 +18,13 @@ import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 const planPriceUSD: Record<string, number> = {
-  essay: 50,
-  all_in_one: 500,
-  scenario: 200,
-  novel_150: 300,
-  novel_200: 350,
-  novel_250: 450,
-  novel_300: 600,
+  essay: 19.99,
+  all_in_one: 149.99,
+  scenario: 79.99,
+  novel_150: 99.99,
+  novel_200: 129.99,
+  novel_250: 149.99,
+  novel_300: 199.99,
 };
 
 const mainPlans = [
@@ -33,7 +33,7 @@ const mainPlans = [
     planKey: "essay",
     name: "خطة المقالات",
     subtitle: "كتابة احترافية للمقالات والأخبار",
-    price: "٥٠ دولار",
+    price: "١٩.٩٩ دولار",
     priceNote: "دفعة واحدة",
     icon: PenTool,
     highlighted: false,
@@ -54,7 +54,7 @@ const mainPlans = [
     planKey: "all_in_one",
     name: "الخطة الشاملة",
     subtitle: "وصول كامل لجميع أنواع الكتابة",
-    price: "٥٠٠ دولار",
+    price: "١٤٩.٩٩ دولار",
     priceNote: "دفعة واحدة",
     icon: Layers,
     highlighted: true,
@@ -79,7 +79,7 @@ const mainPlans = [
     planKey: "scenario",
     name: "خطة السيناريوهات",
     subtitle: "كتابة سيناريوهات أفلام ومسلسلات",
-    price: "٢٠٠ دولار",
+    price: "٧٩.٩٩ دولار",
     priceNote: "دفعة واحدة",
     icon: Film,
     highlighted: false,
@@ -101,7 +101,7 @@ const novelTiers = [
   {
     pages: 150,
     name: "رواية ١٥٠ صفحة",
-    price: "٣٠٠ دولار",
+    price: "٩٩.٩٩ دولار",
     features: [
       "١٥٠ صفحة من الكتابة الروائية",
       "تطوير شخصيات كامل",
@@ -112,7 +112,7 @@ const novelTiers = [
   {
     pages: 200,
     name: "رواية ٢٠٠ صفحة",
-    price: "٣٥٠ دولار",
+    price: "١٢٩.٩٩ دولار",
     features: [
       "٢٠٠ صفحة من الكتابة الروائية",
       "تطوير شخصيات كامل",
@@ -123,7 +123,7 @@ const novelTiers = [
   {
     pages: 250,
     name: "رواية ٢٥٠ صفحة",
-    price: "٤٥٠ دولار",
+    price: "١٤٩.٩٩ دولار",
     highlighted: true,
     features: [
       "٢٥٠ صفحة من الكتابة الروائية",
@@ -135,7 +135,7 @@ const novelTiers = [
   {
     pages: 300,
     name: "رواية ٣٠٠ صفحة",
-    price: "٦٠٠ دولار",
+    price: "١٩٩.٩٩ دولار",
     features: [
       "٣٠٠ صفحة من الكتابة الروائية",
       "تطوير شخصيات غير محدود",
@@ -172,7 +172,7 @@ const faqItems = [
   },
   {
     q: "ما هي خدمة مذكرات التخرج؟",
-    a: "تتيح لك المنصة كتابة مذكرات تخرج أكاديمية متكاملة (ليسانس، ماستر، دكتوراه) بمعايير الجامعات العربية. تشمل الخدمة صياغة الإشكالية، بناء الإطار النظري، المنهجية، عرض النتائج، والتوصيات — بسعر ١٥٠ دولار للمذكرة أو مجاناً ضمن الخطة الشاملة.",
+    a: "تتيح لك المنصة كتابة مذكرات تخرج أكاديمية متكاملة (ليسانس، ماستر، دكتوراه) بمعايير الجامعات العربية. تشمل الخدمة صياغة الإشكالية، بناء الإطار النظري، المنهجية، عرض النتائج، والتوصيات — بسعر ٤٩.٩٩ دولار للمذكرة أو مجاناً ضمن الخطة الشاملة.",
   },
 ];
 
@@ -813,7 +813,7 @@ export default function Pricing() {
                 {isPlanActive(userPlan, "all_in_one") ? (
                   <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
                 ) : (
-                  <span className="font-serif text-2xl font-bold text-primary">٨٠ دولار</span>
+                  <span className="font-serif text-2xl font-bold text-primary">٢٩.٩٩ دولار</span>
                 )}
                 <Link href="/project/new/short-story">
                   <Button variant="outline" data-testid="button-short-story-cta">ابدأ الآن</Button>
@@ -848,7 +848,7 @@ export default function Pricing() {
                   {isPlanActive(userPlan, "all_in_one") ? (
                     <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
                   ) : (
-                    <span className="font-serif text-2xl font-bold text-primary">٩.٩٩ دولار</span>
+                    <span className="font-serif text-2xl font-bold text-primary">٤.٩٩ دولار</span>
                   )}
                   <Link href="/project/new/khawater">
                     <Button variant="outline" data-testid="button-khawater-cta">ابدأ الآن</Button>
@@ -867,7 +867,7 @@ export default function Pricing() {
                   {isPlanActive(userPlan, "all_in_one") ? (
                     <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
                   ) : (
-                    <span className="font-serif text-2xl font-bold text-primary">١٩.٩٩ دولار</span>
+                    <span className="font-serif text-2xl font-bold text-primary">٧.٩٩ دولار</span>
                   )}
                   <Link href="/project/new/social-media">
                     <Button variant="outline" data-testid="button-social-media-cta">ابدأ الآن</Button>

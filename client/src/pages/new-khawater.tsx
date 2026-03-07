@@ -432,7 +432,7 @@ export default function NewKhawater() {
                       "إنشاء الخاطرة"
                     )}
                   </Button>
-                  <span className="text-sm text-muted-foreground" data-testid="text-price">٩.٩٩ دولار</span>
+                  <span className="text-sm text-muted-foreground" data-testid="text-price">٤.٩٩ دولار</span>
                 </div>
               </CardContent>
             </Card>

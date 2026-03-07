@@ -1169,7 +1169,7 @@ export default function NewMemoire() {
                     </div>
 
                     <div className="mt-4 rounded-md bg-muted/50 border p-3 text-sm text-muted-foreground">
-                      <p>سعر المذكرة: <span className="font-bold text-foreground" data-testid="text-summary-price"><LtrNum>150</LtrNum> دولار</span></p>
+                      <p>سعر المذكرة: <span className="font-bold text-foreground" data-testid="text-summary-price"><LtrNum>49.99</LtrNum> دولار</span></p>
                     </div>
                   </CardContent>
                 </Card>

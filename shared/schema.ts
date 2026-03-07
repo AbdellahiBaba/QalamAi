@@ -7,20 +7,20 @@ export * from "./models/auth";
 export * from "./models/chat";
 
 export const NOVEL_PRICING: Record<number, number> = {
-  150: 30000,
-  200: 35000,
-  250: 45000,
-  300: 60000,
+  150: 9999,
+  200: 12999,
+  250: 14999,
+  300: 19999,
 };
 
-export const ESSAY_PRICE = 5000;
-export const SCENARIO_PRICE = 20000;
-export const SHORT_STORY_PRICE = 8000;
-export const KHAWATER_PRICE = 999;
-export const SOCIAL_MEDIA_PRICE = 1999;
-export const POETRY_PRICE = 4999;
-export const MEMOIRE_PRICE = 15000;
-export const ALL_IN_ONE_PRICE = 50000;
+export const ESSAY_PRICE = 1999;
+export const SCENARIO_PRICE = 7999;
+export const SHORT_STORY_PRICE = 2999;
+export const KHAWATER_PRICE = 499;
+export const SOCIAL_MEDIA_PRICE = 799;
+export const POETRY_PRICE = 1499;
+export const MEMOIRE_PRICE = 4999;
+export const ALL_IN_ONE_PRICE = 14999;
 
 export const VALID_PAGE_COUNTS = [150, 200, 250, 300] as const;
 export const PROJECT_TYPES = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"] as const;

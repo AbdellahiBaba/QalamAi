@@ -423,7 +423,7 @@ export default function NewSocialMedia() {
                     {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : null}
                     إنشاء المحتوى
                   </Button>
-                  <span className="text-sm text-muted-foreground">١٩.٩٩ دولار</span>
+                  <span className="text-sm text-muted-foreground">٧.٩٩ دولار</span>
                 </div>
               </CardContent>
             </Card>

@@ -661,7 +661,7 @@ export default function NewEssay() {
                     </div>
 
                     <div className="mt-4 rounded-md bg-muted/50 border p-3 text-sm text-muted-foreground">
-                      <p>سعر المقال: <span className="font-bold text-foreground" data-testid="text-essay-price">٥٠ دولار</span></p>
+                      <p>سعر المقال: <span className="font-bold text-foreground" data-testid="text-essay-price">١٩.٩٩ دولار</span></p>
                     </div>
                   </CardContent>
                 </Card>
