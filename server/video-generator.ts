@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { generateImageBuffer } from "./replit_integrations/image/client";
 import { textToSpeech } from "./replit_integrations/audio/client";
+import { createCanvas, loadImage } from "canvas";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -100,12 +101,12 @@ async function generateSceneImage(
   const prompt = `Cinematic vertical 9:16 social media reel frame. ${visualDescription}. Professional quality, vibrant colors, high contrast, modern aesthetic. No text or watermarks.`;
 
   try {
-    const buffer = await generateImageBuffer(prompt, "512x512");
+    const buffer = await generateImageBuffer(prompt, "1024x1536");
     const imagePath = join(workDir, `scene_${sceneNumber}.png`);
     await writeFile(imagePath, buffer);
     return imagePath;
   } catch (err) {
-    console.error(`Failed to generate image for scene ${sceneNumber}:`, err);
+    console.error(`[VideoGen] Failed to generate image for scene ${sceneNumber}:`, err);
     const fallbackPath = join(workDir, `scene_${sceneNumber}.png`);
     await createFallbackImage(fallbackPath, sceneNumber);
     return fallbackPath;
@@ -116,21 +117,59 @@ async function createFallbackImage(outputPath: string, sceneNumber: number): Pro
   const colors = ["#1B365D", "#2C1810", "#1a1a2e", "#16213e", "#0f3460"];
   const color = colors[(sceneNumber - 1) % colors.length];
 
-  await new Promise<void>((resolve, reject) => {
-    const ffmpeg = spawn("ffmpeg", [
-      "-f", "lavfi",
-      "-i", `color=c=${color}:s=1080x1920:d=1`,
-      "-frames:v", "1",
-      "-y",
-      outputPath,
-    ]);
-    ffmpeg.stderr.on("data", () => {});
-    ffmpeg.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg fallback image failed with code ${code}`));
-    });
-    ffmpeg.on("error", reject);
-  });
+  const canvas = createCanvas(1080, 1920);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 1080, 1920);
+  const pngBuf = canvas.toBuffer("image/png");
+  await writeFile(outputPath, pngBuf);
+}
+
+async function overlayTextOnImage(
+  imagePath: string,
+  textOverlay: string,
+  workDir: string,
+  sceneNumber: number
+): Promise<string> {
+  if (!textOverlay || !textOverlay.trim()) {
+    return imagePath;
+  }
+
+  try {
+    const img = await loadImage(imagePath);
+    const canvas = createCanvas(1080, 1920);
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(img, 0, 0, 1080, 1920);
+
+    const textY = 1920 - 320;
+    const gradient = ctx.createLinearGradient(0, textY - 80, 0, 1920);
+    gradient.addColorStop(0, "rgba(0,0,0,0)");
+    gradient.addColorStop(0.4, "rgba(0,0,0,0.6)");
+    gradient.addColorStop(1, "rgba(0,0,0,0.8)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, textY - 80, 1080, 1920 - textY + 80);
+
+    ctx.direction = "rtl";
+    ctx.textAlign = "center";
+    ctx.font = "bold 52px 'DejaVu Sans', sans-serif";
+
+    ctx.strokeStyle = "rgba(0,0,0,0.9)";
+    ctx.lineWidth = 6;
+    ctx.lineJoin = "round";
+    ctx.strokeText(textOverlay, 540, textY, 980);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(textOverlay, 540, textY, 980);
+
+    const outputPath = join(workDir, `scene_text_${sceneNumber}.png`);
+    const pngBuf = canvas.toBuffer("image/png");
+    await writeFile(outputPath, pngBuf);
+    return outputPath;
+  } catch (err) {
+    console.error(`[VideoGen] Failed to overlay text on scene ${sceneNumber}:`, err);
+    return imagePath;
+  }
 }
 
 async function generateSceneAudio(
@@ -151,7 +190,7 @@ async function generateSceneAudio(
     await writeFile(audioPath, audioBuffer);
     return audioPath;
   } catch (err) {
-    console.error(`Failed to generate audio for scene ${sceneNumber}:`, err);
+    console.error(`[VideoGen] Failed to generate audio for scene ${sceneNumber}:`, err);
     return null;
   }
 }
@@ -183,7 +222,6 @@ async function createSceneVideo(
   imagePath: string,
   audioPath: string | null,
   durationSeconds: number,
-  textOverlay: string,
   sceneNumber: number,
   workDir: string
 ): Promise<string> {
@@ -207,26 +245,8 @@ async function createSceneVideo(
     args.push("-f", "lavfi", "-i", `anullsrc=channel_layout=mono:sample_rate=44100`);
   }
 
-  const filterParts: string[] = [];
-  filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg]`);
-
-  if (textOverlay && textOverlay.trim()) {
-    const escaped = textOverlay
-      .replace(/\\/g, "\\\\\\\\")
-      .replace(/'/g, "\u2018")
-      .replace(/:/g, "\\:")
-      .replace(/%/g, "%%")
-      .replace(/\n/g, " ")
-      .replace(/;/g, "\\;")
-      .replace(/\[/g, "\\[")
-      .replace(/\]/g, "\\]");
-    filterParts.push(`[bg]drawtext=text='${escaped}':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:fontsize=48:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-h/6[out]`);
-  } else {
-    filterParts.push(`[bg]null[out]`);
-  }
-
   args.push(
-    "-filter_complex", filterParts.join(";"),
+    "-filter_complex", "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[out]",
     "-map", "[out]",
     "-map", "1:a",
   );
@@ -325,14 +345,26 @@ export async function generateReelVideo(
       })
     );
 
+    console.log(`[VideoGen] Overlaying text on images...`);
+    const assetsWithText = await Promise.all(
+      sceneAssets.map(async ({ scene, imagePath, audioPath }) => {
+        const finalImagePath = await overlayTextOnImage(
+          imagePath,
+          scene.textOverlay,
+          workDir,
+          scene.sceneNumber,
+        );
+        return { scene, imagePath: finalImagePath, audioPath };
+      })
+    );
+
     console.log(`[VideoGen] Creating scene clips in parallel...`);
     const clipPaths = await Promise.all(
-      sceneAssets.map(({ scene, imagePath, audioPath }) =>
+      assetsWithText.map(({ scene, imagePath, audioPath }) =>
         createSceneVideo(
           imagePath,
           audioPath,
           scene.durationSeconds,
-          scene.textOverlay,
           scene.sceneNumber,
           workDir,
         )
