@@ -43,6 +43,7 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
 - **SEO Enhancements (Audit):** Dynamic meta titles/descriptions on shared project pages (title, mainIdea, OG image from coverImageUrl). Unique Arabic meta descriptions on all public pages. Canonical URL tags auto-injected via `useDocumentTitle` hook. Expanded sitemap.xml with dynamic shared project and author profile URLs. Static pages added: /essays, /privacy, /terms, /refund.
 - **Accessibility (Audit):** All icon-only buttons have Arabic aria-labels (notification bell, logout, menu, social sharing, navigation). Image tags include width/height attributes to prevent CLS. Notification list shows skeleton loading state.
 - **Dark Mode Fixes (Audit):** Admin toggle switch knobs and muted text colors have dark: variants. Abu Hashim chat button icon has dark mode contrast fix.
+- **Security Path Blocking:** Middleware in `server/index.ts` blocks scanner probes (dotfiles, PHP/WordPress/backup/debug/server-status paths) with 404 responses. URL-decoding and path normalization prevent bypass via `%2e` encoding or trailing slashes. `/.well-known` exempted for ACME/SSL. Legitimate routes (`/admin`, `/robots.txt`, `/sitemap.xml`, `/api/*`) preserved.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Powers all AI content generation, analysis, and assistance.

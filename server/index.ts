@@ -77,6 +77,51 @@ app.use((_req, res, next) => {
   next();
 });
 
+const BLOCKED_PATHS = new Set([
+  "/server-status", "/server-info",
+  "/crossdomain.xml", "/elmah.axd", "/web.config",
+  "/phpinfo.php", "/wp-login.php",
+]);
+
+const BLOCKED_PREFIXES = [
+  "/.", // all dotfiles: /.env, /.git/*, /.htpasswd, /.htaccess, /.DS_Store, /.svn/*, etc.
+  "/wp-admin", "/wp-config",
+  "/phpmyadmin",
+  "/administrator",
+  "/backup", "/backups",
+  "/debug",
+  "/dump",
+  "/database",
+  "/api/swagger", "/api/docs",
+];
+
+app.use((req, res, next) => {
+  let p: string;
+  try {
+    p = decodeURIComponent(req.path).toLowerCase();
+  } catch {
+    p = req.path.toLowerCase();
+  }
+  const normalized = p.replace(/\/+/g, "/").replace(/\/+$/, "") || "/";
+
+  if (BLOCKED_PATHS.has(normalized)) {
+    return res.status(404).type("text/plain").send("");
+  }
+
+  for (const prefix of BLOCKED_PREFIXES) {
+    if (normalized.startsWith(prefix)) {
+      if (prefix === "/." && normalized.startsWith("/.well-known")) continue;
+      return res.status(404).type("text/plain").send("");
+    }
+  }
+
+  if (/\.(php|asp|aspx|jsp|cgi)(\.bak|\.old|\.orig|\/.*)?$/i.test(normalized)) {
+    return res.status(404).type("text/plain").send("");
+  }
+
+  next();
+});
+
 app.use(compression());
 const httpServer = createServer(app);
 
