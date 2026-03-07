@@ -3274,6 +3274,7 @@ export function buildSocialMediaPrompt(project: any): { system: string; user: st
     facebook: "فيسبوك",
     youtube_script: "سكريبت يوتيوب",
     tiktok_script: "سكريبت تيك توك",
+    reels: "ريلز (فيديو قصير)",
   };
 
   const toneMap: Record<string, string> = {
@@ -3341,6 +3342,64 @@ export function buildSocialMediaPrompt(project: any): { system: string; user: st
 - اختم بدعوة قوية للتفاعل أو تعليق ساخر يبقى في الذهن
 - اقترح أصواتاً (sounds) أو موسيقى خلفية مناسبة إن أمكن
 - أضف هاشتاقات تيك توك مناسبة (3-5 هاشتاقات)`,
+
+    reels: `═══ تعليمات خاصة بالريلز (فيديو قصير) ═══
+أنت متخصص في كتابة سكريبتات ريلز احترافية محسّنة للتفاعل والانتشار الفيروسي.
+اكتب سكريبت ريلز كاملاً يتضمن جميع العناصر التالية:
+
+═══ 1. الهيكل المشهدي (Shot-by-Shot Breakdown) ═══
+قسّم السكريبت إلى مشاهد متتالية بتوقيت دقيق:
+- المشهد الأول (0:00 - 0:03): الخطاف (Hook) — لحظة جذب فورية تمنع المشاهد من التمرير. يجب أن تكون صادمة أو مثيرة للفضول أو مفاجئة.
+- المشاهد الوسطى: المحتوى الأساسي مقسّم إلى مقاطع قصيرة (3-8 ثوانٍ لكل مشهد) مع تصاعد درامي أو معلوماتي.
+- المشهد الأخير (آخر 3-5 ثوانٍ): الخاتمة — دعوة للتفاعل، أو لحظة مؤثرة، أو مفاجأة نهائية تدفع لإعادة المشاهدة.
+
+لكل مشهد، حدّد:
+  • التوقيت الدقيق (مثال: 0:00-0:03)
+  • النص المنطوق أو المعروض على الشاشة
+  • الوصف البصري والحركي
+
+═══ 2. التوجيه البصري لكل مشهد ═══
+لكل مشهد، حدّد:
+  • زاوية الكاميرا: قريبة (Close-up)، متوسطة (Medium)، واسعة (Wide)، من الأعلى (Top-down)، حركة (Pan/Tilt/Track)
+  • النص المعروض على الشاشة (Text Overlay): النص بالعربية، الموقع (أعلى/وسط/أسفل)، اللون والخط المقترح
+  • نوع الانتقال بين المشاهد: قطع مباشر (Cut)، تلاشي (Fade)، انزلاق (Slide)، تكبير (Zoom)، دوران (Spin)، وميض (Flash)
+
+═══ 3. الموسيقى والمؤثرات الصوتية ═══
+اقترح:
+  • نوع الموسيقى الخلفية المناسبة (إيقاعية، هادئة، درامية، تحفيزية)
+  • مؤثرات صوتية عند اللحظات المهمة (صوت إشعار، تصفيق، صوت مفاجأة "whoosh"، إلخ)
+  • توقيت تغيير الموسيقى أو رفع/خفض الصوت
+  • اقتراح أغانٍ أو أصوات رائجة (trending sounds) إن كانت مناسبة
+
+═══ 4. الكابشن والهاشتاقات ═══
+اكتب:
+  • كابشن جذاب ومختصر للمنشور (لا يتجاوز 150 حرفاً يظهر منها)
+  • 15-25 هاشتاقاً (مزيج بين: هاشتاقات رائجة عامة، هاشتاقات متخصصة في المجال، هاشتاقات محلية/عربية)
+  • دعوة واضحة للتفاعل (CTA) في الكابشن
+
+═══ 5. تنسيقات الريلز المدعومة ═══
+خصّص المحتوى حسب التنسيق المطلوب:
+
+• تعليمي: قدّم معلومة أو مهارة في خطوات واضحة. استخدم أرقاماً أو نقاطاً على الشاشة. ابدأ بـ"هل تعلم" أو "أكبر خطأ في..." أو "3 أشياء لازم تعرفها عن..."
+• سردي/قصصي: احكِ قصة مشوّقة بتصاعد درامي. استخدم الفضول والتشويق. اجعل المشاهد يريد معرفة النهاية.
+• ترويجي: قدّم المنتج أو الخدمة بطريقة إبداعية لا مباشرة. ركّز على المشكلة التي يحلّها. أظهر النتيجة قبل المنتج (Before/After).
+• كواليس: أظهر ما وراء الكواليس بأسلوب أصيل وعفوي. اجعل المشاهد يشعر بأنه يرى شيئاً حصرياً. استخدم إضاءة طبيعية وكاميرا يدوية.
+• ترند/تحدي: استخدم القالب الرائج مع إضافة لمسة إبداعية فريدة. حافظ على الهيكل المعروف للترند مع تخصيص المحتوى. اذكر اسم الترند أو التحدي.
+• تحفيزي: استخدم عبارات قوية ومؤثرة. أضف موسيقى تحفيزية صاعدة. اجعل كل جملة قابلة للاقتباس والمشاركة.
+
+═══ 6. تحسين عبر المنصات ═══
+أضف ملاحظات تحسين خاصة بكل منصة:
+  • إنستغرام ريلز: ركّز على الجماليات البصرية، استخدم فلاتر مناسبة، اهتم بالغلاف (Cover Image)
+  • تيك توك: استخدم أصوات رائجة، تفاعل مع ترندات المنصة، أسلوب أكثر عفوية
+  • يوتيوب شورتس: اهتم بالعنوان والوصف لمحركات البحث، اربط بمحتوى أطول على القناة
+
+═══ 7. نصائح الانتشار الفيروسي ═══
+- الثواني الثلاث الأولى هي كل شيء — اجعلها مغناطيسية
+- استخدم "حلقة المشاهدة" (Watch Loop) — اجعل النهاية تدفع لإعادة المشاهدة من البداية
+- أضف عنصر مفاجأة أو تحوّل غير متوقع في المنتصف
+- اجعل المحتوى قابلاً للمشاركة — يحمل قيمة أو مشاعر يريد المشاهد نقلها
+- استخدم نصوصاً على الشاشة لأن كثيراً من المشاهدين يشاهدون بدون صوت
+- نوّع في زوايا الكاميرا والمقاطع لمنع الملل البصري`,
   };
 
   const platform = project.genre || "twitter";
@@ -3351,18 +3410,51 @@ export function buildSocialMediaPrompt(project: any): { system: string; user: st
   const toneLabel = toneMap[tone] || toneMap.professional;
 
   const dialectInstruction = buildDialectInstruction(project.allowDialect || false, "social_media");
-  const cultureContext = buildCultureContextNote(project.placeSetting || "", project.timeSetting || "");
+  const cultureContext = platform === "reels" ? "" : buildCultureContextNote(project.placeSetting || "", project.timeSetting || "");
 
-  const targetAudienceNote = project.targetAudience
-    ? `\nالجمهور المستهدف: ${project.targetAudience}\nخصّص المحتوى ليناسب اهتمامات ولغة هذا الجمهور تحديداً.`
+  let audienceDisplay = project.targetAudience || "";
+  if (platform === "reels" && audienceDisplay.includes(" | ")) {
+    audienceDisplay = audienceDisplay.substring(0, audienceDisplay.indexOf(" | ")).trim();
+  }
+  const targetAudienceNote = audienceDisplay
+    ? `\nالجمهور المستهدف: ${audienceDisplay}\nخصّص المحتوى ليناسب اهتمامات ولغة هذا الجمهور تحديداً.`
     : "";
+
+  const reelFormatMap: Record<string, string> = {
+    educational: "تعليمي",
+    storytelling: "سردي/قصصي",
+    promotional: "ترويجي",
+    behind_the_scenes: "كواليس",
+    trending: "ترند/تحدي",
+    motivational: "تحفيزي",
+  };
+
+  let reelsSpecificNote = "";
+  if (platform === "reels") {
+    const duration = project.timeSetting || "30 ثانية";
+    const reelFormat = reelFormatMap[project.placeSetting] || project.placeSetting || "تعليمي";
+    reelsSpecificNote = `\nمدة الريلز: ${duration}\nتنسيق الريلز: ${reelFormat}`;
+
+    const audienceRaw = project.targetAudience || "";
+    const platformSeparator = audienceRaw.indexOf(" | ");
+    if (platformSeparator !== -1) {
+      const targetPlatforms = audienceRaw.substring(platformSeparator + 3);
+      const platformNames: Record<string, string> = {
+        instagram: "إنستغرام ريلز",
+        tiktok: "تيك توك",
+        youtube_shorts: "يوتيوب شورتس",
+      };
+      const selectedPlatforms = targetPlatforms.split(",").map((p: string) => platformNames[p.trim()] || p.trim()).join("، ");
+      reelsSpecificNote += `\nالمنصات المستهدفة: ${selectedPlatforms}`;
+    }
+  }
 
   const user = `اكتب محتوى لمنصة ${platformLabel} بالمواصفات التالية:
 
 ═══ تفاصيل المحتوى ═══
 العنوان/الحملة: ${project.title || "بدون عنوان"}
 الموضوع/الفكرة: ${project.mainIdea || ""}
-النبرة المطلوبة: ${toneLabel}${targetAudienceNote}
+النبرة المطلوبة: ${toneLabel}${reelsSpecificNote}${targetAudienceNote}
 ${cultureContext}
 ${dialectInstruction}
 

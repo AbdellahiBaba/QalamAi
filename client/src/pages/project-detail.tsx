@@ -43,7 +43,7 @@ interface ProjectData extends NovelProject {
   relationships: CharacterRelationship[];
 }
 
-function getTypeLabels(projectType?: string) {
+function getTypeLabels(projectType?: string, genre?: string) {
   if (projectType === "essay") {
     return {
       chaptersLabel: "الأقسام",
@@ -121,22 +121,25 @@ function getTypeLabels(projectType?: string) {
     };
   }
   if (projectType === "social_media") {
+    const isReels = genre === "reels";
     return {
-      chaptersLabel: "المحتوى",
-      chapterSingular: "المحتوى",
+      chaptersLabel: isReels ? "السكريبت" : "المحتوى",
+      chapterSingular: isReels ? "السكريبت" : "المحتوى",
       outlineLabel: "—",
-      typeLabel: "سوشيال ميديا",
-      writeAll: "أنشئ المحتوى",
-      writeOne: "أنشئ المحتوى",
+      typeLabel: isReels ? "ريلز" : "سوشيال ميديا",
+      writeAll: isReels ? "أنشئ سكريبت الريلز" : "أنشئ المحتوى",
+      writeOne: isReels ? "أنشئ سكريبت الريلز" : "أنشئ المحتوى",
       createOutline: "",
       outlineCreating: "",
       approveOutline: "",
       noOutline: "",
       mustApprove: "",
       mustApproveDesc: "",
-      lockedMsg: "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المحتوى.",
-      paymentDesc: "إتمام الدفع للبدء بإنشاء المحتوى",
-      allDone: "تم الانتهاء من إنشاء المحتوى!",
+      lockedMsg: isReels
+        ? "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء سكريبت الريلز."
+        : "هذا المشروع مقفل. يجب إتمام الدفع قبل أن تتمكن من إنشاء المحتوى.",
+      paymentDesc: isReels ? "إتمام الدفع للبدء بإنشاء سكريبت الريلز" : "إتمام الدفع للبدء بإنشاء المحتوى",
+      allDone: isReels ? "تم الانتهاء من إنشاء سكريبت الريلز!" : "تم الانتهاء من إنشاء المحتوى!",
     };
   }
   if (projectType === "poetry") {
@@ -357,7 +360,7 @@ export default function ProjectDetail() {
   const planCoversProject = userPlanCoversType(planData?.plan, project?.projectType || "novel");
   const hasAccess = hasFreeAccess || planCoversProject || !!project?.paid;
 
-  const labels = getTypeLabels(project?.projectType);
+  const labels = getTypeLabels(project?.projectType, project?.genre);
 
   const generateOutlineMutation = useMutation({
     mutationFn: async () => {

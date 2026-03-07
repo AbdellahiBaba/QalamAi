@@ -17,6 +17,7 @@ const NewScenario = lazy(() => import("@/pages/new-scenario"));
 const NewShortStory = lazy(() => import("@/pages/new-short-story"));
 const NewKhawater = lazy(() => import("@/pages/new-khawater"));
 const NewSocialMedia = lazy(() => import("@/pages/new-social-media"));
+const NewReels = lazy(() => import("@/pages/new-reels"));
 const NewMemoire = lazy(() => import("@/pages/new-memoire"));
 const ProjectDetail = lazy(() => import("@/pages/project-detail"));
 const Profile = lazy(() => import("@/pages/profile"));
@@ -73,6 +74,7 @@ function AuthenticatedRouter() {
         <Route path="/project/new/short-story" component={NewShortStory} />
         <Route path="/project/new/khawater" component={NewKhawater} />
         <Route path="/project/new/social-media" component={NewSocialMedia} />
+        <Route path="/project/new/reels" component={NewReels} />
         <Route path="/project/new/memoire" component={NewMemoire} />
         <Route path="/project/:id/read/:chapterId" component={Reader} />
         <Route path="/project/:id" component={ProjectDetail} />

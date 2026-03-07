@@ -875,6 +875,26 @@ export default function Pricing() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card data-testid="card-pricing-reels">
+              <CardContent className="p-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Film className="w-5 h-5 text-primary" />
+                  <h3 className="font-serif font-bold text-lg">ريلز (فيديو قصير)</h3>
+                </div>
+                <p className="text-sm text-muted-foreground text-right">سكريبت احترافي لريلز مع توجيهات بصرية ومؤثرات وموسيقى لإنستغرام ريلز وتيك توك ويوتيوب شورتس</p>
+                <div className="flex items-center justify-between">
+                  {isPlanActive(userPlan, "all_in_one") ? (
+                    <span className="font-serif text-2xl font-bold text-green-600">مشمولة</span>
+                  ) : (
+                    <span className="font-serif text-2xl font-bold text-primary">٧.٩٩ دولار</span>
+                  )}
+                  <Link href="/project/new/reels">
+                    <Button variant="outline" data-testid="button-reels-cta">ابدأ الآن</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
