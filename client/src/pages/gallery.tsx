@@ -80,9 +80,17 @@ export default function Gallery() {
     };
   }, [searchQuery]);
 
-  const { data: projects, isLoading } = useQuery<GalleryProject[]>({
-    queryKey: ["/api/gallery"],
+  const [page, setPage] = useState(1);
+  const pageLimit = 24;
+
+  const { data: galleryData, isLoading } = useQuery<{ data: GalleryProject[]; total: number; page: number; limit: number }>({
+    queryKey: ["/api/gallery", page, pageLimit],
+    queryFn: () => fetch(`/api/gallery?page=${page}&limit=${pageLimit}`).then(r => r.json()),
   });
+
+  const projects = galleryData?.data;
+  const totalItems = galleryData?.total || 0;
+  const totalPages = Math.ceil(totalItems / pageLimit);
 
   const filteredProjects = useMemo(() => {
     if (!projects) return [];
@@ -269,6 +277,31 @@ export default function Gallery() {
           </div>
         )}
       </div>
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3 py-6" data-testid="gallery-pagination">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            data-testid="button-gallery-prev"
+          >
+            السابق
+          </Button>
+          <span className="text-sm text-muted-foreground" data-testid="text-gallery-page">
+            صفحة {page} من {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => p + 1)}
+            data-testid="button-gallery-next"
+          >
+            التالي
+          </Button>
+        </div>
+      )}
       <SharedFooter />
       {reportProjectId && (
         <ReportDialog

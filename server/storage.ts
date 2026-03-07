@@ -51,7 +51,7 @@ export interface IStorage {
   createTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
   getTicketsByUser(userId: string): Promise<SupportTicket[]>;
   getTicket(id: number): Promise<SupportTicket | undefined>;
-  getAllTickets(status?: string): Promise<SupportTicket[]>;
+  getAllTickets(status?: string, limit?: number, offset?: number): Promise<{ data: SupportTicket[]; total: number }>;
   updateTicketStatus(id: number, status: string): Promise<SupportTicket>;
   updateTicketPriority(id: number, priority: string): Promise<SupportTicket>;
   createTicketReply(reply: InsertTicketReply): Promise<TicketReply>;
@@ -70,7 +70,7 @@ export interface IStorage {
   getAuthorAverageRating(authorId: string): Promise<{ average: number; count: number }>;
   createPlatformReview(data: InsertPlatformReview): Promise<PlatformReview>;
   getApprovedReviews(): Promise<PlatformReview[]>;
-  getPendingReviews(): Promise<PlatformReview[]>;
+  getPendingReviews(limit?: number, offset?: number): Promise<{ data: PlatformReview[]; total: number }>;
   approvePlatformReview(id: number): Promise<PlatformReview>;
   deletePlatformReview(id: number): Promise<void>;
   getTrackingPixels(): Promise<TrackingPixel[]>;
@@ -84,7 +84,7 @@ export interface IStorage {
   getEssayClickCount(projectId: number): Promise<number>;
   getEssayAnalytics(): Promise<Array<{ projectId: number; title: string; views: number; clicks: number }>>;
   getMemoireAnalytics(): Promise<Array<{ projectId: number; title: string; university: string | null; memoireField: string | null; memoireMethodology: string | null; memoireCountry: string | null; views: number; clicks: number }>>;
-  getAllReviews(): Promise<PlatformReview[]>;
+  getAllReviews(limit?: number, offset?: number): Promise<{ data: PlatformReview[]; total: number }>;
   updatePromoCode(id: number, data: Partial<{ discountPercent: number; maxUses: number | null; validUntil: Date | null; applicableTo: string; active: boolean }>): Promise<PromoCode>;
   deletePromoCode(id: number): Promise<void>;
   createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<PasswordResetToken>;
@@ -95,6 +95,7 @@ export interface IStorage {
   upsertEssayReaction(projectId: number, visitorIp: string, reactionType: string): Promise<void>;
   getEssayReactionCounts(projectId: number): Promise<Record<string, number>>;
   getPublishedEssays(): Promise<NovelProject[]>;
+  getPublishedEssaysWithStats(): Promise<Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>>;
   getSocialMediaLinks(): Promise<SocialMediaLink[]>;
   getEnabledSocialMediaLinks(): Promise<SocialMediaLink[]>;
   upsertSocialMediaLink(data: InsertSocialMediaLink): Promise<SocialMediaLink>;
@@ -108,7 +109,7 @@ export interface IStorage {
   getWritingStatsForUser(userId: string): Promise<{ totalWords: number; totalProjects: number; completedProjects: number; avgWordsPerProject: number; dailyWordCounts: { date: string; words: number }[]; projectBreakdown: { projectId: number; title: string; type: string; words: number; chapters: number; completedChapters: number }[] }>;
   deleteProject(id: number): Promise<void>;
   createContentReport(report: InsertContentReport): Promise<ContentReport>;
-  getContentReports(status?: string): Promise<(ContentReport & { projectTitle?: string })[]>;
+  getContentReports(status?: string, limit?: number, offset?: number): Promise<{ data: (ContentReport & { projectTitle?: string })[]; total: number }>;
   getContentReport(id: number): Promise<ContentReport | undefined>;
   updateContentReport(id: number, updates: Partial<ContentReport>): Promise<ContentReport>;
   getReportCountForProject(projectId: number): Promise<number>;
@@ -284,11 +285,15 @@ export class DatabaseStorage implements IStorage {
     return ticket;
   }
 
-  async getAllTickets(status?: string): Promise<SupportTicket[]> {
-    if (status) {
-      return db.select().from(supportTickets).where(eq(supportTickets.status, status)).orderBy(desc(supportTickets.createdAt));
-    }
-    return db.select().from(supportTickets).orderBy(desc(supportTickets.createdAt));
+  async getAllTickets(status?: string, limit?: number, offset?: number): Promise<{ data: SupportTicket[]; total: number }> {
+    const conditions = status ? [eq(supportTickets.status, status)] : [];
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const [totalResult] = await db.select({ count: count() }).from(supportTickets).where(whereClause);
+    let query = db.select().from(supportTickets).where(whereClause).orderBy(desc(supportTickets.createdAt));
+    if (limit !== undefined) query = query.limit(limit) as any;
+    if (offset !== undefined) query = query.offset(offset) as any;
+    const data = await query;
+    return { data, total: totalResult?.count || 0 };
   }
 
   async updateTicketStatus(id: number, status: string): Promise<SupportTicket> {
@@ -517,8 +522,13 @@ export class DatabaseStorage implements IStorage {
     await db.update(promoCodes).set({ usedCount: sql`${promoCodes.usedCount} + 1` }).where(eq(promoCodes.id, id));
   }
 
-  async getAllPromoCodes(): Promise<PromoCode[]> {
-    return db.select().from(promoCodes).orderBy(desc(promoCodes.createdAt));
+  async getAllPromoCodes(limit?: number, offset?: number): Promise<{ data: PromoCode[]; total: number }> {
+    const [totalResult] = await db.select({ count: count() }).from(promoCodes);
+    let query = db.select().from(promoCodes).orderBy(desc(promoCodes.createdAt));
+    if (limit !== undefined) query = query.limit(limit) as any;
+    if (offset !== undefined) query = query.offset(offset) as any;
+    const data = await query;
+    return { data, total: totalResult?.count || 0 };
   }
 
   async upsertReadingProgress(userId: string, projectId: number, lastChapterId?: number, scrollPosition?: number): Promise<ReadingProgress> {
@@ -671,8 +681,13 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(platformReviews).where(eq(platformReviews.approved, true)).orderBy(desc(platformReviews.createdAt));
   }
 
-  async getPendingReviews(): Promise<PlatformReview[]> {
-    return db.select().from(platformReviews).where(eq(platformReviews.approved, false)).orderBy(desc(platformReviews.createdAt));
+  async getPendingReviews(limit?: number, offset?: number): Promise<{ data: PlatformReview[]; total: number }> {
+    const [totalResult] = await db.select({ count: count() }).from(platformReviews).where(eq(platformReviews.approved, false));
+    let query = db.select().from(platformReviews).where(eq(platformReviews.approved, false)).orderBy(desc(platformReviews.createdAt));
+    if (limit !== undefined) query = query.limit(limit) as any;
+    if (offset !== undefined) query = query.offset(offset) as any;
+    const data = await query;
+    return { data, total: totalResult?.count || 0 };
   }
 
   async approvePlatformReview(id: number): Promise<PlatformReview> {
@@ -783,8 +798,13 @@ export class DatabaseStorage implements IStorage {
     return results.rows as any[];
   }
 
-  async getAllReviews(): Promise<PlatformReview[]> {
-    return db.select().from(platformReviews).orderBy(desc(platformReviews.createdAt));
+  async getAllReviews(limit?: number, offset?: number): Promise<{ data: PlatformReview[]; total: number }> {
+    const [totalResult] = await db.select({ count: count() }).from(platformReviews);
+    let query = db.select().from(platformReviews).orderBy(desc(platformReviews.createdAt));
+    if (limit !== undefined) query = query.limit(limit) as any;
+    if (offset !== undefined) query = query.offset(offset) as any;
+    const data = await query;
+    return { data, total: totalResult?.count || 0 };
   }
 
   async updatePromoCode(id: number, data: Partial<{ discountPercent: number; maxUses: number | null; validUntil: Date | null; applicableTo: string; active: boolean }>): Promise<PromoCode> {
@@ -860,6 +880,59 @@ export class DatabaseStorage implements IStorage {
         isNotNull(novelProjects.shareToken)
       )
     ).orderBy(desc(novelProjects.updatedAt));
+  }
+
+  async getPublishedEssaysWithStats(): Promise<Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT
+        p.id, p.title, LEFT(p.main_idea, 300) as "mainIdea", p.cover_image_url as "coverImageUrl",
+        p.share_token as "shareToken", p.subject, p.user_id as "authorId", p.created_at as "createdAt",
+        COALESCE(u.display_name, u.first_name, u.email, 'مؤلف') as "authorName",
+        COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
+        COALESCE(v.view_count, 0)::int as views,
+        COALESCE(c.click_count, 0)::int as clicks,
+        COALESCE(w.total_words, 0)::int as "totalWords"
+      FROM novel_projects p
+      INNER JOIN users u ON u.id = p.user_id
+      LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) v ON v.project_id = p.id
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as click_count FROM essay_clicks GROUP BY project_id) c ON c.project_id = p.id
+      LEFT JOIN (SELECT project_id, SUM(array_length(regexp_split_to_array(COALESCE(content, ''), '\s+'), 1))::int as total_words FROM chapters GROUP BY project_id) w ON w.project_id = p.id
+      WHERE p.project_type = 'essay' AND p.published_to_news = true AND p.share_token IS NOT NULL
+      ORDER BY clicks DESC, p.updated_at DESC
+    `)).rows;
+
+    const projectIds = rows.map(r => r.id);
+    let reactionsMap: Record<number, Record<string, number>> = {};
+    if (projectIds.length > 0) {
+      const reactionRows: any[] = (await db.execute(sql`
+        SELECT project_id as "projectId", reaction_type as "reactionType", COUNT(*)::int as count
+        FROM essay_reactions
+        WHERE project_id = ANY(${projectIds})
+        GROUP BY project_id, reaction_type
+      `)).rows;
+      for (const r of reactionRows) {
+        if (!reactionsMap[r.projectId]) reactionsMap[r.projectId] = {};
+        reactionsMap[r.projectId][r.reactionType] = r.count;
+      }
+    }
+
+    return rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      mainIdea: r.mainIdea,
+      coverImageUrl: r.coverImageUrl,
+      shareToken: r.shareToken,
+      authorName: r.authorName,
+      authorId: r.authorId,
+      authorAverageRating: r.authorAverageRating,
+      subject: r.subject,
+      views: r.views,
+      clicks: r.clicks,
+      reactions: reactionsMap[r.id] || {},
+      totalWords: r.totalWords,
+      createdAt: r.createdAt,
+    }));
   }
 
   async getSocialMediaLinks(): Promise<SocialMediaLink[]> {
@@ -949,9 +1022,11 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getContentReports(status?: string): Promise<(ContentReport & { projectTitle?: string; projectType?: string; projectUserId?: string; reportCountForProject?: number })[]> {
+  async getContentReports(status?: string, limit?: number, offset?: number): Promise<{ data: (ContentReport & { projectTitle?: string; projectType?: string; projectUserId?: string; reportCountForProject?: number })[]; total: number }> {
     const conditions = status ? [eq(contentReports.status, status)] : [];
-    const reports = await db
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const [totalResult] = await db.select({ count: count() }).from(contentReports).where(whereClause);
+    let query = db
       .select({
         id: contentReports.id,
         projectId: contentReports.projectId,
@@ -984,9 +1059,12 @@ export class DatabaseStorage implements IStorage {
       })
       .from(contentReports)
       .leftJoin(novelProjects, eq(contentReports.projectId, novelProjects.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(whereClause)
       .orderBy(desc(contentReports.createdAt));
-    return reports;
+    if (limit !== undefined) query = query.limit(limit) as any;
+    if (offset !== undefined) query = query.offset(offset) as any;
+    const reports = await query;
+    return { data: reports, total: totalResult?.count || 0 };
   }
 
   async getContentReport(id: number): Promise<ContentReport | undefined> {

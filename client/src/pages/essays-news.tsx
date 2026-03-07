@@ -16,6 +16,7 @@ import {
   Clock,
   Flag,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { SharedNavbar } from "@/components/shared-navbar";
@@ -50,9 +51,17 @@ export default function EssaysNews() {
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: essays, isLoading } = useQuery<PublicEssay[]>({
-    queryKey: ["/api/public/essays"],
+  const [page, setPage] = useState(1);
+  const pageLimit = 24;
+
+  const { data: essaysData, isLoading } = useQuery<{ data: PublicEssay[]; total: number; page: number; limit: number }>({
+    queryKey: ["/api/public/essays", page, pageLimit],
+    queryFn: () => fetch(`/api/public/essays?page=${page}&limit=${pageLimit}`).then(r => r.json()),
   });
+
+  const essays = essaysData?.data;
+  const totalItems = essaysData?.total || 0;
+  const totalPages = Math.ceil(totalItems / pageLimit);
 
   const handleCardClick = (essay: PublicEssay) => {
     const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
@@ -255,6 +264,31 @@ export default function EssaysNews() {
         )}
       </div>
 
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3 py-6" data-testid="essays-pagination">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            data-testid="button-essays-prev"
+          >
+            السابق
+          </Button>
+          <span className="text-sm text-muted-foreground" data-testid="text-essays-page">
+            صفحة {page} من {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => p + 1)}
+            data-testid="button-essays-next"
+          >
+            التالي
+          </Button>
+        </div>
+      )}
       <SharedFooter />
       {reportProjectId && (
         <ReportDialog

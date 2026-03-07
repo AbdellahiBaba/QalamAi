@@ -85,9 +85,17 @@ export default function MemoireGallery() {
   const [methodologyFilter, setMethodologyFilter] = useState("all");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: memoires, isLoading, isError } = useQuery<PublicMemoire[]>({
-    queryKey: ["/api/public/memoires"],
+  const [page, setPage] = useState(1);
+  const pageLimit = 24;
+
+  const { data: memoiresData, isLoading, isError } = useQuery<{ data: PublicMemoire[]; total: number; page: number; limit: number }>({
+    queryKey: ["/api/public/memoires", page, pageLimit],
+    queryFn: () => fetch(`/api/public/memoires?page=${page}&limit=${pageLimit}`).then(r => r.json()),
   });
+
+  const memoires = memoiresData?.data;
+  const totalItems = memoiresData?.total || 0;
+  const totalPages = Math.ceil(totalItems / pageLimit);
 
   const fields = useMemo(() => {
     if (!memoires) return [];
@@ -459,6 +467,31 @@ export default function MemoireGallery() {
         )}
       </div>
 
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-3 py-6" data-testid="memoires-pagination">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            data-testid="button-memoires-prev"
+          >
+            السابق
+          </Button>
+          <span className="text-sm text-muted-foreground" data-testid="text-memoires-page">
+            صفحة {page} من {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => p + 1)}
+            data-testid="button-memoires-next"
+          >
+            التالي
+          </Button>
+        </div>
+      )}
       <SharedFooter />
       {reportProjectId && (
         <ReportDialog

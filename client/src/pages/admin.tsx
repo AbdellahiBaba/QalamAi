@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck, Brain, PlayCircle, CheckCircle, XCircle, RefreshCw, Webhook, Send } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck, Brain, PlayCircle, CheckCircle, XCircle, RefreshCw, Webhook, Send, ChevronLeft, ChevronRight } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +26,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { FREE_ANALYSIS_USES, PAID_ANALYSIS_USES } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
+
+interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 interface RevenueData {
   totalRevenue: number;
@@ -137,6 +144,36 @@ const projectStatusLabels: Record<string, string> = {
   completed: "مكتمل",
 };
 
+function AdminPagination({ page, total, limit, onPageChange, testIdPrefix }: { page: number; total: number; limit: number; onPageChange: (p: number) => void; testIdPrefix: string }) {
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 mt-4 flex-wrap" data-testid={`pagination-${testIdPrefix}`}>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        data-testid={`button-${testIdPrefix}-prev`}
+      >
+        <ChevronRight className="w-4 h-4" />
+      </Button>
+      <span className="text-sm text-muted-foreground" data-testid={`text-${testIdPrefix}-page-info`}>
+        صفحة <LtrNum>{page}</LtrNum> من <LtrNum>{totalPages}</LtrNum> (<LtrNum>{total}</LtrNum> عنصر)
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+        data-testid={`button-${testIdPrefix}-next`}
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </Button>
+    </div>
+  );
+}
+
 export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
@@ -164,6 +201,12 @@ export default function Admin() {
   const [apiUsageDetailUser, setApiUsageDetailUser] = useState<string | null>(null);
   const [showApiUsageDialog, setShowApiUsageDialog] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [ticketsPage, setTicketsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [promosPage, setPromosPage] = useState(1);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reportsPage, setReportsPage] = useState(1);
+  const ADMIN_PAGE_LIMIT = 20;
   const mainContentRef = useRef<HTMLElement>(null);
   const { toast } = useToast();
 
@@ -177,13 +220,25 @@ export default function Admin() {
     queryKey: ["/api/admin/stats"],
   });
 
-  const { data: tickets, isLoading: ticketsLoading } = useQuery<SupportTicket[]>({
-    queryKey: ["/api/admin/tickets"],
+  const { data: ticketsResponse, isLoading: ticketsLoading } = useQuery<PaginatedResponse<SupportTicket>>({
+    queryKey: ["/api/admin/tickets", ticketsPage],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/tickets?page=${ticketsPage}&limit=${ADMIN_PAGE_LIMIT}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
   });
+  const tickets = ticketsResponse?.data;
 
-  const { data: adminUsers, isLoading: usersLoading } = useQuery<AdminUser[]>({
-    queryKey: ["/api/admin/users"],
+  const { data: usersResponse, isLoading: usersLoading } = useQuery<PaginatedResponse<AdminUser>>({
+    queryKey: ["/api/admin/users", usersPage],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users?page=${usersPage}&limit=${ADMIN_PAGE_LIMIT}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
   });
+  const adminUsers = usersResponse?.data;
 
   const { data: userProjects, isLoading: userProjectsLoading } = useQuery<NovelProject[]>({
     queryKey: ["/api/admin/users", selectedUserId, "projects"],
@@ -195,10 +250,16 @@ export default function Admin() {
     enabled: activeTab === "analytics",
   });
 
-  const { data: promos, isLoading: promosLoading } = useQuery<PromoCode[]>({
-    queryKey: ["/api/admin/promos"],
+  const { data: promosResponse, isLoading: promosLoading } = useQuery<PaginatedResponse<PromoCode>>({
+    queryKey: ["/api/admin/promos", promosPage],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/promos?page=${promosPage}&limit=${ADMIN_PAGE_LIMIT}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
     enabled: activeTab === "promos",
   });
+  const promos = promosResponse?.data;
 
   const { data: projectContent, isLoading: contentLoading } = useQuery<{ project: NovelProject; chapters: any[] }>({
     queryKey: ["/api/admin/projects", contentProjectId, "content"],
@@ -446,15 +507,16 @@ export default function Admin() {
     return ctrB - ctrA;
   });
 
-  const { data: pendingReviews, isLoading: reviewsLoading } = useQuery<PlatformReview[]>({
-    queryKey: ["/api/admin/reviews", reviewFilter],
+  const { data: reviewsResponse, isLoading: reviewsLoading } = useQuery<PaginatedResponse<PlatformReview>>({
+    queryKey: ["/api/admin/reviews", reviewFilter, reviewsPage],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/reviews?filter=${reviewFilter}`, { credentials: "include" });
+      const res = await fetch(`/api/admin/reviews?filter=${reviewFilter}&page=${reviewsPage}&limit=${ADMIN_PAGE_LIMIT}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
     enabled: activeTab === "reviews",
   });
+  const pendingReviews = reviewsResponse?.data;
 
   const approveReviewMutation = useMutation({
     mutationFn: async (reviewId: number) => {
@@ -483,15 +545,19 @@ export default function Admin() {
     enabled: activeTab === "tracking",
   });
 
-  const { data: reportsData, isLoading: reportsLoading } = useQuery<any[]>({
-    queryKey: ["/api/admin/reports", reportFilter],
+  const { data: reportsResponse, isLoading: reportsLoading } = useQuery<PaginatedResponse<any>>({
+    queryKey: ["/api/admin/reports", reportFilter, reportsPage],
     queryFn: async () => {
-      const url = reportFilter === "all" ? "/api/admin/reports" : `/api/admin/reports?status=${reportFilter}`;
-      const res = await fetch(url, { credentials: "include" });
+      const params = new URLSearchParams();
+      if (reportFilter !== "all") params.set("status", reportFilter);
+      params.set("page", String(reportsPage));
+      params.set("limit", String(ADMIN_PAGE_LIMIT));
+      const res = await fetch(`/api/admin/reports?${params.toString()}`, { credentials: "include" });
       return res.json();
     },
     enabled: activeTab === "reports",
   });
+  const reportsData = reportsResponse?.data;
 
   const { data: reportStats } = useQuery<any>({
     queryKey: ["/api/admin/reports/stats"],
@@ -1128,7 +1194,7 @@ export default function Admin() {
                   data-testid="input-search"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setTicketsPage(1); }}>
                 <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-status-filter">
                   <SelectValue placeholder="تصفية بالحالة" />
                 </SelectTrigger>
@@ -1233,6 +1299,9 @@ export default function Admin() {
                   </Card>
                 ))}
               </div>
+              {ticketsResponse && (
+                <AdminPagination page={ticketsResponse.page} total={ticketsResponse.total} limit={ticketsResponse.limit} onPageChange={setTicketsPage} testIdPrefix="tickets" />
+              )}
               </>
             ) : (
               <div className="text-center py-16">
@@ -1257,7 +1326,7 @@ export default function Admin() {
                 />
               </div>
               <div className="text-sm text-muted-foreground">
-                {adminUsers ? <><LtrNum>{adminUsers.length}</LtrNum> مستخدم</> : ""}
+                {usersResponse ? <><LtrNum>{usersResponse.total}</LtrNum> مستخدم</> : ""}
               </div>
               <Button
                 variant="outline"
@@ -1498,6 +1567,9 @@ export default function Admin() {
                   </Card>
                 ))}
               </div>
+              {usersResponse && (
+                <AdminPagination page={usersResponse.page} total={usersResponse.total} limit={usersResponse.limit} onPageChange={setUsersPage} testIdPrefix="users" />
+              )}
               </>
             ) : (
               <div className="text-center py-16">
@@ -1872,6 +1944,7 @@ export default function Admin() {
                 ))}
               </div>
             ) : promos && promos.length > 0 ? (
+              <>
               <div className="border rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1937,6 +2010,10 @@ export default function Admin() {
                   </table>
                 </div>
               </div>
+              {promosResponse && (
+                <AdminPagination page={promosResponse.page} total={promosResponse.total} limit={promosResponse.limit} onPageChange={setPromosPage} testIdPrefix="promos" />
+              )}
+              </>
             ) : (
               <div className="text-center py-16">
                 <Tag className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -2173,7 +2250,7 @@ export default function Admin() {
               <Button
                 variant={reviewFilter === "pending" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setReviewFilter("pending")}
+                onClick={() => { setReviewFilter("pending"); setReviewsPage(1); }}
                 data-testid="button-review-filter-pending"
               >
                 قيد الانتظار
@@ -2181,7 +2258,7 @@ export default function Admin() {
               <Button
                 variant={reviewFilter === "all" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setReviewFilter("all")}
+                onClick={() => { setReviewFilter("all"); setReviewsPage(1); }}
                 data-testid="button-review-filter-all"
               >
                 جميع المراجعات
@@ -2200,6 +2277,7 @@ export default function Admin() {
                 ))}
               </div>
             ) : pendingReviews && pendingReviews.length > 0 ? (
+              <>
               <div className="space-y-3">
                 {pendingReviews.map((review) => (
                   <Card key={review.id} data-testid={`card-review-${review.id}`}>
@@ -2270,6 +2348,10 @@ export default function Admin() {
                   </Card>
                 ))}
               </div>
+              {reviewsResponse && (
+                <AdminPagination page={reviewsResponse.page} total={reviewsResponse.total} limit={reviewsResponse.limit} onPageChange={setReviewsPage} testIdPrefix="reviews" />
+              )}
+              </>
             ) : (
               <div className="text-center py-16">
                 <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -4209,7 +4291,7 @@ export default function Admin() {
                   key={f.value}
                   variant={reportFilter === f.value ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setReportFilter(f.value)}
+                  onClick={() => { setReportFilter(f.value); setReportsPage(1); }}
                   data-testid={`button-report-filter-${f.value}`}
                 >
                   {f.label}
@@ -4505,6 +4587,10 @@ export default function Admin() {
                   );
                 })}
               </div>
+            )}
+
+            {reportsResponse && (
+              <AdminPagination page={reportsResponse.page} total={reportsResponse.total} limit={reportsResponse.limit} onPageChange={setReportsPage} testIdPrefix="reports" />
             )}
 
             <Dialog open={confirmBanReportId !== null} onOpenChange={(open) => { if (!open) setConfirmBanReportId(null); }}>

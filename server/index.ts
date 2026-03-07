@@ -305,6 +305,8 @@ const publicLimiter = rateLimit({
 });
 app.use("/api/tickets", publicLimiter);
 app.use("/api/reports", publicLimiter);
+app.use("/api/authors/:id/rate", publicLimiter);
+app.use("/api/public/essays/:id/react", publicLimiter);
 
 const generalApiLimiter = rateLimit({
   windowMs: 60 * 1000,

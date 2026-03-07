@@ -44,6 +44,19 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
 - **Accessibility (Audit):** All icon-only buttons have Arabic aria-labels (notification bell, logout, menu, social sharing, navigation). Image tags include width/height attributes to prevent CLS. Notification list shows skeleton loading state.
 - **Dark Mode Fixes (Audit):** Admin toggle switch knobs and muted text colors have dark: variants. Abu Hashim chat button icon has dark mode contrast fix.
 - **Security Path Blocking:** Middleware in `server/index.ts` blocks scanner probes (dotfiles, PHP/WordPress/backup/debug/server-status paths) with 404 responses. URL-decoding and path normalization prevent bypass via `%2e` encoding or trailing slashes. `/.well-known` exempted for ACME/SSL. Legitimate routes (`/admin`, `/robots.txt`, `/sitemap.xml`, `/api/*`) preserved.
+- **Performance Enhancements (v2):**
+  - **N+1 Query Fix:** `getPublishedEssaysWithStats()` replaces per-essay Promise.all loops with SQL JOINs (views/clicks/words in one query, reactions in a second batch query). Reduced from 5N+1 queries to 2 queries.
+  - **Pagination:** Gallery, essays, and memoires endpoints return `{data, total, page, limit}` with default 24 items per page (max 50). Frontend pages have prev/next pagination controls.
+  - **Admin Pagination:** Admin lists (users, tickets, promos, reviews, reports) paginated with page/limit params (default 20, max 50). Frontend admin panel has pagination controls per tab.
+  - **Sitemap Caching:** `/sitemap.xml` cached for 1 hour via `apiCache` with ETag support.
+- **Input Validation Hardening:**
+  - **parseInt NaN Safety:** `parseIntParam()` helper in routes.ts returns null for non-numeric params; all ~80 `parseInt(req.params.*)` calls replaced with null-check + 400 response.
+  - **Zod Validation:** 5 major POST endpoints validated with Zod schemas: `POST /api/projects` (50+ fields), `POST /api/projects/:id/characters`, `POST /api/tickets`, `POST /api/chat`, `POST /api/projects/suggest-titles`. Returns 400 with field-level errors.
+  - **Rate Limiting:** `publicLimiter` (5/min) added to `POST /api/authors/:id/rate` and `POST /api/public/essays/:id/react`.
+- **Database Integrity:**
+  - FK: `content_reports.projectId` → `novelProjects.id`
+  - Unique: `reading_progress(userId, projectId)`
+  - Indexes: `character_relationships(character1Id, character2Id, projectId)`, `messages(conversationId)`, `users(stripe_customer_id)`
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Powers all AI content generation, analysis, and assistance.

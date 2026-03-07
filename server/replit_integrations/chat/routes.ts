@@ -8,6 +8,11 @@ const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+function parseIntParam(value: string): number | null {
+  const num = parseInt(value, 10);
+  return isNaN(num) ? null : num;
+}
+
 export function registerChatRoutes(app: Express): void {
   // Get all conversations
   app.get("/api/conversations", isAuthenticated, async (req: Request, res: Response) => {
@@ -23,7 +28,8 @@ export function registerChatRoutes(app: Express): void {
   // Get single conversation with messages
   app.get("/api/conversations/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const conversation = await chatStorage.getConversation(id);
       if (!conversation) {
         return res.status(404).json({ error: "المحادثة غير موجودة" });
@@ -51,7 +57,8 @@ export function registerChatRoutes(app: Express): void {
   // Delete conversation
   app.delete("/api/conversations/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       await chatStorage.deleteConversation(id);
       res.status(204).send();
     } catch (error) {
@@ -63,7 +70,8 @@ export function registerChatRoutes(app: Express): void {
   // Send message and get AI response (streaming)
   app.post("/api/conversations/:id/messages", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const conversationId = parseInt(req.params.id);
+      const conversationId = parseIntParam(req.params.id);
+      if (conversationId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { content } = req.body;
 
       // Save user message

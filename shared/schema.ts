@@ -222,7 +222,11 @@ export const characterRelationships = pgTable("character_relationships", {
   character1Id: integer("character1_id").notNull().references(() => characters.id, { onDelete: "cascade" }),
   character2Id: integer("character2_id").notNull().references(() => characters.id, { onDelete: "cascade" }),
   relationship: text("relationship").notNull(),
-});
+}, (table) => [
+  index("idx_character_relationships_project_id").on(table.projectId),
+  index("idx_character_relationships_char1_id").on(table.character1Id),
+  index("idx_character_relationships_char2_id").on(table.character2Id),
+]);
 
 export const chapters = pgTable("chapters", {
   id: serial("id").primaryKey(),
@@ -364,6 +368,7 @@ export const readingProgress = pgTable("reading_progress", {
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
   index("idx_reading_progress_user_project").on(table.userId, table.projectId),
+  unique("unique_reading_progress_user_project").on(table.userId, table.projectId),
 ]);
 
 export const bookmarks = pgTable("bookmarks", {
@@ -586,7 +591,7 @@ export type PlatformFeature = typeof platformFeatures.$inferSelect;
 
 export const contentReports = pgTable("content_reports", {
   id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id),
   reporterIp: varchar("reporter_ip"),
   reporterUserId: varchar("reporter_user_id"),
   reason: varchar("reason").notNull(),

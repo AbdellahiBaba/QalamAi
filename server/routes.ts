@@ -53,6 +53,115 @@ function serveCached(req: any, res: any, cacheKey: string, ttl: number, fetcher:
   });
 }
 
+
+function parseIntParam(value: string): number | null {
+  const num = parseInt(value, 10);
+  return isNaN(num) ? null : num;
+}
+
+const createProjectSchema = z.object({
+  title: z.string().min(1, "العنوان مطلوب").max(200, "العنوان طويل جداً"),
+  mainIdea: z.string().max(5000, "الفكرة الرئيسية طويلة جداً").optional().default(""),
+  timeSetting: z.string().max(500).optional().default(""),
+  placeSetting: z.string().max(500).optional().default(""),
+  narrativePov: z.string().max(50).optional().default("third_person"),
+  pageCount: z.number().int().positive().optional().default(150),
+  projectType: z.enum(["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"]).optional().default("novel"),
+  characters: z.array(z.object({
+    name: z.string().min(1).max(200),
+    background: z.string().max(2000).optional().default(""),
+    role: z.string().max(200).optional().default(""),
+    motivation: z.string().max(1000).optional().nullable(),
+    speechStyle: z.string().max(1000).optional().nullable(),
+    physicalDescription: z.string().max(1000).optional().nullable(),
+    psychologicalTraits: z.string().max(1000).optional().nullable(),
+    age: z.string().max(50).optional().nullable(),
+  })).max(30).optional(),
+  relationships: z.array(z.object({
+    char1Index: z.number().int().min(0),
+    char2Index: z.number().int().min(0),
+    relationship: z.string().min(1).max(500),
+  })).max(50).optional(),
+  subject: z.string().max(200).optional().nullable(),
+  essayTone: z.string().max(200).optional().nullable(),
+  targetAudience: z.string().max(200).optional().nullable(),
+  genre: z.string().max(200).optional().nullable(),
+  episodeCount: z.number().int().min(1).max(100).optional().nullable(),
+  formatType: z.string().max(200).optional().nullable(),
+  narrativeTechnique: z.string().max(200).optional().nullable(),
+  allowDialect: z.boolean().optional().default(false),
+  poetryMeter: z.string().max(100).optional().nullable(),
+  poetryRhyme: z.string().max(100).optional().nullable(),
+  poetryEra: z.string().max(100).optional().nullable(),
+  poetryTone: z.string().max(100).optional().nullable(),
+  poetryTheme: z.string().max(100).optional().nullable(),
+  poetryVerseCount: z.number().int().min(1).max(200).optional().nullable(),
+  poetryImageryLevel: z.number().int().min(1).max(10).optional().nullable(),
+  poetryEmotionLevel: z.number().int().min(1).max(10).optional().nullable(),
+  poetryRawiHaraka: z.string().max(100).optional().nullable(),
+  poetryRidf: z.string().max(500).optional().nullable(),
+  poetryMuarada: z.string().max(500).optional().nullable(),
+  memoireUniversity: z.string().max(500).optional().nullable(),
+  memoireCountry: z.string().max(200).optional().nullable(),
+  memoireFaculty: z.string().max(500).optional().nullable(),
+  memoireDepartment: z.string().max(500).optional().nullable(),
+  memoireField: z.string().max(500).optional().nullable(),
+  memoireDegreeLevel: z.string().max(200).optional().nullable(),
+  memoireMethodology: z.string().max(200).optional().nullable(),
+  memoireCitationStyle: z.string().max(100).optional().nullable(),
+  memoireChapterCount: z.number().int().min(1).max(50).optional().nullable(),
+  memoirePageTarget: z.number().int().min(1).max(1000).optional().nullable(),
+  memoireHypotheses: z.string().max(5000).optional().nullable(),
+  memoireKeywords: z.string().max(2000).optional().nullable(),
+  memoireUserData: z.string().max(10000).optional().nullable(),
+});
+
+const createCharacterSchema = z.object({
+  name: z.string().min(1, "اسم الشخصية مطلوب").max(200, "اسم الشخصية طويل جداً"),
+  role: z.string().min(1, "دور الشخصية مطلوب").max(200),
+  background: z.string().min(1, "خلفية الشخصية مطلوبة").max(2000),
+  motivation: z.string().max(1000).optional().nullable(),
+  speechStyle: z.string().max(1000).optional().nullable(),
+  physicalDescription: z.string().max(1000).optional().nullable(),
+  psychologicalTraits: z.string().max(1000).optional().nullable(),
+  age: z.string().max(50).optional().nullable(),
+});
+
+const createTicketSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب").max(200, "الاسم طويل جداً"),
+  email: z.string().min(1, "البريد الإلكتروني مطلوب").email("البريد الإلكتروني غير صالح").max(200),
+  subject: z.string().min(1, "الموضوع مطلوب").max(200, "الموضوع طويل جداً"),
+  message: z.string().min(1, "الرسالة مطلوبة").max(5000, "الرسالة طويلة جداً"),
+});
+
+const chatMessageSchema = z.object({
+  message: z.string().min(1, "الرسالة مطلوبة").max(5000, "الرسالة طويلة جداً"),
+  history: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string().max(5000),
+  })).max(20).optional(),
+});
+
+const suggestTitlesSchema = z.object({
+  mainIdea: z.string().min(10, "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)").max(2000),
+  timeSetting: z.string().max(200).optional(),
+  placeSetting: z.string().max(200).optional(),
+  narrativePov: z.string().max(50).optional(),
+  characters: z.array(z.object({
+    name: z.string().max(100),
+    role: z.string().max(50),
+  })).max(20).optional(),
+  projectType: z.enum(["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry"]).optional(),
+  poetryMeter: z.string().max(100).optional(),
+  poetryEra: z.string().max(100).optional(),
+  poetryTheme: z.string().max(100).optional(),
+  poetryTone: z.string().max(100).optional(),
+});
+
+function formatZodErrors(error: z.ZodError): string {
+  return error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join("; ");
+}
+
 async function checkApiSuspension(userId: string, res: any): Promise<boolean> {
   const user = await storage.getUser(userId);
   if (user?.apiSuspended) {
@@ -226,8 +335,22 @@ export async function registerRoutes(
   registerAuthRoutes(app);
   await storage.seedDefaultFeatures();
 
-  app.get("/sitemap.xml", async (_req, res) => {
+  app.get("/sitemap.xml", async (req, res) => {
     try {
+      const cacheKey = "sitemap";
+      const ttl = 3600;
+      const cached = apiCache.get<string>(cacheKey);
+      if (cached) {
+        const clientEtag = req.headers["if-none-match"];
+        if (clientEtag && clientEtag === cached.etag) {
+          return res.status(304).end();
+        }
+        res.set("Content-Type", "application/xml");
+        res.setHeader("ETag", cached.etag);
+        res.setHeader("Cache-Control", `public, max-age=${ttl}`);
+        return res.send(cached.data);
+      }
+
       const baseUrl = "https://qalamai.net";
       const staticPages = [
         { loc: "/", priority: "1.0", changefreq: "weekly" },
@@ -278,7 +401,10 @@ ${allPages.map(p => `  <url>
     <priority>${p.priority}</priority>
   </url>`).join("\n")}
 </urlset>`;
+      const entry = apiCache.set(cacheKey, xml, ttl);
       res.set("Content-Type", "application/xml");
+      res.setHeader("ETag", entry.etag);
+      res.setHeader("Cache-Control", `public, max-age=${ttl}`);
       res.send(xml);
     } catch (error) {
       console.error("Sitemap generation error:", error);
@@ -615,7 +741,8 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/favorite", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(projectId);
       if (!project || project.userId !== userId) {
         return res.status(404).json({ error: "المشروع غير موجود" });
@@ -695,7 +822,8 @@ ${allPages.map(p => `  <url>
 
   app.get("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -708,7 +836,8 @@ ${allPages.map(p => `  <url>
 
   app.post("/api/projects/:id/create-checkout", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
@@ -775,7 +904,8 @@ ${allPages.map(p => `  <url>
 
   app.post("/api/projects/:id/payment-success", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
@@ -860,29 +990,23 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/suggest-titles", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const { mainIdea, timeSetting, placeSetting, narrativePov, characters, projectType: reqProjectType, poetryMeter, poetryEra, poetryTheme, poetryTone } = req.body;
-      if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
-        return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
+      const parsed = suggestTitlesSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: formatZodErrors(parsed.error) });
       }
-
-      const safeChars = Array.isArray(characters)
-        ? characters.filter((c: any) => c && typeof c.name === "string" && typeof c.role === "string").slice(0, 20).map((c: any) => ({ name: String(c.name).slice(0, 100), role: String(c.role).slice(0, 50) }))
-        : undefined;
-
-      const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry"];
-      const safeProjectType = validTypes.includes(reqProjectType) ? reqProjectType : undefined;
+      const { mainIdea, timeSetting, placeSetting, narrativePov, characters, projectType: safeProjectType, poetryMeter, poetryEra, poetryTheme, poetryTone } = parsed.data;
 
       const { system, user } = buildTitleSuggestionPrompt({
-        mainIdea: mainIdea.slice(0, 2000),
+        mainIdea,
         projectType: safeProjectType,
-        timeSetting: typeof timeSetting === "string" ? timeSetting.slice(0, 200) : undefined,
-        placeSetting: typeof placeSetting === "string" ? placeSetting.slice(0, 200) : undefined,
-        narrativePov: typeof narrativePov === "string" ? narrativePov.slice(0, 50) : undefined,
-        characters: safeChars,
-        poetryMeter: typeof poetryMeter === "string" ? poetryMeter : undefined,
-        poetryEra: typeof poetryEra === "string" ? poetryEra : undefined,
-        poetryTheme: typeof poetryTheme === "string" ? poetryTheme : undefined,
-        poetryTone: typeof poetryTone === "string" ? poetryTone : undefined,
+        timeSetting,
+        placeSetting,
+        narrativePov,
+        characters: characters?.map(c => ({ name: c.name, role: c.role })),
+        poetryMeter,
+        poetryEra,
+        poetryTheme,
+        poetryTone,
       });
 
       const response = await openai.chat.completions.create({
@@ -928,7 +1052,8 @@ ${allPages.map(p => `  <url>
     try {
       const userId = req.user.claims.sub;
       if (await checkApiSuspension(userId, res)) return;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       if (isNaN(projectId)) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
 
       const project = await storage.getProject(projectId);
@@ -1108,7 +1233,8 @@ ${allPages.map(p => `  <url>
   app.patch("/api/projects/:id/settings", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       if (isNaN(projectId)) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
 
       const project = await storage.getProject(projectId);
@@ -1252,9 +1378,13 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect, poetryMeter, poetryRhyme, poetryEra, poetryTone, poetryTheme, poetryVerseCount, poetryImageryLevel, poetryEmotionLevel, poetryRawiHaraka, poetryRidf, poetryMuarada } = req.body;
+      const parsed = createProjectSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      }
+      const { title, mainIdea, timeSetting, placeSetting, narrativePov, pageCount, characters: chars, relationships, projectType, subject, essayTone, targetAudience, genre, episodeCount, formatType, narrativeTechnique, allowDialect, poetryMeter, poetryRhyme, poetryEra, poetryTone, poetryTheme, poetryVerseCount, poetryImageryLevel, poetryEmotionLevel, poetryRawiHaraka, poetryRidf, poetryMuarada } = parsed.data;
 
-      const type = (projectType === "essay" || projectType === "scenario" || projectType === "short_story" || projectType === "khawater" || projectType === "social_media" || projectType === "poetry" || projectType === "memoire") ? projectType : "novel";
+      const type = projectType;
 
       const featureEnabled = await storage.isFeatureEnabled(type, userId);
       if (!featureEnabled) {
@@ -1262,7 +1392,7 @@ ${allPages.map(p => `  <url>
         return res.status(403).json({ error: feature?.disabledMessage || "هذه الميزة قيد التطوير وستكون متاحة قريباً" });
       }
 
-      const validPageCount = type === "novel" ? (VALID_PAGE_COUNTS.includes(pageCount) ? pageCount : 150) : (pageCount || 10);
+      const validPageCount = type === "novel" ? ((VALID_PAGE_COUNTS as readonly number[]).includes(pageCount) ? pageCount : 150) : (pageCount || 10);
       const price = getProjectPriceByType(type, validPageCount);
 
       const user = await storage.getUser(userId);
@@ -1322,23 +1452,23 @@ ${allPages.map(p => `  <url>
         poetryRawiHaraka: type === "poetry" ? (poetryRawiHaraka || null) : null,
         poetryRidf: type === "poetry" ? (poetryRidf || null) : null,
         poetryMuarada: type === "poetry" ? (poetryMuarada || null) : null,
-        memoireUniversity: type === "memoire" ? (req.body.memoireUniversity || null) : null,
-        memoireCountry: type === "memoire" ? (req.body.memoireCountry || null) : null,
-        memoireFaculty: type === "memoire" ? (req.body.memoireFaculty || null) : null,
-        memoireDepartment: type === "memoire" ? (req.body.memoireDepartment || null) : null,
-        memoireField: type === "memoire" ? (req.body.memoireField || null) : null,
-        memoireDegreeLevel: type === "memoire" ? (req.body.memoireDegreeLevel || null) : null,
-        memoireMethodology: type === "memoire" ? (req.body.memoireMethodology || "mixed") : null,
-        memoireCitationStyle: type === "memoire" ? (req.body.memoireCitationStyle || "apa") : null,
-        memoireChapterCount: type === "memoire" ? (req.body.memoireChapterCount || 5) : null,
-        memoirePageTarget: type === "memoire" ? (req.body.memoirePageTarget || 100) : null,
-        memoireHypotheses: type === "memoire" ? (req.body.memoireHypotheses || null) : null,
-        memoireKeywords: type === "memoire" ? (req.body.memoireKeywords || null) : null,
-        memoireUserData: type === "memoire" ? (req.body.memoireUserData || null) : null,
+        memoireUniversity: type === "memoire" ? (parsed.data.memoireUniversity || null) : null,
+        memoireCountry: type === "memoire" ? (parsed.data.memoireCountry || null) : null,
+        memoireFaculty: type === "memoire" ? (parsed.data.memoireFaculty || null) : null,
+        memoireDepartment: type === "memoire" ? (parsed.data.memoireDepartment || null) : null,
+        memoireField: type === "memoire" ? (parsed.data.memoireField || null) : null,
+        memoireDegreeLevel: type === "memoire" ? (parsed.data.memoireDegreeLevel || null) : null,
+        memoireMethodology: type === "memoire" ? (parsed.data.memoireMethodology || "mixed") : null,
+        memoireCitationStyle: type === "memoire" ? (parsed.data.memoireCitationStyle || "apa") : null,
+        memoireChapterCount: type === "memoire" ? (parsed.data.memoireChapterCount || 5) : null,
+        memoirePageTarget: type === "memoire" ? (parsed.data.memoirePageTarget || 100) : null,
+        memoireHypotheses: type === "memoire" ? (parsed.data.memoireHypotheses || null) : null,
+        memoireKeywords: type === "memoire" ? (parsed.data.memoireKeywords || null) : null,
+        memoireUserData: type === "memoire" ? (parsed.data.memoireUserData || null) : null,
         ...(autoPaid ? { paid: true, status: "draft" } : {}),
       });
 
-      if (chars && Array.isArray(chars) && chars.length > 0) {
+      if (chars && chars.length > 0) {
         const createdChars = [];
         for (const char of chars) {
           const created = await storage.createCharacter({
@@ -1402,7 +1532,8 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/outline", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -1663,7 +1794,8 @@ ${allPages.map(p => `  <url>
 
   app.post("/api/projects/:id/outline/approve", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -1678,7 +1810,8 @@ ${allPages.map(p => `  <url>
 
   app.patch("/api/projects/:id/outline", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -1698,7 +1831,8 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/outline/refine", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -1782,8 +1916,9 @@ ${allPages.map(p => `  <url>
   app.delete("/api/projects/:projectId/chapters/:chapterId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.projectId);
-      const chapterId = parseInt(req.params.chapterId);
+      const projectId = parseIntParam(req.params.projectId);
+      const chapterId = parseIntParam(req.params.chapterId);
+      if (projectId === null || chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       if (isNaN(projectId) || isNaN(chapterId)) {
         return res.status(400).json({ error: "معرّف غير صالح" });
       }
@@ -1808,8 +1943,9 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:projectId/chapters/:chapterId/generate", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const projectId = parseInt(req.params.projectId);
-      const chapterId = parseInt(req.params.chapterId);
+      const projectId = parseIntParam(req.params.projectId);
+      const chapterId = parseIntParam(req.params.chapterId);
+      if (projectId === null || chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
 
       const project = await storage.getProject(projectId);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
@@ -1982,9 +2118,11 @@ ${allPages.map(p => `  <url>
     } catch (error) {
       console.error("Error generating chapter:", error);
       try {
-        const chapter = await storage.getChapter(parseInt(req.params.chapterId));
+        const failedChapterId = parseIntParam(req.params.chapterId);
+        if (failedChapterId === null) throw new Error("Invalid chapterId in cleanup");
+        const chapter = await storage.getChapter(failedChapterId);
         if (chapter && chapter.status === "generating") {
-          await storage.updateChapter(parseInt(req.params.chapterId), {
+          await storage.updateChapter(failedChapterId, {
             status: chapter.content ? "incomplete" : "pending"
           });
         }
@@ -2002,13 +2140,17 @@ ${allPages.map(p => `  <url>
 
   app.post("/api/projects/:id/characters", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
-      const { name, role, background, motivation, speechStyle, physicalDescription, psychologicalTraits, age } = req.body;
-      if (!name || !role || !background) return res.status(400).json({ error: "جميع الحقول مطلوبة" });
+      const parsed = createCharacterSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      }
+      const { name, role, background, motivation, speechStyle, physicalDescription, psychologicalTraits, age } = parsed.data;
 
       const character = await storage.createCharacter({
         projectId: id, name, role, background,
@@ -2027,8 +2169,9 @@ ${allPages.map(p => `  <url>
 
   app.patch("/api/projects/:projectId/chapters/:chapterId", isAuthenticated, async (req: any, res) => {
     try {
-      const projectId = parseInt(req.params.projectId);
-      const chapterId = parseInt(req.params.chapterId);
+      const projectId = parseIntParam(req.params.projectId);
+      const chapterId = parseIntParam(req.params.chapterId);
+      if (projectId === null || chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(projectId);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -2065,8 +2208,11 @@ ${allPages.map(p => `  <url>
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
 
-      const { message, history } = req.body;
-      if (!message || typeof message !== "string") return res.status(400).json({ error: "الرسالة مطلوبة" });
+      const parsed = chatMessageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      }
+      const { message, history } = parsed.data;
 
       const generalChat = await enhanceWithKnowledge(buildGeneralChatPrompt(message), "general");
 
@@ -2074,11 +2220,9 @@ ${allPages.map(p => `  <url>
         { role: "system", content: generalChat.system },
       ];
 
-      if (Array.isArray(history)) {
+      if (history) {
         for (const msg of history.slice(-10)) {
-          if (msg.role === "user" || msg.role === "assistant") {
-            messages.push({ role: msg.role, content: String(msg.content).substring(0, 2000) });
-          }
+          messages.push({ role: msg.role, content: msg.content.substring(0, 2000) });
         }
       }
 
@@ -2111,7 +2255,8 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/chat", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
@@ -2162,7 +2307,8 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/suggest-characters", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -2206,7 +2352,8 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/generate-cover", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -2245,7 +2392,8 @@ ${allPages.map(p => `  <url>
 
   app.get("/api/projects/:id/export/pdf", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const exportUser = await storage.getUser(req.user.claims.sub);
       if (exportUser?.plan === "trial") {
         return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
@@ -3120,7 +3268,8 @@ ${allPages.map(p => `  <url>
 
   app.get("/api/projects/:id/export/epub", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const epubExportUser = await storage.getUser(req.user.claims.sub);
       if (epubExportUser?.plan === "trial") {
         return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
@@ -3494,7 +3643,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/projects/:id/target-word-count", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project || project.userId !== req.user.claims.sub) {
         return res.status(404).json({ error: "المشروع غير موجود" });
@@ -3513,7 +3663,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/projects/:id/reorder-chapters", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project || project.userId !== req.user.claims.sub) {
         return res.status(404).json({ error: "المشروع غير موجود" });
@@ -3544,8 +3695,9 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/chapters/:chapterId/summarize", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
-      const chapterId = parseInt(req.params.chapterId);
+      const id = parseIntParam(req.params.id);
+      const chapterId = parseIntParam(req.params.chapterId);
+      if (id === null || chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProjectWithDetails(id);
       if (!project || project.userId !== req.user.claims.sub) {
         return res.status(404).json({ error: "المشروع غير موجود" });
@@ -3575,7 +3727,8 @@ ${glossaryParagraphs}
 
   app.get("/api/projects/:id/export/docx", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const docxExportUser = await storage.getUser(req.user.claims.sub);
       if (docxExportUser?.plan === "trial") {
         return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
@@ -4363,7 +4516,8 @@ ${glossaryParagraphs}
   app.post("/api/chapters/:id/rewrite", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const chapterId = parseInt(req.params.id);
+      const chapterId = parseIntParam(req.params.id);
+      if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { content, tone } = req.body;
 
@@ -4416,10 +4570,11 @@ ${glossaryParagraphs}
 
   app.post("/api/tickets", async (req: any, res) => {
     try {
-      const { name, email, subject, message } = req.body;
-      if (!name || !email || !subject || !message) {
-        return res.status(400).json({ error: "جميع الحقول مطلوبة" });
+      const parsed = createTicketSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: formatZodErrors(parsed.error) });
       }
+      const { name, email, subject, message } = parsed.data;
       const userId = req.user?.claims?.sub || null;
       const ticket = await storage.createTicket({
         name: sanitizeText(name).slice(0, 200),
@@ -4448,7 +4603,8 @@ ${glossaryParagraphs}
 
   app.get("/api/tickets/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const ticket = await storage.getTicket(id);
       if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -4462,7 +4618,8 @@ ${glossaryParagraphs}
 
   app.post("/api/tickets/:id/reply", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const ticket = await storage.getTicket(id);
       if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -4478,7 +4635,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/tickets/:id/resolve", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const ticket = await storage.getTicket(id);
       if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       if (ticket.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -4504,8 +4662,11 @@ ${glossaryParagraphs}
   app.get("/api/admin/tickets", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const status = req.query.status as string | undefined;
-      const tickets = await storage.getAllTickets(status);
-      res.json(tickets);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const offset = (page - 1) * limit;
+      const result = await storage.getAllTickets(status, limit, offset);
+      res.json({ data: result.data, total: result.total, page, limit });
     } catch (error) {
       console.error("Error fetching tickets:", error);
       res.status(500).json({ error: "فشل في جلب التذاكر" });
@@ -4514,7 +4675,8 @@ ${glossaryParagraphs}
 
   app.get("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const ticket = await storage.getTicket(id);
       if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       const replies = await storage.getTicketReplies(id);
@@ -4530,7 +4692,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/admin/tickets/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { status, priority } = req.body;
       if (status && !VALID_STATUSES.includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
       if (priority && !VALID_PRIORITIES.includes(priority)) return res.status(400).json({ error: "أولوية غير صالحة" });
@@ -4547,7 +4710,8 @@ ${glossaryParagraphs}
 
   app.post("/api/admin/tickets/:id/reply", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const ticket = await storage.getTicket(id);
       if (!ticket) return res.status(404).json({ error: "التذكرة غير موجودة" });
       const { message } = req.body;
@@ -4572,8 +4736,12 @@ ${glossaryParagraphs}
     }
   });
 
-  app.get("/api/admin/users", isAuthenticated, isAdmin, async (_req: any, res) => {
+  app.get("/api/admin/users", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const offset = (page - 1) * limit;
+      const [totalResult] = await db.select({ count: count() }).from(users);
       const usersWithStats = await db
         .select({
           id: users.id,
@@ -4595,14 +4763,16 @@ ${glossaryParagraphs}
         .from(users)
         .leftJoin(novelProjects, eq(users.id, novelProjects.userId))
         .groupBy(users.id)
-        .orderBy(desc(users.createdAt));
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-      const result = usersWithStats.map(u => ({
+      const data = usersWithStats.map(u => ({
         ...u,
         plan: u.plan || "free",
         totalProjects: Number(u.totalProjects),
       }));
-      res.json(result);
+      res.json({ data, total: totalResult?.count || 0, page, limit });
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ error: "فشل في جلب المستخدمين" });
@@ -4686,7 +4856,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/admin/projects/:id/analysis-counts", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       if (isNaN(projectId)) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
 
       const project = await storage.getProject(projectId);
@@ -4722,7 +4893,8 @@ ${glossaryParagraphs}
 
   app.get("/api/chapters/:id/versions", isAuthenticated, async (req: any, res) => {
     try {
-      const chapterId = parseInt(req.params.id);
+      const chapterId = parseIntParam(req.params.id);
+      if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
       const project = await storage.getProject(chapter.projectId);
@@ -4737,8 +4909,9 @@ ${glossaryParagraphs}
 
   app.post("/api/chapters/:id/versions/:versionId/restore", isAuthenticated, async (req: any, res) => {
     try {
-      const chapterId = parseInt(req.params.id);
-      const versionId = parseInt(req.params.versionId);
+      const chapterId = parseIntParam(req.params.id);
+      const versionId = parseIntParam(req.params.versionId);
+      if (chapterId === null || versionId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
       const project = await storage.getProject(chapter.projectId);
@@ -4753,7 +4926,8 @@ ${glossaryParagraphs}
 
   app.post("/api/projects/:id/share", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -4769,7 +4943,8 @@ ${glossaryParagraphs}
 
   app.delete("/api/projects/:id/share", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -4843,7 +5018,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/notifications/:id/read", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const notifs = await storage.getNotificationsByUser(req.user.claims.sub, 1000);
       const owned = notifs.find(n => n.id === id);
       if (!owned) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -4880,10 +5056,13 @@ ${glossaryParagraphs}
     }
   });
 
-  app.get("/api/admin/promos", isAuthenticated, isAdmin, async (_req: any, res) => {
+  app.get("/api/admin/promos", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const promos = await storage.getAllPromoCodes();
-      res.json(promos);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const offset = (page - 1) * limit;
+      const result = await storage.getAllPromoCodes(limit, offset);
+      res.json({ data: result.data, total: result.total, page, limit });
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب العروض" });
     }
@@ -4908,7 +5087,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/admin/promos/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { discountPercent, maxUses, validUntil, applicableTo, active } = req.body;
       const updateData: any = {};
       if (discountPercent !== undefined) updateData.discountPercent = parseInt(discountPercent);
@@ -4925,7 +5105,8 @@ ${glossaryParagraphs}
 
   app.delete("/api/admin/promos/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       await storage.deletePromoCode(id);
       res.json({ success: true });
     } catch (error) {
@@ -4937,7 +5118,8 @@ ${glossaryParagraphs}
   app.put("/api/projects/:id/progress", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { lastChapterId, scrollPosition } = req.body;
       const progress = await storage.upsertReadingProgress(userId, projectId, lastChapterId, scrollPosition);
       res.json(progress);
@@ -4949,7 +5131,8 @@ ${glossaryParagraphs}
   app.get("/api/projects/:id/progress", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const progress = await storage.getReadingProgress(userId, projectId);
       res.json(progress || null);
     } catch (error) {
@@ -4960,7 +5143,8 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/bookmarks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { chapterId, note } = req.body;
       if (!chapterId) return res.status(400).json({ error: "معرّف الفصل مطلوب" });
       const bookmark = await storage.createBookmark({ userId, projectId, chapterId, note });
@@ -4973,7 +5157,8 @@ ${glossaryParagraphs}
   app.get("/api/projects/:id/bookmarks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const bmarks = await storage.getBookmarksByProject(userId, projectId);
       res.json(bmarks);
     } catch (error) {
@@ -4983,7 +5168,8 @@ ${glossaryParagraphs}
 
   app.delete("/api/bookmarks/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const allBookmarks = await db.select().from(bookmarks).where(eq(bookmarks.id, id));
       if (!allBookmarks.length || allBookmarks[0].userId !== userId) {
@@ -5051,84 +5237,89 @@ ${glossaryParagraphs}
   });
 
   app.get("/api/gallery", async (req, res) => {
-    serveCached(req, res, "gallery", 60, async () => {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
+    const cacheKey = `gallery_p${page}_l${limit}`;
+    serveCached(req, res, cacheKey, 60, async () => {
       const projects = await storage.getGalleryProjects();
-      return projects.map(p => ({
-        id: p.id,
-        title: p.title,
-        projectType: p.projectType,
-        coverImageUrl: p.coverImageUrl,
-        shareToken: p.shareToken,
-        mainIdea: p.mainIdea?.slice(0, 200),
-        authorName: p.authorName,
-        authorId: p.authorId,
-        authorAverageRating: p.authorAverageRating,
-      }));
+      const total = projects.length;
+      const offset = (page - 1) * limit;
+      const paged = projects.slice(offset, offset + limit);
+      return {
+        data: paged.map(p => ({
+          id: p.id,
+          title: p.title,
+          projectType: p.projectType,
+          coverImageUrl: p.coverImageUrl,
+          shareToken: p.shareToken,
+          mainIdea: p.mainIdea?.slice(0, 200),
+          authorName: p.authorName,
+          authorId: p.authorId,
+          authorAverageRating: p.authorAverageRating,
+        })),
+        total,
+        page,
+        limit,
+      };
     });
   });
 
   app.get("/api/public/memoires", async (req, res) => {
-    serveCached(req, res, "memoires", 60, async () => {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
+    const cacheKey = `memoires_p${page}_l${limit}`;
+    serveCached(req, res, cacheKey, 60, async () => {
       const projects = await storage.getGalleryProjects();
       const memoires = projects.filter(p => p.projectType === "memoire");
-      return memoires.map(p => ({
-        id: p.id,
-        title: p.title,
-        coverImageUrl: p.coverImageUrl,
-        shareToken: p.shareToken,
-        mainIdea: p.mainIdea?.slice(0, 300),
-        authorName: p.authorName,
-        authorId: p.authorId,
-        authorAverageRating: p.authorAverageRating,
-        memoireUniversity: p.memoireUniversity,
-        memoireCountry: p.memoireCountry,
-        memoireField: p.memoireField,
-        memoireDegreeLevel: p.memoireDegreeLevel,
-        memoireMethodology: p.memoireMethodology,
-        memoireCitationStyle: p.memoireCitationStyle,
-        memoireKeywords: p.memoireKeywords,
-      }));
+      const total = memoires.length;
+      const offset = (page - 1) * limit;
+      const paged = memoires.slice(offset, offset + limit);
+      return {
+        data: paged.map(p => ({
+          id: p.id,
+          title: p.title,
+          coverImageUrl: p.coverImageUrl,
+          shareToken: p.shareToken,
+          mainIdea: p.mainIdea?.slice(0, 300),
+          authorName: p.authorName,
+          authorId: p.authorId,
+          authorAverageRating: p.authorAverageRating,
+          memoireUniversity: p.memoireUniversity,
+          memoireCountry: p.memoireCountry,
+          memoireField: p.memoireField,
+          memoireDegreeLevel: p.memoireDegreeLevel,
+          memoireMethodology: p.memoireMethodology,
+          memoireCitationStyle: p.memoireCitationStyle,
+          memoireKeywords: p.memoireKeywords,
+        })),
+        total,
+        page,
+        limit,
+      };
     });
   });
 
   app.get("/api/public/essays", async (req, res) => {
-    serveCached(req, res, "essays", 60, async () => {
-      const publishedEssays = await storage.getPublishedEssays();
-      const essaysWithStats = await Promise.all(publishedEssays.map(async (p: any) => {
-        const [views, clicks, reactions, chaps] = await Promise.all([
-          storage.getEssayViewCount(p.id),
-          storage.getEssayClickCount(p.id),
-          storage.getEssayReactionCounts(p.id),
-          storage.getChaptersByProject(p.id),
-        ]);
-        const totalWords = chaps.reduce((sum: number, ch: any) => sum + (ch.content ? ch.content.split(/\s+/).length : 0), 0);
-        const [user] = await db.select().from(users).where(eq(users.id, p.userId));
-        const { average: authorAverageRating } = await storage.getAuthorAverageRating(p.userId);
-        return {
-          id: p.id,
-          title: p.title,
-          mainIdea: p.mainIdea?.slice(0, 300),
-          coverImageUrl: p.coverImageUrl,
-          shareToken: p.shareToken,
-          authorName: user?.displayName || user?.firstName || user?.email || "مؤلف",
-          authorId: p.userId,
-          authorAverageRating,
-          subject: p.subject,
-          views,
-          clicks,
-          reactions,
-          totalWords,
-          createdAt: (p as any).createdAt,
-        };
-      }));
-      essaysWithStats.sort((a, b) => b.clicks - a.clicks);
-      return essaysWithStats;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
+    const cacheKey = `essays_p${page}_l${limit}`;
+    serveCached(req, res, cacheKey, 60, async () => {
+      const allEssays = await storage.getPublishedEssaysWithStats();
+      const total = allEssays.length;
+      const offset = (page - 1) * limit;
+      return {
+        data: allEssays.slice(offset, offset + limit),
+        total,
+        page,
+        limit,
+      };
     });
   });
 
   app.post("/api/public/essays/:id/view", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
       const referrer = req.headers.referer || null;
       await storage.recordEssayView(id, visitorIp, referrer as string | undefined);
@@ -5140,7 +5331,8 @@ ${glossaryParagraphs}
 
   app.post("/api/public/essays/:id/click", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
       await storage.recordEssayClick(id, visitorIp);
       res.json({ success: true });
@@ -5152,7 +5344,8 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/publish-to-news", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(projectId);
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (project.projectType !== "essay") return res.status(400).json({ error: "هذا الخيار متاح للمقالات فقط" });
@@ -5167,7 +5360,8 @@ ${glossaryParagraphs}
   app.delete("/api/projects/:id/publish-to-news", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(projectId);
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (project.projectType !== "essay") return res.status(400).json({ error: "هذا الخيار متاح للمقالات فقط" });
@@ -5181,7 +5375,8 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/publish-to-gallery", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(projectId);
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المشروع أولاً" });
@@ -5198,7 +5393,8 @@ ${glossaryParagraphs}
   app.delete("/api/projects/:id/publish-to-gallery", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const projectId = parseInt(req.params.id);
+      const projectId = parseIntParam(req.params.id);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(projectId);
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       await storage.updateProject(projectId, { publishedToGallery: false } as any);
@@ -5210,7 +5406,8 @@ ${glossaryParagraphs}
 
   app.post("/api/public/essays/:id/react", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project || project.projectType !== "essay" || !project.publishedToNews || !project.shareToken) {
         return res.status(404).json({ error: "غير موجود" });
@@ -5230,7 +5427,8 @@ ${glossaryParagraphs}
 
   app.get("/api/public/essays/:id/reactions", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project || project.projectType !== "essay" || !project.publishedToNews || !project.shareToken) {
         return res.status(404).json({ error: "غير موجود" });
@@ -5244,7 +5442,8 @@ ${glossaryParagraphs}
 
   app.get("/api/public/essays/:id/related", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project || project.projectType !== "essay") return res.status(404).json({ error: "غير موجود" });
       const allPublished = await storage.getPublishedEssays();
@@ -5373,7 +5572,8 @@ ${glossaryParagraphs}
   // ===== Content Moderation (Admin) =====
   app.get("/api/admin/projects/:id/content", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const details = await storage.getProjectWithDetails(id);
       if (!details) return res.status(404).json({ error: "المشروع غير موجود" });
       const { chapters: chaps, characters: chars, relationships: rels, ...projectData } = details;
@@ -5385,7 +5585,8 @@ ${glossaryParagraphs}
 
   app.patch("/api/admin/projects/:id/flag", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { flagged, flagReason } = req.body;
       const updated = await storage.updateProject(id, { flagged: !!flagged, flagReason: flagReason || null } as any);
       res.json(updated);
@@ -5488,7 +5689,8 @@ ${glossaryParagraphs}
   app.post("/api/chapters/:id/originality-check", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const chapterId = parseInt(req.params.id);
+      const chapterId = parseIntParam(req.params.id);
+      if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
@@ -5528,7 +5730,8 @@ ${glossaryParagraphs}
   app.post("/api/chapters/:id/enhance-from-originality", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const chapterId = parseInt(req.params.id);
+      const chapterId = parseIntParam(req.params.id);
+      if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { suggestions, flaggedPhrases } = req.body;
 
@@ -5582,7 +5785,8 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/generate-glossary", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
@@ -5632,7 +5836,8 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/continuity-check", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
@@ -5735,7 +5940,8 @@ ${allContent}
   // ===== Resolve Continuity Issue =====
   app.post("/api/projects/:id/resolve-continuity-issue", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { issueIndex } = req.body;
 
@@ -5764,7 +5970,8 @@ ${allContent}
   // ===== Batch Resolve Continuity Issues =====
   app.post("/api/projects/:id/resolve-continuity-issues-batch", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { issueIndices } = req.body;
 
@@ -5803,7 +6010,8 @@ ${allContent}
   app.post("/api/chapters/:id/fix-continuity", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const chapterId = parseInt(req.params.id);
+      const chapterId = parseIntParam(req.params.id);
+      if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { issue } = req.body;
 
@@ -5916,7 +6124,8 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   app.post("/api/projects/:id/style-analysis", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
@@ -5996,7 +6205,8 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   app.post("/api/projects/:id/fix-style-improvement", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { improvement } = req.body;
 
@@ -6141,7 +6351,8 @@ ${ch.content}
   // ===== Resolve Style Improvement =====
   app.post("/api/projects/:id/resolve-style-improvement", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { issueIndex } = req.body;
 
@@ -6170,7 +6381,8 @@ ${ch.content}
   // ===== Batch Resolve Style Improvements =====
   app.post("/api/projects/:id/resolve-style-improvements-batch", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
       const { improvementIndices } = req.body;
 
@@ -6209,7 +6421,8 @@ ${ch.content}
   app.post("/api/projects/:id/fix-all-continuity", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
 
       const project = await storage.getProjectWithDetails(id);
@@ -6334,7 +6547,8 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   app.post("/api/projects/:id/fix-all-style-improvements", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
 
       const project = await storage.getProjectWithDetails(id);
@@ -6500,7 +6714,8 @@ ${ch.content}
 
   app.get("/api/projects/:id/analysis-usage", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
@@ -6526,7 +6741,8 @@ ${ch.content}
 
   app.post("/api/projects/:id/analysis-checkout", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { feature } = req.body;
       if (!feature || !["continuity", "style"].includes(feature)) {
         return res.status(400).json({ error: "نوع التحليل يجب أن يكون 'continuity' أو 'style'" });
@@ -6572,7 +6788,8 @@ ${ch.content}
 
   app.post("/api/projects/:id/analysis-unlock-verify", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { sessionId, feature } = req.body;
       if (!sessionId || !feature || !["continuity", "style"].includes(feature)) {
         return res.status(400).json({ error: "معرّف الجلسة أو نوع التحليل مفقود" });
@@ -6655,12 +6872,15 @@ ${ch.content}
   app.get("/api/admin/reviews", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const filter = req.query.filter;
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const offset = (page - 1) * limit;
       if (filter === "all") {
-        const reviews = await storage.getAllReviews();
-        res.json(reviews);
+        const result = await storage.getAllReviews(limit, offset);
+        res.json({ data: result.data, total: result.total, page, limit });
       } else {
-        const reviews = await storage.getPendingReviews();
-        res.json(reviews);
+        const result = await storage.getPendingReviews(limit, offset);
+        res.json({ data: result.data, total: result.total, page, limit });
       }
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب المراجعات" });
@@ -6669,7 +6889,8 @@ ${ch.content}
 
   app.patch("/api/admin/reviews/:id/approve", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const review = await storage.approvePlatformReview(id);
       apiCache.invalidate("reviews");
       res.json(review);
@@ -6680,7 +6901,8 @@ ${ch.content}
 
   app.delete("/api/admin/reviews/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       await storage.deletePlatformReview(id);
       apiCache.invalidate("reviews");
       res.json({ success: true });
@@ -6784,7 +7006,8 @@ ${ch.content}
 
   app.delete("/api/admin/social-links/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       await storage.deleteSocialMediaLink(id);
       apiCache.invalidate("social-links");
       res.json({ success: true });
@@ -6890,7 +7113,8 @@ ${ch.content}
 
   app.patch("/api/admin/learning/entries/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       if (isNaN(id)) return res.status(400).json({ error: "معرف غير صالح" });
 
       const schema = z.object({
@@ -6913,7 +7137,8 @@ ${ch.content}
 
   app.delete("/api/admin/learning/entries/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       await storage.deleteKnowledgeEntry(id);
       res.json({ success: true });
     } catch (error) {
@@ -7003,7 +7228,8 @@ ${ch.content}
 
   app.delete("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
       if (!project) {
         return res.status(404).json({ error: "المشروع غير موجود" });
@@ -7120,14 +7346,17 @@ ${ch.content}
   app.get("/api/admin/reports", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const status = req.query.status as string | undefined;
-      const reports = await storage.getContentReports(status || undefined);
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+      const offset = (page - 1) * limit;
+      const result = await storage.getContentReports(status || undefined, limit, offset);
       const reportsWithCount = await Promise.all(
-        reports.map(async (r) => ({
+        result.data.map(async (r) => ({
           ...r,
           reportCountForProject: await storage.getReportCountForProject(r.projectId),
         }))
       );
-      res.json(reportsWithCount);
+      res.json({ data: reportsWithCount, total: result.total, page, limit });
     } catch (error) {
       console.error("Error fetching reports:", error);
       res.status(500).json({ error: "فشل في جلب البلاغات" });
@@ -7146,7 +7375,8 @@ ${ch.content}
 
   app.get("/api/admin/reports/project/:projectId", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const projectId = parseInt(req.params.projectId);
+      const projectId = parseIntParam(req.params.projectId);
+      if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const reports = await storage.getReportsForProject(projectId);
       res.json(reports);
     } catch (error) {
@@ -7157,7 +7387,8 @@ ${ch.content}
 
   app.get("/api/admin/reports/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const report = await storage.getContentReport(id);
       if (!report) return res.status(404).json({ error: "البلاغ غير موجود" });
       res.json(report);
@@ -7168,7 +7399,8 @@ ${ch.content}
 
   app.patch("/api/admin/reports/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { status, adminNote, actionTaken, priority } = req.body;
 
       const report = await storage.getContentReport(id);
