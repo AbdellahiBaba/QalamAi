@@ -19,6 +19,7 @@ import { apiCache } from "./cache";
 import { runLearningSession } from "./learning-engine";
 import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
 import { sanitizeText } from "./sanitize";
+import { generateReelVideo, isVideoGenerating } from "./video-generator";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
 import path from "path";
@@ -2387,6 +2388,67 @@ ${allPages.map(p => `  <url>
     } catch (error) {
       console.error("Error generating cover:", error);
       res.status(500).json({ error: "فشل في إنشاء الغلاف" });
+    }
+  });
+
+  app.post("/api/projects/:id/generate-video", isAuthenticated, async (req: any, res) => {
+    try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
+      if (!project.paid) return res.status(403).json({ error: "يجب إتمام الدفع أولاً" });
+      if (project.projectType !== "social_media" || project.genre !== "reels") {
+        return res.status(400).json({ error: "توليد الفيديو متاح فقط لمشاريع الريلز" });
+      }
+      if (isVideoGenerating(id)) {
+        return res.status(409).json({ error: "جارٍ إنشاء الفيديو بالفعل، يرجى الانتظار" });
+      }
+
+      const projectChapters = await storage.getChapters(id);
+      const contentChapter = projectChapters.find((ch: any) => ch.content && ch.content.trim().length > 0);
+      if (!contentChapter) {
+        return res.status(400).json({ error: "يجب إنشاء سكريبت الريلز أولاً قبل توليد الفيديو" });
+      }
+
+      res.json({ status: "generating", message: "جارٍ إنشاء فيديو الريلز... قد يستغرق ذلك دقيقتين" });
+
+      generateReelVideo(
+        { id: project.id, title: project.title },
+        contentChapter.content!,
+      ).then(async (result) => {
+        const filename = result.filePath.split("/").pop() || "";
+        await storage.updateProject(id, { videoUrl: `/generated_videos/${filename}` });
+        console.log(`[VideoGen] Video ready for project ${id}: ${result.filePath}`);
+      }).catch((err) => {
+        console.error(`[VideoGen] Failed for project ${id}:`, err);
+      });
+    } catch (error) {
+      console.error("Error generating video:", error);
+      res.status(500).json({ error: "فشل في بدء توليد الفيديو" });
+    }
+  });
+
+  app.get("/api/projects/:id/video-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
+
+      if (project.videoUrl) {
+        res.json({ status: "ready", videoUrl: project.videoUrl });
+      } else if (isVideoGenerating(id)) {
+        res.json({ status: "generating" });
+      } else {
+        res.json({ status: "idle" });
+      }
+    } catch (error) {
+      console.error("Error checking video status:", error);
+      res.status(500).json({ error: "خطأ في التحقق من حالة الفيديو" });
     }
   });
 

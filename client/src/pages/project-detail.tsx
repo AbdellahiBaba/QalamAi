@@ -19,7 +19,7 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Film
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -223,6 +223,8 @@ export default function ProjectDetail() {
   const [suggestedChars, setSuggestedChars] = useState<Array<{ name: string; role: string; background: string; traits: string }>>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [videoPollingActive, setVideoPollingActive] = useState(false);
   const [showRegenerateCoverConfirm, setShowRegenerateCoverConfirm] = useState(false);
   const [rewriteChapterId, setRewriteChapterId] = useState<number | null>(null);
   const [rewriteContent, setRewriteContent] = useState("");
@@ -627,6 +629,34 @@ export default function ProjectDetail() {
       });
     }
   }, [project, loadedProjectId]);
+
+  useEffect(() => {
+    if (!videoPollingActive || !projectId) return;
+    let pollCount = 0;
+    const interval = setInterval(async () => {
+      pollCount++;
+      try {
+        const res = await fetch(`/api/projects/${projectId}/video-status`, { credentials: "include" });
+        const data = await res.json();
+        if (data.status === "ready") {
+          setVideoPollingActive(false);
+          setIsGeneratingVideo(false);
+          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+          toast({ title: "تم إنشاء فيديو الريلز بنجاح" });
+        } else if (data.status === "idle" && pollCount > 2) {
+          setVideoPollingActive(false);
+          setIsGeneratingVideo(false);
+          toast({ title: "فشل في إنشاء الفيديو، يرجى المحاولة مرة أخرى", variant: "destructive" });
+        }
+      } catch { }
+      if (pollCount > 60) {
+        setVideoPollingActive(false);
+        setIsGeneratingVideo(false);
+        toast({ title: "انتهت مهلة إنشاء الفيديو", variant: "destructive" });
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [videoPollingActive, projectId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1771,6 +1801,96 @@ export default function ProjectDetail() {
                 </CardContent>
               </Card>
             )}
+
+            {project.projectType === "social_media" && project.genre === "reels" && project.paid && (
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-serif text-lg font-semibold">
+                      <Film className="w-5 h-5 inline-block ml-2" />
+                      فيديو الريلز
+                    </h3>
+                  </div>
+                  {(project as any).videoUrl ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-center">
+                        <video
+                          controls
+                          className="max-h-[500px] rounded-lg shadow-lg"
+                          style={{ aspectRatio: "9/16" }}
+                          data-testid="video-reel-player"
+                        >
+                          <source src={(project as any).videoUrl} type="video/mp4" />
+                        </video>
+                      </div>
+                      <div className="flex justify-center gap-2">
+                        <a
+                          href={(project as any).videoUrl}
+                          download={`reel-${project.id}.mp4`}
+                          className="inline-flex"
+                        >
+                          <Button variant="outline" size="sm" data-testid="button-download-video">
+                            <Download className="w-3.5 h-3.5 ml-1" /> تحميل الفيديو
+                          </Button>
+                        </a>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isGeneratingVideo}
+                          onClick={async () => {
+                            setIsGeneratingVideo(true);
+                            try {
+                              await apiRequest("POST", `/api/projects/${projectId}/generate-video`);
+                              setVideoPollingActive(true);
+                              toast({ title: "جارٍ إعادة إنشاء الفيديو..." });
+                            } catch {
+                              toast({ title: "فشل في بدء إنشاء الفيديو", variant: "destructive" });
+                              setIsGeneratingVideo(false);
+                            }
+                          }}
+                          data-testid="button-regenerate-video"
+                        >
+                          {isGeneratingVideo ? (
+                            <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ إعادة الإنشاء...</>
+                          ) : (
+                            <><RefreshCw className="w-3.5 h-3.5 ml-1" /> إعادة إنشاء الفيديو</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        بعد إنشاء سكريبت الريلز، يمكنك توليد فيديو قصير مع صور ذكاء اصطناعي وتعليق صوتي عربي
+                      </p>
+                      <Button
+                        disabled={isGeneratingVideo}
+                        onClick={async () => {
+                          setIsGeneratingVideo(true);
+                          try {
+                            await apiRequest("POST", `/api/projects/${projectId}/generate-video`);
+                            setVideoPollingActive(true);
+                            toast({ title: "أبو هاشم يعمل على إنشاء الفيديو... قد يستغرق ذلك دقيقتين" });
+                          } catch (err: any) {
+                            const errorMsg = err?.message || "فشل في بدء إنشاء الفيديو";
+                            toast({ title: errorMsg, variant: "destructive" });
+                            setIsGeneratingVideo(false);
+                          }
+                        }}
+                        data-testid="button-generate-video"
+                      >
+                        {isGeneratingVideo ? (
+                          <><Loader2 className="w-4 h-4 ml-2 animate-spin" /> أبو هاشم يعمل على إنشاء الفيديو...</>
+                        ) : (
+                          <><Film className="w-4 h-4 ml-2" /> إنشاء فيديو الريلز</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardContent className="p-4 sm:p-6 space-y-4">

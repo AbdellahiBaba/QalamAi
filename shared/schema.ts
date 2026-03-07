@@ -195,6 +195,7 @@ export const novelProjects = pgTable("novel_projects", {
   memoireHypotheses: text("memoire_hypotheses"),
   memoireKeywords: text("memoire_keywords"),
   memoireUserData: text("memoire_user_data"),
+  videoUrl: text("video_url"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [

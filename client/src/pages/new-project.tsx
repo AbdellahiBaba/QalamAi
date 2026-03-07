@@ -683,52 +683,54 @@ export default function NewProject() {
               <p className="text-sm text-muted-foreground">اختر نوع العمل الأدبي الذي تريد إنشاءه</p>
             </div>
 
-            <Card
-              className={`cursor-pointer transition-colors hover-elevate mb-6 ${selectedTemplate === "poetry" ? "border-primary ring-1 ring-primary" : ""}`}
-              data-testid="template-card-poetry"
-            >
-              <CardContent className="p-5">
-                <button
-                  type="button"
-                  onClick={handleSelectPoetryType}
-                  className="w-full text-right"
-                  data-testid="button-template-poetry"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              <Link href="/project/new/reels">
+                <Card
+                  className="cursor-pointer transition-colors hover-elevate h-full border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
+                  data-testid="template-card-reels"
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10 text-primary shrink-0">
-                      <PenLine className="w-5 h-5" />
+                  <CardContent className="p-5">
+                    <div className="w-full text-right">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10 text-primary shrink-0">
+                          <Film className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-serif font-bold text-base">ريلز (فيديو قصير)</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">٧.٩٩ دولار</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">فيديو ريلز احترافي بالذكاء الاصطناعي مع صور وتعليق صوتي لإنستغرام وتيك توك ويوتيوب شورتس</p>
                     </div>
-                    <div>
-                      <h3 className="font-serif font-bold text-base">قصيدة عمودية (الشعر العمودي)</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">١٤.٩٩ دولار</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">اكتب قصيدة عمودية كلاسيكية بجميع البحور الشعرية والأوزان العروضية مع اختيار حرف الروي والعصر الأدبي</p>
-                </button>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </Link>
 
-            <Link href="/project/new/reels">
               <Card
-                className="cursor-pointer transition-colors hover-elevate mb-6"
-                data-testid="template-card-reels"
+                className={`cursor-pointer transition-colors hover-elevate h-full ${selectedTemplate === "poetry" ? "border-primary ring-1 ring-primary" : ""}`}
+                data-testid="template-card-poetry"
               >
                 <CardContent className="p-5">
-                  <div className="w-full text-right">
+                  <button
+                    type="button"
+                    onClick={handleSelectPoetryType}
+                    className="w-full text-right"
+                    data-testid="button-template-poetry"
+                  >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10 text-primary shrink-0">
-                        <Film className="w-5 h-5" />
+                        <PenLine className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="font-serif font-bold text-base">ريلز (فيديو قصير)</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">٧.٩٩ دولار</p>
+                        <h3 className="font-serif font-bold text-base">قصيدة عمودية (الشعر العمودي)</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">١٤.٩٩ دولار</p>
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">سكريبت احترافي لريلز قصير مع توجيهات بصرية ومؤثرات وموسيقى لإنستغرام ريلز وتيك توك ويوتيوب شورتس</p>
-                  </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">اكتب قصيدة عمودية كلاسيكية بجميع البحور الشعرية والأوزان العروضية مع اختيار حرف الروي والعصر الأدبي</p>
+                  </button>
                 </CardContent>
               </Card>
-            </Link>
+            </div>
 
             <div className="text-center mb-4">
               <p className="text-sm text-muted-foreground font-medium">أو اختر قالباً لروايتك</p>
