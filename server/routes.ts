@@ -2407,7 +2407,7 @@ ${allPages.map(p => `  <url>
         return res.status(409).json({ error: "جارٍ إنشاء الفيديو بالفعل، يرجى الانتظار" });
       }
 
-      const projectChapters = await storage.getChapters(id);
+      const projectChapters = await storage.getChaptersByProject(id);
       const contentChapter = projectChapters.find((ch: any) => ch.content && ch.content.trim().length > 0);
       if (!contentChapter) {
         return res.status(400).json({ error: "يجب إنشاء سكريبت الريلز أولاً قبل توليد الفيديو" });
