@@ -242,7 +242,7 @@ async function createSceneVideo(
   if (audioPath) {
     args.push("-i", audioPath);
   } else {
-    args.push("-f", "lavfi", "-i", `anullsrc=channel_layout=mono:sample_rate=44100`);
+    args.push("-f", "lavfi", "-i", `anullsrc=channel_layout=stereo:sample_rate=44100`);
   }
 
   args.push(
@@ -259,12 +259,17 @@ async function createSceneVideo(
 
   args.push(
     "-c:v", "libx264",
-    "-preset", "ultrafast",
-    "-crf", "28",
+    "-profile:v", "baseline",
+    "-level", "3.1",
+    "-preset", "veryfast",
+    "-crf", "23",
     "-c:a", "aac",
-    "-b:a", "96k",
+    "-ac", "2",
+    "-ar", "44100",
+    "-b:a", "128k",
     "-pix_fmt", "yuv420p",
     "-r", "24",
+    "-movflags", "+faststart",
     "-y",
     outputPath,
   );
@@ -295,12 +300,7 @@ async function concatenateClips(clipPaths: string[], workDir: string): Promise<s
       "-f", "concat",
       "-safe", "0",
       "-i", listPath,
-      "-c:v", "libx264",
-      "-preset", "ultrafast",
-      "-crf", "28",
-      "-c:a", "aac",
-      "-b:a", "96k",
-      "-pix_fmt", "yuv420p",
+      "-c", "copy",
       "-movflags", "+faststart",
       "-y",
       outputPath,
