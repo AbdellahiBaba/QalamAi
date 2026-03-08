@@ -2417,6 +2417,8 @@ ${allPages.map(p => `  <url>
         return res.status(400).json({ error: "يجب إنشاء سكريبت الريلز أولاً قبل توليد الفيديو" });
       }
 
+      await storage.updateProject(id, { videoUrl: null });
+
       res.json({ status: "generating", message: "جارٍ إنشاء فيديو الريلز... قد يستغرق ذلك دقيقتين" });
 
       generateReelVideo(
@@ -2427,7 +2429,8 @@ ${allPages.map(p => `  <url>
         await storage.updateProject(id, { videoUrl: `/generated_videos/${filename}` });
         console.log(`[VideoGen] Video ready for project ${id}: ${result.filePath}`);
       }).catch((err) => {
-        console.error(`[VideoGen] Failed for project ${id}:`, err);
+        clearVideoLock(id);
+        console.error(`[VideoGen] Failed for project ${id}:`, err?.message || err);
       });
     } catch (error) {
       console.error("Error generating video:", error);
@@ -2443,10 +2446,10 @@ ${allPages.map(p => `  <url>
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
-      if (project.videoUrl) {
-        res.json({ status: "ready", videoUrl: project.videoUrl });
-      } else if (isVideoGenerating(id)) {
+      if (isVideoGenerating(id)) {
         res.json({ status: "generating" });
+      } else if (project.videoUrl) {
+        res.json({ status: "ready", videoUrl: project.videoUrl });
       } else {
         res.json({ status: "idle" });
       }
