@@ -25,7 +25,7 @@ import {
   PLAN_PRICES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, asc, desc, sql, count, isNotNull, avg, lt, inArray, like, or } from "drizzle-orm";
+import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -95,7 +95,8 @@ export interface IStorage {
   upsertEssayReaction(projectId: number, visitorIp: string, reactionType: string): Promise<void>;
   getEssayReactionCounts(projectId: number): Promise<Record<string, number>>;
   getPublishedEssays(): Promise<NovelProject[]>;
-  getPublishedEssaysWithStats(): Promise<Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>>;
+  getPublishedEssaysWithStats(page?: number, limit?: number): Promise<{ rows: Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>; total: number }>;
+  getGalleryProjectsPaginated(page?: number, limit?: number, projectType?: string): Promise<{ rows: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }>;
   getSocialMediaLinks(): Promise<SocialMediaLink[]>;
   getEnabledSocialMediaLinks(): Promise<SocialMediaLink[]>;
   upsertSocialMediaLink(data: InsertSocialMediaLink): Promise<SocialMediaLink>;
@@ -577,11 +578,15 @@ export class DatabaseStorage implements IStorage {
       authorLastName: users.lastName,
       authorId: users.id,
     }).from(novelProjects)
-      .innerJoin(users, eq(novelProjects.userId, users.id))
-      .where(and(isNotNull(novelProjects.shareToken), eq(novelProjects.publishedToGallery, true)))
+      .leftJoin(users, eq(novelProjects.userId, users.id))
+      .where(and(
+        isNotNull(novelProjects.shareToken),
+        eq(novelProjects.publishedToGallery, true),
+        or(eq(novelProjects.flagged, false), isNull(novelProjects.flagged))
+      ))
       .orderBy(desc(novelProjects.updatedAt));
 
-    const uniqueAuthorIds = [...new Set(projectsWithAuthors.map(r => r.authorId))];
+    const uniqueAuthorIds = [...new Set(projectsWithAuthors.map(r => r.authorId).filter(Boolean))] as string[];
     const ratingsMap = new Map<string, number>();
     if (uniqueAuthorIds.length > 0) {
       const ratingsResult = await db.select({
@@ -598,11 +603,49 @@ export class DatabaseStorage implements IStorage {
     const result = projectsWithAuthors.map(row => ({
       ...row.project,
       authorName: row.authorDisplayName || `${row.authorFirstName || ''} ${row.authorLastName || ''}`.trim() || 'كاتب مجهول',
-      authorId: row.authorId,
-      authorAverageRating: ratingsMap.get(row.authorId) || 0,
+      authorId: row.authorId || row.project.userId,
+      authorAverageRating: row.authorId ? (ratingsMap.get(row.authorId) || 0) : 0,
     }));
     result.sort((a, b) => b.authorAverageRating - a.authorAverageRating || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return result;
+  }
+
+  async getGalleryProjectsPaginated(page: number = 1, limit: number = 24, projectType?: string): Promise<{ rows: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }> {
+    const typeFilter = projectType ? sql`AND p.project_type = ${projectType}` : sql``;
+    const countResult: any[] = (await db.execute(sql`
+      SELECT COUNT(*)::int as total FROM novel_projects p
+      WHERE p.share_token IS NOT NULL AND p.published_to_gallery = true
+        AND (p.flagged = false OR p.flagged IS NULL)
+        ${typeFilter}
+    `)).rows;
+    const total = countResult[0]?.total || 0;
+
+    const offset = (page - 1) * limit;
+    const rows: any[] = (await db.execute(sql`
+      SELECT
+        p.*,
+        COALESCE(u.display_name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')), 'كاتب مجهول') as "authorName",
+        COALESCE(u.id, p.user_id) as "authorId",
+        COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating"
+      FROM novel_projects p
+      LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
+      WHERE p.share_token IS NOT NULL AND p.published_to_gallery = true
+        AND (p.flagged = false OR p.flagged IS NULL)
+        ${typeFilter}
+      ORDER BY "authorAverageRating" DESC, p.updated_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+
+    return {
+      rows: rows.map(r => ({
+        ...r,
+        authorName: r.authorName?.trim() || 'كاتب مجهول',
+        authorId: r.authorId,
+        authorAverageRating: r.authorAverageRating || 0,
+      })),
+      total,
+    };
   }
 
   async updateUserProfileExtended(userId: string, data: { firstName?: string; lastName?: string; bio?: string; displayName?: string; publicProfile?: boolean; onboardingCompleted?: boolean; profileImageUrl?: string }): Promise<User> {
@@ -882,24 +925,35 @@ export class DatabaseStorage implements IStorage {
     ).orderBy(desc(novelProjects.updatedAt));
   }
 
-  async getPublishedEssaysWithStats(): Promise<Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>> {
+  async getPublishedEssaysWithStats(page: number = 1, limit: number = 24): Promise<{ rows: Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>; total: number }> {
+    const offset = (page - 1) * limit;
+
+    const countResult: any[] = (await db.execute(sql`
+      SELECT COUNT(*)::int as total FROM novel_projects p
+      WHERE p.project_type = 'essay' AND p.published_to_news = true AND p.share_token IS NOT NULL
+        AND (p.flagged = false OR p.flagged IS NULL)
+    `)).rows;
+    const total = countResult[0]?.total || 0;
+
     const rows: any[] = (await db.execute(sql`
       SELECT
         p.id, p.title, LEFT(p.main_idea, 300) as "mainIdea", p.cover_image_url as "coverImageUrl",
         p.share_token as "shareToken", p.subject, p.user_id as "authorId", p.created_at as "createdAt",
-        COALESCE(u.display_name, u.first_name, u.email, 'مؤلف') as "authorName",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName",
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
         COALESCE(v.view_count, 0)::int as views,
         COALESCE(c.click_count, 0)::int as clicks,
         COALESCE(w.total_words, 0)::int as "totalWords"
       FROM novel_projects p
-      INNER JOIN users u ON u.id = p.user_id
+      LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
       LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) v ON v.project_id = p.id
       LEFT JOIN (SELECT project_id, COUNT(*)::int as click_count FROM essay_clicks GROUP BY project_id) c ON c.project_id = p.id
       LEFT JOIN (SELECT project_id, SUM(array_length(regexp_split_to_array(COALESCE(content, ''), '\s+'), 1))::int as total_words FROM chapters GROUP BY project_id) w ON w.project_id = p.id
       WHERE p.project_type = 'essay' AND p.published_to_news = true AND p.share_token IS NOT NULL
+        AND (p.flagged = false OR p.flagged IS NULL)
       ORDER BY clicks DESC, p.updated_at DESC
+      LIMIT ${limit} OFFSET ${offset}
     `)).rows;
 
     const projectIds = rows.map(r => r.id);
@@ -917,22 +971,25 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    return rows.map(r => ({
-      id: r.id,
-      title: r.title,
-      mainIdea: r.mainIdea,
-      coverImageUrl: r.coverImageUrl,
-      shareToken: r.shareToken,
-      authorName: r.authorName,
-      authorId: r.authorId,
-      authorAverageRating: r.authorAverageRating,
-      subject: r.subject,
-      views: r.views,
-      clicks: r.clicks,
-      reactions: reactionsMap[r.id] || {},
-      totalWords: r.totalWords,
-      createdAt: r.createdAt,
-    }));
+    return {
+      rows: rows.map(r => ({
+        id: r.id,
+        title: r.title,
+        mainIdea: r.mainIdea,
+        coverImageUrl: r.coverImageUrl,
+        shareToken: r.shareToken,
+        authorName: r.authorName,
+        authorId: r.authorId,
+        authorAverageRating: r.authorAverageRating,
+        subject: r.subject,
+        views: r.views,
+        clicks: r.clicks,
+        reactions: reactionsMap[r.id] || {},
+        totalWords: r.totalWords,
+        createdAt: r.createdAt,
+      })),
+      total,
+    };
   }
 
   async getSocialMediaLinks(): Promise<SocialMediaLink[]> {

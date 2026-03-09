@@ -714,7 +714,29 @@ ${allPages.map(p => `  <url>
     try {
       const userId = req.user.claims.sub;
       const projects = await storage.getProjectsByUser(userId);
-      res.json(projects);
+      const trimmed = projects.map(p => ({
+        id: p.id,
+        title: p.title,
+        projectType: p.projectType,
+        status: p.status,
+        paid: p.paid,
+        coverImageUrl: p.coverImageUrl,
+        mainIdea: p.mainIdea?.slice(0, 200) || null,
+        shareToken: p.shareToken,
+        publishedToGallery: p.publishedToGallery,
+        publishedToNews: p.publishedToNews,
+        videoUrl: p.videoUrl,
+        flagged: p.flagged,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        price: p.price,
+        usedWords: p.usedWords,
+        allowedWords: p.allowedWords,
+        subject: p.subject,
+        genre: p.genre,
+        pageCount: p.pageCount,
+      }));
+      res.json(trimmed);
     } catch (error) {
       console.error("Error fetching projects:", error);
       res.status(500).json({ error: "فشل في جلب المشاريع" });
@@ -5310,12 +5332,9 @@ ${glossaryParagraphs}
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `gallery_p${page}_l${limit}`;
     serveCached(req, res, cacheKey, 60, async () => {
-      const projects = await storage.getGalleryProjects();
-      const total = projects.length;
-      const offset = (page - 1) * limit;
-      const paged = projects.slice(offset, offset + limit);
+      const result = await storage.getGalleryProjectsPaginated(page, limit);
       return {
-        data: paged.map(p => ({
+        data: result.rows.map(p => ({
           id: p.id,
           title: p.title,
           projectType: p.projectType,
@@ -5326,7 +5345,7 @@ ${glossaryParagraphs}
           authorId: p.authorId,
           authorAverageRating: p.authorAverageRating,
         })),
-        total,
+        total: result.total,
         page,
         limit,
       };
@@ -5338,13 +5357,9 @@ ${glossaryParagraphs}
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `memoires_p${page}_l${limit}`;
     serveCached(req, res, cacheKey, 60, async () => {
-      const projects = await storage.getGalleryProjects();
-      const memoires = projects.filter(p => p.projectType === "memoire");
-      const total = memoires.length;
-      const offset = (page - 1) * limit;
-      const paged = memoires.slice(offset, offset + limit);
+      const result = await storage.getGalleryProjectsPaginated(page, limit, "memoire");
       return {
-        data: paged.map(p => ({
+        data: result.rows.map(p => ({
           id: p.id,
           title: p.title,
           coverImageUrl: p.coverImageUrl,
@@ -5361,7 +5376,7 @@ ${glossaryParagraphs}
           memoireCitationStyle: p.memoireCitationStyle,
           memoireKeywords: p.memoireKeywords,
         })),
-        total,
+        total: result.total,
         page,
         limit,
       };
@@ -5373,12 +5388,10 @@ ${glossaryParagraphs}
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `essays_p${page}_l${limit}`;
     serveCached(req, res, cacheKey, 60, async () => {
-      const allEssays = await storage.getPublishedEssaysWithStats();
-      const total = allEssays.length;
-      const offset = (page - 1) * limit;
+      const result = await storage.getPublishedEssaysWithStats(page, limit);
       return {
-        data: allEssays.slice(offset, offset + limit),
-        total,
+        data: result.rows,
+        total: result.total,
         page,
         limit,
       };

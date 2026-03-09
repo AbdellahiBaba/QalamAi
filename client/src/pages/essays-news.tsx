@@ -172,6 +172,7 @@ export default function EssaysNews() {
                         height={360}
                         className="w-full h-full object-cover"
                         loading="lazy"
+                        decoding="async"
                         data-testid={`img-essay-cover-${essay.id}`}
                       />
                     ) : (

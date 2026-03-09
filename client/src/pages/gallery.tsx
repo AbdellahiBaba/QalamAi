@@ -219,6 +219,7 @@ export default function Gallery() {
                         height={400}
                         className="w-full h-full object-cover"
                         loading="lazy"
+                        decoding="async"
                         data-testid={`img-gallery-cover-${project.id}`}
                       />
                     ) : (
