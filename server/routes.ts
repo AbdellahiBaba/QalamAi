@@ -735,6 +735,8 @@ ${allPages.map(p => `  <url>
         subject: p.subject,
         genre: p.genre,
         pageCount: p.pageCount,
+        targetWordCount: p.targetWordCount,
+        narrativePov: p.narrativePov,
       }));
       res.json(trimmed);
     } catch (error) {

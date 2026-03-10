@@ -1398,7 +1398,7 @@ export default function ProjectDetail() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
+            {(project.paid || (project.chapters?.every(c => c.status === "completed") && project.chapters && project.chapters.length > 0)) && (
               <Button
                 size="sm"
                 onClick={() => handleExportDownload("pdf")}
@@ -1415,7 +1415,7 @@ export default function ProjectDetail() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" dir="rtl" className="w-56" data-testid="dropdown-actions-menu">
-                {project.chapters?.every(c => c.status === "completed") && project.chapters.length > 0 && (
+                {(project.paid || (project.chapters?.every(c => c.status === "completed") && project.chapters && project.chapters.length > 0)) && (
                   <>
                     <DropdownMenuItem
                       onClick={() => handleExportDownload("pdf")}

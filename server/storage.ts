@@ -623,7 +623,13 @@ export class DatabaseStorage implements IStorage {
     const offset = (page - 1) * limit;
     const rows: any[] = (await db.execute(sql`
       SELECT
-        p.*,
+        p.id, p.title, p.project_type as "projectType",
+        p.cover_image_url as "coverImageUrl", p.share_token as "shareToken",
+        LEFT(p.main_idea, 300) as "mainIdea", p.subject,
+        p.memoire_university as "memoireUniversity", p.memoire_country as "memoireCountry",
+        p.memoire_field as "memoireField", p.memoire_degree_level as "memoireDegreeLevel",
+        p.memoire_methodology as "memoireMethodology", p.memoire_citation_style as "memoireCitationStyle",
+        p.memoire_keywords as "memoireKeywords",
         COALESCE(u.display_name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')), 'كاتب مجهول') as "authorName",
         COALESCE(u.id, p.user_id) as "authorId",
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating"
@@ -641,8 +647,6 @@ export class DatabaseStorage implements IStorage {
       rows: rows.map(r => ({
         ...r,
         authorName: r.authorName?.trim() || 'كاتب مجهول',
-        authorId: r.authorId,
-        authorAverageRating: r.authorAverageRating || 0,
       })),
       total,
     };
