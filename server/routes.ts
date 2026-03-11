@@ -5017,6 +5017,12 @@ ${glossaryParagraphs}
     }
   });
 
+  async function isProjectEligibleForSharing(project: any): Promise<boolean> {
+    if (project.paid) return true;
+    const chapters = await storage.getChaptersByProject(project.id);
+    return chapters.length > 0 && chapters.every((c: any) => c.status === "completed");
+  }
+
   app.post("/api/projects/:id/share", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseIntParam(req.params.id);
@@ -5024,6 +5030,7 @@ ${glossaryParagraphs}
       const project = await storage.getProject(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
+      if (!(await isProjectEligibleForSharing(project))) return res.status(400).json({ error: "يجب إتمام الدفع أو إكمال جميع الفصول قبل المشاركة" });
       const crypto = await import("crypto");
       const token = crypto.randomBytes(16).toString("hex");
       const updated = await storage.updateProject(id, { shareToken: token } as any);
@@ -5434,6 +5441,7 @@ ${glossaryParagraphs}
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (project.projectType !== "essay") return res.status(400).json({ error: "هذا الخيار متاح للمقالات فقط" });
       if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المقال أولاً" });
+      if (!(await isProjectEligibleForSharing(project))) return res.status(400).json({ error: "يجب إتمام الدفع أو إكمال جميع الفصول قبل النشر" });
       await storage.updateProject(projectId, { publishedToNews: true } as any);
       res.json({ success: true });
     } catch (error) {
@@ -5464,6 +5472,7 @@ ${glossaryParagraphs}
       const project = await storage.getProject(projectId);
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المشروع أولاً" });
+      if (!(await isProjectEligibleForSharing(project))) return res.status(400).json({ error: "يجب إتمام الدفع أو إكمال جميع الفصول قبل النشر" });
       await storage.updateProject(projectId, { publishedToGallery: true } as any);
       apiCache.invalidate("gallery");
       apiCache.invalidate("memoires");
