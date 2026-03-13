@@ -5529,12 +5529,21 @@ ${glossaryParagraphs}
         return res.json({ projects: [], authors: [], series: [], total: 0 });
       }
 
-      const validTypes = ["all", "projects", "authors", "series"];
+      const validTypes = ["all", "projects", "authors", "series", "prompts"];
       const type = validTypes.includes(req.query.type as string) ? (req.query.type as string) : "all";
+      const category = (req.query.category as string) || "";
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(30, Math.max(1, parseInt(req.query.limit as string) || 12));
       const offset = (page - 1) * limit;
       const isShort = q.length < 3;
+      const likeParam = `%${q}%`;
+
+      const validCategories = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"];
+      const categoryFilter = validCategories.includes(category) ? category : "";
+
+      function safeTsQuery(input: string): string {
+        return input.replace(/[^a-zA-Z0-9\u0600-\u06FF\s]/g, " ").trim().split(/\s+/).filter(Boolean).join(" & ");
+      }
 
       const { pool } = await import("./db");
 
@@ -5544,85 +5553,100 @@ ${glossaryParagraphs}
       let authorTotal = 0;
       let series: any[] = [];
       let seriesTotal = 0;
+      let prompts: any[] = [];
+      let promptTotal = 0;
 
       if (type === "all" || type === "projects") {
-        const projectQuery = isShort
-          ? `SELECT np.id, np.title, np.main_idea, np.cover_image_url, np.share_token, np.project_type, np.user_id,
+        const tsq = safeTsQuery(q);
+        const categoryClause = categoryFilter ? ` AND np.project_type = '${categoryFilter}'` : "";
+        const categoryClauseNoAlias = categoryFilter ? ` AND project_type = '${categoryFilter}'` : "";
+
+        if (isShort || !tsq) {
+          const projectQuery = `SELECT np.id, np.title, np.main_idea, np.cover_image_url, np.share_token, np.project_type, np.user_id,
                     COALESCE(u.display_name, u.first_name, '') as author_name
              FROM novel_projects np
              LEFT JOIN users u ON np.user_id = u.id
              WHERE (np.published_to_gallery = true OR np.published_to_news = true)
-               AND (np.title ILIKE $1 OR np.main_idea ILIKE $1)
+               AND (np.title ILIKE $1 OR np.main_idea ILIKE $1)${categoryClause}
              ORDER BY np.created_at DESC
-             LIMIT $2 OFFSET $3`
-          : `SELECT np.id, np.title, np.main_idea, np.cover_image_url, np.share_token, np.project_type, np.user_id,
+             LIMIT $2 OFFSET $3`;
+          const projectResult = await pool.query(projectQuery, [likeParam, limit, offset]);
+          projects = projectResult.rows;
+
+          const countResult = await pool.query(
+            `SELECT COUNT(*) FROM novel_projects WHERE (published_to_gallery = true OR published_to_news = true) AND (title ILIKE $1 OR main_idea ILIKE $1)${categoryClauseNoAlias}`,
+            [likeParam]
+          );
+          projectTotal = parseInt(countResult.rows[0]?.count || "0");
+        } else {
+          const projectQuery = `SELECT np.id, np.title, np.main_idea, np.cover_image_url, np.share_token, np.project_type, np.user_id,
                     COALESCE(u.display_name, u.first_name, '') as author_name,
-                    ts_rank(to_tsvector('simple', COALESCE(np.title, '')), plainto_tsquery('simple', $1)) +
-                    ts_rank(to_tsvector('simple', COALESCE(np.main_idea, '')), plainto_tsquery('simple', $1)) as rank
+                    ts_rank(np.search_tsv, to_tsquery('simple', $1)) as rank
              FROM novel_projects np
              LEFT JOIN users u ON np.user_id = u.id
              WHERE (np.published_to_gallery = true OR np.published_to_news = true)
-               AND (to_tsvector('simple', COALESCE(np.title, '')) @@ plainto_tsquery('simple', $1)
-                    OR to_tsvector('simple', COALESCE(np.main_idea, '')) @@ plainto_tsquery('simple', $1)
-                    OR np.title ILIKE $4)
+               AND (np.search_tsv @@ to_tsquery('simple', $1) OR np.title ILIKE $4)${categoryClause}
              ORDER BY rank DESC NULLS LAST, np.created_at DESC
              LIMIT $2 OFFSET $3`;
+          const projectResult = await pool.query(projectQuery, [tsq, limit, offset, likeParam]);
+          projects = projectResult.rows;
 
-        const likeParam = `%${q}%`;
-        const projectParams = isShort
-          ? [likeParam, limit, offset]
-          : [q, limit, offset, likeParam];
-
-        const projectResult = await pool.query(projectQuery, projectParams);
-        projects = projectResult.rows;
-
-        const countQuery = isShort
-          ? `SELECT COUNT(*) FROM novel_projects WHERE (published_to_gallery = true OR published_to_news = true) AND (title ILIKE $1 OR main_idea ILIKE $1)`
-          : `SELECT COUNT(*) FROM novel_projects WHERE (published_to_gallery = true OR published_to_news = true)
-               AND (to_tsvector('simple', COALESCE(title, '')) @@ plainto_tsquery('simple', $1)
-                    OR to_tsvector('simple', COALESCE(main_idea, '')) @@ plainto_tsquery('simple', $1)
-                    OR title ILIKE $2)`;
-        const countParams = isShort ? [likeParam] : [q, likeParam];
-        const countResult = await pool.query(countQuery, countParams);
-        projectTotal = parseInt(countResult.rows[0]?.count || "0");
+          const countResult = await pool.query(
+            `SELECT COUNT(*) FROM novel_projects WHERE (published_to_gallery = true OR published_to_news = true)
+               AND (search_tsv @@ to_tsquery('simple', $1) OR title ILIKE $2)${categoryClauseNoAlias}`,
+            [tsq, likeParam]
+          );
+          projectTotal = parseInt(countResult.rows[0]?.count || "0");
+        }
       }
 
       if (type === "all" || type === "authors") {
-        const authorQuery = isShort
-          ? `SELECT id, display_name, first_name, last_name, profile_image_url, verified, country
+        const tsq = safeTsQuery(q);
+
+        if (isShort || !tsq) {
+          const authorQuery = `SELECT id, display_name, first_name, last_name, profile_image_url, verified, country
              FROM users
              WHERE (display_name IS NOT NULL AND display_name != '')
                AND (display_name ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1)
-             LIMIT $2 OFFSET $3`
-          : `SELECT id, display_name, first_name, last_name, profile_image_url, verified, country,
-                    ts_rank(to_tsvector('simple', COALESCE(display_name, '')), plainto_tsquery('simple', $1)) as rank
+             LIMIT $2 OFFSET $3`;
+          const authorResult = await pool.query(authorQuery, [likeParam, limit, offset]);
+          authors = authorResult.rows.map((u: any) => ({
+            id: u.id,
+            displayName: u.display_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || "",
+            profileImageUrl: u.profile_image_url,
+            verified: u.verified || false,
+            country: u.country,
+          }));
+
+          const authorCountResult = await pool.query(
+            `SELECT COUNT(*) FROM users WHERE (display_name IS NOT NULL AND display_name != '') AND (display_name ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1)`,
+            [likeParam]
+          );
+          authorTotal = parseInt(authorCountResult.rows[0]?.count || "0");
+        } else {
+          const authorQuery = `SELECT id, display_name, first_name, last_name, profile_image_url, verified, country,
+                    ts_rank(search_tsv, to_tsquery('simple', $1)) as rank
              FROM users
              WHERE (display_name IS NOT NULL AND display_name != '')
-               AND (to_tsvector('simple', COALESCE(display_name, '')) @@ plainto_tsquery('simple', $1)
+               AND (search_tsv @@ to_tsquery('simple', $1)
                    OR display_name ILIKE $4 OR first_name ILIKE $4 OR last_name ILIKE $4)
              ORDER BY rank DESC NULLS LAST
              LIMIT $2 OFFSET $3`;
+          const authorResult = await pool.query(authorQuery, [tsq, limit, offset, likeParam]);
+          authors = authorResult.rows.map((u: any) => ({
+            id: u.id,
+            displayName: u.display_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || "",
+            profileImageUrl: u.profile_image_url,
+            verified: u.verified || false,
+            country: u.country,
+          }));
 
-        const likeParam = `%${q}%`;
-        const authorParams = isShort
-          ? [likeParam, limit, offset]
-          : [q, limit, offset, likeParam];
-
-        const authorResult = await pool.query(authorQuery, authorParams);
-        authors = authorResult.rows.map((u: any) => ({
-          id: u.id,
-          displayName: u.display_name || `${u.first_name || ""} ${u.last_name || ""}`.trim() || "",
-          profileImageUrl: u.profile_image_url,
-          verified: u.verified || false,
-          country: u.country,
-        }));
-
-        const authorCountQuery = isShort
-          ? `SELECT COUNT(*) FROM users WHERE (display_name IS NOT NULL AND display_name != '') AND (display_name ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1)`
-          : `SELECT COUNT(*) FROM users WHERE (display_name IS NOT NULL AND display_name != '') AND (to_tsvector('simple', COALESCE(display_name, '')) @@ plainto_tsquery('simple', $1) OR display_name ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2)`;
-        const authorCountParams = isShort ? [likeParam] : [q, likeParam];
-        const authorCountResult = await pool.query(authorCountQuery, authorCountParams);
-        authorTotal = parseInt(authorCountResult.rows[0]?.count || "0");
+          const authorCountResult = await pool.query(
+            `SELECT COUNT(*) FROM users WHERE (display_name IS NOT NULL AND display_name != '') AND (search_tsv @@ to_tsquery('simple', $1) OR display_name ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2)`,
+            [tsq, likeParam]
+          );
+          authorTotal = parseInt(authorCountResult.rows[0]?.count || "0");
+        }
       }
 
       if (type === "all" || type === "series") {
@@ -5633,7 +5657,6 @@ ${glossaryParagraphs}
                              WHERE cs.title ILIKE $1 OR cs.description ILIKE $1
                              ORDER BY cs.created_at DESC
                              LIMIT $2 OFFSET $3`;
-        const likeParam = `%${q}%`;
         const seriesResult = await pool.query(seriesQuery, [likeParam, limit, offset]);
         series = seriesResult.rows;
 
@@ -5644,14 +5667,37 @@ ${glossaryParagraphs}
         seriesTotal = parseInt(seriesCountResult.rows[0]?.count || "0");
       }
 
+      if (type === "all" || type === "prompts") {
+        const promptQuery = `SELECT dpe.id, dpe.content, dpe.created_at,
+                                    dp.prompt_text, dp.prompt_date,
+                                    COALESCE(u.display_name, u.first_name, '') as author_name,
+                                    u.id as author_id, u.profile_image_url as author_image
+                             FROM daily_prompt_entries dpe
+                             JOIN daily_prompts dp ON dpe.prompt_id = dp.id
+                             LEFT JOIN users u ON dpe.user_id = u.id
+                             WHERE dpe.content ILIKE $1 OR dp.prompt_text ILIKE $1
+                             ORDER BY dpe.created_at DESC
+                             LIMIT $2 OFFSET $3`;
+        const promptResult = await pool.query(promptQuery, [likeParam, limit, offset]);
+        prompts = promptResult.rows;
+
+        const promptCountResult = await pool.query(
+          `SELECT COUNT(*) FROM daily_prompt_entries dpe JOIN daily_prompts dp ON dpe.prompt_id = dp.id WHERE dpe.content ILIKE $1 OR dp.prompt_text ILIKE $1`,
+          [likeParam]
+        );
+        promptTotal = parseInt(promptCountResult.rows[0]?.count || "0");
+      }
+
       res.json({
         projects,
         authors,
         series,
-        total: projectTotal + authorTotal + seriesTotal,
+        prompts,
+        total: projectTotal + authorTotal + seriesTotal + promptTotal,
         projectTotal,
         authorTotal,
         seriesTotal,
+        promptTotal,
         page,
         limit,
       });

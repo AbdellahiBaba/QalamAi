@@ -17,6 +17,7 @@ import {
   BookOpen,
   Users,
   BadgeCheck,
+  Lightbulb,
 } from "lucide-react";
 
 export const navLinks = [
@@ -105,7 +106,7 @@ function NavbarSearch() {
     setLocation(path);
   }
 
-  const hasResults = results && (results.projects?.length > 0 || results.authors?.length > 0 || results.series?.length > 0);
+  const hasResults = results && (results.projects?.length > 0 || results.authors?.length > 0 || results.series?.length > 0 || results.prompts?.length > 0);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -186,6 +187,27 @@ function NavbarSearch() {
                   </Avatar>
                   <span className="truncate text-xs">{a.displayName}</span>
                   {a.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#1D9BF0] flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {results?.prompts?.length > 0 && (
+            <div className="p-2 border-t">
+              <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1 px-2">
+                <Lightbulb className="w-3 h-3" /> تحدي الكتابة
+              </div>
+              {results.prompts.slice(0, 2).map((p: any) => (
+                <button
+                  key={p.id}
+                  className="w-full text-right px-2 py-1.5 rounded hover:bg-accent flex items-center gap-2 text-sm"
+                  onClick={() => navigateTo("/daily-prompt")}
+                  data-testid={`search-result-prompt-${p.id}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs">{p.content?.slice(0, 60)}...</div>
+                    <div className="truncate text-[10px] text-muted-foreground">{p.author_name}</div>
+                  </div>
                 </button>
               ))}
             </div>

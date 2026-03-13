@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, BookOpen, Users, ListOrdered, ChevronLeft, ChevronRight, BadgeCheck, FileText, Clapperboard, PenLine, MessageCircle, Feather as FeatherIcon, GraduationCap } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, BookOpen, Users, ListOrdered, ChevronLeft, ChevronRight, BadgeCheck, FileText, Clapperboard, PenLine, MessageCircle, Feather as FeatherIcon, GraduationCap, Lightbulb } from "lucide-react";
 
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   novel: "رواية",
@@ -29,11 +30,24 @@ const PROJECT_TYPE_ICONS: Record<string, typeof BookOpen> = {
   memoire: GraduationCap,
 };
 
+const CATEGORY_OPTIONS = [
+  { value: "all", label: "جميع الأنواع" },
+  { value: "novel", label: "روايات" },
+  { value: "essay", label: "مقالات" },
+  { value: "scenario", label: "سيناريوهات" },
+  { value: "short_story", label: "قصص قصيرة" },
+  { value: "khawater", label: "خواطر" },
+  { value: "social_media", label: "سوشيال ميديا" },
+  { value: "poetry", label: "شعر" },
+  { value: "memoire", label: "مذكرات تخرج" },
+];
+
 const TABS = [
   { key: "all", label: "الكل" },
   { key: "projects", label: "الأعمال" },
   { key: "authors", label: "الكتّاب" },
   { key: "series", label: "السلاسل" },
+  { key: "prompts", label: "تحدي الكتابة" },
 ];
 
 function useSearchParams() {
@@ -46,29 +60,38 @@ export default function SearchPage() {
   const params = useSearchParams();
   const initialQuery = params.get("q") || "";
   const initialType = params.get("type") || "all";
+  const initialCategory = params.get("category") || "all";
   const initialPage = parseInt(params.get("page") || "1");
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [activeType, setActiveType] = useState(initialType);
+  const [category, setCategory] = useState(initialCategory);
   const [page, setPage] = useState(initialPage);
   const [, setLocation] = useLocation();
 
   const queryStr = searchQuery.trim();
+  const categoryParam = category !== "all" ? category : "";
 
   const { data, isLoading } = useQuery<any>({
-    queryKey: ["/api/search", `?q=${encodeURIComponent(queryStr)}&type=${activeType}&page=${page}&limit=12`],
+    queryKey: ["/api/search", `?q=${encodeURIComponent(queryStr)}&type=${activeType}&category=${categoryParam}&page=${page}&limit=12`],
     enabled: queryStr.length >= 2,
   });
 
   useEffect(() => {
     if (queryStr.length >= 2) {
-      const newUrl = `/search?q=${encodeURIComponent(queryStr)}&type=${activeType}&page=${page}`;
+      const catPart = category !== "all" ? `&category=${category}` : "";
+      const newUrl = `/search?q=${encodeURIComponent(queryStr)}&type=${activeType}${catPart}&page=${page}`;
       window.history.replaceState(null, "", newUrl);
     }
-  }, [queryStr, activeType, page]);
+  }, [queryStr, activeType, category, page]);
 
   function handleTabChange(tab: string) {
     setActiveType(tab);
+    setPage(1);
+  }
+
+  function handleCategoryChange(val: string) {
+    setCategory(val);
     setPage(1);
   }
 
@@ -80,12 +103,20 @@ export default function SearchPage() {
   const projects = data?.projects || [];
   const authors = data?.authors || [];
   const series = data?.series || [];
+  const prompts = data?.prompts || [];
   const projectTotal = data?.projectTotal || 0;
   const authorTotal = data?.authorTotal || 0;
   const seriesTotal = data?.seriesTotal || 0;
-  const totalPages = Math.ceil(
-    (activeType === "projects" ? projectTotal : activeType === "authors" ? authorTotal : activeType === "series" ? seriesTotal : (projectTotal + authorTotal + seriesTotal)) / 12
-  );
+  const promptTotal = data?.promptTotal || 0;
+
+  const activeTotal = activeType === "projects" ? projectTotal
+    : activeType === "authors" ? authorTotal
+    : activeType === "series" ? seriesTotal
+    : activeType === "prompts" ? promptTotal
+    : (projectTotal + authorTotal + seriesTotal + promptTotal);
+  const totalPages = Math.ceil(activeTotal / 12);
+
+  const hasAnyResults = projects.length > 0 || authors.length > 0 || series.length > 0 || prompts.length > 0;
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -109,27 +140,45 @@ export default function SearchPage() {
           </form>
         </div>
 
-        <div className="flex gap-2 mb-6 border-b pb-3 overflow-x-auto">
-          {TABS.map((tab) => {
-            const count = tab.key === "all" ? (projectTotal + authorTotal + seriesTotal)
-              : tab.key === "projects" ? projectTotal
-              : tab.key === "authors" ? authorTotal
-              : seriesTotal;
-            return (
-              <Button
-                key={tab.key}
-                variant={activeType === tab.key ? "default" : "ghost"}
-                size="sm"
-                onClick={() => handleTabChange(tab.key)}
-                data-testid={`button-tab-${tab.key}`}
-              >
-                {tab.label}
-                {queryStr.length >= 2 && count > 0 && (
-                  <Badge variant="secondary" className="mr-1 text-xs">{count}</Badge>
-                )}
-              </Button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-2 mb-6 border-b pb-3">
+          <div className="flex gap-2 overflow-x-auto flex-1">
+            {TABS.map((tab) => {
+              const count = tab.key === "all" ? (projectTotal + authorTotal + seriesTotal + promptTotal)
+                : tab.key === "projects" ? projectTotal
+                : tab.key === "authors" ? authorTotal
+                : tab.key === "series" ? seriesTotal
+                : promptTotal;
+              return (
+                <Button
+                  key={tab.key}
+                  variant={activeType === tab.key ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => handleTabChange(tab.key)}
+                  data-testid={`button-tab-${tab.key}`}
+                >
+                  {tab.label}
+                  {queryStr.length >= 2 && count > 0 && (
+                    <Badge variant="secondary" className="mr-1 text-xs">{count}</Badge>
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+
+          {(activeType === "all" || activeType === "projects") && (
+            <Select value={category} onValueChange={handleCategoryChange}>
+              <SelectTrigger className="w-40 h-8 text-xs" data-testid="select-category">
+                <SelectValue placeholder="نوع المحتوى" />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} data-testid={`option-category-${opt.value}`}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {queryStr.length < 2 && (
@@ -146,7 +195,7 @@ export default function SearchPage() {
           </div>
         )}
 
-        {!isLoading && queryStr.length >= 2 && projects.length === 0 && authors.length === 0 && series.length === 0 && (
+        {!isLoading && queryStr.length >= 2 && !hasAnyResults && (
           <div className="text-center py-16 text-muted-foreground" data-testid="text-search-empty">
             <Search className="w-12 h-12 mx-auto mb-4 opacity-30" />
             <p>لم يتم العثور على نتائج لـ "{queryStr}"</p>
@@ -235,6 +284,42 @@ export default function SearchPage() {
                     {s.description && (
                       <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{s.description}</p>
                     )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isLoading && (activeType === "all" || activeType === "prompts") && prompts.length > 0 && (
+          <div className="mb-10">
+            {activeType === "all" && <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Lightbulb className="w-5 h-5" /> تحدي الكتابة ({promptTotal})</h2>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {prompts.map((p: any) => (
+                <Link key={p.id} href="/daily-prompt">
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer bg-card" data-testid={`card-prompt-${p.id}`}>
+                    <div className="flex items-start gap-3">
+                      {p.author_image ? (
+                        <Avatar className="w-8 h-8 flex-shrink-0">
+                          <AvatarImage src={p.author_image} />
+                          <AvatarFallback>{(p.author_name || "?")[0]}</AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <Lightbulb className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground mb-1">{p.prompt_text}</p>
+                        <p className="text-sm line-clamp-3">{p.content}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs text-muted-foreground">{p.author_name}</span>
+                          {p.prompt_date && (
+                            <span className="text-xs text-muted-foreground">{p.prompt_date}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </Link>
               ))}

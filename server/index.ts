@@ -528,9 +528,19 @@ app.use((req, res, next) => {
       )
     `);
 
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_search_title ON novel_projects USING gin (to_tsvector('simple', COALESCE(title, '')))`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_search_desc ON novel_projects USING gin (to_tsvector('simple', COALESCE(main_idea, '')))`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_search_name ON users USING gin (to_tsvector('simple', COALESCE(display_name, '')))`);
+    await pool.query(`DROP INDEX IF EXISTS idx_projects_search_title`);
+    await pool.query(`DROP INDEX IF EXISTS idx_projects_search_desc`);
+    await pool.query(`DROP INDEX IF EXISTS idx_users_search_name`);
+
+    await pool.query(`ALTER TABLE novel_projects ADD COLUMN IF NOT EXISTS search_tsv tsvector GENERATED ALWAYS AS (
+      to_tsvector('simple', COALESCE(title, '') || ' ' || COALESCE(main_idea, ''))
+    ) STORED`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_search_tsv ON novel_projects USING gin (search_tsv)`);
+
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS search_tsv tsvector GENERATED ALWAYS AS (
+      to_tsvector('simple', COALESCE(display_name, ''))
+    ) STORED`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_search_tsv ON users USING gin (search_tsv)`);
 
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
