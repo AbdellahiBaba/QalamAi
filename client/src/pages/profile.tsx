@@ -40,6 +40,7 @@ import {
   BadgeCheck,
   CheckCircle2,
   GraduationCap,
+  Users,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
@@ -178,6 +179,10 @@ export default function Profile() {
 
   const { data: projects, isLoading: projectsLoading } = useQuery<NovelProject[]>({
     queryKey: ["/api/projects"],
+  });
+
+  const { data: analytics } = useQuery<{ followerCount: number; totalViews: number; totalEssays: number }>({
+    queryKey: ["/api/me/analytics"],
   });
 
   const updateProfileMutation = useMutation({
@@ -473,6 +478,12 @@ export default function Profile() {
                     </Link>
                   )}
                 </div>
+                {(analytics?.followerCount ?? 0) > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium" data-testid="text-dashboard-follower-count">
+                    <Users className="w-3.5 h-3.5" />
+                    <LtrNum n={analytics!.followerCount} /> متابع
+                  </div>
+                )}
                 <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="text-member-since">
                   <CalendarDays className="w-3.5 h-3.5" />
                   عضو منذ {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("ar-EG") : ""}

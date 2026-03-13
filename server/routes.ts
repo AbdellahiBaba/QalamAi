@@ -5762,6 +5762,16 @@ ${glossaryParagraphs}
       await storage.followAuthor(followerId, authorId);
       const count = await storage.getAuthorFollowerCount(authorId);
       res.json({ success: true, followers: count });
+      // Notify the followed author
+      const followerUser = await storage.getUser(followerId);
+      const followerName = followerUser?.displayName || followerUser?.firstName || "أحد المستخدمين";
+      storage.createNotification({
+        userId: authorId,
+        type: "follow",
+        title: "متابع جديد",
+        message: `${followerName} بدأ بمتابعتك`,
+        link: `/author/${followerId}`,
+      }).catch(() => {});
     } catch (error) {
       res.status(500).json({ error: "فشل في متابعة الكاتب" });
     }
@@ -8125,6 +8135,13 @@ ${ch.content}
       if (!alreadySubscribed) {
         const authorName = author.displayName || author.firstName || "الكاتب";
         sendEmailSubscriptionConfirmation(email, authorName, authorId, token).catch(() => {});
+        // Notify the author of the new email subscriber
+        storage.createNotification({
+          userId: authorId,
+          type: "email_subscriber",
+          title: "مشترك جديد بالبريد",
+          message: `مستخدم جديد اشترك لتلقّي مقالاتك عبر البريد الإلكتروني`,
+        }).catch(() => {});
       }
       res.json({ success: true, alreadySubscribed });
     } catch (error) {
