@@ -8633,6 +8633,7 @@ ${ch.content}
   app.post("/api/admin/social/generate-daily", isAuthenticated, isSuperAdmin, async (req: any, res) => {
     try {
       const requestedPlatforms = req.body?.platforms;
+      const source = req.body?.source || "dashboard";
       const bestTimes = await storage.getBestPostingTimes();
       const topHours = bestTimes.length >= 2
         ? [bestTimes[0].hour, bestTimes[1].hour]
@@ -8730,7 +8731,7 @@ ${platformInstructions}
           content,
           platforms,
           scheduledAt,
-          status: "draft",
+          status: source === "generator" ? "draft" : "scheduled",
           postType,
           coverImageUrl,
         });
@@ -8741,6 +8742,109 @@ ${platformInstructions}
     } catch (error: any) {
       console.error("Social generate-daily error:", error);
       res.status(500).json({ error: "فشل في توليد المنشورات: " + (error.message || "") });
+    }
+  });
+
+  app.post("/api/admin/social/generate-single", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const { index, platforms: requestedPlatforms } = req.body;
+      const postIndex = typeof index === "number" ? index : 0;
+      const isLiterary = postIndex >= 2;
+      const postType = isLiterary ? "literary" : "marketing";
+
+      const validPlatformKeys = ["facebook", "instagram", "x", "tiktok", "linkedin"];
+      const platforms = Array.isArray(requestedPlatforms)
+        ? requestedPlatforms.filter((p: string) => validPlatformKeys.includes(p))
+        : isLiterary
+          ? ["facebook", "instagram", "x"]
+          : validPlatformKeys;
+
+      const platformFormatGuide: Record<string, string> = {
+        facebook: "فيسبوك: منشور طويل نسبياً (3-5 فقرات)، مع CTA واضح ورابط مباشر.",
+        instagram: "إنستغرام: كابشن جذاب مع إيموجيات مناسبة، و15-20 هاشتاق متنوع.",
+        x: "X/تويتر: تغريدة قصيرة (حد 280 حرف تقريباً)، مختصرة ومؤثرة مع 3-5 هاشتاقات.",
+        tiktok: "TikTok: نص قصير جداً بأسلوب شبابي حيوي، مع هاشتاقات ترند.",
+        linkedin: "LinkedIn: منشور مهني احترافي موجه لصنّاع القرار والمثقفين.",
+      };
+
+      const platformInstructions = platforms
+        .map((p) => platformFormatGuide[p] || "")
+        .filter(Boolean)
+        .join("\n");
+
+      const bestTimes = await storage.getBestPostingTimes();
+      const scheduleHours = bestTimes.length >= 2
+        ? [bestTimes[0].hour, bestTimes[0].hour, bestTimes[1].hour, bestTimes[1].hour, Math.min(bestTimes[0].hour, bestTimes[1].hour) + 2]
+        : [9, 13, 17, 20, 22];
+
+      const prompt = isLiterary
+        ? `اكتب خاطرة أدبية عربية فصيحة قصيرة (3-5 أسطر) بأسلوب شاعري مؤثر عن ${["الحنين", "الأمل", "الحب"][postIndex - 2] || "الحياة"}.
+
+المنشور سيُنشر على: ${platforms.join(", ")}
+${platformInstructions}
+
+في نهاية الخاطرة أضف:
+- عبارة CTA: "اكتشف عالم الكتابة العربية على QalamAI.net"
+- رابط: qalamai.net
+- 5 هاشتاقات عربية مناسبة
+
+قدّم المحتوى بتنسيق مناسب لكل منصة من المنصات المحددة.`
+        : `اكتب منشوراً تسويقياً لمنصة QalamAI (qalamai.net) — منصة كتابة عربية بالذكاء الاصطناعي تتيح للكتّاب إنشاء روايات ومقالات وسيناريوهات وخواطر وقصائد.
+${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء مجاناً." : "ركز على جودة المحتوى المولّد وتنوع الأنواع الأدبية."}
+
+المنشور سيُنشر على: ${platforms.join(", ")}
+${platformInstructions}
+
+يجب أن يتضمن:
+- CTA قوي وواضح
+- رابط qalamai.net
+- 5 هاشتاقات مناسبة
+
+قدّم المحتوى بتنسيق مناسب لكل منصة.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_completion_tokens: 800,
+        messages: [
+          { role: "system", content: "أنت أبو هاشم، كاتب ومسوّق رقمي عربي محترف. تكتب محتوى سوشيال ميديا بالعربية الفصحى. تنسّق المحتوى حسب متطلبات كل منصة (طول، أسلوب، هاشتاقات). دائماً تضيف CTA ورابط qalamai.net." },
+          { role: "user", content: prompt },
+        ],
+      });
+
+      const content = completion.choices[0]?.message?.content || "";
+
+      let coverImageUrl: string | null = null;
+      if (isLiterary) {
+        try {
+          const imgRes = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.",
+            n: 1,
+            size: "1024x1024",
+          });
+          coverImageUrl = imgRes.data?.[0]?.url || null;
+        } catch (imgErr) {
+          console.warn("DALL-E image generation failed:", imgErr);
+        }
+      }
+
+      const today = new Date();
+      const scheduledAt = new Date(today);
+      scheduledAt.setHours(scheduleHours[postIndex] || 12, 0, 0, 0);
+
+      const post = await storage.createSocialPost({
+        content,
+        platforms,
+        scheduledAt,
+        status: "draft",
+        postType,
+        coverImageUrl,
+      });
+
+      res.json({ post, index: postIndex });
+    } catch (error: any) {
+      console.error("Social generate-single error:", error);
+      res.status(500).json({ error: "فشل في توليد المنشور: " + (error.message || "") });
     }
   });
 

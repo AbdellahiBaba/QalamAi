@@ -550,31 +550,35 @@ function GeneratorTab() {
     );
   };
 
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      setGenerating(true);
-      setProgress(0);
-      setConfirmed(false);
-      setGeneratedPosts([]);
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => Math.min(prev + 1, 4));
-      }, 8000);
-      const res = await apiRequest("POST", "/api/admin/social/generate-daily", { platforms: selectedPlatforms });
-      clearInterval(progressInterval);
-      setProgress(5);
-      return res.json();
-    },
-    onSuccess: (data) => {
-      const posts = data.posts || [];
-      setGeneratedPosts(posts);
-      toast({ title: data.message || "تم توليد المنشورات" });
-      setGenerating(false);
-    },
-    onError: (err: any) => {
-      toast({ title: err.message || "فشل في التوليد", variant: "destructive" });
-      setGenerating(false);
-    },
-  });
+  const startGeneration = async () => {
+    setGenerating(true);
+    setProgress(0);
+    setConfirmed(false);
+    setGeneratedPosts([]);
+    const results: any[] = [];
+    for (let i = 0; i < 5; i++) {
+      try {
+        setProgress(i);
+        const res = await apiRequest("POST", "/api/admin/social/generate-single", {
+          index: i,
+          platforms: selectedPlatforms,
+        });
+        const data = await res.json();
+        if (data.post) {
+          results.push(data.post);
+          setGeneratedPosts([...results]);
+        }
+      } catch (err: any) {
+        toast({ title: `فشل توليد المنشور ${i + 1}`, variant: "destructive" });
+      }
+    }
+    setProgress(5);
+    setGenerating(false);
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+    if (results.length > 0) {
+      toast({ title: `تم توليد ${results.length} منشورات` });
+    }
+  };
 
   const editPost = (idx: number, content: string) => {
     setGeneratedPosts((prev) => prev.map((p, i) => (i === idx ? { ...p, content } : p)));
@@ -660,7 +664,7 @@ function GeneratorTab() {
           <Button
             size="lg"
             className="gap-2 bg-gradient-to-r from-violet-600 to-primary w-full"
-            onClick={() => generateMutation.mutate()}
+            onClick={() => startGeneration()}
             disabled={generating || selectedPlatforms.length === 0}
             data-testid="button-generate-daily"
           >
