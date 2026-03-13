@@ -1920,7 +1920,7 @@ export class DatabaseStorage implements IStorage {
         COUNT(DISTINCT p.id)::int as "totalEssays",
         COUNT(DISTINCT v.id)::int as "totalViews",
         COUNT(DISTINCT v2.id)::int as "viewsThisMonth",
-        COALESCE(SUM((SELECT COUNT(*) FROM essay_reactions r WHERE r.project_id = p.id)::int), 0)::int as "totalReactions"
+        COALESCE((SELECT COUNT(*)::int FROM essay_reactions r WHERE r.project_id IN (SELECT id FROM novel_projects WHERE user_id = ${userId} AND (published_to_news = true OR published_to_gallery = true))), 0)::int as "totalReactions"
       FROM novel_projects p
       LEFT JOIN essay_views v ON v.project_id = p.id
       LEFT JOIN essay_views v2 ON v2.project_id = p.id AND v2.viewed_at >= ${firstOfMonth}
