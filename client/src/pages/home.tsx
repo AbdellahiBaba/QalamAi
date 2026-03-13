@@ -115,13 +115,14 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: tipsReceived } = useQuery<Array<{
+  const { data: tipsReceivedData } = useQuery<{ totalCents: number; tips: Array<{
     id: number; fromUserName: string | null; fromUserImage: string | null;
     amountCents: number; status: string; createdAt: string; projectId: number | null;
-  }>>({
+  }> }>({
     queryKey: ["/api/tips/received"],
     staleTime: 2 * 60 * 1000,
   });
+  const tipsReceived = tipsReceivedData?.tips;
 
   const { data: dailyPromptData } = useQuery<{
     prompt: { id: number; promptText: string; promptDate: string; winnerId: string | null } | null;

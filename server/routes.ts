@@ -8231,11 +8231,12 @@ ${ch.content}
   app.get("/api/daily-prompt", async (_req, res) => {
     try {
       const prompt = await storage.getTodayPrompt();
-      if (!prompt) return res.json({ prompt: null });
+      if (!prompt) return res.json({ prompt: null, entries: [], entryCount: 0 });
       const entries = await storage.getPromptEntries(Number(prompt.id));
       res.json({ prompt, entries, entryCount: entries.length });
     } catch (error) {
-      res.status(500).json({ error: "فشل في جلب البروبت اليومي" });
+      // Table may not exist yet in production — return empty gracefully
+      res.json({ prompt: null, entries: [], entryCount: 0 });
     }
   });
 
@@ -8244,7 +8245,7 @@ ${ch.content}
       const prompts = await storage.getPastPrompts(14);
       res.json(prompts);
     } catch (error) {
-      res.status(500).json({ error: "فشل في جلب البروبتات" });
+      res.json([]);
     }
   });
 
