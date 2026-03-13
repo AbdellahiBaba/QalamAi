@@ -7887,6 +7887,16 @@ ${ch.content}
             adminNote,
           ).catch((e) => console.error("Failed to send verified application status email:", e));
         }
+        const isApproved = status === "approved";
+        await storage.createNotification({
+          userId: updated.user_id as string,
+          type: isApproved ? "verified_approved" : "verified_rejected",
+          title: isApproved ? "تم قبول طلب التوثيق" : "طلب التوثيق قيد المراجعة",
+          message: isApproved
+            ? "مبروك! تم الموافقة على طلب التوثيق الخاص بك. ستظهر شارة الكاتب الموثّق بجانب اسمك في جميع أنحاء المنصة."
+            : `لم يتم قبول طلب التوثيق في الوقت الحالي.${adminNote ? ` سبب: ${adminNote}` : " يمكنك التقديم مجدداً بعد نشر المزيد من الأعمال."}`,
+          link: isApproved ? "/profile" : "/apply-verified",
+        });
       }
       res.json({ success: true, application: updated });
     } catch (error) {
