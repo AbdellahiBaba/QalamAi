@@ -1084,6 +1084,26 @@ export default function Home() {
           </Card>
         )}
 
+        {/* Social Marketing AI — paid users only */}
+        {["essay", "scenario", "all_in_one"].includes(userPlan) && (
+          <Card className="mb-6 border-dashed" data-testid="card-social-marketing">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-amber-500" />
+                  <div>
+                    <p className="text-sm font-medium">مستشار التسويق الأدبي</p>
+                    <p className="text-xs text-muted-foreground">محتوى سوشيال ميديا جاهز لأعمالك — أبو هاشم</p>
+                  </div>
+                </div>
+                <Link href="/social-marketing">
+                  <Button variant="outline" size="sm" data-testid="button-social-marketing">ابدأ</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Content Series Link */}
         <Card className="mb-6 border-dashed" data-testid="card-content-series">
           <CardContent className="p-4">

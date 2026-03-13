@@ -130,7 +130,7 @@ export default function AdminMarketing() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const isSuperAdmin = user && SUPER_ADMIN_IDS.includes((user as any).id || "");
+  const isSuperAdmin = user && (SUPER_ADMIN_IDS.includes((user as any).id || "") || (user as any).role === "admin");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

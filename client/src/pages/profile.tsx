@@ -42,6 +42,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SiTwitter, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -69,28 +70,51 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [publicProfile, setPublicProfile] = useState(false);
+  const [socialTwitter, setSocialTwitter] = useState("");
+  const [socialInstagram, setSocialInstagram] = useState("");
+  const [socialTiktok, setSocialTiktok] = useState("");
+  const [socialFacebook, setSocialFacebook] = useState("");
+  const [socialLinkedin, setSocialLinkedin] = useState("");
+  const [socialYoutube, setSocialYoutube] = useState("");
+  const [socialWebsite, setSocialWebsite] = useState("");
   const [avatarStyle, setAvatarStyle] = useState("classic");
   const [showAvatarGenerator, setShowAvatarGenerator] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const initialValuesRef = useRef({ firstName: "", lastName: "", displayName: "", bio: "", publicProfile: false });
+  const initialValuesRef = useRef({ firstName: "", lastName: "", displayName: "", bio: "", publicProfile: false, socialTwitter: "", socialInstagram: "", socialTiktok: "", socialFacebook: "", socialLinkedin: "", socialYoutube: "", socialWebsite: "" });
 
   useEffect(() => {
     if (user) {
+      let sp: Record<string, string> = {};
+      try { if ((user as any).socialProfiles) sp = JSON.parse((user as any).socialProfiles); } catch {}
       const vals = {
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         displayName: (user as any).displayName || "",
         bio: (user as any).bio || "",
         publicProfile: (user as any).publicProfile || false,
+        socialTwitter: sp.twitter || "",
+        socialInstagram: sp.instagram || "",
+        socialTiktok: sp.tiktok || "",
+        socialFacebook: sp.facebook || "",
+        socialLinkedin: sp.linkedin || "",
+        socialYoutube: sp.youtube || "",
+        socialWebsite: sp.website || "",
       };
       setFirstName(vals.firstName);
       setLastName(vals.lastName);
       setDisplayName(vals.displayName);
       setBio(vals.bio);
       setPublicProfile(vals.publicProfile);
+      setSocialTwitter(vals.socialTwitter);
+      setSocialInstagram(vals.socialInstagram);
+      setSocialTiktok(vals.socialTiktok);
+      setSocialFacebook(vals.socialFacebook);
+      setSocialLinkedin(vals.socialLinkedin);
+      setSocialYoutube(vals.socialYoutube);
+      setSocialWebsite(vals.socialWebsite);
       initialValuesRef.current = vals;
     }
   }, [user]);
@@ -104,9 +128,16 @@ export default function Profile() {
       lastName !== init.lastName ||
       displayName !== init.displayName ||
       bio !== init.bio ||
-      publicProfile !== init.publicProfile
+      publicProfile !== init.publicProfile ||
+      socialTwitter !== init.socialTwitter ||
+      socialInstagram !== init.socialInstagram ||
+      socialTiktok !== init.socialTiktok ||
+      socialFacebook !== init.socialFacebook ||
+      socialLinkedin !== init.socialLinkedin ||
+      socialYoutube !== init.socialYoutube ||
+      socialWebsite !== init.socialWebsite
     );
-  }, [firstName, lastName, displayName, bio, publicProfile]);
+  }, [firstName, lastName, displayName, bio, publicProfile, socialTwitter, socialInstagram, socialTiktok, socialFacebook, socialLinkedin, socialYoutube, socialWebsite]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -150,12 +181,12 @@ export default function Profile() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { firstName: string; lastName: string; displayName?: string; bio?: string; publicProfile?: boolean }) => {
+    mutationFn: async (data: { firstName: string; lastName: string; displayName?: string; bio?: string; publicProfile?: boolean; socialProfiles?: string }) => {
       const res = await apiRequest("PATCH", "/api/profile", data);
       return res.json();
     },
     onSuccess: () => {
-      initialValuesRef.current = { firstName, lastName, displayName, bio, publicProfile };
+      initialValuesRef.current = { firstName, lastName, displayName, bio, publicProfile, socialTwitter, socialInstagram, socialTiktok, socialFacebook, socialLinkedin, socialYoutube, socialWebsite };
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "تم تحديث الملف الشخصي بنجاح" });
     },
@@ -229,7 +260,16 @@ export default function Profile() {
   });
 
   const handleSaveProfile = () => {
-    updateProfileMutation.mutate({ firstName, lastName, displayName, bio, publicProfile });
+    const sp: Record<string, string> = {};
+    if (socialTwitter.trim()) sp.twitter = socialTwitter.trim();
+    if (socialInstagram.trim()) sp.instagram = socialInstagram.trim();
+    if (socialTiktok.trim()) sp.tiktok = socialTiktok.trim();
+    if (socialFacebook.trim()) sp.facebook = socialFacebook.trim();
+    if (socialLinkedin.trim()) sp.linkedin = socialLinkedin.trim();
+    if (socialYoutube.trim()) sp.youtube = socialYoutube.trim();
+    if (socialWebsite.trim()) sp.website = socialWebsite.trim();
+    const socialProfiles = Object.keys(sp).length > 0 ? JSON.stringify(sp) : "";
+    updateProfileMutation.mutate({ firstName, lastName, displayName, bio, publicProfile, socialProfiles });
   };
 
   const totalSpending = projects
@@ -569,6 +609,34 @@ export default function Profile() {
                     <span>صفحتك العامة: /author/{user.id}</span>
                   </div>
                 )}
+
+                <div className="space-y-3 pt-2 border-t border-border/50">
+                  <p className="text-sm font-semibold text-muted-foreground">حسابات التواصل الاجتماعي</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {([
+                      { icon: SiTwitter, label: "تويتر / X", val: socialTwitter, set: setSocialTwitter, ph: "https://x.com/username", id: "twitter" },
+                      { icon: SiInstagram, label: "إنستغرام", val: socialInstagram, set: setSocialInstagram, ph: "https://instagram.com/username", id: "instagram" },
+                      { icon: SiTiktok, label: "تيك توك", val: socialTiktok, set: setSocialTiktok, ph: "https://tiktok.com/@username", id: "tiktok" },
+                      { icon: SiFacebook, label: "فيسبوك", val: socialFacebook, set: setSocialFacebook, ph: "https://facebook.com/username", id: "facebook" },
+                      { icon: SiLinkedin, label: "لينكدإن", val: socialLinkedin, set: setSocialLinkedin, ph: "https://linkedin.com/in/username", id: "linkedin" },
+                      { icon: SiYoutube, label: "يوتيوب", val: socialYoutube, set: setSocialYoutube, ph: "https://youtube.com/@channel", id: "youtube" },
+                      { icon: Globe, label: "الموقع الشخصي", val: socialWebsite, set: setSocialWebsite, ph: "https://yourwebsite.com", id: "website" },
+                    ] as const).map(({ icon: Icon, label, val, set, ph, id }) => (
+                      <div key={id} className="flex items-center gap-2">
+                        <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <Input
+                          value={val}
+                          onChange={(e) => set(e.target.value)}
+                          placeholder={ph}
+                          dir="ltr"
+                          className="text-sm"
+                          data-testid={`input-social-${id}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <Button
                   onClick={handleSaveProfile}
                   disabled={updateProfileMutation.isPending}

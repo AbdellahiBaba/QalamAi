@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
 import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
@@ -2299,10 +2299,50 @@ ${allPages.map(p => `  <url>
 
   const SUPER_ADMIN_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
 
+  app.post("/api/me/social-marketing-chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ error: "غير مصادق" });
+      const paidPlans = ["essay", "scenario", "all_in_one"];
+      const hasPaid = paidPlans.includes(currentUser.plan || "") || currentUser.trialActive || currentUser.role === "admin";
+      if (!hasPaid) return res.status(403).json({ error: "هذه الميزة متاحة للمشتركين فقط" });
+
+      const { message, history = [] } = req.body;
+      if (!message || typeof message !== "string" || !message.trim()) {
+        return res.status(400).json({ error: "الرسالة مطلوبة" });
+      }
+      const authorName = currentUser.displayName || `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || "الكاتب";
+      const { system, user: userMsg, history: hist } = buildAuthorSocialMarketingPrompt(message.trim(), authorName, history);
+
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: system },
+      ];
+      for (const msg of hist.slice(-14)) {
+        messages.push({ role: msg.role, content: msg.content.substring(0, 3000) });
+      }
+      messages.push({ role: "user", content: userMsg });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages,
+        max_completion_tokens: 3000,
+        temperature: 0.85,
+      });
+
+      const reply = response.choices[0]?.message?.content || "عذراً، لم أتمكن من الرد.";
+      res.json({ reply });
+    } catch (error) {
+      console.error("Error in author social marketing chat:", error);
+      res.status(500).json({ error: "فشل في الحصول على رد" });
+    }
+  });
+
   app.post("/api/admin/marketing-chat", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) {
+      const adminUser = await storage.getUser(userId);
+      if (!SUPER_ADMIN_IDS.includes(userId) && adminUser?.role !== "admin") {
         return res.status(403).json({ error: "غير مصرّح" });
       }
 
@@ -5361,6 +5401,7 @@ ${glossaryParagraphs}
         ratingCount: ratingData.count,
         verified: (data.user as any).verified || false,
         followerCount,
+        socialProfiles: (data.user as any).socialProfiles || null,
         projects: data.projects.map(p => ({
           id: p.id,
           title: p.title,
@@ -5772,8 +5813,8 @@ ${glossaryParagraphs}
   app.patch("/api/profile", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted } = req.body;
-      const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted });
+      const { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles } = req.body;
+      const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles: socialProfiles ?? undefined });
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "فشل في تحديث الملف الشخصي" });

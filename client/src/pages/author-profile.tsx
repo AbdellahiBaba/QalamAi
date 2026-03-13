@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe } from "lucide-react";
+import { SiTwitter, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
@@ -24,6 +25,16 @@ interface AuthorProject {
   mainIdea: string | null;
 }
 
+interface SocialProfileLinks {
+  twitter?: string;
+  instagram?: string;
+  tiktok?: string;
+  facebook?: string;
+  linkedin?: string;
+  youtube?: string;
+  website?: string;
+}
+
 interface AuthorData {
   id: string;
   displayName: string;
@@ -33,6 +44,7 @@ interface AuthorData {
   ratingCount: number;
   verified: boolean;
   followerCount: number;
+  socialProfiles: string | null;
   projects: AuthorProject[];
 }
 
@@ -240,6 +252,37 @@ export default function AuthorProfile() {
             {author.bio && (
               <p className="text-muted-foreground max-w-xl" data-testid="text-author-bio">{author.bio}</p>
             )}
+            {(() => {
+              let links: SocialProfileLinks = {};
+              try { if (author.socialProfiles) links = JSON.parse(author.socialProfiles); } catch {}
+              const entries: Array<{ key: keyof SocialProfileLinks; icon: React.ComponentType<{ className?: string }>; label: string; color: string }> = [
+                { key: "twitter", icon: SiTwitter, label: "تويتر", color: "hover:text-sky-500" },
+                { key: "instagram", icon: SiInstagram, label: "إنستغرام", color: "hover:text-pink-500" },
+                { key: "tiktok", icon: SiTiktok, label: "تيك توك", color: "hover:text-foreground" },
+                { key: "facebook", icon: SiFacebook, label: "فيسبوك", color: "hover:text-blue-600" },
+                { key: "linkedin", icon: SiLinkedin, label: "لينكدإن", color: "hover:text-blue-700" },
+                { key: "youtube", icon: SiYoutube, label: "يوتيوب", color: "hover:text-red-500" },
+                { key: "website", icon: Globe, label: "الموقع", color: "hover:text-primary" },
+              ].filter(e => !!links[e.key]);
+              if (!entries.length) return null;
+              return (
+                <div className="flex items-center gap-3 flex-wrap" data-testid="author-social-links">
+                  {entries.map(({ key, icon: Icon, label, color }) => (
+                    <a
+                      key={key}
+                      href={links[key]!.startsWith("http") ? links[key]! : `https://${links[key]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={label}
+                      className={`text-muted-foreground transition-colors ${color}`}
+                      data-testid={`link-social-${key}`}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </a>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
