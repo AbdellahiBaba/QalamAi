@@ -12,9 +12,9 @@ const ThemeContext = createContext<ThemeContextType>({ theme: "light", toggleThe
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
-      return (localStorage.getItem("qalamai-theme") as Theme) || "light";
+      return (localStorage.getItem("qalamai-theme") as Theme) || "dark";
     }
-    return "light";
+    return "dark";
   });
 
   useEffect(() => {
