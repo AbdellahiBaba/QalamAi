@@ -235,6 +235,8 @@ export default function ProjectDetail() {
   const [confirmRestoreVersion, setConfirmRestoreVersion] = useState<{ chapterId: number; versionId: number } | null>(null);
   const [originalityChapterId, setOriginalityChapterId] = useState<number | null>(null);
   const [originalityResult, setOriginalityResult] = useState<any>(null);
+  const [plagiarismOpen, setPlagiarismOpen] = useState(false);
+  const [plagiarismResult, setPlagiarismResult] = useState<{ isOriginal: boolean; similarityScore: number; report: string } | null>(null);
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkChapterId, setBookmarkChapterId] = useState<number | null>(null);
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
@@ -546,6 +548,22 @@ export default function ProjectDetail() {
     },
     onError: (err: any) => {
       toast({ title: err?.message || "فشل في فحص الأصالة", variant: "destructive" });
+    },
+  });
+
+  const plagiarismCheckMutation = useMutation({
+    mutationFn: async () => {
+      const chapters = project?.chapters || [];
+      const text = chapters.map((c: any) => c.content || "").join("\n\n");
+      const res = await apiRequest("POST", "/api/plagiarism-check", { text, projectId });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setPlagiarismResult(data);
+      setPlagiarismOpen(true);
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "فشل فحص الانتحال", variant: "destructive" });
     },
   });
 
@@ -1526,6 +1544,19 @@ export default function ProjectDetail() {
                             />
                           </div>
                         )}
+                      </>
+                    )}
+                    {project.shareToken && project.projectType === "essay" && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => plagiarismCheckMutation.mutate()}
+                          disabled={plagiarismCheckMutation.isPending}
+                          data-testid="menu-plagiarism-check"
+                        >
+                          <Shield className="w-4 h-4 ml-2" />
+                          {plagiarismCheckMutation.isPending ? "جارٍ الفحص..." : "فحص الانتحال بالذكاء الاصطناعي"}
+                        </DropdownMenuItem>
                       </>
                     )}
                     <DropdownMenuSeparator />
@@ -4602,6 +4633,32 @@ export default function ProjectDetail() {
                 title="معاينة PDF"
                 data-testid="iframe-pdf-preview"
               />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Plagiarism Check Dialog */}
+        <Dialog open={plagiarismOpen} onOpenChange={(open) => { if (!open) { setPlagiarismOpen(false); setPlagiarismResult(null); } }}>
+          <DialogContent className="max-w-lg" dir="rtl">
+            <DialogHeader>
+              <DialogTitle data-testid="text-plagiarism-dialog-title">فحص الانتحال بالذكاء الاصطناعي</DialogTitle>
+            </DialogHeader>
+            {plagiarismResult && (
+              <div className="space-y-4">
+                <div className={`flex items-center gap-3 p-4 rounded-lg border ${plagiarismResult.isOriginal ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"}`} data-testid="text-plagiarism-result">
+                  <div className={`text-3xl font-bold ${plagiarismResult.isOriginal ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {Math.round(100 - plagiarismResult.similarityScore)}%
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{plagiarismResult.isOriginal ? "المحتوى أصيل" : "تم اكتشاف تشابه"}</p>
+                    <p className="text-xs text-muted-foreground">نسبة الأصالة المقدّرة</p>
+                  </div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-plagiarism-report">
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{plagiarismResult.report}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">ملاحظة: هذا الفحص تقديري بالذكاء الاصطناعي وليس بديلاً عن أدوات الفحص المتخصصة.</p>
+              </div>
             )}
           </DialogContent>
         </Dialog>

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
@@ -208,6 +208,17 @@ export default function AuthorProfile() {
                     <span>{author.followerCount} متابع</span>
                   </div>
                 )}
+                <a
+                  href={`/api/authors/${id}/rss`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-500 transition-colors"
+                  title="اشترك في خلاصة RSS"
+                  data-testid="link-author-rss"
+                >
+                  <Rss className="w-3.5 h-3.5" />
+                  RSS
+                </a>
               </div>
               {user && user.id !== author.id && (
                 <Button

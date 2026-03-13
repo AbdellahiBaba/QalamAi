@@ -52,6 +52,8 @@ const Leaderboard = lazy(() => import("@/pages/leaderboard"));
 const MyLists = lazy(() => import("@/pages/my-lists"));
 const CollectionPublic = lazy(() => import("@/pages/collection-public"));
 const ApplyVerified = lazy(() => import("@/pages/apply-verified"));
+const ContentSeries = lazy(() => import("@/pages/content-series"));
+const SeriesDetail = lazy(() => import("@/pages/series-detail"));
 
 function LoadingFallback() {
   return (
@@ -106,6 +108,8 @@ function AuthenticatedRouter() {
         <Route path="/my-lists" component={MyLists} />
         <Route path="/list/:slug" component={CollectionPublic} />
         <Route path="/apply-verified" component={ApplyVerified} />
+        <Route path="/series" component={ContentSeries} />
+        <Route path="/series/:id" component={SeriesDetail} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
@@ -141,6 +145,8 @@ function PublicRouter() {
         <Route path="/leaderboard" component={Leaderboard} />
         <Route path="/list/:slug" component={CollectionPublic} />
         <Route path="/apply-verified" component={ApplyVerified} />
+        <Route path="/series" component={ContentSeries} />
+        <Route path="/series/:id" component={SeriesDetail} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
