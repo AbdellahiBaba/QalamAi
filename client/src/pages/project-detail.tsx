@@ -271,6 +271,10 @@ export default function ProjectDetail() {
       const exportUrl = `/api/projects/${projectId}/export/${format}`;
       const res = await fetch(exportUrl, { credentials: "include" });
       if (!res.ok) {
+        if (res.status === 403) {
+          setShowUpgradeDialog(true);
+          return;
+        }
         let errMsg = `فشل في تحميل ملف ${format.toUpperCase()}`;
         try {
           const errData = await res.json();

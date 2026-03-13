@@ -2872,14 +2872,31 @@ ${allPages.map(p => `  <url>
         try {
           const coverUrl = new URL(coverImageUrlParam);
           if (["http:", "https:"].includes(coverUrl.protocol)) {
-            const coverRes = await fetch(coverImageUrlParam, { signal: AbortSignal.timeout(10000) });
-            if (coverRes.ok) {
-              const ct = coverRes.headers.get("content-type") || "";
-              if (ct.startsWith("image/")) {
-                const buf = Buffer.from(await coverRes.arrayBuffer());
-                if (buf.length <= 5 * 1024 * 1024) {
-                  doc.image(buf, 0, 0, { width: fullPageWidth, height: pageHeight });
-                  coverRendered = true;
+            const hn = coverUrl.hostname.toLowerCase();
+            const blockedHost = hn === "localhost" || hn === "127.0.0.1" || hn === "0.0.0.0" || hn.startsWith("10.") || hn.startsWith("172.") || hn.startsWith("192.168.") || hn === "[::1]" || hn.endsWith(".internal") || hn === "metadata.google.internal" || hn.startsWith("169.254.");
+            if (!blockedHost) {
+              const dns = await import("dns");
+              const { promisify } = await import("util");
+              const dnsResolve = promisify(dns.resolve);
+              let dnsOk = true;
+              try {
+                const addrs = await dnsResolve(hn);
+                dnsOk = !addrs.some((addr: string) => {
+                  const p = addr.split(".").map(Number);
+                  return addr === "127.0.0.1" || addr === "0.0.0.0" || p[0] === 10 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) || (p[0] === 192 && p[1] === 168) || p[0] === 0 || addr.startsWith("169.254.") || addr === "::1" || addr.startsWith("fc") || addr.startsWith("fd") || addr.startsWith("fe80");
+                });
+              } catch { dnsOk = false; }
+              if (dnsOk) {
+                const coverRes = await fetch(coverImageUrlParam, { signal: AbortSignal.timeout(10000), redirect: "error" });
+                if (coverRes.ok) {
+                  const ct = coverRes.headers.get("content-type") || "";
+                  if (ct.startsWith("image/")) {
+                    const buf = Buffer.from(await coverRes.arrayBuffer());
+                    if (buf.length <= 5 * 1024 * 1024) {
+                      doc.image(buf, 0, 0, { width: fullPageWidth, height: pageHeight });
+                      coverRendered = true;
+                    }
+                  }
                 }
               }
             }
@@ -4824,7 +4841,7 @@ ${glossaryParagraphs}
               alignment: AlignmentType.RIGHT,
               bidirectional: true,
               spacing: { after: 200, line: 360 },
-              children: makeBidiTextRuns(`${hi + 1}.  ${hyLines[hi]}`, 26, bodyColor),
+              children: makeBidiTextRuns(`${hi + 1}.  ${hyLines[hi]}`, { size: 26, color: bodyColor }),
             }));
           }
         }
