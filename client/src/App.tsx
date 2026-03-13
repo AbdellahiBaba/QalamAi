@@ -122,6 +122,7 @@ function AuthenticatedRouter() {
         <Route path="/social-marketing" component={SocialMarketing} />
         <Route path="/daily-prompt" component={DailyPrompt} />
         <Route path="/search" component={SearchPage} />
+        <Route path="/analytics" component={Analytics} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />

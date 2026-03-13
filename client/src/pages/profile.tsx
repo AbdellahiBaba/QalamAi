@@ -46,6 +46,7 @@ import {
   Coffee,
   Copy,
   Eye,
+  BarChart3,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
@@ -772,6 +773,13 @@ export default function Profile() {
                 </CardContent>
               </Card>
             )}
+
+            <Link href="/analytics">
+              <Button variant="outline" className="w-full gap-2 text-sm" data-testid="link-analytics-page">
+                <BarChart3 className="w-4 h-4" />
+                لوحة الإحصائيات التفصيلية
+              </Button>
+            </Link>
 
             {/* Referral code */}
             {referral?.referralCode && (

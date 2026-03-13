@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useLocation } from "wouter";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,7 +24,13 @@ import LtrNum from "@/components/ui/ltr-num";
 
 export default function Analytics() {
   useDocumentTitle("إحصائياتي — QalamAI");
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  if (!authLoading && !user) {
+    navigate("/");
+    return null;
+  }
 
   const { data: summary, isLoading: summaryLoading } = useQuery<{
     totalViews: number;
@@ -37,23 +44,23 @@ export default function Analytics() {
     queryKey: ["/api/me/analytics"],
   });
 
-  const { data: viewsSeries } = useQuery<Array<{ date: string; views: number }>>({
+  const { data: viewsSeries, isLoading: viewsLoading } = useQuery<Array<{ date: string; views: number }>>({
     queryKey: ["/api/me/analytics/views"],
   });
 
-  const { data: followerHistory } = useQuery<Array<{ week: string; count: number }>>({
+  const { data: followerHistory, isLoading: followersLoading } = useQuery<Array<{ week: string; count: number }>>({
     queryKey: ["/api/me/analytics/followers"],
   });
 
-  const { data: tipsData } = useQuery<{ totalCents: number; tips: Array<{ id: number; amountCents: number; fromUserId: string | null; projectId: number | null; createdAt: string; completed: boolean }> }>({
+  const { data: tipsData, isLoading: tipsLoading } = useQuery<{ totalCents: number; tips: Array<{ id: number; amountCents: number; fromUserId: string | null; projectId: number | null; createdAt: string; completed: boolean }> }>({
     queryKey: ["/api/me/analytics/tips-history"],
   });
 
-  const { data: completionData } = useQuery<Array<{ id: number; title: string; shareToken: string | null; totalChapters: number; readers: number; completions: number; completionRate: number }>>({
+  const { data: completionData, isLoading: completionLoading } = useQuery<Array<{ id: number; title: string; shareToken: string | null; totalChapters: number; readers: number; completions: number; completionRate: number }>>({
     queryKey: ["/api/me/analytics/completion"],
   });
 
-  const { data: countriesData } = useQuery<Array<{ country: string; count: number }>>({
+  const { data: countriesData, isLoading: countriesLoading } = useQuery<Array<{ country: string; count: number }>>({
     queryKey: ["/api/me/analytics/countries"],
   });
 
@@ -163,7 +170,9 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {viewsSeries && viewsSeries.length > 0 ? (
+              {viewsLoading ? (
+                <div className="h-64 flex items-center justify-center"><Skeleton className="w-full h-48" /></div>
+              ) : viewsSeries && viewsSeries.length > 0 ? (
                 <div className="h-64" dir="ltr">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={viewsSeries}>
@@ -195,7 +204,9 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {followerHistory && followerHistory.length > 0 ? (
+              {followersLoading ? (
+                <div className="h-64 flex items-center justify-center"><Skeleton className="w-full h-48" /></div>
+              ) : followerHistory && followerHistory.length > 0 ? (
                 <div className="h-64" dir="ltr">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={followerHistory}>
@@ -266,7 +277,9 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {completionData && completionData.length > 0 ? (
+              {completionLoading ? (
+                <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : completionData && completionData.length > 0 ? (
                 <div className="space-y-3">
                   {completionData.map((item) => (
                     <div key={item.id} className="space-y-1" data-testid={`row-completion-${item.id}`}>
@@ -308,7 +321,9 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {countriesData && countriesData.length > 0 ? (
+              {countriesLoading ? (
+                <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+              ) : countriesData && countriesData.length > 0 ? (
                 <div className="space-y-3">
                   {countriesData.map((c, i) => {
                     const maxCount = countriesData[0]?.count || 1;
@@ -343,7 +358,9 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {tipsData && (tipsData.totalCents > 0 || tipsData.tips.length > 0) ? (
+              {tipsLoading ? (
+                <div className="space-y-3"><Skeleton className="h-16 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+              ) : tipsData && (tipsData.totalCents > 0 || tipsData.tips.length > 0) ? (
                 <>
                   <div className="text-center mb-4 p-3 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">إجمالي الإكراميات</p>

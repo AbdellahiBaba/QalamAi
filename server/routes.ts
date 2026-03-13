@@ -8447,7 +8447,7 @@ ${ch.content}
       });
     } catch (error) {
       console.error("Analytics tips error:", error);
-      res.json({ tips: [], totalCents: 0 });
+      res.status(500).json({ error: "فشل في جلب بيانات الإكراميات" });
     }
   });
 
@@ -8481,7 +8481,7 @@ ${ch.content}
       })));
     } catch (error) {
       console.error("Analytics completion error:", error);
-      res.json([]);
+      res.status(500).json({ error: "فشل في جلب بيانات الإتمام" });
     }
   });
 
@@ -8505,7 +8505,7 @@ ${ch.content}
       })));
     } catch (error) {
       console.error("Analytics countries error:", error);
-      res.json([]);
+      res.status(500).json({ error: "فشل في جلب البيانات الجغرافية" });
     }
   });
 

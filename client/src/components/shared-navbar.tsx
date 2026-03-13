@@ -396,6 +396,9 @@ export function SharedNavbar() {
               <Link href="/tickets">
                 <span className={`block text-sm font-medium py-1 ${isActive("/tickets") ? "text-foreground font-semibold border-r-2 border-primary pr-2" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-tickets">تذاكر الدعم</span>
               </Link>
+              <Link href="/analytics">
+                <span className={`block text-sm font-medium py-1 ${isActive("/analytics") ? "text-foreground font-semibold border-r-2 border-primary pr-2" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-analytics">إحصائياتي</span>
+              </Link>
               <Link href="/profile">
                 <span className={`block text-sm font-medium py-1 ${isActive("/profile") ? "text-foreground font-semibold border-r-2 border-primary pr-2" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setMobileMenuOpen(false)} data-testid="link-mobile-profile">الملف الشخصي</span>
               </Link>
