@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
@@ -23,6 +23,7 @@ interface GalleryProject {
   authorName: string | null;
   authorId: string | null;
   authorAverageRating: number;
+  authorIsVerified?: boolean;
 }
 
 const typeLabels: Record<string, string> = {
@@ -236,7 +237,7 @@ export default function Gallery() {
                     {project.title}
                   </h3>
                   {project.authorName && (
-                    <div>
+                    <div className="flex items-center gap-1 flex-wrap">
                       {project.authorId ? (
                         <Link
                           href={`/author/${project.authorId}`}
@@ -250,6 +251,9 @@ export default function Gallery() {
                         <span className="text-sm text-muted-foreground" data-testid={`text-author-${project.id}`}>
                           {project.authorName}
                         </span>
+                      )}
+                      {project.authorIsVerified && (
+                        <BadgeCheck className="w-3.5 h-3.5 text-[#1D9BF0] shrink-0" title="كاتب موثّق" data-testid={`badge-verified-${project.id}`} />
                       )}
                     </div>
                   )}

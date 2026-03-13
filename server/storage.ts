@@ -671,7 +671,7 @@ export class DatabaseStorage implements IStorage {
       WHERE p.share_token IS NOT NULL AND p.published_to_gallery = true
         AND (p.flagged = false OR p.flagged IS NULL)
         ${typeFilter}
-      ORDER BY "authorAverageRating" DESC, p.updated_at DESC
+      ORDER BY COALESCE(u.verified, false) DESC, "authorAverageRating" DESC, p.updated_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `)).rows;
 
@@ -990,7 +990,7 @@ export class DatabaseStorage implements IStorage {
       WHERE p.project_type = 'essay' AND p.share_token IS NOT NULL
         AND (p.flagged = false OR p.flagged IS NULL)
         AND (p.published_to_news = true OR p.published_to_gallery = true)
-      ORDER BY clicks DESC, p.updated_at DESC
+      ORDER BY COALESCE(u.verified, false) DESC, clicks DESC, p.updated_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `)).rows;
 
