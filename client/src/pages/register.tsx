@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Feather, Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { COUNTRIES } from "@/lib/countries";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -56,6 +58,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [country, setCountry] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
@@ -80,7 +83,7 @@ export default function Register() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
-        body: JSON.stringify({ email: email.trim(), password, firstName, lastName }),
+        body: JSON.stringify({ email: email.trim(), password, firstName, lastName, country: country || undefined }),
         credentials: "include",
       });
       const data = await res.json();
@@ -155,6 +158,21 @@ export default function Register() {
                   data-testid="input-email"
                 />
                 {fieldErrors.email && <p className="text-xs text-red-500" data-testid="error-email">{fieldErrors.email}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="country">الدولة <span className="text-muted-foreground text-xs">(اختياري)</span></Label>
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger id="country" data-testid="select-country">
+                    <SelectValue placeholder="اختر دولتك..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code} data-testid={`option-country-${c.code}`}>
+                        <span className="ml-2">{c.flag}</span> {c.nameAr}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">كلمة المرور</Label>

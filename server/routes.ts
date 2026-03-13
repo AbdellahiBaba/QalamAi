@@ -5849,7 +5849,8 @@ ${glossaryParagraphs}
     try {
       const userId = req.user.claims.sub;
       const { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles, country } = req.body;
-      const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles: socialProfiles ?? undefined, country: country ?? undefined });
+      const countryVal = country === null || country === "" || country === "none" ? null : (country ?? undefined);
+      const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles: socialProfiles ?? undefined, country: countryVal });
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "فشل في تحديث الملف الشخصي" });

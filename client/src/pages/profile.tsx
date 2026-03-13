@@ -48,6 +48,7 @@ import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
+import { COUNTRIES, getCountry } from "@/lib/countries";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,13 +79,14 @@ export default function Profile() {
   const [socialLinkedin, setSocialLinkedin] = useState("");
   const [socialYoutube, setSocialYoutube] = useState("");
   const [socialWebsite, setSocialWebsite] = useState("");
+  const [country, setCountry] = useState("");
   const [avatarStyle, setAvatarStyle] = useState("classic");
   const [showAvatarGenerator, setShowAvatarGenerator] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const initialValuesRef = useRef({ firstName: "", lastName: "", displayName: "", bio: "", publicProfile: false, socialTwitter: "", socialInstagram: "", socialTiktok: "", socialFacebook: "", socialLinkedin: "", socialYoutube: "", socialWebsite: "" });
+  const initialValuesRef = useRef({ firstName: "", lastName: "", displayName: "", bio: "", publicProfile: false, socialTwitter: "", socialInstagram: "", socialTiktok: "", socialFacebook: "", socialLinkedin: "", socialYoutube: "", socialWebsite: "", country: "" });
 
   useEffect(() => {
     if (user) {
@@ -103,6 +105,7 @@ export default function Profile() {
         socialLinkedin: sp.linkedin || "",
         socialYoutube: sp.youtube || "",
         socialWebsite: sp.website || "",
+        country: (user as any).country || "",
       };
       setFirstName(vals.firstName);
       setLastName(vals.lastName);
@@ -116,6 +119,7 @@ export default function Profile() {
       setSocialLinkedin(vals.socialLinkedin);
       setSocialYoutube(vals.socialYoutube);
       setSocialWebsite(vals.socialWebsite);
+      setCountry(vals.country);
       initialValuesRef.current = vals;
     }
   }, [user]);
@@ -136,9 +140,10 @@ export default function Profile() {
       socialFacebook !== init.socialFacebook ||
       socialLinkedin !== init.socialLinkedin ||
       socialYoutube !== init.socialYoutube ||
-      socialWebsite !== init.socialWebsite
+      socialWebsite !== init.socialWebsite ||
+      country !== init.country
     );
-  }, [firstName, lastName, displayName, bio, publicProfile, socialTwitter, socialInstagram, socialTiktok, socialFacebook, socialLinkedin, socialYoutube, socialWebsite]);
+  }, [firstName, lastName, displayName, bio, publicProfile, socialTwitter, socialInstagram, socialTiktok, socialFacebook, socialLinkedin, socialYoutube, socialWebsite, country]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -186,12 +191,12 @@ export default function Profile() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { firstName: string; lastName: string; displayName?: string; bio?: string; publicProfile?: boolean; socialProfiles?: string }) => {
+    mutationFn: async (data: { firstName: string; lastName: string; displayName?: string; bio?: string; publicProfile?: boolean; socialProfiles?: string; country?: string }) => {
       const res = await apiRequest("PATCH", "/api/profile", data);
       return res.json();
     },
     onSuccess: () => {
-      initialValuesRef.current = { firstName, lastName, displayName, bio, publicProfile, socialTwitter, socialInstagram, socialTiktok, socialFacebook, socialLinkedin, socialYoutube, socialWebsite };
+      initialValuesRef.current = { firstName, lastName, displayName, bio, publicProfile, socialTwitter, socialInstagram, socialTiktok, socialFacebook, socialLinkedin, socialYoutube, socialWebsite, country };
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "تم تحديث الملف الشخصي بنجاح" });
     },
@@ -274,7 +279,7 @@ export default function Profile() {
     if (socialYoutube.trim()) sp.youtube = socialYoutube.trim();
     if (socialWebsite.trim()) sp.website = socialWebsite.trim();
     const socialProfiles = Object.keys(sp).length > 0 ? JSON.stringify(sp) : "";
-    updateProfileMutation.mutate({ firstName, lastName, displayName, bio, publicProfile, socialProfiles });
+    updateProfileMutation.mutate({ firstName, lastName, displayName, bio, publicProfile, socialProfiles, country: (country && country !== "none") ? country : "none" });
   };
 
   const totalSpending = projects
@@ -602,6 +607,29 @@ export default function Profile() {
                   <p className="text-xs text-muted-foreground text-left" dir="ltr" data-testid="text-bio-counter">
                     {bio.length}/{BIO_MAX_LENGTH}
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">الدولة</label>
+                  <Select value={country} onValueChange={setCountry}>
+                    <SelectTrigger data-testid="select-country">
+                      <SelectValue placeholder="اختر دولتك...">
+                        {country ? (
+                          <span className="flex items-center gap-2">
+                            <span>{getCountry(country)?.flag}</span>
+                            <span>{getCountry(country)?.nameAr}</span>
+                          </span>
+                        ) : "اختر دولتك..."}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      <SelectItem value="none">— بدون تحديد —</SelectItem>
+                      {COUNTRIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code} data-testid={`option-country-${c.code}`}>
+                          <span className="ml-2">{c.flag}</span> {c.nameAr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
