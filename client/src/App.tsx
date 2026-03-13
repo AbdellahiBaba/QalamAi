@@ -60,6 +60,7 @@ const AdminSocialHub = lazy(() => import("@/pages/admin-social-hub"));
 const SocialMarketing = lazy(() => import("@/pages/social-marketing"));
 const DailyPrompt = lazy(() => import("@/pages/daily-prompt"));
 const SearchPage = lazy(() => import("@/pages/search"));
+const Analytics = lazy(() => import("@/pages/analytics"));
 
 function LoadingFallback() {
   return (

@@ -8384,6 +8384,131 @@ ${ch.content}
     }
   });
 
+  app.get("/api/me/analytics/views", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pool } = await import("./db");
+      const result = await pool.query(
+        `SELECT d.day::date as date, COUNT(v.id)::int as views
+         FROM generate_series(NOW() - INTERVAL '30 days', NOW(), '1 day') d(day)
+         LEFT JOIN essay_views v ON v.viewed_at::date = d.day::date
+           AND v.project_id IN (SELECT id FROM novel_projects WHERE user_id = $1 AND (published_to_news = true OR published_to_gallery = true))
+         GROUP BY d.day::date
+         ORDER BY d.day::date ASC`,
+        [userId]
+      );
+      res.json(result.rows.map((r: any) => ({
+        date: new Date(r.date).toISOString().split("T")[0],
+        views: Number(r.views),
+      })));
+    } catch (error) {
+      console.error("Analytics views error:", error);
+      res.status(500).json({ error: "فشل في جلب بيانات المشاهدات" });
+    }
+  });
+
+  app.get("/api/me/analytics/followers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pool } = await import("./db");
+      const result = await pool.query(
+        `SELECT date_trunc('week', created_at)::date as week, COUNT(*)::int as count
+         FROM author_follows
+         WHERE following_id = $1 AND created_at >= NOW() - INTERVAL '12 weeks'
+         GROUP BY week
+         ORDER BY week ASC`,
+        [userId]
+      );
+      res.json(result.rows.map((r: any) => ({
+        week: new Date(r.week).toISOString().split("T")[0],
+        count: Number(r.count),
+      })));
+    } catch (error) {
+      console.error("Analytics followers error:", error);
+      res.status(500).json({ error: "فشل في جلب بيانات المتابعين" });
+    }
+  });
+
+  app.get("/api/me/analytics/tips-history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tips = await storage.getTipsByAuthor(userId);
+      const total = tips.reduce((sum, t) => sum + t.amountCents, 0);
+      res.json({
+        totalCents: total,
+        tips: tips.map((t: any) => ({
+          id: t.id,
+          amountCents: t.amountCents,
+          fromUserId: t.fromUserId,
+          projectId: t.projectId,
+          createdAt: t.createdAt,
+          completed: t.completed,
+        })),
+      });
+    } catch (error) {
+      console.error("Analytics tips error:", error);
+      res.json({ tips: [], totalCents: 0 });
+    }
+  });
+
+  app.get("/api/me/analytics/completion", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pool } = await import("./db");
+      const result = await pool.query(
+        `SELECT np.id, np.title, np.share_token as "shareToken",
+                COUNT(DISTINCT c.id)::int as total_chapters,
+                COUNT(DISTINCT rp.id)::int as readers,
+                COUNT(DISTINCT CASE WHEN rp.last_chapter_id = (SELECT id FROM chapters WHERE project_id = np.id ORDER BY chapter_number DESC LIMIT 1) THEN rp.id END)::int as completions
+         FROM novel_projects np
+         LEFT JOIN chapters c ON c.project_id = np.id
+         LEFT JOIN reading_progress rp ON rp.project_id = np.id
+         WHERE np.user_id = $1 AND (np.published_to_news = true OR np.published_to_gallery = true)
+         GROUP BY np.id, np.title, np.share_token
+         HAVING COUNT(DISTINCT c.id) > 0
+         ORDER BY readers DESC
+         LIMIT 10`,
+        [userId]
+      );
+      res.json(result.rows.map((r: any) => ({
+        id: Number(r.id),
+        title: r.title,
+        shareToken: r.shareToken,
+        totalChapters: Number(r.total_chapters),
+        readers: Number(r.readers),
+        completions: Number(r.completions),
+        completionRate: r.readers > 0 ? Math.round((Number(r.completions) / Number(r.readers)) * 100) : 0,
+      })));
+    } catch (error) {
+      console.error("Analytics completion error:", error);
+      res.json([]);
+    }
+  });
+
+  app.get("/api/me/analytics/countries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { pool } = await import("./db");
+      const result = await pool.query(
+        `SELECT COALESCE(v.country, 'unknown') as country, COUNT(*)::int as count
+         FROM essay_views v
+         WHERE v.project_id IN (SELECT id FROM novel_projects WHERE user_id = $1 AND (published_to_news = true OR published_to_gallery = true))
+           AND v.country IS NOT NULL AND v.country != ''
+         GROUP BY v.country
+         ORDER BY count DESC
+         LIMIT 5`,
+        [userId]
+      );
+      res.json(result.rows.map((r: any) => ({
+        country: r.country,
+        count: Number(r.count),
+      })));
+    } catch (error) {
+      console.error("Analytics countries error:", error);
+      res.json([]);
+    }
+  });
+
   // ── Email subscriptions (non-platform followers) ─────────────────────────────
   app.post("/api/authors/:id/subscribe-email", async (req, res) => {
     try {
