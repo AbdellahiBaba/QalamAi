@@ -934,8 +934,9 @@ export class DatabaseStorage implements IStorage {
 
     const countResult: any[] = (await db.execute(sql`
       SELECT COUNT(*)::int as total FROM novel_projects p
-      WHERE p.project_type = 'essay' AND p.published_to_news = true AND p.share_token IS NOT NULL
+      WHERE p.project_type = 'essay' AND p.share_token IS NOT NULL
         AND (p.flagged = false OR p.flagged IS NULL)
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
     `)).rows;
     const total = countResult[0]?.total || 0;
 
@@ -953,21 +954,23 @@ export class DatabaseStorage implements IStorage {
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
       LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) v ON v.project_id = p.id
       LEFT JOIN (SELECT project_id, COUNT(*)::int as click_count FROM essay_clicks GROUP BY project_id) c ON c.project_id = p.id
-      WHERE p.project_type = 'essay' AND p.published_to_news = true AND p.share_token IS NOT NULL
+      WHERE p.project_type = 'essay' AND p.share_token IS NOT NULL
         AND (p.flagged = false OR p.flagged IS NULL)
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
       ORDER BY clicks DESC, p.updated_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `)).rows;
 
-    const projectIds = rows.map(r => r.id);
+    const projectIds = rows.map(r => Number(r.id));
     let reactionsMap: Record<number, Record<string, number>> = {};
     if (projectIds.length > 0) {
-      const reactionRows: any[] = (await db.execute(sql`
+      const idsLiteral = projectIds.join(',');
+      const reactionRows: any[] = (await db.execute(sql.raw(`
         SELECT project_id as "projectId", reaction_type as "reactionType", COUNT(*)::int as count
         FROM essay_reactions
-        WHERE project_id = ANY(${projectIds})
+        WHERE project_id = ANY(ARRAY[${idsLiteral}]::int[])
         GROUP BY project_id, reaction_type
-      `)).rows;
+      `))).rows;
       for (const r of reactionRows) {
         if (!reactionsMap[r.projectId]) reactionsMap[r.projectId] = {};
         reactionsMap[r.projectId][r.reactionType] = r.count;

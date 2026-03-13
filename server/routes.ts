@@ -815,10 +815,8 @@ ${allPages.map(p => `  <url>
         .where(
           and(
             eq(novelProjects.userId, userId),
-            or(
-              and(gte(chapters.updatedAt, todayStart), lt(chapters.updatedAt, tomorrowStart)),
-              and(gte(chapters.createdAt, todayStart), lt(chapters.createdAt, tomorrowStart))
-            )
+            gte(chapters.createdAt, todayStart),
+            lt(chapters.createdAt, tomorrowStart)
           )
         );
 
