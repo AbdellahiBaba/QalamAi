@@ -8642,31 +8642,66 @@ ${ch.content}
         ? [topHours[0], topHours[0], topHours[1], topHours[1], Math.min(topHours[0], topHours[1]) + 2]
         : [9, 13, 17, 20, 22];
 
+      const validPlatformKeys = ["facebook", "instagram", "x", "tiktok", "linkedin"];
+      const userPlatforms = Array.isArray(requestedPlatforms)
+        ? requestedPlatforms.filter((p: string) => validPlatformKeys.includes(p))
+        : null;
+
+      const platformFormatGuide: Record<string, string> = {
+        facebook: "فيسبوك: منشور طويل نسبياً (3-5 فقرات)، مع CTA واضح ورابط مباشر.",
+        instagram: "إنستغرام: كابشن جذاب مع إيموجيات مناسبة، و15-20 هاشتاق متنوع.",
+        x: "X/تويتر: تغريدة قصيرة (حد 280 حرف تقريباً)، مختصرة ومؤثرة مع 3-5 هاشتاقات.",
+        tiktok: "TikTok: نص قصير جداً بأسلوب شبابي حيوي، مع هاشتاقات ترند.",
+        linkedin: "LinkedIn: منشور مهني احترافي موجه لصنّاع القرار والمثقفين.",
+      };
+
       const today = new Date();
       const posts: any[] = [];
 
       for (let i = 0; i < 5; i++) {
         const isLiterary = i >= 2;
         const postType = isLiterary ? "literary" : "marketing";
-        const validPlatformKeys = ["facebook", "instagram", "x", "tiktok", "linkedin"];
-        const userPlatforms = Array.isArray(requestedPlatforms)
-          ? requestedPlatforms.filter((p: string) => validPlatformKeys.includes(p))
-          : null;
         const platforms = userPlatforms && userPlatforms.length > 0
           ? userPlatforms
           : isLiterary
             ? ["facebook", "instagram", "x"]
             : ["facebook", "instagram", "x", "tiktok", "linkedin"];
 
+        const platformInstructions = platforms
+          .map((p) => platformFormatGuide[p] || "")
+          .filter(Boolean)
+          .join("\n");
+
         const prompt = isLiterary
-          ? `اكتب خاطرة أدبية عربية فصيحة قصيرة (3-5 أسطر) بأسلوب شاعري مؤثر. اجعلها عن ${["الحنين", "الأمل", "الحب"][i - 2] || "الحياة"}. أضف 5 هاشتاقات عربية مناسبة في النهاية. لا تكتب أي شيء آخر غير الخاطرة والهاشتاقات.`
-          : `اكتب منشوراً تسويقياً قصيراً وجذاباً لمنصة QalamAI (qalamai.net) — منصة كتابة عربية بالذكاء الاصطناعي تتيح للكتّاب إنشاء روايات ومقالات وسيناريوهات وخواطر وقصائد. ${i === 0 ? "ركز على سهولة الاستخدام والبدء مجاناً" : "ركز على جودة المحتوى المولّد وتنوع الأنواع الأدبية"}. أضف CTA قوي ورابط qalamai.net و5 هاشتاقات. لا تكتب أي شيء آخر.`;
+          ? `اكتب خاطرة أدبية عربية فصيحة قصيرة (3-5 أسطر) بأسلوب شاعري مؤثر عن ${["الحنين", "الأمل", "الحب"][i - 2] || "الحياة"}.
+
+المنشور سيُنشر على: ${platforms.join(", ")}
+${platformInstructions}
+
+في نهاية الخاطرة أضف:
+- عبارة CTA: "اكتشف عالم الكتابة العربية على QalamAI.net"
+- رابط: qalamai.net
+- 5 هاشتاقات عربية مناسبة
+
+قدّم المحتوى بتنسيق مناسب لكل منصة من المنصات المحددة.`
+          : `اكتب منشوراً تسويقياً لمنصة QalamAI (qalamai.net) — منصة كتابة عربية بالذكاء الاصطناعي تتيح للكتّاب إنشاء روايات ومقالات وسيناريوهات وخواطر وقصائد.
+${i === 0 ? "ركز على سهولة الاستخدام والبدء مجاناً." : "ركز على جودة المحتوى المولّد وتنوع الأنواع الأدبية."}
+
+المنشور سيُنشر على: ${platforms.join(", ")}
+${platformInstructions}
+
+يجب أن يتضمن:
+- CTA قوي وواضح
+- رابط qalamai.net
+- 5 هاشتاقات مناسبة
+
+قدّم المحتوى بتنسيق مناسب لكل منصة.`;
 
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
-          max_completion_tokens: 500,
+          max_completion_tokens: 800,
           messages: [
-            { role: "system", content: "أنت أبو هاشم، كاتب ومسوّق رقمي عربي محترف. تكتب محتوى سوشيال ميديا بالعربية الفصحى." },
+            { role: "system", content: "أنت أبو هاشم، كاتب ومسوّق رقمي عربي محترف. تكتب محتوى سوشيال ميديا بالعربية الفصحى. تنسّق المحتوى حسب متطلبات كل منصة (طول، أسلوب، هاشتاقات). دائماً تضيف CTA ورابط qalamai.net." },
             { role: "user", content: prompt },
           ],
         });
@@ -8678,7 +8713,7 @@ ${ch.content}
           try {
             const imgRes = await openai.images.generate({
               model: "dall-e-3",
-              prompt: `Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.`,
+              prompt: "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.",
               n: 1,
               size: "1024x1024",
             });
@@ -8695,7 +8730,7 @@ ${ch.content}
           content,
           platforms,
           scheduledAt,
-          status: "scheduled",
+          status: "draft",
           postType,
           coverImageUrl,
         });
@@ -8767,6 +8802,95 @@ ${ch.content}
     } catch (error: any) {
       console.error("Regenerate image error:", error);
       res.status(500).json({ error: "فشل في إعادة توليد الصورة" });
+    }
+  });
+
+  app.get("/api/admin/social/yesterday-engagement", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+    try {
+      const engagement = await storage.getYesterdayEngagement();
+      res.json(engagement);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب بيانات الأمس" });
+    }
+  });
+
+  app.post("/api/admin/social/publish/:id", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const post = await storage.getSocialPostById(id);
+      if (!post) return res.status(404).json({ error: "المنشور غير موجود" });
+
+      const credRows: any[] = (await db.execute(dsql`
+        SELECT value FROM social_hub_settings WHERE key = 'platform_credentials'
+      `)).rows;
+      const credentials = credRows[0]?.value ? JSON.parse(credRows[0].value) : {};
+
+      const publishResults: Record<string, { success: boolean; error?: string }> = {};
+      let anyPublished = false;
+
+      for (const platform of (post.platforms || [])) {
+        const token = credentials[platform];
+        if (!token || token.trim() === "") {
+          publishResults[platform] = { success: false, error: "لا توجد بيانات اعتماد" };
+          continue;
+        }
+
+        try {
+          if (platform === "facebook" && token.includes("|")) {
+            const [pageId, pageToken] = token.split("|");
+            const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ message: post.content, access_token: pageToken }),
+            });
+            if (!fbRes.ok) {
+              const fbErr = await fbRes.json().catch(() => ({}));
+              throw new Error((fbErr as any)?.error?.message || "فشل النشر على فيسبوك");
+            }
+            publishResults[platform] = { success: true };
+            anyPublished = true;
+          } else if (platform === "x") {
+            const xRes = await fetch("https://api.twitter.com/2/tweets", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+              },
+              body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
+            });
+            if (!xRes.ok) {
+              const xErr = await xRes.json().catch(() => ({}));
+              throw new Error((xErr as any)?.detail || "فشل النشر على X");
+            }
+            publishResults[platform] = { success: true };
+            anyPublished = true;
+          } else if (platform === "linkedin") {
+            publishResults[platform] = { success: false, error: "النشر المباشر على LinkedIn يتطلب OAuth2 — يرجى النسخ يدوياً" };
+          } else {
+            publishResults[platform] = { success: false, error: "النشر المباشر غير مدعوم بعد لهذه المنصة — يرجى النسخ يدوياً" };
+          }
+        } catch (pubErr: any) {
+          publishResults[platform] = { success: false, error: pubErr.message || "خطأ في النشر" };
+        }
+      }
+
+      if (anyPublished) {
+        await storage.updateSocialPost(id, { status: "posted" });
+      }
+
+      res.json({
+        id,
+        publishResults,
+        fullyPublished: Object.values(publishResults).every((r) => r.success),
+        partiallyPublished: anyPublished,
+        message: anyPublished
+          ? "تم النشر (أو محاولة النشر) على المنصات المتاحة"
+          : "لم يتم النشر — تحقق من بيانات الاعتماد في الإعدادات",
+      });
+    } catch (error: any) {
+      console.error("Publish post error:", error);
+      res.status(500).json({ error: "فشل في النشر: " + (error.message || "") });
     }
   });
 

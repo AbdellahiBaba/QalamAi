@@ -72,11 +72,12 @@ function PlatformBadges({ platforms }: { platforms: string[] }) {
   );
 }
 
-function PostCard({ post, onDelete, onStatusChange, onReschedule }: {
+function PostCard({ post, onDelete, onStatusChange, onReschedule, onPublish }: {
   post: any;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: string) => void;
   onReschedule: (id: number, scheduledAt: string) => void;
+  onPublish?: (id: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
@@ -217,16 +218,29 @@ function PostCard({ post, onDelete, onStatusChange, onReschedule }: {
           </Button>
         )}
         {post.status === "scheduled" && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full text-xs"
-            onClick={() => onStatusChange(post.id, "posted")}
-            data-testid={`button-mark-posted-${post.id}`}
-          >
-            <Check className="w-3 h-3 ml-1" />
-            تم النشر
-          </Button>
+          <div className="flex gap-2">
+            {onPublish && (
+              <Button
+                size="sm"
+                className="flex-1 text-xs bg-gradient-to-r from-green-600 to-emerald-600"
+                onClick={() => onPublish(post.id)}
+                data-testid={`button-publish-${post.id}`}
+              >
+                <Megaphone className="w-3 h-3 ml-1" />
+                نشر مباشر
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-xs"
+              onClick={() => onStatusChange(post.id, "posted")}
+              data-testid={`button-mark-posted-${post.id}`}
+            >
+              <Check className="w-3 h-3 ml-1" />
+              تم النشر يدوياً
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -269,6 +283,10 @@ function DashboardTab() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     return d.toDateString() === yesterday.toDateString();
+  });
+
+  const { data: yesterdayEngagement } = useQuery<any>({
+    queryKey: ["/api/admin/social/yesterday-engagement"],
   });
 
   return (
@@ -360,14 +378,46 @@ function DashboardTab() {
         </div>
       )}
 
-      {yesterdayPosts.length > 0 && (
-        <div>
-          <h3 className="font-medium text-sm mb-3 text-muted-foreground">ملخص الأمس ({yesterdayPosts.length} منشورات)</h3>
-          <div className="text-xs text-muted-foreground">
-            {yesterdayPosts.filter((p: any) => p.status === "posted").length} نُشرت ·{" "}
-            {yesterdayPosts.filter((p: any) => p.status === "scheduled").length} لم تُنشر بعد
-          </div>
-        </div>
+      {(yesterdayPosts.length > 0 || (yesterdayEngagement && yesterdayEngagement.postCount > 0)) && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              ملخص الأمس
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
+              {yesterdayPosts.filter((p: any) => p.status === "posted").length} نُشرت ·{" "}
+              {yesterdayPosts.filter((p: any) => p.status === "scheduled").length} لم تُنشر بعد ·{" "}
+              {yesterdayPosts.length} إجمالي
+            </div>
+            {yesterdayEngagement && yesterdayEngagement.postCount > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <p className="text-lg font-bold" data-testid="yesterday-likes">{yesterdayEngagement.totalLikes}</p>
+                  <p className="text-xs text-muted-foreground">اعجابات</p>
+                </div>
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <p className="text-lg font-bold" data-testid="yesterday-shares">{yesterdayEngagement.totalShares}</p>
+                  <p className="text-xs text-muted-foreground">مشاركات</p>
+                </div>
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <p className="text-lg font-bold" data-testid="yesterday-reach">{yesterdayEngagement.totalReach}</p>
+                  <p className="text-xs text-muted-foreground">وصول</p>
+                </div>
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <p className="text-lg font-bold" data-testid="yesterday-clicks">{yesterdayEngagement.totalClicks}</p>
+                  <p className="text-xs text-muted-foreground">نقرات</p>
+                </div>
+                <div className="text-center p-2 rounded-md bg-muted/50">
+                  <p className="text-lg font-bold" data-testid="yesterday-comments">{yesterdayEngagement.totalComments}</p>
+                  <p className="text-xs text-muted-foreground">تعليقات</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
@@ -407,6 +457,31 @@ function PostQueueTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
       toast({ title: "تم إعادة الجدولة" });
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/admin/social/publish/${id}`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      const results = data.publishResults || {};
+      const successes = Object.entries(results).filter(([, r]: any) => r.success).map(([p]) => p);
+      const failures = Object.entries(results).filter(([, r]: any) => !r.success).map(([p, r]: any) => `${p}: ${r.error}`);
+      if (successes.length > 0) {
+        toast({ title: `تم النشر على: ${successes.join(", ")}` });
+      }
+      if (failures.length > 0) {
+        toast({ title: `فشل النشر`, description: failures.join(" | "), variant: "destructive" });
+      }
+      if (successes.length === 0 && failures.length === 0) {
+        toast({ title: data.message || "لم يتم النشر", variant: "destructive" });
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل في النشر", variant: "destructive" });
     },
   });
 
@@ -452,6 +527,7 @@ function PostQueueTab() {
               onDelete={(id) => deleteMutation.mutate(id)}
               onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
               onReschedule={(id, scheduledAt) => rescheduleMutation.mutate({ id, scheduledAt })}
+              onPublish={(id) => publishMutation.mutate(id)}
             />
           ))}
         </div>

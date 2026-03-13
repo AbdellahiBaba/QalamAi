@@ -2199,6 +2199,23 @@ export class DatabaseStorage implements IStorage {
     return (await db.execute(sql`SELECT * FROM social_post_insights WHERE post_id = ${postId} ORDER BY logged_at DESC`)).rows;
   }
 
+  async getYesterdayEngagement(): Promise<{ totalLikes: number; totalShares: number; totalReach: number; totalClicks: number; totalComments: number; postCount: number }> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT
+        COALESCE(SUM(spi.likes), 0)::int as "totalLikes",
+        COALESCE(SUM(spi.shares), 0)::int as "totalShares",
+        COALESCE(SUM(spi.reach), 0)::int as "totalReach",
+        COALESCE(SUM(spi.clicks), 0)::int as "totalClicks",
+        COALESCE(SUM(spi.comments), 0)::int as "totalComments",
+        COUNT(DISTINCT sp.id)::int as "postCount"
+      FROM social_posts sp
+      JOIN social_post_insights spi ON spi.post_id = sp.id
+      WHERE sp.scheduled_at >= CURRENT_DATE - INTERVAL '1 day'
+        AND sp.scheduled_at < CURRENT_DATE
+    `)).rows;
+    return rows[0] || { totalLikes: 0, totalShares: 0, totalReach: 0, totalClicks: 0, totalComments: 0, postCount: 0 };
+  }
+
   async getBestPostingTimes(): Promise<{ hour: number; avgEngagement: number }[]> {
     const rows: any[] = (await db.execute(sql`
       SELECT EXTRACT(HOUR FROM sp.scheduled_at)::int as hour,
