@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
-import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock, BadgeCheck } from "lucide-react";
+import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock, BadgeCheck, Volume2, VolumeX, Coffee, Quote } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +85,77 @@ export default function EssayPublic() {
   const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
   const [commentSent, setCommentSent] = useState(false);
+
+  // Reading progress bar
+  const [readProgress, setReadProgress] = useState(0);
+  const articleRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const onScroll = () => {
+      const el = articleRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const total = el.offsetHeight;
+      const scrolled = Math.max(0, -rect.top);
+      setReadProgress(Math.min(100, (scrolled / (total - window.innerHeight)) * 100));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // TTS audio
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleTTS = useCallback(async () => {
+    if (audioRef.current) {
+      if (audioPlaying) { audioRef.current.pause(); setAudioPlaying(false); }
+      else { audioRef.current.play(); setAudioPlaying(true); }
+      return;
+    }
+    if (!shareToken) return;
+    setAudioLoading(true);
+    try {
+      const res = await fetch(`/api/tts/essay/${shareToken}`, { method: "POST" });
+      if (!res.ok) throw new Error("فشل");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => setAudioPlaying(false);
+      audio.play();
+      setAudioPlaying(true);
+    } catch {
+      toast({ title: "فشل تحميل التسجيل الصوتي", variant: "destructive" });
+    } finally {
+      setAudioLoading(false);
+    }
+  }, [shareToken, audioPlaying, toast]);
+
+  // Quote highlighting
+  const [quotePopup, setQuotePopup] = useState<{ text: string; x: number; y: number } | null>(null);
+  const handleTextSelection = useCallback(() => {
+    const sel = window.getSelection();
+    const text = sel?.toString().trim();
+    if (!text || text.length < 15 || text.length > 500) { setQuotePopup(null); return; }
+    const range = sel!.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    setQuotePopup({ text, x: rect.left + rect.width / 2, y: rect.top + window.scrollY - 48 });
+  }, []);
+
+  const handleShareQuote = useCallback(async () => {
+    if (!quotePopup) return;
+    const text = `"${quotePopup.text}" — ${essay?.title ?? ""} | QalamAI\nhttps://qalamai.net/essay/${shareToken}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "تم نسخ الاقتباس" });
+    } catch {
+      toast({ title: "تعذّر النسخ" });
+    }
+    setQuotePopup(null);
+  }, [quotePopup, essay, shareToken, toast]);
 
   const { data: essay, isLoading: essayLoading, error: essayError } = useQuery<PublicEssay>({
     queryKey: ["/api/public/essay", shareToken],
@@ -306,10 +377,34 @@ export default function EssayPublic() {
   const readingTime = calcReadingTime(essay.totalWords);
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
+    <div className="min-h-screen bg-background" dir="rtl" onMouseUp={handleTextSelection}>
+      {/* Reading progress bar */}
+      <div
+        className="fixed top-0 left-0 h-0.5 bg-primary z-[9999] transition-all duration-100"
+        style={{ width: `${readProgress}%` }}
+        data-testid="reading-progress-bar"
+      />
+
+      {/* Quote share popup */}
+      {quotePopup && (
+        <div
+          className="fixed z-[9998] transform -translate-x-1/2"
+          style={{ top: quotePopup.y, left: quotePopup.x }}
+        >
+          <button
+            onClick={handleShareQuote}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground text-background text-xs rounded-full shadow-lg hover:opacity-90 transition-opacity whitespace-nowrap"
+            data-testid="button-share-quote"
+          >
+            <Quote className="w-3 h-3" />
+            نسخ الاقتباس
+          </button>
+        </div>
+      )}
+
       <SharedNavbar />
 
-      <article className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16">
+      <article ref={articleRef} className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16">
         {/* Header */}
         <div className="space-y-4 mb-8">
           {essay.subject && (
@@ -468,6 +563,23 @@ export default function EssayPublic() {
             <Button
               variant="outline"
               size="sm"
+              onClick={handleTTS}
+              disabled={audioLoading}
+              data-testid="button-tts"
+              className="gap-1.5"
+            >
+              {audioLoading ? (
+                <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+              ) : audioPlaying ? (
+                <VolumeX className="w-3.5 h-3.5" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5" />
+              )}
+              {audioPlaying ? "إيقاف" : "استمع للمقال"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleShare}
               data-testid="button-share-twitter"
               className="gap-1.5"
@@ -539,11 +651,31 @@ export default function EssayPublic() {
                   )}
                 </div>
               </button>
-              <Link href="/essays">
-                <Button variant="outline" size="sm" data-testid="button-more-essays">
-                  المزيد من المقالات
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                  onClick={async () => {
+                    try {
+                      const res = await apiRequest("POST", "/api/tips/checkout", { toAuthorId: essay.authorId, projectId: essay.id, amountCents: 500 });
+                      const data = await res.json();
+                      if (data.url) window.open(data.url, "_blank");
+                    } catch {
+                      toast({ title: "يجب تسجيل الدخول لدعم الكاتب", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-tip-author"
+                >
+                  <Coffee className="w-3.5 h-3.5" />
+                  ادعم الكاتب
                 </Button>
-              </Link>
+                <Link href="/essays">
+                  <Button variant="outline" size="sm" data-testid="button-more-essays">
+                    المزيد من المقالات
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}

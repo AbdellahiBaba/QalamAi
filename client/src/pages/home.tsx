@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap, Users, BadgeCheck } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap, Users, BadgeCheck, TrendingUp, Eye, Send, PenLine, Layers } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -104,6 +104,39 @@ export default function Home() {
   const { data: referralData } = useQuery<{ referralCode: string; referralCount: number; bonusGenerations: number }>({
     queryKey: ["/api/me/referral"],
     staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: analyticsData } = useQuery<{
+    totalViews: number; totalEssays: number; followerCount: number; totalReactions: number;
+    topEssays: Array<{ id: number; title: string; shareToken: string | null; views: number; reactions: number }>;
+    viewsThisMonth: number; followersThisMonth: number;
+  }>({
+    queryKey: ["/api/me/analytics"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: dailyPromptData } = useQuery<{
+    prompt: { id: number; promptText: string; promptDate: string; winnerId: string | null } | null;
+    entries: Array<{ id: number; userId: string; content: string; authorName: string; authorProfileImage: string | null }>;
+    entryCount: number;
+  }>({
+    queryKey: ["/api/daily-prompt"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const [promptEntry, setPromptEntry] = useState("");
+  const [promptSubmitted, setPromptSubmitted] = useState(false);
+
+  const submitPromptMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await apiRequest("POST", "/api/daily-prompt/entry", { promptId: dailyPromptData?.prompt?.id, content });
+      return res.json();
+    },
+    onSuccess: () => {
+      setPromptSubmitted(true);
+      setPromptEntry("");
+      queryClient.invalidateQueries({ queryKey: ["/api/daily-prompt"] });
+    },
   });
 
   const [referralCopied, setReferralCopied] = useState(false);
@@ -914,6 +947,122 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
+
+        {/* Author Analytics Dashboard */}
+        {analyticsData && (analyticsData.totalEssays > 0 || analyticsData.followerCount > 0) && (
+          <Card className="mb-6" data-testid="card-author-analytics">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold text-sm">إحصائيات المحتوى</h3>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div className="bg-muted/50 rounded-lg p-3 text-center" data-testid="stat-total-views">
+                  <div className="text-xl font-bold">{analyticsData.totalViews.toLocaleString("ar-EG")}</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5"><Eye className="w-3 h-3" />مشاهدة</div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center" data-testid="stat-total-essays">
+                  <div className="text-xl font-bold">{analyticsData.totalEssays}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">مقال منشور</div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center" data-testid="stat-followers">
+                  <div className="text-xl font-bold">{analyticsData.followerCount}</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5"><Users className="w-3 h-3" />متابع</div>
+                </div>
+                <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 text-center" data-testid="stat-views-month">
+                  <div className="text-xl font-bold text-primary">{analyticsData.viewsThisMonth.toLocaleString("ar-EG")}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">مشاهدة هذا الشهر</div>
+                </div>
+              </div>
+              {analyticsData.topEssays.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">أفضل المقالات</p>
+                  <div className="space-y-1.5">
+                    {analyticsData.topEssays.slice(0, 3).map((e, i) => (
+                      <div key={e.id} className="flex items-center justify-between gap-2 text-sm" data-testid={`top-essay-${e.id}`}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-muted-foreground text-xs shrink-0">{i + 1}.</span>
+                          {e.shareToken ? (
+                            <Link href={`/essay/${e.shareToken}`} className="truncate hover:text-primary transition-colors">{e.title}</Link>
+                          ) : (
+                            <span className="truncate text-muted-foreground">{e.title}</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
+                          <Eye className="w-3 h-3" />{e.views.toLocaleString("ar-EG")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Daily Writing Prompt */}
+        {dailyPromptData?.prompt && (
+          <Card className="mb-6 border-violet-200 dark:border-violet-800" data-testid="card-daily-prompt">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <PenLine className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                <h3 className="font-semibold text-sm text-violet-700 dark:text-violet-300">تحدي الكتابة اليومي</h3>
+                <span className="text-xs text-muted-foreground mr-auto">{new Date(dailyPromptData.prompt.promptDate).toLocaleDateString("ar-EG", { month: "long", day: "numeric" })}</span>
+              </div>
+              <p className="text-base font-serif leading-relaxed mb-4 text-foreground bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-900 rounded-lg p-3" data-testid="text-daily-prompt">
+                {dailyPromptData.prompt.promptText}
+              </p>
+              {promptSubmitted ? (
+                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 font-medium" data-testid="prompt-submitted-confirmation">
+                  <CheckCircle className="w-4 h-4" />
+                  تم إرسال إجابتك! شكراً على مشاركتك.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="اكتب إجابتك هنا... (20 حرف على الأقل)"
+                    value={promptEntry}
+                    onChange={(e) => setPromptEntry(e.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    data-testid="textarea-prompt-entry"
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{dailyPromptData.entryCount} مشارك اليوم</span>
+                    <Button
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={promptEntry.trim().length < 20 || submitPromptMutation.isPending}
+                      onClick={() => submitPromptMutation.mutate(promptEntry.trim())}
+                      data-testid="button-submit-prompt"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {submitPromptMutation.isPending ? "جارٍ الإرسال..." : "مشاركة"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Content Series Link */}
+        <Card className="mb-6 border-dashed" data-testid="card-content-series">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">سلاسل المحتوى</p>
+                  <p className="text-xs text-muted-foreground">رتّب أعمالك في سلاسل متعددة الأجزاء</p>
+                </div>
+              </div>
+              <Link href="/series">
+                <Button variant="outline" size="sm" data-testid="button-manage-series">إدارة السلاسل</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {freeUsageData && !freeUsageData.unlimited && (
           <Card className="mb-6 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20" data-testid="card-free-usage">

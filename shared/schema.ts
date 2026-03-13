@@ -758,3 +758,81 @@ export const authorFollows = pgTable("author_follows", {
 ]);
 
 export type AuthorFollow = typeof authorFollows.$inferSelect;
+
+// ── Daily Writing Prompts ────────────────────────────────────────────────────
+export const dailyPrompts = pgTable("daily_prompts", {
+  id: serial("id").primaryKey(),
+  promptText: text("prompt_text").notNull(),
+  promptDate: varchar("prompt_date", { length: 10 }).notNull().unique(), // YYYY-MM-DD
+  active: boolean("active").notNull().default(true),
+  winnerId: varchar("winner_id"),
+  winnerEntryId: integer("winner_entry_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_daily_prompts_date").on(table.promptDate),
+]);
+
+export const insertDailyPromptSchema = createInsertSchema(dailyPrompts).omit({ id: true, winnerId: true, winnerEntryId: true, createdAt: true });
+export type InsertDailyPrompt = z.infer<typeof insertDailyPromptSchema>;
+export type DailyPrompt = typeof dailyPrompts.$inferSelect;
+
+export const dailyPromptEntries = pgTable("daily_prompt_entries", {
+  id: serial("id").primaryKey(),
+  promptId: integer("prompt_id").notNull().references(() => dailyPrompts.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("uq_prompt_user").on(table.promptId, table.userId),
+  index("idx_prompt_entries_prompt").on(table.promptId),
+  index("idx_prompt_entries_user").on(table.userId),
+]);
+
+export const insertDailyPromptEntrySchema = createInsertSchema(dailyPromptEntries).omit({ id: true, createdAt: true });
+export type InsertDailyPromptEntry = z.infer<typeof insertDailyPromptEntrySchema>;
+export type DailyPromptEntry = typeof dailyPromptEntries.$inferSelect;
+
+// ── Author Tips ──────────────────────────────────────────────────────────────
+export const authorTips = pgTable("author_tips", {
+  id: serial("id").primaryKey(),
+  fromUserId: varchar("from_user_id"),
+  toAuthorId: varchar("to_author_id").notNull(),
+  projectId: integer("project_id"),
+  amountCents: integer("amount_cents").notNull(),
+  stripeSessionId: varchar("stripe_session_id"),
+  status: varchar("status").notNull().default("pending"), // pending | completed | failed
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_author_tips_to").on(table.toAuthorId),
+  index("idx_author_tips_session").on(table.stripeSessionId),
+]);
+
+export type AuthorTip = typeof authorTips.$inferSelect;
+
+// ── Content Series ───────────────────────────────────────────────────────────
+export const contentSeries = pgTable("content_series", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_content_series_user").on(table.userId),
+]);
+
+export const insertContentSeriesSchema = createInsertSchema(contentSeries).omit({ id: true, createdAt: true });
+export type InsertContentSeries = z.infer<typeof insertContentSeriesSchema>;
+export type ContentSeries = typeof contentSeries.$inferSelect;
+
+export const seriesItems = pgTable("series_items", {
+  id: serial("id").primaryKey(),
+  seriesId: integer("series_id").notNull().references(() => contentSeries.id, { onDelete: "cascade" }),
+  projectId: integer("project_id").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("uq_series_project").on(table.seriesId, table.projectId),
+  index("idx_series_items_series").on(table.seriesId),
+]);
+
+export type SeriesItem = typeof seriesItems.$inferSelect;

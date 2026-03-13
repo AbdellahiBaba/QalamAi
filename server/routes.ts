@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -5483,6 +5483,20 @@ ${glossaryParagraphs}
       await storage.updateProject(projectId, { publishedToNews: true } as any);
       apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
+      // Fire follower notifications asynchronously (non-blocking)
+      (async () => {
+        try {
+          const author = await storage.getUser(userId);
+          const authorName = author?.displayName || author?.firstName || "كاتب";
+          const baseUrl = process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://qalamai.net");
+          const followers = await storage.getFollowerEmails(userId);
+          for (const f of followers) {
+            await sendNewPublicationEmail(f.email, f.displayName, authorName, project.title, `${baseUrl}/essay/${project.shareToken}`);
+          }
+        } catch (e) {
+          console.error("[Followers] Failed to send publication emails:", e);
+        }
+      })();
     } catch (error) {
       res.status(500).json({ error: "حدث خطأ" });
     }
@@ -7979,6 +7993,328 @@ ${ch.content}
       res.send(html);
     } catch (error) {
       res.status(500).send("<p>حدث خطأ</p>");
+    }
+  });
+
+  // ── Author Analytics ─────────────────────────────────────────────────────────
+  app.get("/api/me/analytics", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const analytics = await storage.getAuthorAnalytics(userId);
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الإحصائيات" });
+    }
+  });
+
+  // ── RSS Feed Per Author ───────────────────────────────────────────────────────
+  app.get("/rss/author/:id", async (req, res) => {
+    try {
+      const authorId = req.params.id;
+      const author = await storage.getUser(authorId);
+      if (!author) return res.status(404).send("المؤلف غير موجود");
+      const authorName = author.displayName || author.firstName || "كاتب";
+      const baseUrl = "https://qalamai.net";
+      const rows: any[] = (await db.execute(dsql`
+        SELECT id, title, main_idea, share_token, created_at
+        FROM novel_projects
+        WHERE user_id = ${authorId}
+          AND (published_to_news = true OR published_to_gallery = true)
+          AND share_token IS NOT NULL
+        ORDER BY created_at DESC LIMIT 20
+      `)).rows;
+      const items = rows.map(p => `
+    <item>
+      <title><![CDATA[${p.title}]]></title>
+      <link>${baseUrl}/essay/${p.share_token}</link>
+      <guid>${baseUrl}/essay/${p.share_token}</guid>
+      <pubDate>${new Date(p.created_at).toUTCString()}</pubDate>
+      ${p.main_idea ? `<description><![CDATA[${String(p.main_idea).substring(0, 300)}]]></description>` : ""}
+    </item>`).join("\n");
+      res.set("Content-Type", "application/rss+xml; charset=utf-8");
+      res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title><![CDATA[${authorName} — QalamAI]]></title>
+    <link>${baseUrl}/author/${authorId}</link>
+    <description><![CDATA[أعمال ${authorName} على منصة QalamAI]]></description>
+    <language>ar</language>
+    ${items}
+  </channel>
+</rss>`);
+    } catch (error) {
+      res.status(500).send("حدث خطأ");
+    }
+  });
+
+  // ── Daily Writing Prompts ─────────────────────────────────────────────────────
+  app.get("/api/daily-prompt", async (_req, res) => {
+    try {
+      const prompt = await storage.getTodayPrompt();
+      if (!prompt) return res.json({ prompt: null });
+      const entries = await storage.getPromptEntries(Number(prompt.id));
+      res.json({ prompt, entries, entryCount: entries.length });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب البروبت اليومي" });
+    }
+  });
+
+  app.get("/api/daily-prompt/past", async (_req, res) => {
+    try {
+      const prompts = await storage.getPastPrompts(14);
+      res.json(prompts);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب البروبتات" });
+    }
+  });
+
+  app.post("/api/daily-prompt", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+      const { promptText, promptDate } = req.body;
+      if (!promptText || !promptDate) return res.status(400).json({ error: "بيانات ناقصة" });
+      const prompt = await storage.createDailyPrompt({ promptText, promptDate, active: true });
+      res.json(prompt);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إنشاء البروبت" });
+    }
+  });
+
+  app.post("/api/daily-prompt/entry", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { promptId, content } = req.body;
+      if (!promptId || !content?.trim()) return res.status(400).json({ error: "بيانات ناقصة" });
+      if (content.trim().length < 20) return res.status(400).json({ error: "الإجابة قصيرة جداً (20 حرف على الأقل)" });
+      if (content.trim().length > 2000) return res.status(400).json({ error: "الإجابة طويلة جداً (2000 حرف كحد أقصى)" });
+      const entry = await storage.submitPromptEntry({ promptId: Number(promptId), userId, content: content.trim() });
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إرسال الإجابة" });
+    }
+  });
+
+  app.get("/api/daily-prompt/:promptId/my-entry", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const promptId = parseIntParam(req.params.promptId);
+      if (promptId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const entry = await storage.getUserPromptEntry(promptId, userId);
+      res.json({ entry: entry || null });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الإجابة" });
+    }
+  });
+
+  app.post("/api/admin/daily-prompt/:promptId/winner", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (user?.role !== "admin") return res.status(403).json({ error: "غير مصرح" });
+      const promptId = parseIntParam(req.params.promptId);
+      if (promptId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { winnerId, winnerEntryId } = req.body;
+      if (!winnerId || !winnerEntryId) return res.status(400).json({ error: "بيانات ناقصة" });
+      await storage.setPromptWinner(promptId, winnerId, Number(winnerEntryId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديد الفائز" });
+    }
+  });
+
+  // ── Author Tipping ────────────────────────────────────────────────────────────
+  app.post("/api/tips/checkout", isAuthenticated, async (req: any, res) => {
+    try {
+      const fromUserId = req.user.claims.sub;
+      const { toAuthorId, projectId, amountCents } = req.body;
+      if (!toAuthorId || !amountCents || amountCents < 100) return res.status(400).json({ error: "بيانات غير صالحة" });
+      const author = await storage.getUser(toAuthorId);
+      if (!author) return res.status(404).json({ error: "الكاتب غير موجود" });
+      const stripe = getUncachableStripeClient();
+      const baseUrl = process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://qalamai.net");
+      const authorName = author.displayName || author.firstName || "الكاتب";
+      const projectPath = projectId ? `/essay/` : "";
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            unit_amount: amountCents,
+            product_data: { name: `دعم الكاتب ${authorName} على QalamAI` },
+          },
+          quantity: 1,
+        }],
+        metadata: { type: "author_tip", fromUserId, toAuthorId, projectId: projectId ? String(projectId) : "" },
+        success_url: `${baseUrl}${projectPath}?tip=success`,
+        cancel_url: `${baseUrl}${projectPath}?tip=cancelled`,
+      });
+      await storage.createAuthorTip({ fromUserId, toAuthorId, projectId: projectId ? Number(projectId) : undefined, amountCents: Number(amountCents), stripeSessionId: session.id });
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("[Tips] Checkout error:", error);
+      res.status(500).json({ error: "فشل في إنشاء جلسة الدفع" });
+    }
+  });
+
+  app.get("/api/tips/received", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tips = await storage.getTipsByAuthor(userId);
+      const total = tips.reduce((sum, t) => sum + t.amountCents, 0);
+      res.json({ tips, totalCents: total });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الدعم المستلم" });
+    }
+  });
+
+  // ── TTS (Audio Narration) ─────────────────────────────────────────────────────
+  app.post("/api/tts/essay/:shareToken", async (req, res) => {
+    try {
+      const { shareToken } = req.params;
+      const essay = await storage.getPublicEssayByShareToken(shareToken);
+      if (!essay) return res.status(404).json({ error: "المقال غير موجود" });
+      const chapters = await storage.getChaptersByProject(essay.id);
+      const fullText = chapters.map((c: any) => c.content || "").join("\n\n").substring(0, 4000);
+      if (!fullText.trim()) return res.status(400).json({ error: "المقال فارغ" });
+      const openai = new OpenAI({ apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL });
+      const mp3 = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: "onyx",
+        input: `${essay.title}. ${fullText}`,
+      });
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+      res.set("Content-Type", "audio/mpeg");
+      res.set("Content-Length", String(buffer.length));
+      res.set("Cache-Control", "public, max-age=86400");
+      res.send(buffer);
+    } catch (error: any) {
+      console.error("[TTS] Error:", error?.message);
+      res.status(500).json({ error: "فشل في إنشاء التسجيل الصوتي" });
+    }
+  });
+
+  // ── Plagiarism Check ──────────────────────────────────────────────────────────
+  app.post("/api/plagiarism-check", isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectId } = req.body;
+      const userId = req.user.claims.sub;
+      if (!projectId) return res.status(400).json({ error: "معرّف المشروع مطلوب" });
+      const project = await storage.getProject(Number(projectId));
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      const chapters = await storage.getChaptersByProject(Number(projectId));
+      const text = chapters.map((c: any) => c.content || "").join("\n\n").substring(0, 3000);
+      if (!text.trim()) return res.json({ score: 100, verdict: "original", message: "المقال فارغ" });
+      const openai = new OpenAI({ apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        max_completion_tokens: 300,
+        messages: [
+          { role: "system", content: "أنت محقق في أصالة المحتوى الأدبي العربي. حلل النص وأعطِ تقييماً لأصالته. أجب بـ JSON فقط: {\"score\": <0-100 نسبة الأصالة>, \"verdict\": \"original\" | \"suspicious\" | \"likely_copied\", \"notes\": \"<ملاحظة مختصرة>\"}" },
+          { role: "user", content: `حلل أصالة هذا النص:\n\n${text}` },
+        ],
+      });
+      const raw = response.choices[0]?.message?.content || "{}";
+      let result = { score: 85, verdict: "original", notes: "لم يتمكن من التحليل" };
+      try { result = JSON.parse(raw); } catch {}
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في فحص الأصالة" });
+    }
+  });
+
+  // ── Content Series ────────────────────────────────────────────────────────────
+  app.get("/api/series", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const series = await storage.getSeriesByUser(userId);
+      res.json(series);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب السلاسل" });
+    }
+  });
+
+  app.post("/api/series", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "عنوان السلسلة مطلوب" });
+      const series = await storage.createSeries({ userId, title: title.trim(), description: description?.trim() || null });
+      res.json(series);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إنشاء السلسلة" });
+    }
+  });
+
+  app.get("/api/series/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const series = await storage.getSeriesById(id);
+      if (!series) return res.status(404).json({ error: "السلسلة غير موجودة" });
+      if (series.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
+      res.json(series);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب السلسلة" });
+    }
+  });
+
+  app.get("/api/public/series/:id", async (req, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const series = await storage.getSeriesById(id);
+      if (!series) return res.status(404).json({ error: "السلسلة غير موجودة" });
+      res.json(series);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب السلسلة" });
+    }
+  });
+
+  app.post("/api/series/:id/items", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const seriesId = parseIntParam(req.params.id);
+      if (seriesId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const series = await storage.getSeriesById(seriesId);
+      if (!series || series.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      const { projectId, orderIndex } = req.body;
+      if (!projectId) return res.status(400).json({ error: "معرّف المشروع مطلوب" });
+      const project = await storage.getProject(Number(projectId));
+      if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      await storage.addSeriesItem(seriesId, Number(projectId), orderIndex || 0);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إضافة العمل للسلسلة" });
+    }
+  });
+
+  app.delete("/api/series/:id/items/:projectId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const seriesId = parseIntParam(req.params.id);
+      const projectId = parseIntParam(req.params.projectId);
+      if (seriesId === null || projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const series = await storage.getSeriesById(seriesId);
+      if (!series || series.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      await storage.removeSeriesItem(seriesId, projectId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف العمل من السلسلة" });
+    }
+  });
+
+  app.delete("/api/series/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const seriesId = parseIntParam(req.params.id);
+      if (seriesId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const series = await storage.getSeriesById(seriesId);
+      if (!series || series.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      await storage.deleteSeries(seriesId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف السلسلة" });
     }
   });
 

@@ -618,6 +618,89 @@ export async function sendSubscriptionCancelledEmail(email: string, firstName: s
   }
 }
 
+export async function sendNewPublicationEmail(
+  followerEmail: string,
+  followerName: string | null,
+  authorName: string,
+  essayTitle: string,
+  essayUrl: string
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+  const name = followerName || "القارئ الكريم";
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">مرحباً ${name}،</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">نشر الكاتب <strong>${authorName}</strong> عملاً جديداً بعنوان:</p>
+<div style="background:#f9f7f3;border-right:4px solid ${BRAND_GOLD};padding:16px 20px;margin:20px 0;border-radius:6px;">
+  <p style="margin:0;font-size:18px;font-weight:bold;color:${BRAND_BLUE};">${essayTitle}</p>
+</div>
+<div style="text-align:center;margin:24px 0;">
+  <a href="${essayUrl}" style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">اقرأ الآن</a>
+</div>
+<p style="color:#999;font-size:12px;line-height:1.6;">تلقيت هذا البريد لأنك تتابع ${authorName} على منصة QalamAI.</p>`;
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: followerEmail,
+      subject: `${authorName} نشر عملاً جديداً — QalamAI`,
+      html: wrapInTemplate("نشر جديد من كاتب تتابعه", body),
+    });
+  } catch (err) {
+    console.error("[Email] Failed to send new publication email:", err);
+  }
+}
+
+export async function sendMonthlyAuthorReport(
+  email: string,
+  authorName: string,
+  stats: { totalViews: number; totalEssays: number; followerCount: number; newFollowers: number; topEssay: { title: string; views: number } | null }
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+  const baseUrl = getBaseUrl();
+  const now = new Date();
+  const monthName = now.toLocaleDateString("ar-SA", { month: "long", year: "numeric" });
+  const topEssayHtml = stats.topEssay
+    ? `<tr><td style="padding:8px 12px;color:#555;border-bottom:1px solid #f0ede8;">أفضل عمل</td><td style="padding:8px 12px;font-weight:bold;color:${BRAND_BLUE};border-bottom:1px solid #f0ede8;">${stats.topEssay.title} (${stats.topEssay.views} مشاهدة)</td></tr>`
+    : "";
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">مرحباً ${authorName}،</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">هذا ملخص أداء محتواك خلال شهر <strong>${monthName}</strong>:</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8e4dc;border-radius:8px;margin:20px 0;overflow:hidden;">
+  <tr style="background:#f9f7f3;">
+    <td style="padding:8px 12px;color:#555;border-bottom:1px solid #f0ede8;">إجمالي المشاهدات</td>
+    <td style="padding:8px 12px;font-weight:bold;color:${BRAND_BLUE};border-bottom:1px solid #f0ede8;">${stats.totalViews.toLocaleString("ar")}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 12px;color:#555;border-bottom:1px solid #f0ede8;">إجمالي الأعمال المنشورة</td>
+    <td style="padding:8px 12px;font-weight:bold;color:${BRAND_BLUE};border-bottom:1px solid #f0ede8;">${stats.totalEssays}</td>
+  </tr>
+  <tr style="background:#f9f7f3;">
+    <td style="padding:8px 12px;color:#555;border-bottom:1px solid #f0ede8;">إجمالي المتابعين</td>
+    <td style="padding:8px 12px;font-weight:bold;color:${BRAND_BLUE};border-bottom:1px solid #f0ede8;">${stats.followerCount}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 12px;color:#555;border-bottom:1px solid #f0ede8;">متابعون جدد هذا الشهر</td>
+    <td style="padding:8px 12px;font-weight:bold;color:#16a34a;border-bottom:1px solid #f0ede8;">+${stats.newFollowers}</td>
+  </tr>
+  ${topEssayHtml}
+</table>
+<div style="text-align:center;margin:24px 0;">
+  <a href="${baseUrl}/home" style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">استعرض إحصائياتك</a>
+</div>`;
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: `تقرير أداء ${monthName} — QalamAI`,
+      html: wrapInTemplate(`تقرير ${monthName}`, body),
+    });
+    console.log(`[Email] Sent monthly report to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send monthly report:", err);
+  }
+}
+
 export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
   const t = getTransporter();
   if (!t) return;

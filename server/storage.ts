@@ -170,6 +170,26 @@ export interface IStorage {
   getRelatedEssays(essayId: number, subject: string | null, limit?: number): Promise<Array<{ id: number; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; views: number }>>;
   getEssayOfWeek(): Promise<{ id: number; title: string; shareToken: string; coverImageUrl: string | null; authorName: string; authorId: string; views: number; mainIdea: string | null } | null>;
   updateWritingStreak(userId: string): Promise<{ streakDays: number; isNewRecord: boolean }>;
+  // New growth features
+  getFollowerEmails(authorId: string): Promise<Array<{ email: string; displayName: string | null }>>;
+  getAuthorAnalytics(userId: string): Promise<{ totalViews: number; totalEssays: number; followerCount: number; totalReactions: number; topEssays: Array<{ id: number; title: string; shareToken: string | null; views: number; reactions: number }>; viewsThisMonth: number; followersThisMonth: number }>;
+  getMonthlyAuthorStats(userId: string): Promise<{ totalViews: number; totalEssays: number; followerCount: number; topEssay: { title: string; views: number } | null; newFollowers: number }>;
+  getTodayPrompt(): Promise<import("@shared/schema").DailyPrompt | undefined>;
+  getPastPrompts(limit?: number): Promise<import("@shared/schema").DailyPrompt[]>;
+  createDailyPrompt(data: import("@shared/schema").InsertDailyPrompt): Promise<import("@shared/schema").DailyPrompt>;
+  getPromptEntries(promptId: number): Promise<Array<import("@shared/schema").DailyPromptEntry & { authorName: string; authorProfileImage: string | null }>>;
+  submitPromptEntry(data: import("@shared/schema").InsertDailyPromptEntry): Promise<import("@shared/schema").DailyPromptEntry>;
+  getUserPromptEntry(promptId: number, userId: string): Promise<import("@shared/schema").DailyPromptEntry | undefined>;
+  setPromptWinner(promptId: number, winnerId: string, winnerEntryId: number): Promise<void>;
+  createAuthorTip(data: { fromUserId?: string; toAuthorId: string; projectId?: number; amountCents: number; stripeSessionId: string }): Promise<import("@shared/schema").AuthorTip>;
+  completeAuthorTip(stripeSessionId: string): Promise<void>;
+  getTipsByAuthor(authorId: string): Promise<import("@shared/schema").AuthorTip[]>;
+  createSeries(data: import("@shared/schema").InsertContentSeries): Promise<import("@shared/schema").ContentSeries>;
+  getSeriesByUser(userId: string): Promise<import("@shared/schema").ContentSeries[]>;
+  getSeriesById(id: number): Promise<(import("@shared/schema").ContentSeries & { items: Array<{ id: number; orderIndex: number; project: { id: number; title: string; shareToken: string | null; coverImageUrl: string | null; mainIdea: string | null } }> }) | undefined>;
+  addSeriesItem(seriesId: number, projectId: number, orderIndex?: number): Promise<void>;
+  removeSeriesItem(seriesId: number, projectId: number): Promise<void>;
+  deleteSeries(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1868,6 +1888,215 @@ export class DatabaseStorage implements IStorage {
     }
     await db.execute(sql`UPDATE users SET writing_streak = ${newStreak}, last_writing_date = ${today} WHERE id = ${userId}`);
     return { streakDays: newStreak, isNewRecord: newStreak > Number(user?.writing_streak || 0) };
+  }
+
+  // ── Follower Emails ──────────────────────────────────────────────────────────
+  async getFollowerEmails(authorId: string): Promise<Array<{ email: string; displayName: string | null }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT u.email, u.display_name as "displayName"
+      FROM author_follows af
+      JOIN users u ON u.id = af.follower_id
+      WHERE af.following_id = ${authorId} AND u.email IS NOT NULL
+    `)).rows;
+    return rows.filter(r => r.email);
+  }
+
+  // ── Author Analytics ─────────────────────────────────────────────────────────
+  async getAuthorAnalytics(userId: string): Promise<{ totalViews: number; totalEssays: number; followerCount: number; totalReactions: number; topEssays: Array<{ id: number; title: string; shareToken: string | null; views: number; reactions: number }>; viewsThisMonth: number; followersThisMonth: number }> {
+    const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
+    const [stats]: any[] = (await db.execute(sql`
+      SELECT
+        COUNT(DISTINCT p.id)::int as "totalEssays",
+        COUNT(DISTINCT v.id)::int as "totalViews",
+        COUNT(DISTINCT v2.id)::int as "viewsThisMonth",
+        COALESCE(SUM((SELECT COUNT(*) FROM essay_reactions r WHERE r.project_id = p.id)::int), 0)::int as "totalReactions"
+      FROM novel_projects p
+      LEFT JOIN essay_views v ON v.project_id = p.id
+      LEFT JOIN essay_views v2 ON v2.project_id = p.id AND v2.viewed_at >= ${firstOfMonth}
+      WHERE p.user_id = ${userId}
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
+    `)).rows;
+    const followerCount = await this.getAuthorFollowerCount(userId);
+    const [fmRow]: any[] = (await db.execute(sql`
+      SELECT COUNT(*)::int as cnt FROM author_follows WHERE following_id = ${userId} AND created_at >= ${firstOfMonth}
+    `)).rows;
+    const topEssays: any[] = (await db.execute(sql`
+      SELECT p.id, p.title, p.share_token as "shareToken",
+        COUNT(DISTINCT v.id)::int as views,
+        (SELECT COUNT(*)::int FROM essay_reactions r WHERE r.project_id = p.id) as reactions
+      FROM novel_projects p
+      LEFT JOIN essay_views v ON v.project_id = p.id
+      WHERE p.user_id = ${userId} AND (p.published_to_news = true OR p.published_to_gallery = true)
+      GROUP BY p.id, p.title, p.share_token
+      ORDER BY views DESC LIMIT 5
+    `)).rows;
+    return {
+      totalViews: Number(stats?.totalViews || 0),
+      totalEssays: Number(stats?.totalEssays || 0),
+      followerCount,
+      totalReactions: Number(stats?.totalReactions || 0),
+      topEssays: topEssays.map(r => ({ id: Number(r.id), title: r.title, shareToken: r.shareToken, views: Number(r.views), reactions: Number(r.reactions) })),
+      viewsThisMonth: Number(stats?.viewsThisMonth || 0),
+      followersThisMonth: Number(fmRow?.cnt || 0),
+    };
+  }
+
+  async getMonthlyAuthorStats(userId: string): Promise<{ totalViews: number; totalEssays: number; followerCount: number; topEssay: { title: string; views: number } | null; newFollowers: number }> {
+    const firstOfMonth = new Date(); firstOfMonth.setDate(1); firstOfMonth.setHours(0, 0, 0, 0);
+    const [stats]: any[] = (await db.execute(sql`
+      SELECT COUNT(DISTINCT p.id)::int as "totalEssays", COUNT(DISTINCT v.id)::int as "totalViews"
+      FROM novel_projects p
+      LEFT JOIN essay_views v ON v.project_id = p.id AND v.viewed_at >= ${firstOfMonth}
+      WHERE p.user_id = ${userId} AND (p.published_to_news = true OR p.published_to_gallery = true)
+    `)).rows;
+    const followerCount = await this.getAuthorFollowerCount(userId);
+    const [fmRow]: any[] = (await db.execute(sql`SELECT COUNT(*)::int as cnt FROM author_follows WHERE following_id = ${userId} AND created_at >= ${firstOfMonth}`)).rows;
+    const [topEssayRow]: any[] = (await db.execute(sql`
+      SELECT p.title, COUNT(v.id)::int as views
+      FROM novel_projects p LEFT JOIN essay_views v ON v.project_id = p.id AND v.viewed_at >= ${firstOfMonth}
+      WHERE p.user_id = ${userId} AND (p.published_to_news = true OR p.published_to_gallery = true)
+      GROUP BY p.id, p.title ORDER BY views DESC LIMIT 1
+    `)).rows;
+    return {
+      totalViews: Number(stats?.totalViews || 0),
+      totalEssays: Number(stats?.totalEssays || 0),
+      followerCount,
+      topEssay: topEssayRow ? { title: topEssayRow.title, views: Number(topEssayRow.views) } : null,
+      newFollowers: Number(fmRow?.cnt || 0),
+    };
+  }
+
+  // ── Daily Prompts ────────────────────────────────────────────────────────────
+  async getTodayPrompt(): Promise<any> {
+    const today = new Date().toISOString().split('T')[0];
+    const [row] = await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date = ${today} AND active = true LIMIT 1`);
+    return (row as any)?.rows?.[0] ?? (await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date = ${today} AND active = true LIMIT 1`)).rows[0];
+  }
+
+  async getPastPrompts(limit: number = 10): Promise<any[]> {
+    const today = new Date().toISOString().split('T')[0];
+    const rows: any[] = (await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date <= ${today} ORDER BY prompt_date DESC LIMIT ${limit}`)).rows;
+    return rows;
+  }
+
+  async createDailyPrompt(data: any): Promise<any> {
+    const [row]: any[] = (await db.execute(sql`
+      INSERT INTO daily_prompts (prompt_text, prompt_date, active)
+      VALUES (${data.promptText}, ${data.promptDate}, ${data.active ?? true})
+      ON CONFLICT (prompt_date) DO UPDATE SET prompt_text = EXCLUDED.prompt_text, active = EXCLUDED.active
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getPromptEntries(promptId: number): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT dpe.*, COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName",
+        u.profile_image_url as "authorProfileImage"
+      FROM daily_prompt_entries dpe
+      JOIN users u ON u.id = dpe.user_id
+      WHERE dpe.prompt_id = ${promptId}
+      ORDER BY dpe.created_at DESC
+    `)).rows;
+    return rows;
+  }
+
+  async submitPromptEntry(data: any): Promise<any> {
+    const [row]: any[] = (await db.execute(sql`
+      INSERT INTO daily_prompt_entries (prompt_id, user_id, content)
+      VALUES (${data.promptId}, ${data.userId}, ${data.content})
+      ON CONFLICT (prompt_id, user_id) DO UPDATE SET content = EXCLUDED.content
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getUserPromptEntry(promptId: number, userId: string): Promise<any> {
+    const [row]: any[] = (await db.execute(sql`
+      SELECT * FROM daily_prompt_entries WHERE prompt_id = ${promptId} AND user_id = ${userId} LIMIT 1
+    `)).rows;
+    return row;
+  }
+
+  async setPromptWinner(promptId: number, winnerId: string, winnerEntryId: number): Promise<void> {
+    await db.execute(sql`
+      UPDATE daily_prompts SET winner_id = ${winnerId}, winner_entry_id = ${winnerEntryId} WHERE id = ${promptId}
+    `);
+  }
+
+  // ── Author Tips ──────────────────────────────────────────────────────────────
+  async createAuthorTip(data: { fromUserId?: string; toAuthorId: string; projectId?: number; amountCents: number; stripeSessionId: string }): Promise<any> {
+    const [row]: any[] = (await db.execute(sql`
+      INSERT INTO author_tips (from_user_id, to_author_id, project_id, amount_cents, stripe_session_id, status)
+      VALUES (${data.fromUserId ?? null}, ${data.toAuthorId}, ${data.projectId ?? null}, ${data.amountCents}, ${data.stripeSessionId}, 'pending')
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async completeAuthorTip(stripeSessionId: string): Promise<void> {
+    await db.execute(sql`UPDATE author_tips SET status = 'completed' WHERE stripe_session_id = ${stripeSessionId}`);
+  }
+
+  async getTipsByAuthor(authorId: string): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT at.*, COALESCE(u.display_name, u.first_name, 'قارئ') as "fromName"
+      FROM author_tips at LEFT JOIN users u ON u.id = at.from_user_id
+      WHERE at.to_author_id = ${authorId} AND at.status = 'completed'
+      ORDER BY at.created_at DESC
+    `)).rows;
+    return rows;
+  }
+
+  // ── Content Series ───────────────────────────────────────────────────────────
+  async createSeries(data: any): Promise<any> {
+    const [row]: any[] = (await db.execute(sql`
+      INSERT INTO content_series (user_id, title, description)
+      VALUES (${data.userId}, ${data.title}, ${data.description ?? null})
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getSeriesByUser(userId: string): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT cs.*, COUNT(si.id)::int as item_count
+      FROM content_series cs LEFT JOIN series_items si ON si.series_id = cs.id
+      WHERE cs.user_id = ${userId}
+      GROUP BY cs.id ORDER BY cs.created_at DESC
+    `)).rows;
+    return rows;
+  }
+
+  async getSeriesById(id: number): Promise<any> {
+    const [series]: any[] = (await db.execute(sql`SELECT * FROM content_series WHERE id = ${id}`)).rows;
+    if (!series) return undefined;
+    const items: any[] = (await db.execute(sql`
+      SELECT si.id, si.order_index as "orderIndex",
+        p.id as "projectId", p.title, p.share_token as "shareToken",
+        p.cover_image_url as "coverImageUrl", p.main_idea as "mainIdea"
+      FROM series_items si
+      JOIN novel_projects p ON p.id = si.project_id
+      WHERE si.series_id = ${id}
+      ORDER BY si.order_index ASC, si.created_at ASC
+    `)).rows;
+    return { ...series, items: items.map(r => ({ id: r.id, orderIndex: r.orderIndex, project: { id: r.projectId, title: r.title, shareToken: r.shareToken, coverImageUrl: r.coverImageUrl, mainIdea: r.mainIdea } })) };
+  }
+
+  async addSeriesItem(seriesId: number, projectId: number, orderIndex: number = 0): Promise<void> {
+    await db.execute(sql`
+      INSERT INTO series_items (series_id, project_id, order_index)
+      VALUES (${seriesId}, ${projectId}, ${orderIndex})
+      ON CONFLICT (series_id, project_id) DO UPDATE SET order_index = EXCLUDED.order_index
+    `);
+  }
+
+  async removeSeriesItem(seriesId: number, projectId: number): Promise<void> {
+    await db.execute(sql`DELETE FROM series_items WHERE series_id = ${seriesId} AND project_id = ${projectId}`);
+  }
+
+  async deleteSeries(id: number): Promise<void> {
+    await db.execute(sql`DELETE FROM content_series WHERE id = ${id}`);
   }
 }
 

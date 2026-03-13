@@ -12,7 +12,7 @@ import { createServer } from "http";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
-import { checkSmtpStatus, sendWeeklyDigest } from "./email";
+import { checkSmtpStatus, sendWeeklyDigest, sendMonthlyAuthorReport } from "./email";
 import { processAllExpiredTrials } from "./trial-processor";
 import { runLearningSession } from "./learning-engine";
 import { processRetryQueue } from "./webhook-dispatcher";
@@ -487,6 +487,27 @@ app.use((req, res, next) => {
         }
       }, WEEKLY_DIGEST_INTERVAL);
       log("Weekly digest job registered (every 7 days)");
+
+      // Monthly author performance report — every 30 days
+      const MONTHLY_INTERVAL = 30 * 24 * 60 * 60 * 1000;
+      setInterval(async () => {
+        try {
+          const allUsers = await storage.getUsersWithEmails();
+          let sent = 0;
+          for (const u of allUsers) {
+            try {
+              const stats = await storage.getMonthlyAuthorStats(u.id);
+              if (stats.totalEssays === 0) continue; // Only send to active authors
+              await sendMonthlyAuthorReport(u.email, u.displayName || "الكاتب", stats);
+              sent++;
+            } catch {}
+          }
+          log(`Monthly author reports sent to ${sent} authors`, "email");
+        } catch (err: any) {
+          console.error("[MonthlyReport] Error:", err.message);
+        }
+      }, MONTHLY_INTERVAL);
+      log("Monthly author report job registered (every 30 days)");
     },
   );
 })();
