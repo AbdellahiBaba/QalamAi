@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap, Users } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap, Users, BadgeCheck } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
