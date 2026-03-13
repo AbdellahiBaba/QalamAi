@@ -31,6 +31,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserStripeCustomerId(userId: string, stripeCustomerId: string): Promise<User>;
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
+  getApprovedVerifiedApplication(userId: string): Promise<boolean>;
   getProjectsByUser(userId: string): Promise<NovelProject[]>;
   getProject(id: number): Promise<NovelProject | undefined>;
   getProjectWithDetails(id: number): Promise<(NovelProject & { characters: Character[]; chapters: Chapter[]; relationships: CharacterRelationship[] }) | undefined>;
@@ -201,6 +203,18 @@ export class DatabaseStorage implements IStorage {
       updatedAt: new Date(),
     }).where(eq(users.id, userId)).returning();
     return updated;
+  }
+
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, stripeCustomerId)).limit(1);
+    return user;
+  }
+
+  async getApprovedVerifiedApplication(userId: string): Promise<boolean> {
+    const result: any[] = (await db.execute(sql`
+      SELECT id FROM verified_applications WHERE user_id = ${userId} AND status = 'approved' LIMIT 1
+    `)).rows;
+    return result.length > 0;
   }
 
   async getProjectsByUser(userId: string): Promise<NovelProject[]> {

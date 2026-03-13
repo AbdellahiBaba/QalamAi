@@ -2,7 +2,11 @@ import { getStripeSync } from './stripeClient';
 import { getUncachableStripeClient } from './stripeClient';
 import { storage } from './storage';
 import { userPlanCoversType, PLAN_PRICES } from '@shared/schema';
-import { sendPlanActivationEmail, sendProjectPaymentEmail } from './email';
+import { sendPlanActivationEmail, sendProjectPaymentEmail, sendSubscriptionPaymentFailedEmail, sendSubscriptionCancelledEmail } from './email';
+
+const BASE_URL = process.env.APP_URL || process.env.REPLIT_DOMAINS?.split(',')[0]?.trim()
+  ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]?.trim()}`
+  : 'https://qalamai.net';
 
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string): Promise<void> {
@@ -43,6 +47,12 @@ export class WebhookHandlers {
           const verifiedSession = await stripe.checkout.sessions.retrieve(sessionId);
           await WebhookHandlers.handleCheckoutCompleted(verifiedSession);
         }
+      } else if (event.type === 'invoice.payment_failed') {
+        await WebhookHandlers.handleInvoicePaymentFailed(event.data.object);
+      } else if (event.type === 'customer.subscription.deleted') {
+        await WebhookHandlers.handleSubscriptionDeleted(event.data.object);
+      } else if (event.type === 'invoice.payment_succeeded' || event.type === 'invoice.paid') {
+        await WebhookHandlers.handleInvoicePaid(event.data.object);
       } else {
         console.log(`[Webhook] Unhandled event type: ${event.type}`);
       }
@@ -109,6 +119,22 @@ export class WebhookHandlers {
         console.log(`[Webhook] Auto-unlocked ${unlockedCount} project(s) for user "${userId}"`);
       }
 
+      // Restore verified badge if user had an approved application and badge was removed
+      if (!user.verified) {
+        const hasApprovedApp = await storage.getApprovedVerifiedApplication(userId);
+        if (hasApprovedApp) {
+          await storage.setUserVerified(userId, true);
+          storage.createNotification({
+            userId,
+            type: "verified_restored",
+            title: "عادت شارتك الزرقاء!",
+            message: "تم استعادة شارة الكاتب الموثّق تلقائياً بعد تجديد اشتراكك.",
+            link: "/profile",
+          }).catch(() => {});
+          console.log(`[Webhook] Restored verified badge for user "${userId}"`);
+        }
+      }
+
       if (user.email) {
         sendPlanActivationEmail(user.email, planType).catch((err) => console.error('[Webhook] Failed to send plan activation email:', err.message));
       }
@@ -123,6 +149,110 @@ export class WebhookHandlers {
       }).catch((err) => console.error('[Webhook] Failed to create notification:', err.message));
     } catch (err) {
       console.error('[Webhook] Error activating plan:', err);
+    }
+  }
+
+  static async handleInvoicePaymentFailed(invoice: any): Promise<void> {
+    try {
+      const customerId = invoice?.customer;
+      if (!customerId) return;
+      const user = await storage.getUserByStripeCustomerId(customerId);
+      if (!user) {
+        console.log(`[Webhook] invoice.payment_failed — no user found for customer ${customerId}`);
+        return;
+      }
+      const attemptCount = invoice.attempt_count || 1;
+      const firstName = user.firstName || user.displayName || 'عزيزي الكاتب';
+      const pricingUrl = `${BASE_URL}/pricing`;
+
+      console.log(`[Webhook] Invoice payment failed for user "${user.id}" (attempt ${attemptCount})`);
+
+      await storage.createNotification({
+        userId: user.id,
+        type: "payment_failed",
+        title: attemptCount >= 3 ? "تحذير: خطر إلغاء الاشتراك" : "تعذّر تجديد اشتراكك",
+        message: attemptCount >= 3
+          ? `لم نتمكن من تجديد اشتراكك بعد ${attemptCount} محاولات. يُرجى تحديث بيانات الدفع قبل إلغاء اشتراكك وإزالة شارة التوثيق.`
+          : `تعذّر تحصيل رسوم التجديد (المحاولة ${attemptCount}). سنحاول مجدداً — تأكد من صحة بيانات بطاقتك.`,
+        link: pricingUrl,
+      });
+
+      if (user.email) {
+        sendSubscriptionPaymentFailedEmail(user.email, firstName, attemptCount, pricingUrl)
+          .catch((e) => console.error('[Webhook] Failed to send payment failed email:', e));
+      }
+    } catch (err) {
+      console.error('[Webhook] Error handling invoice.payment_failed:', err);
+    }
+  }
+
+  static async handleSubscriptionDeleted(subscription: any): Promise<void> {
+    try {
+      const customerId = subscription?.customer;
+      if (!customerId) return;
+      const user = await storage.getUserByStripeCustomerId(customerId);
+      if (!user) {
+        console.log(`[Webhook] customer.subscription.deleted — no user found for customer ${customerId}`);
+        return;
+      }
+
+      console.log(`[Webhook] Subscription deleted for user "${user.id}" — downgrading to free`);
+
+      // Downgrade plan to free
+      await storage.updateUserPlan(user.id, 'free');
+
+      // Remove verified badge (will be auto-restored on re-subscription)
+      if (user.verified) {
+        await storage.setUserVerified(user.id, false);
+        console.log(`[Webhook] Removed verified badge from user "${user.id}" due to subscription cancellation`);
+      }
+
+      await storage.createNotification({
+        userId: user.id,
+        type: "subscription_cancelled",
+        title: "تم إلغاء اشتراكك",
+        message: "تم تحويل حسابك إلى الخطة المجانية وإيقاف شارة التوثيق مؤقتاً. ستعود شارتك تلقائياً عند تجديد الاشتراك.",
+        link: "/pricing",
+      });
+
+      if (user.email) {
+        const firstName = user.firstName || user.displayName || 'عزيزي الكاتب';
+        sendSubscriptionCancelledEmail(user.email, firstName)
+          .catch((e) => console.error('[Webhook] Failed to send subscription cancelled email:', e));
+      }
+    } catch (err) {
+      console.error('[Webhook] Error handling customer.subscription.deleted:', err);
+    }
+  }
+
+  static async handleInvoicePaid(invoice: any): Promise<void> {
+    try {
+      // Only handle subscription renewals (not initial checkout — those are handled by checkout.session.completed)
+      if (!invoice?.subscription || invoice?.billing_reason === 'subscription_create') return;
+      const customerId = invoice?.customer;
+      if (!customerId) return;
+      const user = await storage.getUserByStripeCustomerId(customerId);
+      if (!user) return;
+
+      console.log(`[Webhook] Invoice paid (renewal) for user "${user.id}"`);
+
+      // Restore verified badge if applicable
+      if (!user.verified) {
+        const hasApprovedApp = await storage.getApprovedVerifiedApplication(user.id);
+        if (hasApprovedApp) {
+          await storage.setUserVerified(user.id, true);
+          await storage.createNotification({
+            userId: user.id,
+            type: "verified_restored",
+            title: "عادت شارتك الزرقاء!",
+            message: "تم استعادة شارة الكاتب الموثّق تلقائياً بعد تجديد اشتراكك.",
+            link: "/profile",
+          });
+          console.log(`[Webhook] Restored verified badge for user "${user.id}" on renewal`);
+        }
+      }
+    } catch (err) {
+      console.error('[Webhook] Error handling invoice.paid:', err);
     }
   }
 

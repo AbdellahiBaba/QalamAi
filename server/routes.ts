@@ -7849,6 +7849,11 @@ ${ch.content}
   app.post("/api/apply-verified", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      const paidPlans = ["essay", "scenario", "all_in_one"];
+      if (!user || !paidPlans.includes(user.plan || "")) {
+        return res.status(403).json({ error: "شارة التوثيق متاحة فقط لأصحاب الخطط المدفوعة. يرجى الترقية أولاً." });
+      }
       const { bio, writingSamples, socialLinks } = req.body;
       if (!bio?.trim() || bio.trim().length < 50) return res.status(400).json({ error: "السيرة الذاتية مطلوبة (50 حرفاً على الأقل)" });
       const app = await storage.submitVerifiedApplication({ userId, bio: bio.trim(), writingSamples: writingSamples?.trim() || null, socialLinks: socialLinks?.trim() || null });

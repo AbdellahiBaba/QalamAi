@@ -550,6 +550,74 @@ ${adminNote ? `<div style="background:#fef2f2;border:1px solid #fca5a5;border-ra
   }
 }
 
+export async function sendSubscriptionPaymentFailedEmail(email: string, firstName: string, attemptCount: number, pricingUrl: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const isUrgent = attemptCount >= 3;
+  const subject = isUrgent
+    ? "تحذير أخير: خطر إلغاء الاشتراك — QalamAI"
+    : "تعذّر تجديد اشتراكك — QalamAI";
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">مرحباً <strong>${firstName}</strong>،</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">
+  ${isUrgent
+    ? `لم نتمكن من تجديد اشتراكك بعد <strong>${attemptCount} محاولات</strong>. إذا لم يتم الدفع قريباً، سيتم إلغاء اشتراكك تلقائياً وستفقد شارة الكاتب الموثّق وجميع مزايا الخطة المدفوعة.`
+    : `تعذّر علينا خصم رسوم تجديد اشتراكك (المحاولة رقم ${attemptCount}). سنحاول مجدداً خلال الأيام القادمة.`
+  }
+</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">لتجنّب الانقطاع، يرجى التأكد من أن بيانات بطاقتك محدّثة أو اختر طريقة دفع أخرى.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${pricingUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+تحديث بيانات الدفع
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject,
+      html: wrapInTemplate("تنبيه الدفع", body),
+    });
+    console.log(`[Email] Sent subscription payment failed email (attempt ${attemptCount}) to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send subscription payment failed email:", err);
+  }
+}
+
+export async function sendSubscriptionCancelledEmail(email: string, firstName: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const pricingUrl = `${getBaseUrl()}/pricing`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">مرحباً <strong>${firstName}</strong>،</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">تم إلغاء اشتراكك في <strong style="color:${BRAND_GOLD};">قلم AI</strong> بسبب تعذّر تجديد الدفع. تمت إعادة حسابك إلى الخطة المجانية وتم إيقاف شارة الكاتب الموثّق مؤقتاً.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">بمجرد تجديد اشتراكك، ستعود شارتك الزرقاء تلقائياً دون الحاجة إلى إعادة التقديم.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${pricingUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+تجديد الاشتراك الآن
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "تم إلغاء اشتراكك — QalamAI",
+      html: wrapInTemplate("إلغاء الاشتراك", body),
+    });
+    console.log(`[Email] Sent subscription cancelled email to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send subscription cancelled email:", err);
+  }
+}
+
 export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
   const t = getTransporter();
   if (!t) return;
