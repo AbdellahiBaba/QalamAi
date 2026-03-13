@@ -407,6 +407,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Ensure required columns exist (safe, idempotent startup migrations)
+  try {
+    const { pool } = await import("./db");
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(2)`);
+    console.log("[startup] users.country column ensured");
+  } catch (e) {
+    console.warn("[startup] Column migration warning:", e);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

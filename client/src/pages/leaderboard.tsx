@@ -93,7 +93,7 @@ export default function Leaderboard() {
               <div key={entry.userId} className="relative group" data-testid={`leaderboard-row-${entry.userId}`}>
                 <Link href={`/author/${entry.userId}`}>
                   <div
-                    className={`flex items-center gap-4 p-4 border rounded-xl hover:shadow-sm transition-shadow cursor-pointer pr-16 ${index < 3 ? rankBgs[index] : "bg-card"}`}
+                    className={`flex items-center gap-4 p-4 border rounded-xl hover:shadow-sm transition-shadow cursor-pointer pl-16 ${index < 3 ? rankBgs[index] : "bg-card"}`}
                   >
                     <div className="w-8 text-center shrink-0">
                       <span className={`font-bold text-lg ${index < 3 ? rankColors[index] : "text-muted-foreground"}`} data-testid={`rank-${index + 1}`}>

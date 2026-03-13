@@ -37,7 +37,7 @@ function PlatformStatsSection() {
     queryKey: ["/api/public/stats"],
   });
 
-  if (!stats || (stats.userCount === 0 && stats.projectCount === 0)) return null;
+  if (!stats || stats.userCount < 200) return null;
 
   const formatNum = (n: number): string => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
