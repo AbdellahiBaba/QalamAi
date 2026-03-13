@@ -42,7 +42,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SiTwitter, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
+import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -614,7 +614,7 @@ export default function Profile() {
                   <p className="text-sm font-semibold text-muted-foreground">حسابات التواصل الاجتماعي</p>
                   <div className="grid grid-cols-1 gap-3">
                     {([
-                      { icon: SiTwitter, label: "تويتر / X", val: socialTwitter, set: setSocialTwitter, ph: "https://x.com/username", id: "twitter" },
+                      { icon: SiX, label: "تويتر / X", val: socialTwitter, set: setSocialTwitter, ph: "https://x.com/username", id: "twitter" },
                       { icon: SiInstagram, label: "إنستغرام", val: socialInstagram, set: setSocialInstagram, ph: "https://instagram.com/username", id: "instagram" },
                       { icon: SiTiktok, label: "تيك توك", val: socialTiktok, set: setSocialTiktok, ph: "https://tiktok.com/@username", id: "tiktok" },
                       { icon: SiFacebook, label: "فيسبوك", val: socialFacebook, set: setSocialFacebook, ph: "https://facebook.com/username", id: "facebook" },

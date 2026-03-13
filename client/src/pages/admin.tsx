@@ -3640,12 +3640,12 @@ export default function Admin() {
                       {projectReports.map((r: any) => (
                         <div key={r.id} className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1.5">
                           {r.reportNumber && <span className="font-mono text-[10px] text-muted-foreground">{r.reportNumber}</span>}
-                          <Badge className={({
+                          <Badge className={`text-[10px] ${({
                             pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
                             reviewed: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
                             dismissed: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
                             action_taken: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                          } as Record<string, string>)[r.status] || ""} className="text-[10px]">
+                          } as Record<string, string>)[r.status] || ""}`}>
                             {{ pending: "قيد الانتظار", reviewed: "تمت المراجعة", dismissed: "مرفوض", action_taken: "تم اتخاذ إجراء" }[r.status as string] || r.status}
                           </Badge>
                           <span>{{ inappropriate: "غير لائق", plagiarism: "سرقة أدبية", offensive: "مسيء", spam: "مزعج", other: "أخرى" }[r.reason as string] || r.reason}</span>
