@@ -278,7 +278,7 @@ export function TrialPromptPopup({ userPlan, trialUsed }: TrialPromptPopupProps)
               <div className="rounded-xl bg-orange-50/80 dark:bg-orange-950/15 border border-orange-200/50 dark:border-orange-800/20 p-3 text-center">
                 <p className="text-xs text-orange-700 dark:text-orange-300 leading-relaxed">
                   <Clock className="w-3 h-3 inline-block ml-1 align-text-bottom" />
-                  بعد انتهاء ٢٤ ساعة يتم تفعيل الخطة الشاملة (<LtrNum>$500</LtrNum>) تلقائياً
+                  بعد انتهاء ٢٤ ساعة يتم تفعيل الخطة الشاملة (<LtrNum>$149.99</LtrNum>) تلقائياً
                 </p>
               </div>
             </div>

@@ -526,7 +526,7 @@ export default function Pricing() {
                   {trialLoading ? "جارٍ التحضير..." : "ابدأ التجربة المجانية"}
                 </Button>
                 <p className="text-xs text-muted-foreground" data-testid="text-trial-fine-print">
-                  بعد انتهاء الفترة التجريبية، يتم تفعيل خطة الشاملة (<LtrNum>$500</LtrNum>) تلقائياً
+                  بعد انتهاء الفترة التجريبية، يتم تفعيل خطة الشاملة (<LtrNum>$149.99</LtrNum>) تلقائياً
                 </p>
               </CardContent>
             </Card>
