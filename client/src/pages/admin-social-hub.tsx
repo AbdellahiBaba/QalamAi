@@ -993,6 +993,7 @@ function SettingsTab() {
     tiktok: "",
     linkedin: "",
   });
+  const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
 
   if (settings && !loaded) {
@@ -1007,9 +1008,21 @@ function SettingsTab() {
     setLoaded(true);
   }
 
+  const updateCredential = (key: string, value: string) => {
+    setCredentials((c) => ({ ...c, [key]: value }));
+    setChangedFields((prev) => new Set(prev).add(key));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("PUT", "/api/admin/social/settings", { credentials });
+      const onlyChanged: Record<string, string> = {};
+      for (const key of changedFields) {
+        onlyChanged[key] = credentials[key] || "";
+      }
+      if (Object.keys(onlyChanged).length === 0) {
+        throw new Error("لم يتم تغيير أي بيانات");
+      }
+      const res = await apiRequest("PUT", "/api/admin/social/settings", { credentials: onlyChanged });
       return res.json();
     },
     onSuccess: () => {
@@ -1047,7 +1060,7 @@ function SettingsTab() {
                     type="password"
                     placeholder="Access Token / API Key"
                     value={credentials[key] || ""}
-                    onChange={(e) => setCredentials((c) => ({ ...c, [key]: e.target.value }))}
+                    onChange={(e) => updateCredential(key, e.target.value)}
                     className="text-sm mt-1"
                     data-testid={`input-credential-${key}`}
                   />

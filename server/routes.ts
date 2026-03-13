@@ -8877,6 +8877,15 @@ ${platformInstructions}
     }
   });
 
+  app.get("/api/admin/social/insights/grouped", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+    try {
+      const grouped = await storage.getInsightsGroupedByPost();
+      res.json(grouped);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب البيانات" });
+    }
+  });
+
   app.get("/api/admin/social/best-times", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
     try {
       const times = await storage.getBestPostingTimes();
@@ -9003,10 +9012,20 @@ ${platformInstructions}
       const rows: any[] = (await db.execute(dsql`
         SELECT value FROM social_hub_settings WHERE key = 'platform_credentials'
       `)).rows;
-      const credentials = rows[0]?.value ? JSON.parse(rows[0].value) : {};
-      res.json({ credentials });
+      const stored = rows[0]?.value ? JSON.parse(rows[0].value) : {};
+      const maskedCredentials: Record<string, string> = {};
+      for (const [key, val] of Object.entries(stored)) {
+        if (typeof val === "string" && val.length > 0) {
+          maskedCredentials[key] = val.substring(0, 4) + "****" + val.substring(val.length - 4);
+        } else {
+          maskedCredentials[key] = "";
+        }
+      }
+      res.json({ credentials: maskedCredentials, hasCredentials: Object.fromEntries(
+        Object.entries(stored).map(([k, v]) => [k, typeof v === "string" && v.length > 0])
+      ) });
     } catch {
-      res.json({ credentials: {} });
+      res.json({ credentials: {}, hasCredentials: {} });
     }
   });
 
@@ -9016,13 +9035,18 @@ ${platformInstructions}
       if (!credentials || typeof credentials !== "object") {
         return res.status(400).json({ error: "بيانات غير صالحة" });
       }
-      const safeCredentials: Record<string, string> = {};
+      const existingRows: any[] = (await db.execute(dsql`
+        SELECT value FROM social_hub_settings WHERE key = 'platform_credentials'
+      `)).rows;
+      const existing = existingRows[0]?.value ? JSON.parse(existingRows[0].value) : {};
+
+      const merged: Record<string, string> = { ...existing };
       for (const key of ["facebook", "instagram", "x", "tiktok", "linkedin"]) {
         if (typeof credentials[key] === "string") {
-          safeCredentials[key] = credentials[key];
+          merged[key] = credentials[key];
         }
       }
-      const val = JSON.stringify(safeCredentials);
+      const val = JSON.stringify(merged);
       await db.execute(dsql`
         INSERT INTO social_hub_settings (key, value)
         VALUES ('platform_credentials', ${val})
