@@ -3927,8 +3927,8 @@ p { text-indent: 2em; margin: 0.5em 0; text-align: justify; }
 hr { border: none; border-top: 1px solid #D4A574; margin: 1.5em auto; width: 40%; }`, { name: "OEBPS/style.css" });
 
       let tocItemsHtml: string;
+      const escHtmlEpub = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       if (isMemoire) {
-        const escHtmlEpub = (s: string) => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         let memoireTocItems = `      <li><span>المقدمة العامة</span></li>\n`;
         for (let i = 0; i < completedChapters.length; i++) {
           const ch = completedChapters[i];
