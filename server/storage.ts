@@ -947,13 +947,12 @@ export class DatabaseStorage implements IStorage {
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
         COALESCE(v.view_count, 0)::int as views,
         COALESCE(c.click_count, 0)::int as clicks,
-        COALESCE(w.total_words, 0)::int as "totalWords"
+        COALESCE(p.used_words, 0)::int as "totalWords"
       FROM novel_projects p
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
       LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) v ON v.project_id = p.id
       LEFT JOIN (SELECT project_id, COUNT(*)::int as click_count FROM essay_clicks GROUP BY project_id) c ON c.project_id = p.id
-      LEFT JOIN (SELECT project_id, SUM(array_length(regexp_split_to_array(COALESCE(content, ''), '\s+'), 1))::int as total_words FROM chapters GROUP BY project_id) w ON w.project_id = p.id
       WHERE p.project_type = 'essay' AND p.published_to_news = true AND p.share_token IS NOT NULL
         AND (p.flagged = false OR p.flagged IS NULL)
       ORDER BY clicks DESC, p.updated_at DESC

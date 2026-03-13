@@ -713,6 +713,14 @@ ${allPages.map(p => `  <url>
   app.get("/api/projects", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const cacheKey = `user-projects-${userId}`;
+      const cached = apiCache.get<any[]>(cacheKey);
+      if (cached) {
+        if (req.headers["if-none-match"] === cached.etag) return res.status(304).end();
+        res.setHeader("ETag", cached.etag);
+        res.setHeader("Cache-Control", "private, max-age=30");
+        return res.json(cached.data);
+      }
       const projects = await storage.getProjectsByUser(userId);
       const trimmed = projects.map(p => ({
         id: p.id,
@@ -738,6 +746,9 @@ ${allPages.map(p => `  <url>
         targetWordCount: p.targetWordCount,
         narrativePov: p.narrativePov,
       }));
+      const entry = apiCache.set(cacheKey, trimmed, 30);
+      res.setHeader("ETag", entry.etag);
+      res.setHeader("Cache-Control", "private, max-age=30");
       res.json(trimmed);
     } catch (error) {
       console.error("Error fetching projects:", error);
@@ -1393,6 +1404,7 @@ ${allPages.map(p => `  <url>
       }
 
       const updated = await storage.updateProject(projectId, updates);
+      apiCache.invalidate(`user-projects-${userId}`);
       res.json(updated);
     } catch (error) {
       console.error("Error updating project settings:", error);
@@ -1538,6 +1550,7 @@ ${allPages.map(p => `  <url>
         await storage.incrementFreeMonthlyUsage(userId, "project");
       }
 
+      apiCache.invalidate(`user-projects-${userId}`);
       trackServerEvent({
         eventName: "InitiateCheckout",
         userId,
@@ -5034,6 +5047,7 @@ ${glossaryParagraphs}
       const crypto = await import("crypto");
       const token = crypto.randomBytes(16).toString("hex");
       const updated = await storage.updateProject(id, { shareToken: token } as any);
+      apiCache.invalidate(`user-projects-${req.user.claims.sub}`);
       res.json({ shareToken: updated.shareToken });
     } catch (error) {
       console.error("Error sharing project:", error);
@@ -5049,6 +5063,7 @@ ${glossaryParagraphs}
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       await storage.updateProject(id, { shareToken: null, publishedToGallery: false, publishedToNews: false } as any);
+      apiCache.invalidate(`user-projects-${req.user.claims.sub}`);
       res.json({ success: true });
     } catch (error) {
       console.error("Error revoking share:", error);
@@ -5340,7 +5355,7 @@ ${glossaryParagraphs}
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `gallery_p${page}_l${limit}`;
-    serveCached(req, res, cacheKey, 60, async () => {
+    serveCached(req, res, cacheKey, 300, async () => {
       const result = await storage.getGalleryProjectsPaginated(page, limit);
       return {
         data: result.rows.map(p => ({
@@ -5365,7 +5380,7 @@ ${glossaryParagraphs}
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `memoires_p${page}_l${limit}`;
-    serveCached(req, res, cacheKey, 60, async () => {
+    serveCached(req, res, cacheKey, 300, async () => {
       const result = await storage.getGalleryProjectsPaginated(page, limit, "memoire");
       return {
         data: result.rows.map(p => ({
@@ -5396,7 +5411,7 @@ ${glossaryParagraphs}
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `essays_p${page}_l${limit}`;
-    serveCached(req, res, cacheKey, 60, async () => {
+    serveCached(req, res, cacheKey, 300, async () => {
       const result = await storage.getPublishedEssaysWithStats(page, limit);
       return {
         data: result.rows,
@@ -5443,6 +5458,7 @@ ${glossaryParagraphs}
       if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المقال أولاً" });
       if (!(await isProjectEligibleForSharing(project))) return res.status(400).json({ error: "يجب إتمام الدفع أو إكمال جميع الفصول قبل النشر" });
       await storage.updateProject(projectId, { publishedToNews: true } as any);
+      apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "حدث خطأ" });
@@ -5458,6 +5474,7 @@ ${glossaryParagraphs}
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (project.projectType !== "essay") return res.status(400).json({ error: "هذا الخيار متاح للمقالات فقط" });
       await storage.updateProject(projectId, { publishedToNews: false } as any);
+      apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "حدث خطأ" });
@@ -5477,6 +5494,7 @@ ${glossaryParagraphs}
       apiCache.invalidate("gallery");
       apiCache.invalidate("memoires");
       apiCache.invalidate("essays");
+      apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "حدث خطأ" });
@@ -5491,6 +5509,9 @@ ${glossaryParagraphs}
       const project = await storage.getProject(projectId);
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       await storage.updateProject(projectId, { publishedToGallery: false } as any);
+      apiCache.invalidate("gallery");
+      apiCache.invalidate("memoires");
+      apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "حدث خطأ" });
