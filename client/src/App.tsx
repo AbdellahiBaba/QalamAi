@@ -54,6 +54,7 @@ const CollectionPublic = lazy(() => import("@/pages/collection-public"));
 const ApplyVerified = lazy(() => import("@/pages/apply-verified"));
 const ContentSeries = lazy(() => import("@/pages/content-series"));
 const SeriesDetail = lazy(() => import("@/pages/series-detail"));
+const AdminMarketing = lazy(() => import("@/pages/admin-marketing"));
 
 function LoadingFallback() {
   return (
@@ -110,6 +111,7 @@ function AuthenticatedRouter() {
         <Route path="/apply-verified" component={ApplyVerified} />
         <Route path="/series" component={ContentSeries} />
         <Route path="/series/:id" component={SeriesDetail} />
+        <Route path="/admin/marketing" component={AdminMarketing} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
