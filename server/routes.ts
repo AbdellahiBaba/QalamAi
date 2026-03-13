@@ -8485,27 +8485,36 @@ ${ch.content}
     }
   });
 
-  app.get("/api/me/analytics/countries", isAuthenticated, async (req: any, res) => {
+  app.get("/api/me/analytics/countries", isAuthenticated, async (_req: any, res) => {
+    res.json([]);
+  });
+
+  app.get("/api/me/analytics/views-by-story", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { pool } = await import("./db");
       const result = await pool.query(
-        `SELECT COALESCE(v.country, 'unknown') as country, COUNT(*)::int as count
-         FROM essay_views v
-         WHERE v.project_id IN (SELECT id FROM novel_projects WHERE user_id = $1 AND (published_to_news = true OR published_to_gallery = true))
-           AND v.country IS NOT NULL AND v.country != ''
-         GROUP BY v.country
-         ORDER BY count DESC
-         LIMIT 5`,
+        `SELECT np.id, np.title,
+                d.day::date as date,
+                COUNT(v.id)::int as views
+         FROM novel_projects np
+         CROSS JOIN generate_series(NOW() - INTERVAL '30 days', NOW(), '1 day') d(day)
+         LEFT JOIN essay_views v ON v.project_id = np.id AND v.viewed_at::date = d.day::date
+         WHERE np.user_id = $1 AND (np.published_to_news = true OR np.published_to_gallery = true)
+         GROUP BY np.id, np.title, d.day::date
+         ORDER BY np.id, d.day::date ASC`,
         [userId]
       );
-      res.json(result.rows.map((r: any) => ({
-        country: r.country,
-        count: Number(r.count),
-      })));
+      const stories: Record<number, { id: number; title: string; data: Array<{ date: string; views: number }> }> = {};
+      for (const r of result.rows as any[]) {
+        const sid = Number(r.id);
+        if (!stories[sid]) stories[sid] = { id: sid, title: r.title, data: [] };
+        stories[sid].data.push({ date: new Date(r.date).toISOString().split("T")[0], views: Number(r.views) });
+      }
+      res.json(Object.values(stories));
     } catch (error) {
-      console.error("Analytics countries error:", error);
-      res.status(500).json({ error: "فشل في جلب البيانات الجغرافية" });
+      console.error("Analytics views-by-story error:", error);
+      res.status(500).json({ error: "فشل في جلب بيانات المشاهدات حسب العمل" });
     }
   });
 

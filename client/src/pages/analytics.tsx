@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -6,6 +7,7 @@ import { SharedNavbar } from "@/components/shared-navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Eye,
   Users,
@@ -16,16 +18,21 @@ import {
   Globe,
   BarChart3,
   ArrowUpRight,
+  Star,
+  Layers,
 } from "lucide-react";
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
 import LtrNum from "@/components/ui/ltr-num";
+
+const STORY_COLORS = ["hsl(var(--primary))", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
 
 export default function Analytics() {
   useDocumentTitle("إحصائياتي — QalamAI");
   const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
+  const [viewMode, setViewMode] = useState<"aggregate" | "per-story">("aggregate");
 
   if (!authLoading && !user) {
     navigate("/");
@@ -46,6 +53,11 @@ export default function Analytics() {
 
   const { data: viewsSeries, isLoading: viewsLoading } = useQuery<Array<{ date: string; views: number }>>({
     queryKey: ["/api/me/analytics/views"],
+  });
+
+  const { data: viewsByStory, isLoading: viewsByStoryLoading } = useQuery<Array<{ id: number; title: string; data: Array<{ date: string; views: number }> }>>({
+    queryKey: ["/api/me/analytics/views-by-story"],
+    enabled: viewMode === "per-story",
   });
 
   const { data: followerHistory, isLoading: followersLoading } = useQuery<Array<{ week: string; count: number }>>({
@@ -74,6 +86,24 @@ export default function Analytics() {
     return `${parts[2]}/${parts[1]}`;
   };
 
+  const mostReadWork = summary?.topEssays?.[0];
+  const totalTipsCents = tipsData?.totalCents || 0;
+
+  const perStoryChartData = (() => {
+    if (!viewsByStory || viewsByStory.length === 0) return [];
+    const allDates = new Set<string>();
+    viewsByStory.forEach(s => s.data.forEach(d => allDates.add(d.date)));
+    const sorted = Array.from(allDates).sort();
+    return sorted.map(date => {
+      const row: Record<string, any> = { date };
+      viewsByStory.forEach(s => {
+        const found = s.data.find(d => d.date === date);
+        row[`story_${s.id}`] = found?.views || 0;
+      });
+      return row;
+    });
+  })();
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />
@@ -87,7 +117,7 @@ export default function Analytics() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {summaryLoading ? (
+          {summaryLoading || tipsLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
                 <CardContent className="p-4">
@@ -116,45 +146,52 @@ export default function Analytics() {
                 </CardContent>
               </Card>
 
-              <Card data-testid="card-followers">
+              <Card data-testid="card-followers-month">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">المتابعون</span>
+                    <span className="text-sm text-muted-foreground">متابعون جدد هذا الشهر</span>
                     <Users className="w-4 h-4 text-muted-foreground" />
                   </div>
-                  <div className="text-2xl font-bold" data-testid="text-followers">
-                    <LtrNum>{summary?.followerCount || 0}</LtrNum>
+                  <div className="text-2xl font-bold" data-testid="text-followers-month">
+                    +<LtrNum>{summary?.followersThisMonth || 0}</LtrNum>
                   </div>
-                  {(summary?.followersThisMonth || 0) > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 mt-1">
-                      <ArrowUpRight className="w-3 h-3" />
-                      +<LtrNum>{summary?.followersThisMonth}</LtrNum> هذا الشهر
-                    </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    إجمالي: <LtrNum>{summary?.followerCount || 0}</LtrNum>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-total-tips">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">إجمالي الإكراميات</span>
+                    <Coffee className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-total-tips-card">
+                    $<LtrNum>{(totalTipsCents / 100).toFixed(2)}</LtrNum>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-most-read">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">الأكثر قراءة</span>
+                    <Star className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  {mostReadWork ? (
+                    <>
+                      <div className="text-sm font-medium truncate" data-testid="text-most-read-title">
+                        {mostReadWork.title}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1"><Eye className="w-3 h-3" /><LtrNum>{mostReadWork.views}</LtrNum></span>
+                        <span className="flex items-center gap-1"><Heart className="w-3 h-3" /><LtrNum>{mostReadWork.reactions}</LtrNum></span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-muted-foreground" data-testid="text-no-most-read">لا يوجد</div>
                   )}
-                </CardContent>
-              </Card>
-
-              <Card data-testid="card-published">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">أعمال منشورة</span>
-                    <BookOpen className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="text-2xl font-bold" data-testid="text-published">
-                    <LtrNum>{summary?.totalEssays || 0}</LtrNum>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card data-testid="card-reactions">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">التفاعلات</span>
-                    <Heart className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="text-2xl font-bold" data-testid="text-reactions">
-                    <LtrNum>{summary?.totalReactions || 0}</LtrNum>
-                  </div>
                 </CardContent>
               </Card>
             </>
@@ -164,34 +201,103 @@ export default function Analytics() {
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
           <Card data-testid="card-views-chart">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                المشاهدات اليومية (آخر 30 يوم)
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  المشاهدات (آخر 30 يوم)
+                </CardTitle>
+                <div className="flex gap-1">
+                  <Button
+                    variant={viewMode === "aggregate" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setViewMode("aggregate")}
+                    data-testid="button-views-aggregate"
+                  >
+                    <Layers className="w-3 h-3 ml-1" />
+                    إجمالي
+                  </Button>
+                  <Button
+                    variant={viewMode === "per-story" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setViewMode("per-story")}
+                    data-testid="button-views-per-story"
+                  >
+                    <BookOpen className="w-3 h-3 ml-1" />
+                    حسب العمل
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {viewsLoading ? (
-                <div className="h-64 flex items-center justify-center"><Skeleton className="w-full h-48" /></div>
-              ) : viewsSeries && viewsSeries.length > 0 ? (
-                <div className="h-64" dir="ltr">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={viewsSeries}>
-                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                      <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                      <Tooltip
-                        labelFormatter={(v) => `${v}`}
-                        formatter={(v: number) => [`${v} مشاهدة`, "المشاهدات"]}
-                        contentStyle={{ direction: "rtl", fontSize: 12, borderRadius: 8 }}
-                      />
-                      <Line type="monotone" dataKey="views" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+              {viewMode === "aggregate" ? (
+                viewsLoading ? (
+                  <div className="h-64 flex items-center justify-center"><Skeleton className="w-full h-48" /></div>
+                ) : viewsSeries && viewsSeries.length > 0 ? (
+                  <div className="h-64" dir="ltr">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={viewsSeries}>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                        <Tooltip
+                          labelFormatter={(v) => `${v}`}
+                          formatter={(v: number) => [`${v} مشاهدة`, "المشاهدات"]}
+                          contentStyle={{ direction: "rtl", fontSize: 12, borderRadius: 8 }}
+                        />
+                        <Line type="monotone" dataKey="views" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground text-sm" data-testid="text-views-empty">
+                    لا توجد بيانات مشاهدات بعد
+                  </div>
+                )
               ) : (
-                <div className="h-64 flex items-center justify-center text-muted-foreground text-sm" data-testid="text-views-empty">
-                  لا توجد بيانات مشاهدات بعد
-                </div>
+                viewsByStoryLoading ? (
+                  <div className="h-64 flex items-center justify-center"><Skeleton className="w-full h-48" /></div>
+                ) : viewsByStory && viewsByStory.length > 0 ? (
+                  <div className="h-64" dir="ltr">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={perStoryChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                        <Tooltip
+                          contentStyle={{ direction: "rtl", fontSize: 11, borderRadius: 8 }}
+                          formatter={(v: number, name: string) => {
+                            const story = viewsByStory.find(s => `story_${s.id}` === name);
+                            return [`${v} مشاهدة`, story?.title || name];
+                          }}
+                        />
+                        <Legend
+                          formatter={(value: string) => {
+                            const story = viewsByStory.find(s => `story_${s.id}` === value);
+                            const title = story?.title || value;
+                            return title.length > 20 ? title.slice(0, 20) + "..." : title;
+                          }}
+                          wrapperStyle={{ fontSize: 11, direction: "rtl" }}
+                        />
+                        {viewsByStory.map((s, i) => (
+                          <Line
+                            key={s.id}
+                            type="monotone"
+                            dataKey={`story_${s.id}`}
+                            stroke={STORY_COLORS[i % STORY_COLORS.length]}
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground text-sm" data-testid="text-views-per-story-empty">
+                    لا توجد أعمال منشورة بعد
+                  </div>
+                )
               )}
             </CardContent>
           </Card>
@@ -240,7 +346,9 @@ export default function Analytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {summary?.topEssays && summary.topEssays.length > 0 ? (
+              {summaryLoading ? (
+                <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+              ) : summary?.topEssays && summary.topEssays.length > 0 ? (
                 <div className="space-y-3">
                   {summary.topEssays.map((essay, i) => (
                     <div key={essay.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors" data-testid={`row-top-work-${essay.id}`}>
