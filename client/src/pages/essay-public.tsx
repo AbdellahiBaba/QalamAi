@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
-import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock } from "lucide-react";
+import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock, BadgeCheck } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ interface PublicEssay {
   shareToken: string;
   authorName: string;
   authorId: string;
+  authorIsVerified: boolean;
   authorAverageRating: number;
   subject: string | null;
   views: number;
@@ -335,7 +336,12 @@ export default function EssayPublic() {
                   <AvatarFallback className="text-xs">{essay.authorName[0]}</AvatarFallback>
                 </Avatar>
                 <div className="text-right">
-                  <p className="text-sm font-medium">{essay.authorName}</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-medium">{essay.authorName}</p>
+                    {essay.authorIsVerified && (
+                      <BadgeCheck className="w-3.5 h-3.5 text-primary shrink-0" data-testid="badge-verified-author-header" />
+                    )}
+                  </div>
                   {essay.authorAverageRating > 0 && (
                     <StarRating rating={essay.authorAverageRating} size="sm" showCount={false} />
                   )}
@@ -522,7 +528,12 @@ export default function EssayPublic() {
                   <AvatarFallback>{essay.authorName[0]}</AvatarFallback>
                 </Avatar>
                 <div className="text-right">
-                  <p className="font-semibold">{essay.authorName}</p>
+                  <div className="flex items-center gap-1">
+                    <p className="font-semibold">{essay.authorName}</p>
+                    {essay.authorIsVerified && (
+                      <BadgeCheck className="w-4 h-4 text-primary shrink-0" data-testid="badge-verified-author-card" />
+                    )}
+                  </div>
                   {essay.authorAverageRating > 0 && (
                     <StarRating rating={essay.authorAverageRating} size="sm" showCount={false} />
                   )}

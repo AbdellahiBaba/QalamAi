@@ -1002,6 +1002,29 @@ export default function Home() {
           </Card>
         )}
 
+        {!user?.verified && (
+          <Card className="mb-6 border-dashed" data-testid="card-apply-verified">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm">احصل على شارة الكاتب الموثّق</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">تظهر بجانب اسمك على جميع مقالاتك وفي لوحة المتصدرين</p>
+                  </div>
+                </div>
+                <Link href="/apply-verified">
+                  <Button size="sm" variant="outline" data-testid="button-apply-verified">
+                    تقديم طلب
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           {statCards.map((stat) => (
             <Card key={stat.id}>

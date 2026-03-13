@@ -663,7 +663,8 @@ export class DatabaseStorage implements IStorage {
         p.memoire_keywords as "memoireKeywords",
         COALESCE(u.display_name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')), 'كاتب مجهول') as "authorName",
         COALESCE(u.id, p.user_id) as "authorId",
-        COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating"
+        COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
+        COALESCE(u.verified, false) as "authorIsVerified"
       FROM novel_projects p
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
@@ -979,7 +980,8 @@ export class DatabaseStorage implements IStorage {
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
         COALESCE(v.view_count, 0)::int as views,
         COALESCE(c.click_count, 0)::int as clicks,
-        COALESCE(p.used_words, 0)::int as "totalWords"
+        COALESCE(p.used_words, 0)::int as "totalWords",
+        COALESCE(u.verified, false) as "authorIsVerified"
       FROM novel_projects p
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id

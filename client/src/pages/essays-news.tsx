@@ -17,6 +17,7 @@ import {
   Flag,
   Share2,
   Code2,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -33,6 +34,7 @@ interface PublicEssay {
   shareToken: string | null;
   authorName: string | null;
   authorId: string | null;
+  authorIsVerified: boolean;
   views: number;
   clicks: number;
   reactions: { like: number; love: number; insightful: number; thoughtful: number } | null;
@@ -190,7 +192,7 @@ export default function EssaysNews() {
                       {essay.title}
                     </h3>
                     {essay.authorName && (
-                      <div>
+                      <div className="flex items-center gap-1">
                         {essay.authorId ? (
                           <span
                             className="text-sm text-primary font-medium hover:underline cursor-pointer"
@@ -206,6 +208,9 @@ export default function EssaysNews() {
                           <span className="text-sm text-muted-foreground" data-testid={`text-essay-author-${essay.id}`}>
                             {essay.authorName}
                           </span>
+                        )}
+                        {essay.authorIsVerified && (
+                          <BadgeCheck className="w-3.5 h-3.5 text-primary shrink-0" data-testid={`badge-verified-author-${essay.id}`} />
                         )}
                       </div>
                     )}

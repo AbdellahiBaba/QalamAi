@@ -178,7 +178,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -562,6 +562,24 @@ export default function Admin() {
   const { data: reportStats } = useQuery<any>({
     queryKey: ["/api/admin/reports/stats"],
     enabled: activeTab === "reports",
+  });
+
+  const { data: verifiedApps } = useQuery<any[]>({
+    queryKey: ["/api/admin/verified-applications"],
+    enabled: activeTab === "verified",
+  });
+
+  const updateVerifiedAppMutation = useMutation({
+    mutationFn: async ({ id, status, adminNote }: { id: number; status: string; adminNote?: string }) => {
+      return apiRequest("PATCH", `/api/admin/verified-applications/${id}`, { status, adminNote });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/verified-applications"] });
+      toast({ title: "تم تحديث الطلب بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث الطلب", variant: "destructive" });
+    },
   });
 
   const updateReportMutation = useMutation({
@@ -960,6 +978,7 @@ export default function Admin() {
                 {[
                   { key: "tickets" as const, icon: Ticket, label: "تذاكر الدعم" },
                   { key: "users" as const, icon: Users, label: "المستخدمون" },
+                  { key: "verified" as const, icon: ShieldCheck, label: "طلبات التوثيق", badge: verifiedApps?.filter((a: any) => a.status === "pending").length || 0 },
                   { key: "reports" as const, icon: AlertCircle, label: "البلاغات", badge: reportsData?.filter((r: any) => r.status === "pending").length || 0 },
                 ].map((item) => (
                   <button
@@ -1068,6 +1087,7 @@ export default function Admin() {
                       {[
                         { key: "tickets" as const, icon: Ticket, label: "تذاكر الدعم" },
                         { key: "users" as const, icon: Users, label: "المستخدمون" },
+                        { key: "verified" as const, icon: ShieldCheck, label: "طلبات التوثيق", badge: verifiedApps?.filter((a: any) => a.status === "pending").length || 0 },
                         { key: "reports" as const, icon: AlertCircle, label: "البلاغات", badge: reportsData?.filter((r: any) => r.status === "pending").length || 0 },
                       ].map((item) => (
                         <button
@@ -4167,6 +4187,97 @@ export default function Admin() {
                 </table>
               </div>
             </Card>
+          </div>
+        )}
+
+        {activeTab === "verified" && (
+          <div className="space-y-4" data-testid="section-verified-applications">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">طلبات التوثيق</h2>
+              <Badge variant="secondary" data-testid="badge-verified-pending-count">
+                {verifiedApps?.filter((a: any) => a.status === "pending").length || 0} قيد الانتظار
+              </Badge>
+            </div>
+            {!verifiedApps || verifiedApps.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground" data-testid="text-no-verified-apps">
+                لا توجد طلبات توثيق حتى الآن
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {verifiedApps.map((app: any) => (
+                  <Card key={app.id} className={`${app.status === "pending" ? "border-amber-300 dark:border-amber-700" : app.status === "approved" ? "border-green-300 dark:border-green-700" : "border-red-200 dark:border-red-900"}`} data-testid={`card-verified-app-${app.id}`}>
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold" data-testid={`text-verified-app-name-${app.id}`}>{app.display_name || app.first_name || app.email || "مجهول"}</span>
+                            <Badge
+                              variant={app.status === "approved" ? "default" : app.status === "rejected" ? "destructive" : "secondary"}
+                              className={app.status === "approved" ? "bg-green-600" : ""}
+                              data-testid={`badge-verified-app-status-${app.id}`}
+                            >
+                              {app.status === "pending" ? "قيد الانتظار" : app.status === "approved" ? "موافق عليه" : "مرفوض"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{app.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(app.created_at).toLocaleDateString("ar-SA")}
+                          </p>
+                        </div>
+                        {app.status === "pending" && (
+                          <div className="flex gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => updateVerifiedAppMutation.mutate({ id: app.id, status: "approved" })}
+                              disabled={updateVerifiedAppMutation.isPending}
+                              data-testid={`button-approve-verified-${app.id}`}
+                            >
+                              <CheckCircle className="w-3.5 h-3.5 ml-1" />
+                              قبول
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => updateVerifiedAppMutation.mutate({ id: app.id, status: "rejected" })}
+                              disabled={updateVerifiedAppMutation.isPending}
+                              data-testid={`button-reject-verified-${app.id}`}
+                            >
+                              <XCircle className="w-3.5 h-3.5 ml-1" />
+                              رفض
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2 text-sm border-t pt-3">
+                        <div>
+                          <span className="text-xs font-semibold text-muted-foreground block mb-1">السيرة الذاتية</span>
+                          <p className="text-sm leading-relaxed" data-testid={`text-verified-app-bio-${app.id}`}>{app.bio}</p>
+                        </div>
+                        {app.writing_samples && (
+                          <div>
+                            <span className="text-xs font-semibold text-muted-foreground block mb-1">نماذج الكتابة</span>
+                            <p className="text-sm text-primary break-all" data-testid={`text-verified-app-samples-${app.id}`}>{app.writing_samples}</p>
+                          </div>
+                        )}
+                        {app.social_links && (
+                          <div>
+                            <span className="text-xs font-semibold text-muted-foreground block mb-1">روابط التواصل</span>
+                            <p className="text-sm text-primary break-all" data-testid={`text-verified-app-social-${app.id}`}>{app.social_links}</p>
+                          </div>
+                        )}
+                        {app.admin_note && (
+                          <div className="bg-muted rounded p-2">
+                            <span className="text-xs font-semibold text-muted-foreground block mb-1">ملاحظة الإدارة</span>
+                            <p className="text-sm">{app.admin_note}</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
