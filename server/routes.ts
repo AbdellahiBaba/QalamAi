@@ -8311,7 +8311,7 @@ ${ch.content}
       if (!toAuthorId || !amountCents || amountCents < 100) return res.status(400).json({ error: "بيانات غير صالحة" });
       const author = await storage.getUser(toAuthorId);
       if (!author) return res.status(404).json({ error: "الكاتب غير موجود" });
-      const stripe = getUncachableStripeClient();
+      const stripe = await getUncachableStripeClient();
       const baseUrl = process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://qalamai.net");
       const authorName = author.displayName || author.firstName || "الكاتب";
       const successPath = projectId ? `/essay/` : (toAuthorId ? `/author/${toAuthorId}` : "");
@@ -8346,7 +8346,7 @@ ${ch.content}
       if (!toAuthorId || !amountCents || amountCents < 100) return res.status(400).json({ error: "بيانات غير صالحة" });
       const author = await storage.getUser(toAuthorId);
       if (!author) return res.status(404).json({ error: "الكاتب غير موجود" });
-      const stripe = getUncachableStripeClient();
+      const stripe = await getUncachableStripeClient();
       const baseUrl = process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://qalamai.net");
       const authorName = author.displayName || author.firstName || "الكاتب";
       const projectPath = projectId ? `/essay/` : "";
