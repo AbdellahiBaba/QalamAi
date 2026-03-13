@@ -260,12 +260,16 @@ export default function ProjectDetail() {
   const [showRefineInput, setShowRefineInput] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
+  const [showPdfCoverDialog, setShowPdfCoverDialog] = useState(false);
+  const [pdfCoverUrl, setPdfCoverUrl] = useState("");
+  const pdfCoverFileRef = useRef<HTMLInputElement>(null);
 
   const handleExportDownload = async (format: "pdf" | "epub" | "docx") => {
     if (downloadingFormat) return;
     setDownloadingFormat(format);
     try {
-      const res = await fetch(`/api/projects/${projectId}/export/${format}`, { credentials: "include" });
+      const exportUrl = `/api/projects/${projectId}/export/${format}`;
+      const res = await fetch(exportUrl, { credentials: "include" });
       if (!res.ok) {
         let errMsg = `فشل في تحميل ملف ${format.toUpperCase()}`;
         try {
@@ -293,6 +297,92 @@ export default function ProjectDetail() {
       setDownloadingFormat(null);
     }
   };
+
+  const handlePdfCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "يرجى اختيار ملف صورة", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "حجم الصورة يجب أن لا يتجاوز 5 ميغابايت", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setPdfCoverUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePdfWithCoverDownload = async () => {
+    if (downloadingFormat) return;
+    setShowPdfCoverDialog(false);
+    setDownloadingFormat("pdf");
+    try {
+      let coverToken = "";
+      if (pdfCoverUrl) {
+        const body: Record<string, string> = {};
+        if (pdfCoverUrl.startsWith("data:")) {
+          body.coverImageData = pdfCoverUrl;
+        } else {
+          body.coverImageUrl = pdfCoverUrl;
+        }
+        const uploadRes = await fetch(`/api/projects/${projectId}/export/pdf-cover`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        if (!uploadRes.ok) {
+          let errMsg = "فشل في رفع صورة الغلاف";
+          try {
+            const errData = await uploadRes.json();
+            if (errData.error) errMsg = errData.error;
+          } catch {}
+          toast({ title: errMsg, variant: "destructive" });
+          return;
+        }
+        const uploadData = await uploadRes.json();
+        coverToken = uploadData.coverToken || "";
+      }
+
+      let pdfUrl = `/api/projects/${projectId}/export/pdf`;
+      if (coverToken) pdfUrl += `?coverToken=${encodeURIComponent(coverToken)}`;
+      const res = await fetch(pdfUrl, { credentials: "include" });
+      if (!res.ok) {
+        let errMsg = "فشل في تحميل ملف PDF";
+        try {
+          const errData = await res.json();
+          if (errData.error) errMsg = errData.error;
+        } catch {}
+        toast({ title: errMsg, variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const disposition = res.headers.get("Content-Disposition");
+      const filenameMatch = disposition?.match(/filename="?(.+?)"?$/);
+      a.download = filenameMatch ? decodeURIComponent(filenameMatch[1]) : `${project?.title || "export"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export PDF with cover failed:", err);
+      toast({ title: "فشل في تحميل ملف PDF", variant: "destructive" });
+    } finally {
+      setDownloadingFormat(null);
+    }
+    setPdfCoverUrl("");
+    if (pdfCoverFileRef.current) pdfCoverFileRef.current.value = "";
+  };
+
   const [editingSettings, setEditingSettings] = useState(false);
   const [editTimeSetting, setEditTimeSetting] = useState("");
   const [editPlaceSetting, setEditPlaceSetting] = useState("");
@@ -1484,6 +1574,17 @@ export default function ProjectDetail() {
                     >
                       {downloadingFormat === "docx" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
                       {downloadingFormat === "docx" ? "جاري التحميل..." : "تحميل DOCX"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setPdfCoverUrl(project.coverImageUrl || "");
+                        setShowPdfCoverDialog(true);
+                      }}
+                      disabled={!!downloadingFormat}
+                      data-testid="menu-download-pdf-cover"
+                    >
+                      <ImagePlus className="w-4 h-4 ml-2" />
+                      PDF مع غلاف مخصص
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {project.shareToken && (
@@ -5135,6 +5236,80 @@ export default function ProjectDetail() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={showPdfCoverDialog} onOpenChange={(open) => { setShowPdfCoverDialog(open); if (!open) { setPdfCoverUrl(""); if (pdfCoverFileRef.current) pdfCoverFileRef.current.value = ""; } }}>
+          <DialogContent dir="rtl" className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg" data-testid="text-pdf-cover-title">
+                <ImagePlus className="w-5 h-5" />
+                تحميل PDF مع غلاف مخصص
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                اختر صورة غلاف لتظهر في الصفحة الأولى من ملف PDF. يمكنك رفع صورة من جهازك أو إدخال رابط صورة.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm mb-1.5 block">رفع صورة من الجهاز</Label>
+                  <Input
+                    ref={pdfCoverFileRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePdfCoverFileChange}
+                    data-testid="input-pdf-cover-file"
+                    className="cursor-pointer"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                  <div className="flex-1 h-px bg-border" />
+                  <span>أو</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block">رابط صورة الغلاف</Label>
+                  <Input
+                    type="url"
+                    placeholder="https://example.com/cover.jpg"
+                    value={pdfCoverUrl.startsWith("data:") ? "" : pdfCoverUrl}
+                    onChange={(e) => { setPdfCoverUrl(e.target.value); if (pdfCoverFileRef.current) pdfCoverFileRef.current.value = ""; }}
+                    dir="ltr"
+                    data-testid="input-pdf-cover-url"
+                  />
+                </div>
+                {pdfCoverUrl && (
+                  <div className="border rounded-lg p-2 flex items-center gap-2">
+                    {pdfCoverUrl.startsWith("data:") ? (
+                      <img src={pdfCoverUrl} alt="معاينة الغلاف" className="w-16 h-20 object-cover rounded" data-testid="img-pdf-cover-preview" />
+                    ) : (
+                      <img src={pdfCoverUrl} alt="معاينة الغلاف" className="w-16 h-20 object-cover rounded" onError={(e) => (e.currentTarget.style.display = "none")} data-testid="img-pdf-cover-preview" />
+                    )}
+                    <span className="text-xs text-muted-foreground flex-1 truncate">
+                      {pdfCoverUrl.startsWith("data:") ? "صورة مرفوعة من الجهاز" : pdfCoverUrl}
+                    </span>
+                    <Button variant="ghost" size="icon" onClick={() => { setPdfCoverUrl(""); if (pdfCoverFileRef.current) pdfCoverFileRef.current.value = ""; }} data-testid="button-clear-pdf-cover">
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={handlePdfWithCoverDownload}
+                  disabled={!!downloadingFormat}
+                  className="flex-1"
+                  data-testid="button-download-pdf-with-cover"
+                >
+                  {downloadingFormat === "pdf" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
+                  {pdfCoverUrl ? "تحميل PDF مع الغلاف" : "تحميل PDF بدون غلاف"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowPdfCoverDialog(false)} data-testid="button-cancel-pdf-cover">
+                  إلغاء
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent dir="rtl">

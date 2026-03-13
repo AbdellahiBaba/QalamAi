@@ -2854,7 +2854,20 @@ ${allPages.map(p => `  <url>
       doc.addPage();
 
       let coverRendered = false;
-      if (project.coverImageUrl) {
+      const coverToken = typeof req.query.coverToken === "string" ? req.query.coverToken.trim() : "";
+      if (coverToken && pdfCoverStore.has(coverToken)) {
+        const stored = pdfCoverStore.get(coverToken)!;
+        if (stored.userId === req.user.claims.sub) {
+          try {
+            doc.image(stored.buffer, 0, 0, { width: fullPageWidth, height: pageHeight });
+            coverRendered = true;
+          } catch (e) {
+            console.error("Failed to render custom cover from token:", e);
+          }
+          pdfCoverStore.delete(coverToken);
+        }
+      }
+      if (!coverRendered && project.coverImageUrl) {
         try {
           const response = await fetch(project.coverImageUrl);
           if (response.ok) {
@@ -3509,6 +3522,89 @@ ${allPages.map(p => `  <url>
       if (!res.headersSent) {
         res.status(500).json({ error: "فشل في إنشاء ملف PDF" });
       }
+    }
+  });
+
+  const pdfCoverStore = new Map<string, { buffer: Buffer; userId: string; createdAt: number }>();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of pdfCoverStore) {
+      if (now - val.createdAt > 5 * 60 * 1000) pdfCoverStore.delete(key);
+    }
+  }, 60_000);
+
+  const pdfCoverBodyParser = (await import("express")).default.json({ limit: "8mb" });
+  app.post("/api/projects/:id/export/pdf-cover", pdfCoverBodyParser, isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const coverUser = await storage.getUser(req.user.claims.sub);
+      if (coverUser?.plan === "trial") {
+        return res.status(403).json({ error: "التصدير غير متاح في الفترة التجريبية. يرجى الترقية إلى خطة مدفوعة." });
+      }
+      const project = await storage.getProject(id);
+      if (!project || project.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+
+      const { coverImageData, coverImageUrl: coverUrl } = req.body || {};
+      let coverBuffer: Buffer | null = null;
+
+      if (coverImageData && typeof coverImageData === "string") {
+        const dataMatch = coverImageData.match(/^data:image\/\w+;base64,(.+)$/);
+        if (dataMatch) {
+          const decoded = Buffer.from(dataMatch[1], "base64");
+          if (decoded.length <= 5 * 1024 * 1024) {
+            coverBuffer = decoded;
+          } else {
+            return res.status(400).json({ error: "حجم الصورة يجب أن لا يتجاوز 5 ميغابايت" });
+          }
+        } else {
+          return res.status(400).json({ error: "صيغة بيانات الصورة غير صالحة" });
+        }
+      } else if (coverUrl && typeof coverUrl === "string") {
+        try {
+          const parsed = new URL(coverUrl);
+          if (!["http:", "https:"].includes(parsed.protocol)) {
+            return res.status(400).json({ error: "يُسمح فقط بروابط HTTP/HTTPS" });
+          }
+          const hostname = parsed.hostname.toLowerCase();
+          if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0" || hostname.startsWith("10.") || hostname.startsWith("172.") || hostname.startsWith("192.168.") || hostname === "[::1]" || hostname.endsWith(".internal") || hostname === "metadata.google.internal" || hostname.startsWith("169.254.")) {
+            return res.status(400).json({ error: "رابط الصورة غير مسموح به" });
+          }
+          const controller = new AbortController();
+          const fetchTimeout = setTimeout(() => controller.abort(), 10000);
+          const coverRes = await fetch(coverUrl, { signal: controller.signal });
+          clearTimeout(fetchTimeout);
+          if (!coverRes.ok) {
+            return res.status(400).json({ error: "فشل في تحميل صورة الغلاف من الرابط" });
+          }
+          const ct = coverRes.headers.get("content-type") || "";
+          if (!ct.startsWith("image/")) {
+            return res.status(400).json({ error: "الرابط لا يشير إلى صورة صالحة" });
+          }
+          const arrayBuf = await coverRes.arrayBuffer();
+          if (arrayBuf.byteLength > 10 * 1024 * 1024) {
+            return res.status(400).json({ error: "حجم الصورة يجب أن لا يتجاوز 10 ميغابايت" });
+          }
+          coverBuffer = Buffer.from(arrayBuf);
+        } catch {
+          return res.status(400).json({ error: "فشل في تحميل صورة الغلاف من الرابط" });
+        }
+      }
+
+      if (!coverBuffer) {
+        return res.status(400).json({ error: "يرجى تحميل صورة أو إدخال رابط صورة صالح" });
+      }
+
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(16).toString("hex");
+      pdfCoverStore.set(token, { buffer: coverBuffer, userId: req.user.claims.sub, createdAt: Date.now() });
+
+      res.json({ coverToken: token });
+    } catch (error) {
+      console.error("Error uploading PDF cover:", error);
+      res.status(500).json({ error: "فشل في رفع صورة الغلاف" });
     }
   });
 
