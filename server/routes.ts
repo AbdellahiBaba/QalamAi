@@ -8205,6 +8205,41 @@ ${ch.content}
   });
 
   // ── Author Tipping ────────────────────────────────────────────────────────────
+  app.post("/api/tips/public-checkout", async (req: any, res) => {
+    try {
+      const fromUserId: string | null = req.user?.claims?.sub || null;
+      const { toAuthorId, projectId, amountCents } = req.body;
+      if (!toAuthorId || !amountCents || amountCents < 100) return res.status(400).json({ error: "بيانات غير صالحة" });
+      const author = await storage.getUser(toAuthorId);
+      if (!author) return res.status(404).json({ error: "الكاتب غير موجود" });
+      const stripe = getUncachableStripeClient();
+      const baseUrl = process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://qalamai.net");
+      const authorName = author.displayName || author.firstName || "الكاتب";
+      const successPath = projectId ? `/essay/` : (toAuthorId ? `/author/${toAuthorId}` : "");
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_creation: "if_required",
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            unit_amount: Number(amountCents),
+            product_data: { name: `دعم الكاتب ${authorName} على QalamAI` },
+          },
+          quantity: 1,
+        }],
+        metadata: { type: "author_tip", fromUserId: fromUserId || "anonymous", toAuthorId, projectId: projectId ? String(projectId) : "" },
+        success_url: `${baseUrl}${successPath}?tip=success`,
+        cancel_url: `${baseUrl}${successPath}?tip=cancelled`,
+      });
+      await storage.createAuthorTip({ fromUserId: fromUserId ?? undefined, toAuthorId, projectId: projectId ? Number(projectId) : undefined, amountCents: Number(amountCents), stripeSessionId: session.id });
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("[Tips] Public checkout error:", error);
+      res.status(500).json({ error: "فشل في إنشاء جلسة الدفع" });
+    }
+  });
+
   app.post("/api/tips/checkout", isAuthenticated, async (req: any, res) => {
     try {
       const fromUserId = req.user.claims.sub;

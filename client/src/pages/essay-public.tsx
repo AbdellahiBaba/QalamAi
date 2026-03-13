@@ -629,9 +629,50 @@ export default function EssayPublic() {
           </div>
         )}
 
+        {/* Tip section */}
+        {essay.authorId && (() => {
+          const TIP_AMOUNTS = [100, 300, 500, 1000];
+          const TIP_LABELS: Record<number, string> = { 100: "$1", 300: "$3", 500: "$5", 1000: "$10" };
+          return (
+            <div className="mt-8 p-5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-center space-y-3" data-testid="section-tip-author">
+              <Coffee className="w-6 h-6 text-amber-500 mx-auto" />
+              <p className="font-semibold text-base">هل أعجبك هذا المقال؟</p>
+              <p className="text-sm text-muted-foreground">ادعم الكاتب <span className="font-medium text-foreground">{essay.authorName}</span> بمبلغ رمزي يشجعه على الاستمرار</p>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                {TIP_AMOUNTS.map((cents) => (
+                  <Button
+                    key={cents}
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold min-w-[52px]"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/tips/public-checkout", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          credentials: "include",
+                          body: JSON.stringify({ toAuthorId: essay.authorId, projectId: essay.id, amountCents: cents }),
+                        });
+                        const data = await res.json();
+                        if (data.url) window.open(data.url, "_blank");
+                        else toast({ title: data.error || "حدث خطأ", variant: "destructive" });
+                      } catch {
+                        toast({ title: "حدث خطأ أثناء المعالجة", variant: "destructive" });
+                      }
+                    }}
+                    data-testid={`button-tip-${cents}`}
+                  >
+                    {TIP_LABELS[cents]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Author card */}
         {essay.authorId && (
-          <div className="mt-8 p-4 bg-card border rounded-xl" data-testid="card-author">
+          <div className="mt-6 p-4 bg-card border rounded-xl" data-testid="card-author">
             <div className="flex items-center justify-between gap-4">
               <button
                 onClick={() => navigate(`/author/${essay.authorId}`)}
@@ -653,31 +694,11 @@ export default function EssayPublic() {
                   )}
                 </div>
               </button>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-                  onClick={async () => {
-                    try {
-                      const res = await apiRequest("POST", "/api/tips/checkout", { toAuthorId: essay.authorId, projectId: essay.id, amountCents: 500 });
-                      const data = await res.json();
-                      if (data.url) window.open(data.url, "_blank");
-                    } catch {
-                      toast({ title: "يجب تسجيل الدخول لدعم الكاتب", variant: "destructive" });
-                    }
-                  }}
-                  data-testid="button-tip-author"
-                >
-                  <Coffee className="w-3.5 h-3.5" />
-                  ادعم الكاتب
+              <Link href="/essays">
+                <Button variant="outline" size="sm" data-testid="button-more-essays">
+                  المزيد من المقالات
                 </Button>
-                <Link href="/essays">
-                  <Button variant="outline" size="sm" data-testid="button-more-essays">
-                    المزيد من المقالات
-                  </Button>
-                </Link>
-              </div>
+              </Link>
             </div>
           </div>
         )}

@@ -286,12 +286,12 @@ export default function EssaysNews() {
                       )}
                       {essay.authorId && (
                         <button
-                          className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors"
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors font-medium"
                           onClick={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             try {
-                              const res = await fetch("/api/tips/checkout", {
+                              const res = await fetch("/api/tips/public-checkout", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 credentials: "include",
@@ -299,7 +299,6 @@ export default function EssaysNews() {
                               });
                               const data = await res.json();
                               if (data.url) window.open(data.url, "_blank");
-                              else if (data.error) alert("يجب تسجيل الدخول لدعم الكاتب");
                             } catch {}
                           }}
                           title="ادعم الكاتب بـ $5"

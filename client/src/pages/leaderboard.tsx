@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Trophy, Eye, Users, BookOpen, Star, BadgeCheck, Coffee } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
 
@@ -41,11 +40,16 @@ export default function Leaderboard() {
   const handleTip = async (e: React.MouseEvent, authorId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) { toast({ title: "يجب تسجيل الدخول لدعم الكاتب", variant: "destructive" }); return; }
     try {
-      const res = await apiRequest("POST", "/api/tips/checkout", { toAuthorId: authorId, amountCents: 500 });
+      const res = await fetch("/api/tips/public-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ toAuthorId: authorId, amountCents: 500 }),
+      });
       const data = await res.json();
       if (data.url) window.open(data.url, "_blank");
+      else toast({ title: data.error || "حدث خطأ أثناء المعالجة", variant: "destructive" });
     } catch {
       toast({ title: "حدث خطأ أثناء المعالجة", variant: "destructive" });
     }
@@ -147,7 +151,7 @@ export default function Leaderboard() {
                 {(!user || user.id !== entry.userId) && (
                   <button
                     onClick={(e) => handleTip(e, entry.userId)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-amber-600 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors opacity-0 group-hover:opacity-100"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs text-amber-600 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors font-medium"
                     title="ادعم الكاتب بـ $5"
                     data-testid={`button-tip-author-${entry.userId}`}
                   >

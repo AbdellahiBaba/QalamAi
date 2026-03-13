@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee } from "lucide-react";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { SharedNavbar } from "@/components/shared-navbar";
@@ -290,6 +290,38 @@ export default function AuthorProfile() {
             })()}
           </div>
         </div>
+
+        {(!user || user.id !== author.id) && (
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-center space-y-3 mb-6" data-testid="section-tip-author-profile">
+            <Coffee className="w-5 h-5 text-amber-500 mx-auto" />
+            <p className="text-sm text-muted-foreground">ادعم الكاتب <span className="font-semibold text-foreground">{author.displayName || author.firstName}</span> بمبلغ رمزي</p>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {[{ cents: 100, label: "$1" }, { cents: 300, label: "$3" }, { cents: 500, label: "$5" }, { cents: 1000, label: "$10" }].map(({ cents, label }) => (
+                <Button
+                  key={cents}
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold min-w-[52px]"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/tips/public-checkout", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ toAuthorId: author.id, amountCents: cents }),
+                      });
+                      const data = await res.json();
+                      if (data.url) window.open(data.url, "_blank");
+                    } catch {}
+                  }}
+                  data-testid={`button-tip-profile-${cents}`}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2" data-testid="interactive-rating-section">
           <h3 className="text-sm font-semibold text-muted-foreground">قيّم هذا الكاتب</h3>
