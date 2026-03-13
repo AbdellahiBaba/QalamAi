@@ -341,6 +341,93 @@ export async function sendTrialRequiresActionEmail(email: string, paymentIntentC
   }
 }
 
+export async function sendViewMilestoneNotification(
+  email: string,
+  authorName: string,
+  essayTitle: string,
+  viewCount: number,
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const essaysUrl = `${getBaseUrl()}/essays`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">مبارك <strong style="color:${BRAND_GOLD};">${authorName}</strong>!</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">وصل مقالك <strong style="color:${BRAND_GOLD};">"${essayTitle}"</strong> إلى <strong style="font-size:18px;">${viewCount.toLocaleString("ar-EG")}</strong> مشاهدة على منصّة QalamAI.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">استمر في النشر وشارك أعمالك مع القرّاء العرب.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${essaysUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+عرض المقالات
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: `مقالك "${essayTitle}" وصل إلى ${viewCount.toLocaleString("ar-EG")} مشاهدة — QalamAI`,
+      html: wrapInTemplate(`تهانينا! ${viewCount.toLocaleString("ar-EG")} مشاهدة`, body),
+    });
+    console.log(`[Email] Sent view milestone (${viewCount}) email to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send view milestone email:", err);
+  }
+}
+
+export async function sendWeeklyDigest(
+  recipients: Array<{ email: string; displayName: string | null }>,
+  topEssays: Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>,
+): Promise<void> {
+  const t = getTransporter();
+  if (!t || recipients.length === 0 || topEssays.length === 0) return;
+
+  const baseUrl = getBaseUrl();
+  const essaysUrl = `${baseUrl}/essays`;
+
+  const essayRows = topEssays.slice(0, 5).map(essay => {
+    const link = essay.shareToken ? `${baseUrl}/essay/${essay.shareToken}` : essaysUrl;
+    return `
+<tr>
+  <td style="padding:10px 0;border-bottom:1px solid #f0ece4;">
+    <a href="${link}" style="color:${BRAND_BLUE};font-weight:bold;text-decoration:none;font-size:14px;">${essay.title}</a>
+    <br><span style="color:#888;font-size:12px;">بقلم ${essay.authorName} · ${essay.views} مشاهدة هذا الأسبوع</span>
+  </td>
+</tr>`;
+  }).join("\n");
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">إليك أبرز مقالات هذا الأسبوع على منصّة QalamAI:</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+${essayRows}
+</table>
+<div style="text-align:center;margin:24px 0;">
+<a href="${essaysUrl}"
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+استعرض جميع المقالات
+</a>
+</div>`;
+
+  const subject = "ملخّص الأسبوع — أبرز مقالات QalamAI";
+
+  let sent = 0;
+  for (const recipient of recipients) {
+    try {
+      await t.sendMail({
+        from: `"QalamAI" <${process.env.SMTP_USER}>`,
+        to: recipient.email,
+        subject,
+        html: wrapInTemplate("أبرز مقالات هذا الأسبوع", body),
+      });
+      sent++;
+    } catch (err) {
+      console.error(`[Email] Failed to send weekly digest to ${recipient.email}:`, err);
+    }
+  }
+  console.log(`[Email] Weekly digest sent to ${sent}/${recipients.length} recipients`);
+}
+
 export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
   const t = getTransporter();
   if (!t) return;

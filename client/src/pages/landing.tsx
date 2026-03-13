@@ -29,6 +29,41 @@ interface LandingReview {
   rating: number;
 }
 
+function PlatformStatsSection() {
+  const { data: stats } = useQuery<{ userCount: number; projectCount: number; totalWords: number }>({
+    queryKey: ["/api/public/stats"],
+  });
+
+  if (!stats || (stats.userCount === 0 && stats.projectCount === 0)) return null;
+
+  const formatNum = (n: number) => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}م`;
+    if (n >= 1000) return `${Math.floor(n / 1000)}ك`;
+    return n.toString();
+  };
+
+  return (
+    <section className="py-10 px-4 sm:px-6 bg-primary/5 border-y" data-testid="section-platform-stats">
+      <div className="max-w-4xl mx-auto">
+        <div className="grid grid-cols-3 gap-6 text-center">
+          <div className="space-y-1" data-testid="stat-users">
+            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary">{formatNum(stats.userCount)}+</p>
+            <p className="text-sm text-muted-foreground">كاتب عربي</p>
+          </div>
+          <div className="space-y-1" data-testid="stat-projects">
+            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary">{formatNum(stats.projectCount)}+</p>
+            <p className="text-sm text-muted-foreground">مشروع أدبي</p>
+          </div>
+          <div className="space-y-1" data-testid="stat-words">
+            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary">{formatNum(stats.totalWords)}+</p>
+            <p className="text-sm text-muted-foreground">كلمة مكتوبة</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Landing() {
   useDocumentTitle("QalamAI — حيث تتحوّل الفكرة إلى رواية");
   const { data: realReviews } = useQuery<LandingReview[]>({
@@ -205,6 +240,8 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      <PlatformStatsSection />
 
       <section className="py-12 sm:py-20 px-4 sm:px-6" data-testid="section-why-qalamai">
         <div className="max-w-6xl mx-auto">

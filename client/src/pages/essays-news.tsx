@@ -15,6 +15,7 @@ import {
   Heart,
   Clock,
   Flag,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -155,7 +156,7 @@ export default function EssaysNews() {
             {filteredEssays.map((essay) => (
               <Link
                 key={essay.id}
-                href={essay.shareToken ? `/shared/${essay.shareToken}` : "#"}
+                href={essay.shareToken ? `/essay/${essay.shareToken}` : "#"}
                 onClick={() => handleCardClick(essay)}
                 data-testid={`link-essay-${essay.id}`}
               >
@@ -249,6 +250,19 @@ export default function EssaysNews() {
                           })}
                         </span>
                       )}
+                      <button
+                        className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const url = `https://qalamai.net/essay/${essay.shareToken}`;
+                          const text = `اقرأ مقال "${essay.title}" على QalamAI`;
+                          window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer,width=600,height=400");
+                        }}
+                        data-testid={`button-share-twitter-${essay.id}`}
+                      >
+                        <Share2 className="w-3 h-3" /> مشاركة
+                      </button>
                       <button
                         className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors mr-auto"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(essay.id); setReportProjectTitle(essay.title); }}

@@ -40,6 +40,7 @@ const Reader = lazy(() => import("@/pages/reader"));
 const Reviews = lazy(() => import("@/pages/reviews"));
 const Promo = lazy(() => import("@/pages/promo"));
 const EssaysNews = lazy(() => import("@/pages/essays-news"));
+const EssayPublic = lazy(() => import("@/pages/essay-public"));
 const MemoireGallery = lazy(() => import("@/pages/memoire-gallery"));
 const ForgotPassword = lazy(() => import("@/pages/forgot-password"));
 const ResetPassword = lazy(() => import("@/pages/reset-password"));
@@ -95,6 +96,7 @@ function AuthenticatedRouter() {
         <Route path="/reviews" component={Reviews} />
         <Route path="/promo" component={Promo} />
         <Route path="/essays" component={EssaysNews} />
+        <Route path="/essay/:shareToken" component={EssayPublic} />
         <Route path="/memoires" component={MemoireGallery} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
@@ -126,6 +128,7 @@ function PublicRouter() {
         <Route path="/reviews" component={Reviews} />
         <Route path="/promo" component={Promo} />
         <Route path="/essays" component={EssaysNews} />
+        <Route path="/essay/:shareToken" component={EssayPublic} />
         <Route path="/memoires" component={MemoireGallery} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />

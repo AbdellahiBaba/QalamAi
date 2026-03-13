@@ -1,7 +1,7 @@
 import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
   users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites, apiUsageLogs,
-  authorRatings, platformReviews, trackingPixels, essayViews, essayClicks, passwordResetTokens,
+  authorRatings, platformReviews, trackingPixels, essayViews, essayClicks, passwordResetTokens, authorFollows,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -137,6 +137,16 @@ export interface IStorage {
   updateWebhookDelivery(id: number, data: Partial<WebhookDelivery>): Promise<WebhookDelivery>;
   getWebhookDeliveries(limit?: number): Promise<WebhookDelivery[]>;
   getPendingWebhookRetries(): Promise<WebhookDelivery[]>;
+  getPlatformStats(): Promise<{ userCount: number; projectCount: number; totalWords: number }>;
+  getPublicEssayByShareToken(token: string): Promise<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date; essayTone: string | null; targetAudience: string | null } | undefined>;
+  followAuthor(followerId: string, followingId: string): Promise<void>;
+  unfollowAuthor(followerId: string, followingId: string): Promise<void>;
+  isFollowing(followerId: string, followingId: string): Promise<boolean>;
+  getFollowingList(followerId: string): Promise<string[]>;
+  getAuthorFollowerCount(authorId: string): Promise<number>;
+  setUserVerified(userId: string, verified: boolean): Promise<User>;
+  getUsersWithEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
+  getTopEssaysForWeek(limit?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1464,6 +1474,112 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(asc(webhookDeliveries.nextRetryAt))
       .limit(20);
+  }
+
+  async getPlatformStats(): Promise<{ userCount: number; projectCount: number; totalWords: number }> {
+    const [uc] = await db.select({ cnt: count() }).from(users);
+    const [pc] = await db.select({ cnt: count() }).from(novelProjects);
+    const [tw] = await db.select({ total: sql<number>`COALESCE(SUM(used_words), 0)` }).from(novelProjects);
+    return { userCount: uc?.cnt || 0, projectCount: pc?.cnt || 0, totalWords: Number(tw?.total) || 0 };
+  }
+
+  async getPublicEssayByShareToken(token: string): Promise<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date; essayTone: string | null; targetAudience: string | null } | undefined> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT
+        p.id, p.title, p.main_idea as "mainIdea", p.cover_image_url as "coverImageUrl",
+        p.share_token as "shareToken", p.subject, p.user_id as "authorId", p.created_at as "createdAt",
+        p.essay_tone as "essayTone", p.target_audience as "targetAudience",
+        COALESCE(p.used_words, 0)::int as "totalWords",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName",
+        COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
+        COALESCE(v.view_count, 0)::int as views,
+        COALESCE(c.click_count, 0)::int as clicks
+      FROM novel_projects p
+      LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) v ON v.project_id = p.id
+      LEFT JOIN (SELECT project_id, COUNT(*)::int as click_count FROM essay_clicks GROUP BY project_id) c ON c.project_id = p.id
+      WHERE p.share_token = ${token}
+        AND p.project_type = 'essay'
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
+        AND (p.flagged = false OR p.flagged IS NULL)
+      LIMIT 1
+    `)).rows;
+    if (!rows.length) return undefined;
+    const r = rows[0];
+    const reactionRows: any[] = (await db.execute(sql.raw(`
+      SELECT reaction_type as "reactionType", COUNT(*)::int as count
+      FROM essay_reactions WHERE project_id = ${Number(r.id)} GROUP BY reaction_type
+    `))).rows;
+    const reactions: Record<string, number> = {};
+    for (const rr of reactionRows) reactions[rr.reactionType] = rr.count;
+    return {
+      id: r.id, title: r.title, mainIdea: r.mainIdea, coverImageUrl: r.coverImageUrl,
+      shareToken: r.shareToken, authorName: r.authorName, authorId: r.authorId,
+      authorAverageRating: r.authorAverageRating, subject: r.subject,
+      views: r.views, clicks: r.clicks, reactions,
+      totalWords: r.totalWords || 0, createdAt: r.createdAt,
+      essayTone: r.essayTone, targetAudience: r.targetAudience,
+    };
+  }
+
+  async followAuthor(followerId: string, followingId: string): Promise<void> {
+    await db.insert(authorFollows).values({ followerId, followingId }).onConflictDoNothing();
+  }
+
+  async unfollowAuthor(followerId: string, followingId: string): Promise<void> {
+    await db.delete(authorFollows).where(
+      and(eq(authorFollows.followerId, followerId), eq(authorFollows.followingId, followingId))
+    );
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    const [row] = await db.select({ id: authorFollows.id }).from(authorFollows)
+      .where(and(eq(authorFollows.followerId, followerId), eq(authorFollows.followingId, followingId)));
+    return !!row;
+  }
+
+  async getFollowingList(followerId: string): Promise<string[]> {
+    const rows = await db.select({ followingId: authorFollows.followingId }).from(authorFollows)
+      .where(eq(authorFollows.followerId, followerId));
+    return rows.map(r => r.followingId);
+  }
+
+  async getAuthorFollowerCount(authorId: string): Promise<number> {
+    const [row] = await db.select({ cnt: count() }).from(authorFollows)
+      .where(eq(authorFollows.followingId, authorId));
+    return row?.cnt || 0;
+  }
+
+  async setUserVerified(userId: string, verified: boolean): Promise<User> {
+    const [updated] = await db.update(users).set({ verified } as any).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async getUsersWithEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>> {
+    const rows = await db.select({ id: users.id, email: users.email, displayName: users.displayName })
+      .from(users).where(isNotNull(users.email));
+    return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
+  }
+
+  async getTopEssaysForWeek(limit: number = 5): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>> {
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const rows: any[] = (await db.execute(sql`
+      SELECT p.id, p.title, p.share_token as "shareToken",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName",
+        COUNT(v.id)::int as views
+      FROM novel_projects p
+      LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN essay_views v ON v.project_id = p.id AND v.viewed_at > ${oneWeekAgo}
+      WHERE p.project_type = 'essay'
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
+        AND p.share_token IS NOT NULL
+        AND (p.flagged = false OR p.flagged IS NULL)
+      GROUP BY p.id, p.title, p.share_token, u.display_name, u.first_name, u.email
+      ORDER BY views DESC
+      LIMIT ${limit}
+    `)).rows;
+    return rows.map(r => ({ id: Number(r.id), title: r.title, shareToken: r.shareToken, authorName: r.authorName, views: Number(r.views) }));
   }
 }
 

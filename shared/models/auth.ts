@@ -50,6 +50,8 @@ export const users = pgTable("users", {
   freeMonthlyProjectsUsed: integer("free_monthly_projects_used").default(0),
   freeMonthlyGenerationsUsed: integer("free_monthly_generations_used").default(0),
   freeMonthlyResetAt: timestamp("free_monthly_reset_at"),
+  verified: boolean("verified").default(false),
+  notifyOnViews: boolean("notify_on_views").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

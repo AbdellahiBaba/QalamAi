@@ -638,6 +638,22 @@ export default function Home() {
         </div>
       )}
 
+      {userPlan === "free" && stats.total > 0 && (
+        <div className="border-b bg-primary/5 px-4 py-3" data-testid="banner-upgrade">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-foreground">
+              <Crown className="w-4 h-4 text-primary" />
+              <span className="text-sm">أنت على الخطة المجانية — قم بالترقية لإنشاء محتوى غير محدود</span>
+            </div>
+            <Link href="/pricing">
+              <Button size="sm" className="shrink-0" data-testid="button-upgrade-from-banner">
+                اكتشف الخطط
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
           <div>

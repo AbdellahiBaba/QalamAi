@@ -679,3 +679,16 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
 export const insertWebhookDeliverySchema = createInsertSchema(webhookDeliveries).omit({ id: true, createdAt: true, deliveredAt: true });
 export type InsertWebhookDelivery = z.infer<typeof insertWebhookDeliverySchema>;
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+
+export const authorFollows = pgTable("author_follows", {
+  id: serial("id").primaryKey(),
+  followerId: varchar("follower_id").notNull(),
+  followingId: varchar("following_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("uq_author_follows").on(table.followerId, table.followingId),
+  index("idx_author_follows_follower").on(table.followerId),
+  index("idx_author_follows_following").on(table.followingId),
+]);
+
+export type AuthorFollow = typeof authorFollows.$inferSelect;

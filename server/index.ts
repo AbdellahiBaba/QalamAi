@@ -12,7 +12,7 @@ import { createServer } from "http";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
-import { checkSmtpStatus } from "./email";
+import { checkSmtpStatus, sendWeeklyDigest } from "./email";
 import { processAllExpiredTrials } from "./trial-processor";
 import { runLearningSession } from "./learning-engine";
 import { processRetryQueue } from "./webhook-dispatcher";
@@ -449,6 +449,23 @@ app.use((req, res, next) => {
         }
       }, LEARNING_INTERVAL);
       log("Auto-learning background job registered (every 24 hours)");
+
+      // Weekly digest — every Monday at ~9 AM server time (approx)
+      const WEEKLY_DIGEST_INTERVAL = 7 * 24 * 60 * 60 * 1000;
+      setInterval(async () => {
+        try {
+          const [users, topEssays] = await Promise.all([
+            storage.getUsersWithEmails(),
+            storage.getTopEssaysForWeek(5),
+          ]);
+          if (topEssays.length === 0) return;
+          await sendWeeklyDigest(users, topEssays);
+          log("Weekly digest sent", "email");
+        } catch (err: any) {
+          console.error("[WeeklyDigest] Error:", err.message);
+        }
+      }, WEEKLY_DIGEST_INTERVAL);
+      log("Weekly digest job registered (every 7 days)");
     },
   );
 })();

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, BookOpen, Image as ImageIcon, ArrowRight } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, ShieldCheck, UserPlus, UserMinus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
@@ -13,6 +13,7 @@ import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface AuthorProject {
   id: number;
@@ -30,6 +31,8 @@ interface AuthorData {
   profileImageUrl: string | null;
   averageRating: number;
   ratingCount: number;
+  verified: boolean;
+  followerCount: number;
   projects: AuthorProject[];
 }
 
@@ -43,6 +46,7 @@ export default function AuthorProfile() {
   const { id } = useParams<{ id: string }>();
   useDocumentTitle("ملف الكاتب — قلم AI");
   const { toast } = useToast();
+  const { user } = useAuth();
   const [visitorRating, setVisitorRating] = useState(0);
 
   useEffect(() => {
@@ -73,17 +77,36 @@ export default function AuthorProfile() {
       localStorage.setItem(`author-rating-${id}`, String(rating));
       setVisitorRating(rating);
       queryClient.invalidateQueries({ queryKey: ["/api/authors", id] });
-      toast({
-        title: "شكراً لتقييمك",
-        description: "تم تسجيل تقييمك بنجاح",
-      });
+      toast({ title: "شكراً لتقييمك", description: "تم تسجيل تقييمك بنجاح" });
     },
     onError: () => {
-      toast({
-        title: "خطأ",
-        description: "حدث خطأ أثناء تسجيل التقييم",
-        variant: "destructive",
-      });
+      toast({ title: "خطأ", description: "حدث خطأ أثناء تسجيل التقييم", variant: "destructive" });
+    },
+  });
+
+  const { data: followStatus } = useQuery<{ following: boolean }>({
+    queryKey: ["/api/follow", id, "status"],
+    queryFn: async () => {
+      const res = await fetch(`/api/follow/${id}/status`);
+      if (!res.ok) return { following: false };
+      return res.json();
+    },
+    enabled: !!user && !!id && user.id !== id,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async (action: "follow" | "unfollow") => {
+      const method = action === "follow" ? "POST" : "DELETE";
+      const res = await apiRequest(method, `/api/follow/${id}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/follow", id, "status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/authors", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following"] });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "حدث خطأ أثناء متابعة الكاتب", variant: "destructive" });
     },
   });
 
@@ -145,15 +168,44 @@ export default function AuthorProfile() {
               <User className="w-8 h-8" />
             </AvatarFallback>
           </Avatar>
-          <div className="space-y-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-serif font-bold" data-testid="text-author-name">{author.displayName}</h1>
-              <StarRating
-                rating={author.averageRating || 0}
-                count={author.ratingCount || 0}
-                size="md"
-                showCount={true}
-              />
+          <div className="space-y-2 flex-1">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-serif font-bold" data-testid="text-author-name">{author.displayName}</h1>
+                  {author.verified && (
+                    <ShieldCheck className="w-5 h-5 text-primary shrink-0" data-testid="badge-verified" title="كاتب موثّق" />
+                  )}
+                </div>
+                <StarRating
+                  rating={author.averageRating || 0}
+                  count={author.ratingCount || 0}
+                  size="md"
+                  showCount={true}
+                />
+                {author.followerCount > 0 && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground" data-testid="text-follower-count">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>{author.followerCount} متابع</span>
+                  </div>
+                )}
+              </div>
+              {user && user.id !== author.id && (
+                <Button
+                  variant={followStatus?.following ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => followMutation.mutate(followStatus?.following ? "unfollow" : "follow")}
+                  disabled={followMutation.isPending}
+                  data-testid="button-follow-author"
+                  className="gap-1.5 shrink-0"
+                >
+                  {followStatus?.following ? (
+                    <><UserMinus className="w-3.5 h-3.5" /> إلغاء المتابعة</>
+                  ) : (
+                    <><UserPlus className="w-3.5 h-3.5" /> متابعة</>
+                  )}
+                </Button>
+              )}
             </div>
             {author.bio && (
               <p className="text-muted-foreground max-w-xl" data-testid="text-author-bio">{author.bio}</p>

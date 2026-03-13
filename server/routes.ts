@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -380,7 +380,16 @@ export async function registerRoutes(
         .slice(0, 500)
         .map((p: any) => ({
           loc: `/shared/${p.shareToken}`,
-          priority: "0.6",
+          priority: "0.5",
+          changefreq: "weekly",
+        }));
+
+      const essayUrls = sharedProjects
+        .filter((p: any) => p.shareToken && p.projectType === "essay")
+        .slice(0, 500)
+        .map((p: any) => ({
+          loc: `/essay/${p.shareToken}`,
+          priority: "0.8",
           changefreq: "weekly",
         }));
 
@@ -392,7 +401,7 @@ export async function registerRoutes(
         changefreq: "weekly",
       }));
 
-      const allPages = [...staticPages, ...sharedUrls, ...authorUrls];
+      const allPages = [...staticPages, ...essayUrls, ...sharedUrls, ...authorUrls];
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${allPages.map(p => `  <url>
@@ -5302,6 +5311,7 @@ ${glossaryParagraphs}
       const data = await storage.getPublicAuthor(userId);
       if (!data) return res.status(404).json({ error: "المؤلف غير موجود" });
       const ratingData = await storage.getAuthorAverageRating(userId);
+      const followerCount = await storage.getAuthorFollowerCount(userId);
       res.json({
         id: data.user.id,
         displayName: data.user.displayName || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim(),
@@ -5309,6 +5319,8 @@ ${glossaryParagraphs}
         profileImageUrl: data.user.profileImageUrl,
         averageRating: ratingData.average,
         ratingCount: ratingData.count,
+        verified: (data.user as any).verified || false,
+        followerCount,
         projects: data.projects.map(p => ({
           id: p.id,
           title: p.title,
@@ -5428,6 +5440,17 @@ ${glossaryParagraphs}
       const referrer = req.headers.referer || null;
       await storage.recordEssayView(id, visitorIp, referrer as string | undefined);
       res.json({ success: true });
+      // Fire milestone notification asynchronously (non-blocking)
+      const VIEW_MILESTONES = [10, 50, 100, 500, 1000, 5000];
+      storage.getEssayViewCount(id).then(async (viewCount) => {
+        if (!VIEW_MILESTONES.includes(viewCount)) return;
+        const project = await storage.getProject(id);
+        if (!project?.userId) return;
+        const author = await storage.getUser(project.userId);
+        if (!author?.email || (author as any).notifyOnViews === false) return;
+        const name = author.displayName || author.firstName || "كاتب";
+        sendViewMilestoneNotification(author.email, name, project.title, viewCount).catch(() => {});
+      }).catch(() => {});
     } catch (error) {
       res.status(500).json({ error: "فشل في تسجيل المشاهدة" });
     }
@@ -5583,6 +5606,91 @@ ${glossaryParagraphs}
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب المقالات ذات الصلة" });
+    }
+  });
+
+  // Platform stats — public
+  app.get("/api/public/stats", async (_req, res) => {
+    try {
+      const cacheKey = "platform-stats";
+      serveCached(_req, res, cacheKey, 3600, async () => storage.getPlatformStats());
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب إحصاءات المنصة" });
+    }
+  });
+
+  // Single essay public page by shareToken (SEO)
+  app.get("/api/public/essay/:shareToken", async (req, res) => {
+    try {
+      const { shareToken } = req.params;
+      if (!shareToken) return res.status(400).json({ error: "رمز المشاركة مطلوب" });
+      const essay = await storage.getPublicEssayByShareToken(shareToken);
+      if (!essay) return res.status(404).json({ error: "المقال غير موجود" });
+      res.json(essay);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المقال" });
+    }
+  });
+
+  // Follow / Unfollow author
+  app.post("/api/follow/:authorId", isAuthenticated, async (req: any, res) => {
+    try {
+      const followerId = req.user.claims.sub;
+      const { authorId } = req.params;
+      if (followerId === authorId) return res.status(400).json({ error: "لا يمكنك متابعة نفسك" });
+      await storage.followAuthor(followerId, authorId);
+      const count = await storage.getAuthorFollowerCount(authorId);
+      res.json({ success: true, followers: count });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في متابعة الكاتب" });
+    }
+  });
+
+  app.delete("/api/follow/:authorId", isAuthenticated, async (req: any, res) => {
+    try {
+      const followerId = req.user.claims.sub;
+      const { authorId } = req.params;
+      await storage.unfollowAuthor(followerId, authorId);
+      const count = await storage.getAuthorFollowerCount(authorId);
+      res.json({ success: true, followers: count });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إلغاء متابعة الكاتب" });
+    }
+  });
+
+  app.get("/api/following", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const list = await storage.getFollowingList(userId);
+      res.json(list);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب قائمة المتابَعين" });
+    }
+  });
+
+  // Check follow status for a specific author
+  app.get("/api/follow/:authorId/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const followerId = req.user.claims.sub;
+      const { authorId } = req.params;
+      const following = await storage.isFollowing(followerId, authorId);
+      const count = await storage.getAuthorFollowerCount(authorId);
+      res.json({ following, followers: count });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب حالة المتابعة" });
+    }
+  });
+
+  // Admin: toggle verified badge
+  app.patch("/api/admin/users/:id/verify", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { verified } = req.body;
+      if (typeof verified !== "boolean") return res.status(400).json({ error: "قيمة verified يجب أن تكون boolean" });
+      const user = await storage.setUserVerified(id, verified);
+      res.json({ success: true, user });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث حالة التوثيق" });
     }
   });
 
