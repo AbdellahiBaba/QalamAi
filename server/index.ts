@@ -542,6 +542,11 @@ app.use((req, res, next) => {
     ) STORED`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_search_tsv ON users USING gin (search_tsv)`);
 
+    await pool.query(`ALTER TABLE content_series ADD COLUMN IF NOT EXISTS search_tsv tsvector GENERATED ALWAYS AS (
+      to_tsvector('simple', COALESCE(title, '') || ' ' || COALESCE(description, ''))
+    ) STORED`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_series_search_tsv ON content_series USING gin (search_tsv)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

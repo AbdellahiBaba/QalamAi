@@ -5650,21 +5650,42 @@ ${glossaryParagraphs}
       }
 
       if (type === "all" || type === "series") {
-        const seriesQuery = `SELECT cs.id, cs.title, cs.description, cs.user_id,
-                                    COALESCE(u.display_name, u.first_name, '') as author_name
-                             FROM content_series cs
-                             LEFT JOIN users u ON cs.user_id = u.id
-                             WHERE cs.title ILIKE $1 OR cs.description ILIKE $1
-                             ORDER BY cs.created_at DESC
-                             LIMIT $2 OFFSET $3`;
-        const seriesResult = await pool.query(seriesQuery, [likeParam, limit, offset]);
-        series = seriesResult.rows;
+        const tsq = safeTsQuery(q);
 
-        const seriesCountResult = await pool.query(
-          `SELECT COUNT(*) FROM content_series WHERE title ILIKE $1 OR description ILIKE $1`,
-          [likeParam]
-        );
-        seriesTotal = parseInt(seriesCountResult.rows[0]?.count || "0");
+        if (isShort || !tsq) {
+          const seriesQuery = `SELECT cs.id, cs.title, cs.description, cs.user_id,
+                                      COALESCE(u.display_name, u.first_name, '') as author_name
+                               FROM content_series cs
+                               LEFT JOIN users u ON cs.user_id = u.id
+                               WHERE cs.title ILIKE $1 OR cs.description ILIKE $1
+                               ORDER BY cs.created_at DESC
+                               LIMIT $2 OFFSET $3`;
+          const seriesResult = await pool.query(seriesQuery, [likeParam, limit, offset]);
+          series = seriesResult.rows;
+
+          const seriesCountResult = await pool.query(
+            `SELECT COUNT(*) FROM content_series WHERE title ILIKE $1 OR description ILIKE $1`,
+            [likeParam]
+          );
+          seriesTotal = parseInt(seriesCountResult.rows[0]?.count || "0");
+        } else {
+          const seriesQuery = `SELECT cs.id, cs.title, cs.description, cs.user_id,
+                                      COALESCE(u.display_name, u.first_name, '') as author_name,
+                                      ts_rank(cs.search_tsv, to_tsquery('simple', $1)) as rank
+                               FROM content_series cs
+                               LEFT JOIN users u ON cs.user_id = u.id
+                               WHERE cs.search_tsv @@ to_tsquery('simple', $1) OR cs.title ILIKE $4
+                               ORDER BY rank DESC NULLS LAST, cs.created_at DESC
+                               LIMIT $2 OFFSET $3`;
+          const seriesResult = await pool.query(seriesQuery, [tsq, limit, offset, likeParam]);
+          series = seriesResult.rows;
+
+          const seriesCountResult = await pool.query(
+            `SELECT COUNT(*) FROM content_series WHERE search_tsv @@ to_tsquery('simple', $1) OR title ILIKE $2`,
+            [tsq, likeParam]
+          );
+          seriesTotal = parseInt(seriesCountResult.rows[0]?.count || "0");
+        }
       }
 
       if (type === "all" || type === "prompts") {

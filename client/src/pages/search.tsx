@@ -113,8 +113,8 @@ export default function SearchPage() {
     : activeType === "authors" ? authorTotal
     : activeType === "series" ? seriesTotal
     : activeType === "prompts" ? promptTotal
-    : (projectTotal + authorTotal + seriesTotal + promptTotal);
-  const totalPages = Math.ceil(activeTotal / 12);
+    : 0;
+  const totalPages = activeType !== "all" ? Math.ceil(activeTotal / 12) : 0;
 
   const hasAnyResults = projects.length > 0 || authors.length > 0 || series.length > 0 || prompts.length > 0;
 
