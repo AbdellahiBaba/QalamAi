@@ -1002,24 +1002,56 @@ export default function Home() {
           </Card>
         )}
 
-        {!user?.verified && (
-          <Card className="mb-6 border-dashed" data-testid="card-apply-verified">
+        {user?.verified ? (
+          <Card className="mb-6 border-[#1D9BF0]/40 bg-[#1D9BF0]/5" data-testid="card-verified-home">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                    <GraduationCap className="w-5 h-5 text-primary" />
+                  <BadgeCheck className="w-8 h-8 text-[#1D9BF0] shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-sm">أنت كاتب موثّق</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">شارتك الزرقاء تظهر بجانب اسمك على جميع مقالاتك</p>
+                  </div>
+                </div>
+                <Link href={`/author/${user.id}`}>
+                  <Button size="sm" variant="outline" className="border-[#1D9BF0]/40 text-[#1D9BF0] hover:bg-[#1D9BF0]/10 shrink-0" data-testid="button-view-public-profile-home">
+                    صفحتك العامة
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mb-6 border-dashed" data-testid="card-apply-verified">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm">احصل على شارة الكاتب الموثّق</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">تظهر بجانب اسمك على جميع مقالاتك وفي لوحة المتصدرين</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">كما في تويتر — شارة زرقاء بجانب اسمك في كل مكان</p>
                   </div>
                 </div>
-                <Link href="/apply-verified">
-                  <Button size="sm" variant="outline" data-testid="button-apply-verified">
+                <Link href="/apply-verified" className="shrink-0">
+                  <Button size="sm" data-testid="button-apply-verified">
                     تقديم طلب
                   </Button>
                 </Link>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { icon: BadgeCheck, label: "شارة زرقاء موثّقة", color: "text-[#1D9BF0]" },
+                  { icon: Trophy, label: "تميّز في المتصدرين", color: "text-yellow-500" },
+                  { icon: Users, label: "ثقة أكبر من القراء", color: "text-green-500" },
+                  { icon: Award, label: "أولوية في مقال الأسبوع", color: "text-purple-500" },
+                ].map(({ icon: Icon, label, color }) => (
+                  <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Icon className={`w-3.5 h-3.5 shrink-0 ${color}`} />
+                    <span>{label}</span>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

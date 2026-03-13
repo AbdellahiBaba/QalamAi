@@ -37,6 +37,9 @@ import {
   Loader2,
   Sparkles,
   Palette,
+  BadgeCheck,
+  CheckCircle2,
+  GraduationCap,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { NovelProject } from "@shared/schema";
@@ -400,9 +403,14 @@ export default function Profile() {
                   </div>
                 )}
                 <div>
-                  <h2 className="font-serif text-xl font-semibold" data-testid="text-user-name">
-                    {user?.firstName || ""} {user?.lastName || ""}
-                  </h2>
+                  <div className="flex items-center justify-center gap-2">
+                    <h2 className="font-serif text-xl font-semibold" data-testid="text-user-name">
+                      {user?.firstName || ""} {user?.lastName || ""}
+                    </h2>
+                    {user?.verified && (
+                      <BadgeCheck className="w-6 h-6 text-[#1D9BF0] shrink-0" title="كاتب موثّق" data-testid="badge-profile-verified" />
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground" data-testid="text-user-email">
                     {user?.email || ""}
                   </p>
@@ -431,6 +439,59 @@ export default function Profile() {
                 </div>
               </CardContent>
             </Card>
+
+            {user?.verified ? (
+              <Card className="border-[#1D9BF0]/40 bg-[#1D9BF0]/5" data-testid="card-verified-status">
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <BadgeCheck className="w-6 h-6 text-[#1D9BF0] shrink-0" />
+                    <span className="font-semibold text-sm">كاتب موثّق</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    شارتك الزرقاء تظهر بجانب اسمك على جميع مقالاتك، في لوحة المتصدرين، وعلى صفحتك العامة.
+                  </p>
+                  <Link href={`/author/${user.id}`}>
+                    <Button variant="outline" size="sm" className="w-full gap-1.5 border-[#1D9BF0]/40 text-[#1D9BF0] hover:bg-[#1D9BF0]/10" data-testid="button-view-public-profile">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      استعرض صفحتك العامة
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-dashed" data-testid="card-apply-verified-profile">
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                      <GraduationCap className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">احصل على شارة الكاتب الموثّق</p>
+                      <p className="text-[11px] text-muted-foreground">تظهر بجانب اسمك في كل مكان</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {[
+                      "شارة زرقاء كما في تويتر بجانب اسمك",
+                      "ظهور مميّز في لوحة المتصدرين",
+                      "تعزيز ثقة القراء بمحتواك",
+                      "أولوية في قسم مقال الأسبوع",
+                    ].map((benefit) => (
+                      <li key={benefit} className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0 mt-0.5" />
+                        {benefit}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/apply-verified">
+                    <Button size="sm" className="w-full gap-1.5" data-testid="button-apply-verified-profile">
+                      <BadgeCheck className="w-4 h-4" />
+                      تقديم طلب التوثيق
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
