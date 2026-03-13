@@ -40,6 +40,11 @@ const typeLabels: Record<string, string> = {
   novel: "رواية",
   essay: "مقال",
   scenario: "سيناريو",
+  short_story: "قصة قصيرة",
+  khawater: "خاطرة",
+  social_media: "سوشيال ميديا",
+  poetry: "قصيدة",
+  memoire: "مذكرة تخرج",
 };
 
 export default function AuthorProfile() {
@@ -237,7 +242,7 @@ export default function AuthorProfile() {
                   data-testid={`link-project-${project.id}`}
                 >
                   <Card className="transition-shadow hover:shadow-lg cursor-pointer" data-testid={`card-project-${project.id}`}>
-                    <div className="relative aspect-square bg-muted flex items-center justify-center rounded-t-md overflow-hidden">
+                    <div className="aspect-square bg-muted flex items-center justify-center rounded-t-md overflow-hidden">
                       {project.coverImageUrl ? (
                         <img
                           src={project.coverImageUrl}
@@ -249,11 +254,11 @@ export default function AuthorProfile() {
                       ) : (
                         <ImageIcon className="w-12 h-12 text-muted-foreground" />
                       )}
-                      <Badge className="absolute top-2 right-2" data-testid={`badge-type-${project.id}`}>
+                    </div>
+                    <CardContent className="p-3 space-y-1">
+                      <Badge variant="secondary" className="text-xs" data-testid={`badge-type-${project.id}`}>
                         {typeLabels[project.projectType] || project.projectType}
                       </Badge>
-                    </div>
-                    <CardContent className="p-3">
                       <h3 className="font-serif font-semibold truncate" data-testid={`text-project-title-${project.id}`}>
                         {project.title}
                       </h3>
