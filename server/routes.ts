@@ -2855,6 +2855,7 @@ ${allPages.map(p => `  <url>
 
       let coverRendered = false;
       const coverToken = typeof req.query.coverToken === "string" ? req.query.coverToken.trim() : "";
+      const coverImageUrlParam = typeof req.query.coverImageUrl === "string" ? req.query.coverImageUrl.trim() : "";
       if (coverToken && pdfCoverStore.has(coverToken)) {
         const stored = pdfCoverStore.get(coverToken)!;
         if (stored.userId === req.user.claims.sub) {
@@ -2865,6 +2866,26 @@ ${allPages.map(p => `  <url>
             console.error("Failed to render custom cover from token:", e);
           }
           pdfCoverStore.delete(coverToken);
+        }
+      }
+      if (!coverRendered && coverImageUrlParam) {
+        try {
+          const coverUrl = new URL(coverImageUrlParam);
+          if (["http:", "https:"].includes(coverUrl.protocol)) {
+            const coverRes = await fetch(coverImageUrlParam, { signal: AbortSignal.timeout(10000) });
+            if (coverRes.ok) {
+              const ct = coverRes.headers.get("content-type") || "";
+              if (ct.startsWith("image/")) {
+                const buf = Buffer.from(await coverRes.arrayBuffer());
+                if (buf.length <= 5 * 1024 * 1024) {
+                  doc.image(buf, 0, 0, { width: fullPageWidth, height: pageHeight });
+                  coverRendered = true;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load coverImageUrl param:", e);
         }
       }
       if (!coverRendered && project.coverImageUrl) {
@@ -3701,7 +3722,7 @@ ${allPages.map(p => `  <url>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" dir="rtl">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">qalamai-${id}</dc:identifier>
-    <dc:title>${project.title}</dc:title>
+    <dc:title>${(project.title || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</dc:title>
     <dc:language>ar</dc:language>
     <dc:creator>${epubAuthorName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</dc:creator>
     <meta property="dcterms:modified">${new Date().toISOString().split(".")[0]}Z</meta>
@@ -3888,7 +3909,7 @@ hr { border: none; border-top: 1px solid #D4A574; margin: 1.5em auto; width: 40%
         tocItemsHtml = memoireTocItems;
       } else {
         tocItemsHtml = completedChapters
-          .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}</a></li>`)
+          .map((ch: any, i: number) => `      <li><a href="chapter${i + 1}.xhtml">${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${escHtmlEpub(ch.title)}</a></li>`)
           .join("\n");
       }
 
@@ -3897,7 +3918,7 @@ hr { border: none; border-top: 1px solid #D4A574; margin: 1.5em auto; width: 40%
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ar" dir="rtl">
 <head><title>فهرس المحتويات</title><link rel="stylesheet" href="style.css"/></head>
 <body>
-  <h1>${project.title}</h1>
+  <h1>${escHtmlEpub(project.title)}</h1>
   <nav epub:type="toc">
     <ol>
 ${tocItemsHtml}
@@ -3939,7 +3960,7 @@ ${tocItemsHtml}
         archive.append(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ar" dir="rtl">
-<head><title>${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${ch.title}</title><link rel="stylesheet" href="style.css"/></head>
+<head><title>${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}: ${escHtmlEpub(ch.title)}</title><link rel="stylesheet" href="style.css"/></head>
 <body>
   <h2>${epubChapterLabel} ${toArabicOrdinal(ch.chapterNumber)}</h2>
   <h1>${ch.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h1>

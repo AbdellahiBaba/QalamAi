@@ -1532,14 +1532,52 @@ export default function ProjectDetail() {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {(project.paid || (project.chapters?.every(c => c.status === "completed") && project.chapters && project.chapters.length > 0)) && (
-              <Button
-                size="sm"
-                onClick={() => handleExportDownload("pdf")}
-                disabled={!!downloadingFormat}
-                data-testid="button-download-pdf"
-              >
-                {downloadingFormat === "pdf" ? <Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> : <Download className="w-4 h-4 ml-1.5" />} <span className="hidden sm:inline">تحميل PDF</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" disabled={!!downloadingFormat} data-testid="button-export-dropdown">
+                    {downloadingFormat ? <Loader2 className="w-4 h-4 ml-1.5 animate-spin" /> : <Download className="w-4 h-4 ml-1.5" />}
+                    <span className="hidden sm:inline">{downloadingFormat ? "جاري التصدير..." : "تصدير"}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" dir="rtl" className="w-56" data-testid="dropdown-export-menu">
+                  <DropdownMenuItem
+                    onClick={() => handleExportDownload("pdf")}
+                    disabled={!!downloadingFormat}
+                    data-testid="menu-download-pdf"
+                  >
+                    {downloadingFormat === "pdf" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
+                    {downloadingFormat === "pdf" ? "جاري التحميل..." : "تحميل PDF"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExportDownload("epub")}
+                    disabled={!!downloadingFormat}
+                    data-testid="menu-download-epub"
+                  >
+                    {downloadingFormat === "epub" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
+                    {downloadingFormat === "epub" ? "جاري التحميل..." : "تحميل EPUB"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExportDownload("docx")}
+                    disabled={!!downloadingFormat}
+                    data-testid="menu-download-docx"
+                  >
+                    {downloadingFormat === "docx" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
+                    {downloadingFormat === "docx" ? "جاري التحميل..." : "تحميل DOCX"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setPdfCoverUrl(project.coverImageUrl || "");
+                      setShowPdfCoverDialog(true);
+                    }}
+                    disabled={!!downloadingFormat}
+                    data-testid="menu-download-pdf-cover"
+                  >
+                    <ImagePlus className="w-4 h-4 ml-2" />
+                    PDF مع غلاف مخصص
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1548,45 +1586,6 @@ export default function ProjectDetail() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" dir="rtl" className="w-56" data-testid="dropdown-actions-menu">
-                {(project.paid || (project.chapters?.every(c => c.status === "completed") && project.chapters && project.chapters.length > 0)) && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => handleExportDownload("pdf")}
-                      disabled={!!downloadingFormat}
-                      className="sm:hidden"
-                      data-testid="menu-download-pdf"
-                    >
-                      {downloadingFormat === "pdf" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
-                      {downloadingFormat === "pdf" ? "جاري التحميل..." : "تحميل PDF"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExportDownload("epub")}
-                      disabled={!!downloadingFormat}
-                      data-testid="menu-download-epub"
-                    >
-                      {downloadingFormat === "epub" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
-                      {downloadingFormat === "epub" ? "جاري التحميل..." : "تحميل EPUB"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExportDownload("docx")}
-                      disabled={!!downloadingFormat}
-                      data-testid="menu-download-docx"
-                    >
-                      {downloadingFormat === "docx" ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Download className="w-4 h-4 ml-2" />}
-                      {downloadingFormat === "docx" ? "جاري التحميل..." : "تحميل DOCX"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setPdfCoverUrl(project.coverImageUrl || "");
-                        setShowPdfCoverDialog(true);
-                      }}
-                      disabled={!!downloadingFormat}
-                      data-testid="menu-download-pdf-cover"
-                    >
-                      <ImagePlus className="w-4 h-4 ml-2" />
-                      PDF مع غلاف مخصص
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
                     {project.shareToken && (
                       <DropdownMenuItem
                         onClick={() => {
