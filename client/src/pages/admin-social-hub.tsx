@@ -464,6 +464,8 @@ function PostQueueTab() {
   const { data: posts = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/social/posts"] });
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
+  const [duplicatedPostId, setDuplicatedPostId] = useState<number | null>(null);
+  const [duplicateRescheduleTime, setDuplicateRescheduleTime] = useState("");
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -527,9 +529,13 @@ function PostQueueTab() {
       const res = await apiRequest("POST", `/api/admin/social/duplicate/${id}`);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
-      toast({ title: "تم تكرار المنشور كمسودة" });
+      toast({ title: "تم تكرار المنشور — حدد موعد النشر" });
+      if (data?.post?.id) {
+        setDuplicatedPostId(data.post.id);
+        setDuplicateRescheduleTime("");
+      }
     },
     onError: () => {
       toast({ title: "فشل في تكرار المنشور", variant: "destructive" });
@@ -584,6 +590,42 @@ function PostQueueTab() {
           ))}
         </div>
       )}
+
+      <Dialog open={duplicatedPostId !== null} onOpenChange={() => setDuplicatedPostId(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-serif">جدولة المنشور المكرر</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">حدد موعد نشر المنشور المكرر:</p>
+            <Input
+              type="datetime-local"
+              value={duplicateRescheduleTime}
+              onChange={(e) => setDuplicateRescheduleTime(e.target.value)}
+              className="text-sm"
+              data-testid="input-duplicate-reschedule"
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  if (duplicateRescheduleTime && duplicatedPostId) {
+                    rescheduleMutation.mutate({ id: duplicatedPostId, scheduledAt: new Date(duplicateRescheduleTime).toISOString() });
+                    statusMutation.mutate({ id: duplicatedPostId, status: "scheduled" });
+                    setDuplicatedPostId(null);
+                  }
+                }}
+                disabled={!duplicateRescheduleTime}
+                data-testid="button-confirm-duplicate-schedule"
+              >
+                جدولة
+              </Button>
+              <Button variant="ghost" onClick={() => setDuplicatedPostId(null)}>
+                إبقاء كمسودة
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1081,11 +1123,28 @@ function CalendarTab() {
 
   const selectedDayPosts = selectedDay ? (postsByDay[selectedDay] || []) : [];
 
-  const statusColors: Record<string, string> = {
-    draft: "bg-gray-400",
-    scheduled: "bg-blue-500",
-    posted: "bg-green-500",
-    needs_manual: "bg-amber-500",
+  const getPostDotColor = (post: any): string => {
+    const isLiterary = post.post_type === "literary";
+    const colorMap: Record<string, Record<string, string>> = {
+      marketing: {
+        draft: "bg-gray-400",
+        scheduled: "bg-blue-500",
+        posted: "bg-green-500",
+        needs_manual: "bg-amber-500",
+      },
+      literary: {
+        draft: "bg-purple-300",
+        scheduled: "bg-purple-500",
+        posted: "bg-emerald-500",
+        needs_manual: "bg-orange-500",
+      },
+    };
+    const typeKey = isLiterary ? "literary" : "marketing";
+    return colorMap[typeKey][post.status] || "bg-gray-400";
+  };
+
+  const getPostDotShape = (post: any): string => {
+    return post.post_type === "literary" ? "rounded-sm" : "rounded-full";
   };
 
   return (
@@ -1138,8 +1197,8 @@ function CalendarTab() {
                       {dayPosts.slice(0, 3).map((p: any, idx: number) => (
                         <div
                           key={idx}
-                          className={`w-1.5 h-1.5 rounded-full ${statusColors[p.status] || "bg-gray-400"}`}
-                          title={p.post_type === "literary" ? "أدبي" : "تسويقي"}
+                          className={`w-1.5 h-1.5 ${getPostDotShape(p)} ${getPostDotColor(p)}`}
+                          title={`${p.post_type === "literary" ? "أدبي" : "تسويقي"} — ${STATUS_MAP[p.status]?.label || p.status}`}
                         />
                       ))}
                       {dayPosts.length > 3 && (
@@ -1152,11 +1211,21 @@ function CalendarTab() {
             })}
           </div>
 
-          <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground justify-center">
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gray-400" /> مسودة</span>
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500" /> مجدول</span>
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500" /> نُشر</span>
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> يدوي</span>
+          <div className="flex flex-col items-center gap-2 mt-3 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <span className="font-medium">تسويقي (دائرة):</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gray-400" /> مسودة</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500" /> مجدول</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500" /> نُشر</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> يدوي</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-medium">أدبي (مربع):</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-purple-300" /> مسودة</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-purple-500" /> مجدول</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-emerald-500" /> نُشر</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm bg-orange-500" /> يدوي</span>
+            </div>
           </div>
         </CardContent>
       </Card>

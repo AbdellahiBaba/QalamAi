@@ -328,6 +328,59 @@ function isMemoireAcademicHeader(text: string): { type: string; text: string } |
   return null;
 }
 
+export async function publishSocialPostToAPIs(
+  post: any,
+  credentials: Record<string, string>
+): Promise<{ publishResults: Record<string, { success: boolean; error?: string }>; anyPublished: boolean }> {
+  const publishResults: Record<string, { success: boolean; error?: string }> = {};
+  let anyPublished = false;
+
+  for (const platform of (post.platforms || [])) {
+    const token = credentials[platform];
+    if (!token || token.trim() === "") {
+      publishResults[platform] = { success: false, error: "لا توجد بيانات اعتماد" };
+      continue;
+    }
+
+    try {
+      if (platform === "facebook" && token.includes("|")) {
+        const [pageId, pageToken] = token.split("|");
+        const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: post.content, access_token: pageToken }),
+        });
+        if (!fbRes.ok) {
+          const fbErr = await fbRes.json().catch(() => ({}));
+          throw new Error((fbErr as any)?.error?.message || "فشل النشر على فيسبوك");
+        }
+        publishResults[platform] = { success: true };
+        anyPublished = true;
+      } else if (platform === "x") {
+        const xRes = await fetch("https://api.twitter.com/2/tweets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
+        });
+        if (!xRes.ok) {
+          const xErr = await xRes.json().catch(() => ({}));
+          throw new Error((xErr as any)?.detail || "فشل النشر على X");
+        }
+        publishResults[platform] = { success: true };
+        anyPublished = true;
+      } else if (platform === "linkedin") {
+        publishResults[platform] = { success: false, error: "النشر المباشر على LinkedIn يتطلب OAuth2 — يرجى النسخ يدوياً" };
+      } else {
+        publishResults[platform] = { success: false, error: "النشر المباشر غير مدعوم بعد لهذه المنصة — يرجى النسخ يدوياً" };
+      }
+    } catch (pubErr: any) {
+      publishResults[platform] = { success: false, error: pubErr.message || "خطأ في النشر" };
+    }
+  }
+
+  return { publishResults, anyPublished };
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -8819,15 +8872,16 @@ ${platformInstructions}
         const hasFacebook = platforms.includes("facebook");
         const hasInstagram = platforms.includes("instagram");
 
-        const basePrompt = "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.";
+        const squarePrompt = "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. Square composition (1:1 aspect ratio). No text.";
+        const landscapePrompt = "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. Wide landscape composition suitable for a Facebook cover (approximately 1200x630 proportions). No text.";
 
         try {
-          const primarySize = hasInstagram ? "1024x1024" : hasFacebook ? "1792x1024" : "1024x1024";
+          const useSquare = hasInstagram || (!hasFacebook);
           const imgRes = await openai.images.generate({
             model: "dall-e-3",
-            prompt: basePrompt,
+            prompt: useSquare ? squarePrompt : landscapePrompt,
             n: 1,
-            size: primarySize as any,
+            size: useSquare ? "1024x1024" : "1792x1024",
           });
           coverImageUrl = imgRes.data?.[0]?.url || null;
         } catch (imgErr) {
@@ -8838,7 +8892,7 @@ ${platformInstructions}
           try {
             const fbImgRes = await openai.images.generate({
               model: "dall-e-3",
-              prompt: basePrompt + " Wide landscape format for Facebook cover.",
+              prompt: landscapePrompt,
               n: 1,
               size: "1792x1024",
             });
@@ -8985,56 +9039,10 @@ ${platformInstructions}
       const credRows: any[] = (await db.execute(dsql`
         SELECT value FROM social_hub_settings WHERE key = 'platform_credentials'
       `)).rows;
-      const credentials = credRows[0]?.value ? JSON.parse(credRows[0].value) : {};
+      const rawVal = credRows[0]?.value;
+      const credentials = rawVal ? (typeof rawVal === "string" ? JSON.parse(rawVal) : rawVal) : {};
 
-      const publishResults: Record<string, { success: boolean; error?: string }> = {};
-      let anyPublished = false;
-
-      for (const platform of (post.platforms || [])) {
-        const token = credentials[platform];
-        if (!token || token.trim() === "") {
-          publishResults[platform] = { success: false, error: "لا توجد بيانات اعتماد" };
-          continue;
-        }
-
-        try {
-          if (platform === "facebook" && token.includes("|")) {
-            const [pageId, pageToken] = token.split("|");
-            const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ message: post.content, access_token: pageToken }),
-            });
-            if (!fbRes.ok) {
-              const fbErr = await fbRes.json().catch(() => ({}));
-              throw new Error((fbErr as any)?.error?.message || "فشل النشر على فيسبوك");
-            }
-            publishResults[platform] = { success: true };
-            anyPublished = true;
-          } else if (platform === "x") {
-            const xRes = await fetch("https://api.twitter.com/2/tweets", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-              },
-              body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
-            });
-            if (!xRes.ok) {
-              const xErr = await xRes.json().catch(() => ({}));
-              throw new Error((xErr as any)?.detail || "فشل النشر على X");
-            }
-            publishResults[platform] = { success: true };
-            anyPublished = true;
-          } else if (platform === "linkedin") {
-            publishResults[platform] = { success: false, error: "النشر المباشر على LinkedIn يتطلب OAuth2 — يرجى النسخ يدوياً" };
-          } else {
-            publishResults[platform] = { success: false, error: "النشر المباشر غير مدعوم بعد لهذه المنصة — يرجى النسخ يدوياً" };
-          }
-        } catch (pubErr: any) {
-          publishResults[platform] = { success: false, error: pubErr.message || "خطأ في النشر" };
-        }
-      }
+      const { publishResults, anyPublished } = await publishSocialPostToAPIs(post, credentials);
 
       if (anyPublished) {
         await storage.updateSocialPost(id, { status: "posted" });

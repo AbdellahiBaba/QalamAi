@@ -6,7 +6,7 @@ import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import path from "path";
 import rateLimit from "express-rate-limit";
-import { registerRoutes } from "./routes";
+import { registerRoutes, publishSocialPostToAPIs } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { runMigrations } from "stripe-replit-sync";
@@ -595,47 +595,14 @@ app.use((req, res, next) => {
           const credentials = rawVal ? (typeof rawVal === "string" ? JSON.parse(rawVal) : rawVal) : {};
 
           for (const post of duePosts) {
-            let anyPublished = false;
-            const platforms: string[] = post.platforms || [];
-
-            for (const platform of platforms) {
-              const token = credentials[platform];
-              if (!token || token.trim() === "") continue;
-
-              try {
-                if (platform === "facebook" && token.includes("|")) {
-                  const [pageId, pageToken] = token.split("|");
-                  const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: post.content, access_token: pageToken }),
-                  });
-                  if (fbRes.ok) anyPublished = true;
-                } else if (platform === "x") {
-                  const xRes = await fetch("https://api.twitter.com/2/tweets", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                    body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
-                  });
-                  if (xRes.ok) anyPublished = true;
-                }
-              } catch (pubErr: any) {
-                console.warn(`[AutoPublish] Failed ${platform} for post #${post.id}:`, pubErr.message);
-              }
-            }
-
-            const hasFbOrX = platforms.some(p => p === "facebook" || p === "x");
-            const hasCredForFbOrX = platforms.some(p => (p === "facebook" || p === "x") && credentials[p]?.trim());
+            const { anyPublished } = await publishSocialPostToAPIs(post, credentials);
 
             if (anyPublished) {
               await storage.updateSocialPost(post.id, { status: "posted" });
               log(`[AutoPublish] Post #${post.id} published successfully`);
-            } else if (hasCredForFbOrX && !anyPublished) {
-              await storage.updateSocialPost(post.id, { status: "needs_manual" });
-              log(`[AutoPublish] Post #${post.id} failed — marked needs_manual`);
             } else {
               await storage.updateSocialPost(post.id, { status: "needs_manual" });
-              log(`[AutoPublish] Post #${post.id} has no API credentials — marked needs_manual`);
+              log(`[AutoPublish] Post #${post.id} marked needs_manual`);
             }
           }
         } catch (err: any) {
