@@ -8814,17 +8814,38 @@ ${platformInstructions}
       const content = completion.choices[0]?.message?.content || "";
 
       let coverImageUrl: string | null = null;
+      let fbCoverImageUrl: string | null = null;
       if (isLiterary) {
+        const hasFacebook = platforms.includes("facebook");
+        const hasInstagram = platforms.includes("instagram");
+
+        const basePrompt = "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.";
+
         try {
+          const primarySize = hasInstagram ? "1024x1024" : hasFacebook ? "1792x1024" : "1024x1024";
           const imgRes = await openai.images.generate({
             model: "dall-e-3",
-            prompt: "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.",
+            prompt: basePrompt,
             n: 1,
-            size: "1024x1024",
+            size: primarySize as any,
           });
           coverImageUrl = imgRes.data?.[0]?.url || null;
         } catch (imgErr) {
           console.warn("DALL-E image generation failed:", imgErr);
+        }
+
+        if (hasFacebook && hasInstagram && coverImageUrl) {
+          try {
+            const fbImgRes = await openai.images.generate({
+              model: "dall-e-3",
+              prompt: basePrompt + " Wide landscape format for Facebook cover.",
+              n: 1,
+              size: "1792x1024",
+            });
+            fbCoverImageUrl = fbImgRes.data?.[0]?.url || null;
+          } catch (fbImgErr) {
+            console.warn("DALL-E Facebook cover generation failed:", fbImgErr);
+          }
         }
       }
 
@@ -8841,7 +8862,11 @@ ${platformInstructions}
         coverImageUrl,
       });
 
-      res.json({ post, index: postIndex });
+      if (fbCoverImageUrl && post?.id) {
+        await db.execute(dsql`UPDATE social_posts SET metadata = jsonb_build_object('fb_cover_url', ${fbCoverImageUrl}) WHERE id = ${post.id}`);
+      }
+
+      res.json({ post: { ...post, fb_cover_url: fbCoverImageUrl }, index: postIndex });
     } catch (error: any) {
       console.error("Social generate-single error:", error);
       res.status(500).json({ error: "فشل في توليد المنشور: " + (error.message || "") });
@@ -8924,6 +8949,29 @@ ${platformInstructions}
       res.json(engagement);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب بيانات الأمس" });
+    }
+  });
+
+  app.post("/api/admin/social/duplicate/:id", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const post = await storage.getSocialPostById(id);
+      if (!post) return res.status(404).json({ error: "المنشور غير موجود" });
+
+      const duplicate = await storage.createSocialPost({
+        content: post.content,
+        platforms: post.platforms || [],
+        scheduledAt: null,
+        status: "draft",
+        postType: post.post_type || "marketing",
+        coverImageUrl: post.cover_image_url || null,
+      });
+
+      res.json({ post: duplicate });
+    } catch (error: any) {
+      console.error("Duplicate post error:", error);
+      res.status(500).json({ error: "فشل في تكرار المنشور" });
     }
   });
 

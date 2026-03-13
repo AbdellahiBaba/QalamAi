@@ -2235,6 +2235,14 @@ export class DatabaseStorage implements IStorage {
     return rows[0] || { totalLikes: 0, totalShares: 0, totalReach: 0, totalClicks: 0, totalComments: 0, postCount: 0 };
   }
 
+  async getDueScheduledPosts(): Promise<any[]> {
+    return (await db.execute(sql`
+      SELECT * FROM social_posts
+      WHERE status = 'scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= NOW()
+      ORDER BY scheduled_at ASC
+    `)).rows;
+  }
+
   async getBestPostingTimes(): Promise<{ hour: number; avgEngagement: number }[]> {
     const rows: any[] = (await db.execute(sql`
       SELECT EXTRACT(HOUR FROM sp.scheduled_at)::int as hour,

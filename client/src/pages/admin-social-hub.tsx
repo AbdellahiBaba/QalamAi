@@ -17,7 +17,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowRight, Megaphone, Calendar, Clock, Copy, Check, Trash2, Edit3,
   Loader2, Sparkles, BarChart3, Settings, LayoutDashboard, ListOrdered,
-  Wand2, Facebook, Instagram, Linkedin, RefreshCw, Search
+  Wand2, Facebook, Instagram, Linkedin, RefreshCw, Search, CopyPlus,
+  ChevronLeft, ChevronRight, AlertTriangle, CalendarDays
 } from "lucide-react";
 import { SiX, SiTiktok } from "react-icons/si";
 
@@ -35,6 +36,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   draft: { label: "مسودة", variant: "secondary" },
   scheduled: { label: "مجدول", variant: "default" },
   posted: { label: "نُشر", variant: "outline" },
+  needs_manual: { label: "يحتاج نشر يدوي", variant: "destructive" },
 };
 
 function CopyBtn({ text }: { text: string }) {
@@ -72,12 +74,13 @@ function PlatformBadges({ platforms }: { platforms: string[] }) {
   );
 }
 
-function PostCard({ post, onDelete, onStatusChange, onReschedule, onPublish }: {
+function PostCard({ post, onDelete, onStatusChange, onReschedule, onPublish, onDuplicate }: {
   post: any;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: string) => void;
   onReschedule: (id: number, scheduledAt: string) => void;
   onPublish?: (id: number) => void;
+  onDuplicate?: (id: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
@@ -126,6 +129,16 @@ function PostCard({ post, onDelete, onStatusChange, onReschedule, onPublish }: {
             >
               <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
+            {onDuplicate && (
+              <button
+                onClick={() => onDuplicate(post.id)}
+                className="p-1.5 rounded hover:bg-muted transition-colors"
+                title="تكرار"
+                data-testid={`button-duplicate-${post.id}`}
+              >
+                <CopyPlus className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            )}
             <button
               onClick={() => onDelete(post.id)}
               className="p-1.5 rounded hover:bg-destructive/10 transition-colors"
@@ -239,6 +252,30 @@ function PostCard({ post, onDelete, onStatusChange, onReschedule, onPublish }: {
             >
               <Check className="w-3 h-3 ml-1" />
               تم النشر يدوياً
+            </Button>
+          </div>
+        )}
+        {post.status === "needs_manual" && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-xs border-amber-500/30 text-amber-600"
+              onClick={() => onStatusChange(post.id, "posted")}
+              data-testid={`button-mark-posted-manual-${post.id}`}
+            >
+              <Check className="w-3 h-3 ml-1" />
+              تم النشر يدوياً
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 text-xs"
+              onClick={() => onStatusChange(post.id, "scheduled")}
+              data-testid={`button-reschedule-manual-${post.id}`}
+            >
+              <Calendar className="w-3 h-3 ml-1" />
+              إعادة جدولة
             </Button>
           </div>
         )}
@@ -485,6 +522,20 @@ function PostQueueTab() {
     },
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/admin/social/duplicate/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      toast({ title: "تم تكرار المنشور كمسودة" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تكرار المنشور", variant: "destructive" });
+    },
+  });
+
   const filtered = filter === "all" ? posts : posts.filter((p: any) => p.status === filter);
 
   if (isLoading) {
@@ -498,7 +549,7 @@ function PostQueueTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        {["all", "draft", "scheduled", "posted"].map((s) => (
+        {["all", "draft", "scheduled", "posted", "needs_manual"].map((s) => (
           <Button
             key={s}
             size="sm"
@@ -528,6 +579,7 @@ function PostQueueTab() {
               onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
               onReschedule={(id, scheduledAt) => rescheduleMutation.mutate({ id, scheduledAt })}
               onPublish={(id) => publishMutation.mutate(id)}
+              onDuplicate={(id) => duplicateMutation.mutate(id)}
             />
           ))}
         </div>
@@ -983,6 +1035,210 @@ function InsightsTab() {
   );
 }
 
+function CalendarTab() {
+  const { data: posts = [] } = useQuery<any[]>({ queryKey: ["/api/admin/social/posts"] });
+  const { toast } = useToast();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [editPost, setEditPost] = useState<any | null>(null);
+  const [editContent, setEditContent] = useState("");
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("PATCH", `/api/admin/social/posts/${data.id}`, data.updates);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      setEditPost(null);
+      toast({ title: "تم تحديث المنشور" });
+    },
+  });
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDayOfWeek = firstDay.getDay();
+  const daysInMonth = lastDay.getDate();
+
+  const postsByDay: Record<string, any[]> = {};
+  posts.forEach((p: any) => {
+    if (!p.scheduled_at) return;
+    const d = new Date(p.scheduled_at);
+    if (d.getMonth() === month && d.getFullYear() === year) {
+      const key = d.getDate().toString();
+      if (!postsByDay[key]) postsByDay[key] = [];
+      postsByDay[key].push(p);
+    }
+  });
+
+  const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
+
+  const dayNames = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
+  const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
+  const selectedDayPosts = selectedDay ? (postsByDay[selectedDay] || []) : [];
+
+  const statusColors: Record<string, string> = {
+    draft: "bg-gray-400",
+    scheduled: "bg-blue-500",
+    posted: "bg-green-500",
+    needs_manual: "bg-amber-500",
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <Button variant="ghost" size="sm" onClick={prevMonth} data-testid="button-prev-month">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <h3 className="font-serif font-bold text-lg" data-testid="text-current-month">
+              {monthNames[month]} {year}
+            </h3>
+            <Button variant="ghost" size="sm" onClick={nextMonth} data-testid="button-next-month">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {dayNames.map((d) => (
+              <div key={d} className="text-center text-xs font-medium text-muted-foreground p-1">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: startDayOfWeek }).map((_, i) => (
+              <div key={`empty-${i}`} className="aspect-square" />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dayStr = day.toString();
+              const dayPosts = postsByDay[dayStr] || [];
+              const isToday = new Date().getDate() === day && new Date().getMonth() === month && new Date().getFullYear() === year;
+              const isSelected = selectedDay === dayStr;
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(isSelected ? null : dayStr)}
+                  className={`aspect-square rounded-lg border text-sm flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer hover:bg-muted/50 ${
+                    isSelected ? "border-primary bg-primary/10" : isToday ? "border-primary/50 bg-primary/5" : "border-border"
+                  }`}
+                  data-testid={`calendar-day-${day}`}
+                >
+                  <span className={`text-xs ${isToday ? "font-bold text-primary" : ""}`}>{day}</span>
+                  {dayPosts.length > 0 && (
+                    <div className="flex gap-0.5">
+                      {dayPosts.slice(0, 3).map((p: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className={`w-1.5 h-1.5 rounded-full ${statusColors[p.status] || "bg-gray-400"}`}
+                          title={p.post_type === "literary" ? "أدبي" : "تسويقي"}
+                        />
+                      ))}
+                      {dayPosts.length > 3 && (
+                        <span className="text-[8px] text-muted-foreground">+{dayPosts.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground justify-center">
+            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-gray-400" /> مسودة</span>
+            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500" /> مجدول</span>
+            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500" /> نُشر</span>
+            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> يدوي</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedDay && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CalendarDays className="w-4 h-4" />
+              {selectedDay} {monthNames[month]} — {selectedDayPosts.length} منشور
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {selectedDayPosts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">لا توجد منشورات في هذا اليوم</p>
+            ) : (
+              selectedDayPosts.map((p: any) => {
+                const statusInfo = STATUS_MAP[p.status] || STATUS_MAP.draft;
+                return (
+                  <div key={p.id} className="border rounded-lg p-3 space-y-2" data-testid={`calendar-post-${p.id}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={statusInfo.variant} className="text-xs">{statusInfo.label}</Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {p.post_type === "literary" ? "أدبي" : "تسويقي"}
+                        </Badge>
+                        <PlatformBadges platforms={p.platforms || []} />
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {p.scheduled_at && new Date(p.scheduled_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    <p className="text-xs line-clamp-3 whitespace-pre-wrap">{p.content}</p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs gap-1"
+                      onClick={() => { setEditPost(p); setEditContent(p.content); }}
+                      data-testid={`button-calendar-edit-${p.id}`}
+                    >
+                      <Edit3 className="w-3 h-3" /> تعديل
+                    </Button>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={!!editPost} onOpenChange={() => setEditPost(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="font-serif">تعديل المنشور</DialogTitle>
+          </DialogHeader>
+          {editPost && (
+            <div className="space-y-4">
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                rows={6}
+                className="text-sm"
+                data-testid="textarea-calendar-edit"
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => updateMutation.mutate({ id: editPost.id, updates: { content: editContent } })}
+                  disabled={updateMutation.isPending}
+                  data-testid="button-calendar-save"
+                >
+                  {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ"}
+                </Button>
+                <Button variant="ghost" onClick={() => setEditPost(null)}>إلغاء</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const { toast } = useToast();
   const { data: settings } = useQuery<any>({ queryKey: ["/api/admin/social/settings"] });
@@ -1149,6 +1405,10 @@ export default function AdminSocialHub() {
               <Wand2 className="w-3.5 h-3.5" />
               مولّد المحتوى
             </TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-1.5 text-xs" data-testid="tab-calendar">
+              <CalendarDays className="w-3.5 h-3.5" />
+              التقويم
+            </TabsTrigger>
             <TabsTrigger value="insights" className="gap-1.5 text-xs" data-testid="tab-insights">
               <BarChart3 className="w-3.5 h-3.5" />
               التحليلات
@@ -1167,6 +1427,9 @@ export default function AdminSocialHub() {
           </TabsContent>
           <TabsContent value="generator">
             <GeneratorTab />
+          </TabsContent>
+          <TabsContent value="calendar">
+            <CalendarTab />
           </TabsContent>
           <TabsContent value="insights">
             <InsightsTab />

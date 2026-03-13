@@ -504,6 +504,7 @@ app.use((req, res, next) => {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_social_posts_status ON social_posts (status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_social_posts_scheduled ON social_posts (scheduled_at)`);
+    await pool.query(`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS social_post_insights (
@@ -581,6 +582,67 @@ app.use((req, res, next) => {
         );
       }, WEBHOOK_RETRY_INTERVAL);
       log("Webhook retry queue processor started (every 60 seconds)");
+
+      const SOCIAL_AUTOPUBLISH_INTERVAL = 60 * 1000;
+      setInterval(async () => {
+        try {
+          const duePosts = await storage.getDueScheduledPosts();
+          if (duePosts.length === 0) return;
+
+          const { pool } = await import("./db");
+          const credRows = await pool.query(`SELECT value FROM social_hub_settings WHERE key = 'platform_credentials'`);
+          const rawVal = credRows.rows[0]?.value;
+          const credentials = rawVal ? (typeof rawVal === "string" ? JSON.parse(rawVal) : rawVal) : {};
+
+          for (const post of duePosts) {
+            let anyPublished = false;
+            const platforms: string[] = post.platforms || [];
+
+            for (const platform of platforms) {
+              const token = credentials[platform];
+              if (!token || token.trim() === "") continue;
+
+              try {
+                if (platform === "facebook" && token.includes("|")) {
+                  const [pageId, pageToken] = token.split("|");
+                  const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: post.content, access_token: pageToken }),
+                  });
+                  if (fbRes.ok) anyPublished = true;
+                } else if (platform === "x") {
+                  const xRes = await fetch("https://api.twitter.com/2/tweets", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                    body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
+                  });
+                  if (xRes.ok) anyPublished = true;
+                }
+              } catch (pubErr: any) {
+                console.warn(`[AutoPublish] Failed ${platform} for post #${post.id}:`, pubErr.message);
+              }
+            }
+
+            const hasFbOrX = platforms.some(p => p === "facebook" || p === "x");
+            const hasCredForFbOrX = platforms.some(p => (p === "facebook" || p === "x") && credentials[p]?.trim());
+
+            if (anyPublished) {
+              await storage.updateSocialPost(post.id, { status: "posted" });
+              log(`[AutoPublish] Post #${post.id} published successfully`);
+            } else if (hasCredForFbOrX && !anyPublished) {
+              await storage.updateSocialPost(post.id, { status: "needs_manual" });
+              log(`[AutoPublish] Post #${post.id} failed — marked needs_manual`);
+            } else {
+              await storage.updateSocialPost(post.id, { status: "needs_manual" });
+              log(`[AutoPublish] Post #${post.id} has no API credentials — marked needs_manual`);
+            }
+          }
+        } catch (err: any) {
+          console.error("[AutoPublish] Background job error:", err.message);
+        }
+      }, SOCIAL_AUTOPUBLISH_INTERVAL);
+      log("Social auto-publish background job started (every 60 seconds)");
 
       const LEARNING_INTERVAL = 24 * 60 * 60 * 1000;
       setInterval(async () => {
