@@ -134,7 +134,7 @@ export default function EssayPublic() {
     }
   }, [shareToken, audioPlaying, toast]);
 
-  // Quote highlighting
+  // Quote highlighting — state only, callback defined AFTER essay query to avoid TDZ
   const [quotePopup, setQuotePopup] = useState<{ text: string; x: number; y: number } | null>(null);
   const handleTextSelection = useCallback(() => {
     const sel = window.getSelection();
@@ -144,18 +144,6 @@ export default function EssayPublic() {
     const rect = range.getBoundingClientRect();
     setQuotePopup({ text, x: rect.left + rect.width / 2, y: rect.top + window.scrollY - 48 });
   }, []);
-
-  const handleShareQuote = useCallback(async () => {
-    if (!quotePopup) return;
-    const text = `"${quotePopup.text}" — ${essay?.title ?? ""} | QalamAI\nhttps://qalamai.net/essay/${shareToken}`;
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({ title: "تم نسخ الاقتباس" });
-    } catch {
-      toast({ title: "تعذّر النسخ" });
-    }
-    setQuotePopup(null);
-  }, [quotePopup, essay, shareToken, toast]);
 
   const { data: essay, isLoading: essayLoading, error: essayError } = useQuery<PublicEssay>({
     queryKey: ["/api/public/essay", shareToken],
