@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, ShieldCheck, UserPlus, UserMinus, Users } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
@@ -179,7 +179,9 @@ export default function AuthorProfile() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-serif font-bold" data-testid="text-author-name">{author.displayName}</h1>
                   {author.verified && (
-                    <ShieldCheck className="w-5 h-5 text-primary shrink-0" data-testid="badge-verified" title="كاتب موثّق" />
+                    <span title="كاتب موثّق" data-testid="badge-verified" className="inline-flex items-center shrink-0">
+                      <BadgeCheck className="w-6 h-6 text-[#1D9BF0]" strokeWidth={2} />
+                    </span>
                   )}
                 </div>
                 <StarRating
