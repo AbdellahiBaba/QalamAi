@@ -528,6 +528,10 @@ app.use((req, res, next) => {
       )
     `);
 
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_search_title ON novel_projects USING gin (to_tsvector('simple', COALESCE(title, '')))`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_search_desc ON novel_projects USING gin (to_tsvector('simple', COALESCE(main_idea, '')))`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_search_name ON users USING gin (to_tsvector('simple', COALESCE(display_name, '')))`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

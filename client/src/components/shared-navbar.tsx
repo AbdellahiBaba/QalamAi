@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,6 +13,10 @@ import {
   TicketCheck,
   MessageSquareQuote,
   LayoutDashboard,
+  Search,
+  BookOpen,
+  Users,
+  BadgeCheck,
 } from "lucide-react";
 
 export const navLinks = [
@@ -31,6 +35,178 @@ export const navLinks = [
 export const footerOnlyLinks = [
   { label: "آراء المستخدمين", href: "/reviews" },
 ];
+
+function NavbarSearch() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any>(null);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [, setLocation] = useLocation();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const abortRef = useRef<AbortController>();
+
+  const doSearch = useCallback(async (q: string) => {
+    if (q.trim().length < 2) {
+      setResults(null);
+      setOpen(false);
+      return;
+    }
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}&limit=5`, { credentials: "include", signal: controller.signal });
+      if (res.ok && !controller.signal.aborted) {
+        const data = await res.json();
+        setResults(data);
+        setOpen(true);
+      }
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "AbortError") return;
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, []);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(val), 300);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" && query.trim().length >= 2) {
+      setOpen(false);
+      setLocation(`/search?q=${encodeURIComponent(query.trim())}`);
+    }
+    if (e.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function navigateTo(path: string) {
+    setOpen(false);
+    setQuery("");
+    setResults(null);
+    setLocation(path);
+  }
+
+  const hasResults = results && (results.projects?.length > 0 || results.authors?.length > 0 || results.series?.length > 0);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div className="relative">
+        <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => { if (results && query.trim().length >= 2) setOpen(true); }}
+          placeholder="بحث..."
+          className="w-28 sm:w-36 h-8 text-xs pr-7 pl-2 rounded-md border bg-background/50 focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+          data-testid="input-navbar-search"
+        />
+        {loading && (
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
+        )}
+      </div>
+
+      {open && query.trim().length >= 2 && (
+        <div className="absolute top-full mt-1 left-0 right-0 w-72 sm:w-80 bg-popover border rounded-lg shadow-lg z-[60] max-h-96 overflow-y-auto" data-testid="dropdown-search-results">
+          {!hasResults && !loading && (
+            <div className="p-4 text-center text-sm text-muted-foreground" data-testid="text-no-results">
+              لم يتم العثور على نتائج
+            </div>
+          )}
+
+          {results?.projects?.length > 0 && (
+            <div className="p-2">
+              <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1 px-2">
+                <BookOpen className="w-3 h-3" /> الأعمال
+              </div>
+              {results.projects.slice(0, 4).map((p: any) => {
+                const link = p.project_type === "essay" && p.share_token
+                  ? `/essay/${p.share_token}`
+                  : p.share_token ? `/shared/${p.share_token}` : `/project/${p.id}`;
+                return (
+                  <button
+                    key={p.id}
+                    className="w-full text-right px-2 py-1.5 rounded hover:bg-accent flex items-center gap-2 text-sm"
+                    onClick={() => navigateTo(link)}
+                    data-testid={`search-result-project-${p.id}`}
+                  >
+                    {p.cover_image_url ? (
+                      <img src={p.cover_image_url} className="w-8 h-10 object-cover rounded flex-shrink-0" alt="" />
+                    ) : (
+                      <div className="w-8 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="w-3 h-3 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium text-xs">{p.title}</div>
+                      <div className="truncate text-[10px] text-muted-foreground">{p.author_name}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {results?.authors?.length > 0 && (
+            <div className="p-2 border-t">
+              <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1 px-2">
+                <Users className="w-3 h-3" /> الكتّاب
+              </div>
+              {results.authors.slice(0, 3).map((a: any) => (
+                <button
+                  key={a.id}
+                  className="w-full text-right px-2 py-1.5 rounded hover:bg-accent flex items-center gap-2 text-sm"
+                  onClick={() => navigateTo(`/author/${a.id}`)}
+                  data-testid={`search-result-author-${a.id}`}
+                >
+                  <Avatar className="w-6 h-6 flex-shrink-0">
+                    <AvatarImage src={a.profileImageUrl || undefined} />
+                    <AvatarFallback className="text-[10px]">{(a.displayName || "?")[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className="truncate text-xs">{a.displayName}</span>
+                  {a.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#1D9BF0] flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {(hasResults || loading) && (
+            <div className="border-t p-2">
+              <button
+                className="w-full text-center text-xs text-primary hover:underline py-1"
+                onClick={() => navigateTo(`/search?q=${encodeURIComponent(query.trim())}`)}
+                data-testid="link-view-all-results"
+              >
+                عرض جميع النتائج
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SharedNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -74,6 +250,7 @@ export function SharedNavbar() {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
+          <NavbarSearch />
           <ThemeToggle />
 
           {isAuthenticated ? (

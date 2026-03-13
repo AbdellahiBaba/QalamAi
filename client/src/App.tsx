@@ -59,6 +59,7 @@ const AdminMarketing = lazy(() => import("@/pages/admin-marketing"));
 const AdminSocialHub = lazy(() => import("@/pages/admin-social-hub"));
 const SocialMarketing = lazy(() => import("@/pages/social-marketing"));
 const DailyPrompt = lazy(() => import("@/pages/daily-prompt"));
+const SearchPage = lazy(() => import("@/pages/search"));
 
 function LoadingFallback() {
   return (
@@ -119,6 +120,7 @@ function AuthenticatedRouter() {
         <Route path="/admin/social-hub" component={AdminSocialHub} />
         <Route path="/social-marketing" component={SocialMarketing} />
         <Route path="/daily-prompt" component={DailyPrompt} />
+        <Route path="/search" component={SearchPage} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
@@ -157,6 +159,7 @@ function PublicRouter() {
         <Route path="/series" component={ContentSeries} />
         <Route path="/series/:id" component={SeriesDetail} />
         <Route path="/daily-prompt" component={DailyPrompt} />
+        <Route path="/search" component={SearchPage} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
