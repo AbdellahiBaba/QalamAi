@@ -407,13 +407,92 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Ensure required columns exist (safe, idempotent startup migrations)
+  // Ensure required columns and tables exist (safe, idempotent startup migrations)
   try {
     const { pool } = await import("./db");
+
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(2)`);
-    console.log("[startup] users.country column ensured");
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS daily_prompts (
+        id SERIAL PRIMARY KEY,
+        prompt_text TEXT NOT NULL,
+        prompt_date VARCHAR(10) NOT NULL UNIQUE,
+        active BOOLEAN NOT NULL DEFAULT true,
+        winner_id VARCHAR,
+        winner_entry_id INTEGER,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_daily_prompts_date ON daily_prompts (prompt_date)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS daily_prompt_entries (
+        id SERIAL PRIMARY KEY,
+        prompt_id INTEGER NOT NULL REFERENCES daily_prompts(id) ON DELETE CASCADE,
+        user_id VARCHAR NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        CONSTRAINT uq_prompt_user UNIQUE (prompt_id, user_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_prompt_entries_prompt ON daily_prompt_entries (prompt_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_prompt_entries_user ON daily_prompt_entries (user_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS author_tips (
+        id SERIAL PRIMARY KEY,
+        from_user_id VARCHAR,
+        to_author_id VARCHAR NOT NULL,
+        project_id INTEGER,
+        amount_cents INTEGER NOT NULL,
+        stripe_session_id VARCHAR,
+        status VARCHAR NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_author_tips_to ON author_tips (to_author_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_author_tips_session ON author_tips (stripe_session_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS content_series (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        title VARCHAR(200) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_content_series_user ON content_series (user_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS series_items (
+        id SERIAL PRIMARY KEY,
+        series_id INTEGER NOT NULL REFERENCES content_series(id) ON DELETE CASCADE,
+        project_id INTEGER NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        CONSTRAINT uq_series_project UNIQUE (series_id, project_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_series_items_series ON series_items (series_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS email_subscriptions (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        author_id VARCHAR(255) NOT NULL,
+        token VARCHAR(128) NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        CONSTRAINT uq_email_author UNIQUE (email, author_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_email_subs_author ON email_subscriptions (author_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_email_subs_token ON email_subscriptions (token)`);
+
+    console.log("[startup] All tables and columns ensured");
   } catch (e) {
-    console.warn("[startup] Column migration warning:", e);
+    console.warn("[startup] Migration warning:", e);
   }
 
   await registerRoutes(httpServer, app);

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { eq, and, or, gte, lt, desc, sql as dsql, count } from "drizzle-orm";
+import { eq, and, or, gte, lt, desc, sql as dsql, count, isNotNull } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
@@ -8136,7 +8136,16 @@ ${ch.content}
       const { token, alreadySubscribed } = await storage.subscribeEmailToAuthor(email.trim().toLowerCase(), authorId);
       if (!alreadySubscribed) {
         const authorName = author.displayName || author.firstName || "الكاتب";
-        sendEmailSubscriptionConfirmation(email, authorName, authorId, token).catch(() => {});
+        // Fetch author's 3 most recent published works to include in welcome email
+        const recentWorks = await db
+          .select({ title: novelProjects.title, shareToken: novelProjects.shareToken })
+          .from(novelProjects)
+          .where(and(eq(novelProjects.userId, authorId), isNotNull(novelProjects.shareToken)))
+          .orderBy(desc(novelProjects.createdAt))
+          .limit(3)
+          .then(rows => rows.filter(r => r.shareToken).map(r => ({ title: r.title, shareToken: r.shareToken! })))
+          .catch(() => []);
+        sendEmailSubscriptionConfirmation(email, authorName, authorId, token, recentWorks).catch(() => {});
         // Notify the author of the new email subscriber
         storage.createNotification({
           userId: authorId,

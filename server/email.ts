@@ -654,21 +654,35 @@ export async function sendEmailSubscriptionConfirmation(
   subscriberEmail: string,
   authorName: string,
   authorId: string,
-  unsubscribeToken: string
+  unsubscribeToken: string,
+  recentWorks: Array<{ title: string; shareToken: string }> = []
 ): Promise<void> {
   const t = getTransporter();
   if (!t) return;
   const baseUrl = getBaseUrl();
   const unsubscribeUrl = `${baseUrl}/unsubscribe/${unsubscribeToken}`;
-  const rssUrl = `${baseUrl}/rss/author/${authorId}`;
+  const authorProfileUrl = `${baseUrl}/author/${authorId}`;
+
+  const recentWorksHtml = recentWorks.length > 0 ? `
+<div style="margin:24px 0;">
+  <p style="font-weight:bold;color:#333;font-size:14px;margin-bottom:12px;">أحدث أعمال الكاتب:</p>
+  ${recentWorks.map(w => `
+  <div style="border-right:3px solid ${BRAND_GOLD};padding:10px 14px;margin-bottom:8px;background:#fdfaf4;border-radius:4px;">
+    <a href="${baseUrl}/essay/${w.shareToken}" style="color:${BRAND_BLUE};font-size:14px;font-weight:600;text-decoration:none;">${w.title}</a>
+  </div>`).join("")}
+</div>` : "";
+
   const body = `
-<p style="color:#333;line-height:1.8;font-size:15px;">شكراً لاشتراكك في تحديثات الكاتب <strong>${authorName}</strong> على منصة QalamAI.</p>
-<p style="color:#333;line-height:1.8;font-size:15px;">ستصلك رسالة بريدية في كلّ مرة ينشر فيها الكاتب عملاً جديداً.</p>
-<div style="background:#f9f7f3;border-right:4px solid ${BRAND_GOLD};padding:16px 20px;margin:20px 0;border-radius:6px;">
-  <p style="margin:0 0 8px;font-size:14px;color:#666;">يمكنك أيضاً الاشتراك في خلاصة RSS لمتابعة المقالات مباشرةً من قارئ RSS المفضّل لديك:</p>
-  <a href="${rssUrl}" style="color:${BRAND_BLUE};font-size:13px;word-break:break-all;">${rssUrl}</a>
+<p style="color:#333;line-height:1.8;font-size:15px;">مرحباً،</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">تم اشتراكك بنجاح في تحديثات الكاتب <strong>${authorName}</strong> على منصة QalamAI. ستصلك رسالة بريدية في كلّ مرة ينشر فيها عملاً جديداً.</p>
+
+<div style="text-align:center;margin:24px 0;">
+  <a href="${authorProfileUrl}" style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">زيارة صفحة الكاتب</a>
 </div>
-<p style="color:#999;font-size:12px;line-height:1.6;">إذا أردت إلغاء الاشتراك في أي وقت، <a href="${unsubscribeUrl}" style="color:#999;">اضغط هنا</a>.</p>`;
+
+${recentWorksHtml}
+
+<p style="color:#999;font-size:12px;line-height:1.6;margin-top:24px;">إذا أردت إلغاء الاشتراك في أي وقت، <a href="${unsubscribeUrl}" style="color:#999;">اضغط هنا</a>.</p>`;
   try {
     await t.sendMail({
       from: `"QalamAI" <${process.env.SMTP_USER}>`,

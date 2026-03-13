@@ -1,0 +1,152 @@
+Tracking Prevention blocked access to storage for https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=D6HRQ7JC77U2T973ECJG&lib=ttq.
+(index):1  Tracking Prevention blocked access to storage for https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=D6HRQ7JC77U2T973ECJG&lib=ttq.
+(index):1  Tracking Prevention blocked access to storage for https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=D6HRQ7JC77U2T973ECJG&lib=ttq.
+(index):1  Tracking Prevention blocked access to storage for https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=D6HRQ7JC77U2T973ECJG&lib=ttq.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/clover/stripe.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/clover/stripe.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/clover/stripe.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/clover/stripe.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fqalamai.net%2F&title=%D9%85%D8%B4%D8%A7%D8%B1%D9%8A%D8%B9%D9%8A%20%E2%80%94%20%D9%82%D9%84%D9%85%20AI&referrer=https%3A%2F%2Fqalamai.net%2F&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=clover.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fqalamai.net%2F&title=%D9%85%D8%B4%D8%A7%D8%B1%D9%8A%D8%B9%D9%8A%20%E2%80%94%20%D9%82%D9%84%D9%85%20AI&referrer=https%3A%2F%2Fqalamai.net%2F&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=clover.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fqalamai.net%2F&title=%D9%85%D8%B4%D8%A7%D8%B1%D9%8A%D8%B9%D9%8A%20%E2%80%94%20%D9%82%D9%84%D9%85%20AI&referrer=https%3A%2F%2Fqalamai.net%2F&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=clover.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fqalamai.net%2F&title=%D9%85%D8%B4%D8%A7%D8%B1%D9%8A%D8%B9%D9%8A%20%E2%80%94%20%D9%82%D9%84%D9%85%20AI&referrer=https%3A%2F%2Fqalamai.net%2F&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=clover.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/fingerprinted/js/m-outer-15a2b40a058ddff1cffdb63779fe3de1.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/fingerprinted/js/m-outer-15a2b40a058ddff1cffdb63779fe3de1.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/fingerprinted/js/m-outer-15a2b40a058ddff1cffdb63779fe3de1.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/v3/fingerprinted/js/m-outer-15a2b40a058ddff1cffdb63779fe3de1.js.
+(index):1  Tracking Prevention blocked access to storage for https://js.stripe.com/.
+[NEW] Explain Console errors by using Copilot in Edge: click
+         
+         to explain an error. 
+        Learn more
+        Don't show again
+vendor-react-D09MM8WZ.js:8  TypeError: oe.filter is not a function
+    at Ma (home-TnuKIRTS.js:2:35134)
+    at Uu (vendor-react-D09MM8WZ.js:6:17038)
+    at Xu (vendor-react-D09MM8WZ.js:8:3159)
+    at Sa (vendor-react-D09MM8WZ.js:8:45007)
+    at va (vendor-react-D09MM8WZ.js:8:39917)
+    at Tf (vendor-react-D09MM8WZ.js:8:39845)
+    at wl (vendor-react-D09MM8WZ.js:8:39699)
+    at co (vendor-react-D09MM8WZ.js:8:36043)
+    at pa (vendor-react-D09MM8WZ.js:8:36854)
+    at Ft (vendor-react-D09MM8WZ.js:6:3271)
+Yu @ vendor-react-D09MM8WZ.js:8
+u.componentDidCatch.n.callback @ vendor-react-D09MM8WZ.js:8
+cs @ vendor-react-D09MM8WZ.js:6
+aa @ vendor-react-D09MM8WZ.js:8
+sa @ vendor-react-D09MM8WZ.js:8
+Nf @ vendor-react-D09MM8WZ.js:8
+Of @ vendor-react-D09MM8WZ.js:8
+ln @ vendor-react-D09MM8WZ.js:8
+pa @ vendor-react-D09MM8WZ.js:8
+Ft @ vendor-react-D09MM8WZ.js:6
+(anonymous) @ vendor-react-D09MM8WZ.js:8
+setTimeout
+r @ vendor-query-BdDHcmYN.js:1
+u @ vendor-query-BdDHcmYN.js:1
+batch @ vendor-query-BdDHcmYN.js:1
+#r @ vendor-query-BdDHcmYN.js:1
+setData @ vendor-query-BdDHcmYN.js:1
+onSuccess @ vendor-query-BdDHcmYN.js:1
+b @ vendor-query-BdDHcmYN.js:1
+Promise.then
+p @ vendor-query-BdDHcmYN.js:1
+start @ vendor-query-BdDHcmYN.js:1
+fetch @ vendor-query-BdDHcmYN.js:1
+#l @ vendor-query-BdDHcmYN.js:1
+onSubscribe @ vendor-query-BdDHcmYN.js:1
+subscribe @ vendor-query-BdDHcmYN.js:1
+(anonymous) @ vendor-query-BdDHcmYN.js:1
+vs @ vendor-react-D09MM8WZ.js:6
+fl @ vendor-react-D09MM8WZ.js:8
+Rn @ vendor-react-D09MM8WZ.js:8
+pa @ vendor-react-D09MM8WZ.js:8
+Ft @ vendor-react-D09MM8WZ.js:6
+Of @ vendor-react-D09MM8WZ.js:8
+ln @ vendor-react-D09MM8WZ.js:8
+da @ vendor-react-D09MM8WZ.js:8
+be @ vendor-react-D09MM8WZ.js:1
+at @ vendor-react-D09MM8WZ.js:1
+index-ChXRYrba.js:2  ErrorBoundary caught: TypeError: oe.filter is not a function
+    at Ma (home-TnuKIRTS.js:2:35134)
+    at Uu (vendor-react-D09MM8WZ.js:6:17038)
+    at Xu (vendor-react-D09MM8WZ.js:8:3159)
+    at Sa (vendor-react-D09MM8WZ.js:8:45007)
+    at va (vendor-react-D09MM8WZ.js:8:39917)
+    at Tf (vendor-react-D09MM8WZ.js:8:39845)
+    at wl (vendor-react-D09MM8WZ.js:8:39699)
+    at co (vendor-react-D09MM8WZ.js:8:36043)
+    at pa (vendor-react-D09MM8WZ.js:8:36854)
+    at Ft (vendor-react-D09MM8WZ.js:6:3271) 
+    at Ma (https://qalamai.net/assets/home-TnuKIRTS.js:2:7594)
+    at xd (https://qalamai.net/assets/vendor-react-D09MM8WZ.js:8:61683)
+    at Nd (https://qalamai.net/assets/vendor-react-D09MM8WZ.js:8:62493)
+    at Suspense
+    at xa
+    at va (https://qalamai.net/assets/index-ChXRYrba.js:2:82485)
+    at Bi (https://qalamai.net/assets/index-ChXRYrba.js:2:67469)
+    at l (https://qalamai.net/assets/index-ChXRYrba.js:2:5143)
+    at Zn (https://qalamai.net/assets/index-ChXRYrba.js:2:55705)
+    at ie (https://qalamai.net/assets/vendor-query-BdDHcmYN.js:1:31648)
+    at Ni (https://qalamai.net/assets/index-ChXRYrba.js:2:62143)
+    at ya
+componentDidCatch @ index-ChXRYrba.js:2
+u.componentDidCatch.n.callback @ vendor-react-D09MM8WZ.js:8
+cs @ vendor-react-D09MM8WZ.js:6
+aa @ vendor-react-D09MM8WZ.js:8
+sa @ vendor-react-D09MM8WZ.js:8
+Nf @ vendor-react-D09MM8WZ.js:8
+Of @ vendor-react-D09MM8WZ.js:8
+ln @ vendor-react-D09MM8WZ.js:8
+pa @ vendor-react-D09MM8WZ.js:8
+Ft @ vendor-react-D09MM8WZ.js:6
+(anonymous) @ vendor-react-D09MM8WZ.js:8
+setTimeout
+r @ vendor-query-BdDHcmYN.js:1
+u @ vendor-query-BdDHcmYN.js:1
+batch @ vendor-query-BdDHcmYN.js:1
+#r @ vendor-query-BdDHcmYN.js:1
+setData @ vendor-query-BdDHcmYN.js:1
+onSuccess @ vendor-query-BdDHcmYN.js:1
+b @ vendor-query-BdDHcmYN.js:1
+Promise.then
+p @ vendor-query-BdDHcmYN.js:1
+start @ vendor-query-BdDHcmYN.js:1
+fetch @ vendor-query-BdDHcmYN.js:1
+#l @ vendor-query-BdDHcmYN.js:1
+onSubscribe @ vendor-query-BdDHcmYN.js:1
+subscribe @ vendor-query-BdDHcmYN.js:1
+(anonymous) @ vendor-query-BdDHcmYN.js:1
+vs @ vendor-react-D09MM8WZ.js:6
+fl @ vendor-react-D09MM8WZ.js:8
+Rn @ vendor-react-D09MM8WZ.js:8
+pa @ vendor-react-D09MM8WZ.js:8
+Ft @ vendor-react-D09MM8WZ.js:6
+Of @ vendor-react-D09MM8WZ.js:8
+ln @ vendor-react-D09MM8WZ.js:8
+da @ vendor-react-D09MM8WZ.js:8
+be @ vendor-react-D09MM8WZ.js:1
+at @ vendor-react-D09MM8WZ.js:1
+index-ChXRYrba.js:2   GET https://qalamai.net/api/daily-prompt 500 (Internal Server Error)
+(anonymous) @ index-ChXRYrba.js:2
+r @ vendor-query-BdDHcmYN.js:1
+p @ vendor-query-BdDHcmYN.js:1
+start @ vendor-query-BdDHcmYN.js:1
+fetch @ vendor-query-BdDHcmYN.js:1
+#l @ vendor-query-BdDHcmYN.js:1
+onSubscribe @ vendor-query-BdDHcmYN.js:1
+subscribe @ vendor-query-BdDHcmYN.js:1
+(anonymous) @ vendor-query-BdDHcmYN.js:1
+vs @ vendor-react-D09MM8WZ.js:6
+fl @ vendor-react-D09MM8WZ.js:8
+Rn @ vendor-react-D09MM8WZ.js:8
+pa @ vendor-react-D09MM8WZ.js:8
+Ft @ vendor-react-D09MM8WZ.js:6
+Of @ vendor-react-D09MM8WZ.js:8
+ln @ vendor-react-D09MM8WZ.js:8
+da @ vendor-react-D09MM8WZ.js:8
+be @ vendor-react-D09MM8WZ.js:1
+at @ vendor-react-D09MM8WZ.js:1
+m-outer-3437aaddcdf6922d623e172c2d6f9278.html:1   GET https://js.stripe.com/v3/fingerprinted/js/m-outer-15a2b40a058ddff1cffdb63779fe3de1.js net::ERR_ABORTED 499
+js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html#url=https%3A%2F%2Fqalamai.net%2F&title=%D9%85%D8%B4%D8%A7%D8%B1%D9%8A%D8%B9%D9%8A%20%E2%80%94%20%D9%82%D9%84%D9%85%20AI&referrer=https%3A%2F%2Fqalamai.net%2F&muid=NA&sid=NA&version=6&preview=false&__shared_params__[version]=clover:1  Refused to execute script from 'https://js.stripe.com/v3/fingerprinted/js/m-outer-15a2b40a058ddff1cffdb63779fe3de1.js' because its MIME type ('image/png') is not executable.
