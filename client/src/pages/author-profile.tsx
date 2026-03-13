@@ -163,7 +163,19 @@ export default function AuthorProfile() {
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />
       <div className="max-w-5xl mx-auto p-6 pt-24 space-y-8">
-        <Button variant="ghost" onClick={() => window.history.back()} className="mb-4" data-testid="button-back"><ArrowRight className="w-4 h-4 ml-2" />العودة</Button>
+        {user && user.id === author.id ? (
+          <Link href="/">
+            <Button variant="ghost" className="mb-4" data-testid="button-back-dashboard">
+              <ArrowRight className="w-4 h-4 ml-2" />
+              لوحة التحكم
+            </Button>
+          </Link>
+        ) : (
+          <Button variant="ghost" onClick={() => window.history.back()} className="mb-4" data-testid="button-back">
+            <ArrowRight className="w-4 h-4 ml-2" />
+            العودة
+          </Button>
+        )}
         <div className="flex items-center gap-4" data-testid="author-header">
           <Avatar className="h-20 w-20" data-testid="img-author-avatar">
             {author.profileImageUrl ? (
