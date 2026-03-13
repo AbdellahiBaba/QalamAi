@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { Trophy, Eye, Users, BookOpen, Star, ShieldCheck } from "lucide-react";
+import { Trophy, Eye, Users, BookOpen, Star, BadgeCheck } from "lucide-react";
 import LtrNum from "@/components/ui/ltr-num";
 
 interface LeaderboardEntry {
@@ -87,7 +87,7 @@ export default function Leaderboard() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold truncate" data-testid={`name-${entry.userId}`}>{entry.displayName}</span>
                       {entry.verified && (
-                        <ShieldCheck className="w-4 h-4 text-primary shrink-0" data-testid={`verified-${entry.userId}`} />
+                        <BadgeCheck className="w-5 h-5 text-[#1D9BF0] shrink-0" data-testid={`verified-${entry.userId}`} title="كاتب موثّق" />
                       )}
                       {entry.averageRating > 0 && (
                         <div className="flex items-center gap-0.5 text-yellow-500" data-testid={`rating-${entry.userId}`}>

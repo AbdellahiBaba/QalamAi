@@ -210,7 +210,7 @@ export default function EssaysNews() {
                           </span>
                         )}
                         {essay.authorIsVerified && (
-                          <BadgeCheck className="w-3.5 h-3.5 text-primary shrink-0" data-testid={`badge-verified-author-${essay.id}`} />
+                          <BadgeCheck className="w-4 h-4 text-[#1D9BF0] shrink-0" title="كاتب موثّق" data-testid={`badge-verified-author-${essay.id}`} />
                         )}
                       </div>
                     )}

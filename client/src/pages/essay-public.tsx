@@ -339,7 +339,7 @@ export default function EssayPublic() {
                   <div className="flex items-center gap-1">
                     <p className="text-sm font-medium">{essay.authorName}</p>
                     {essay.authorIsVerified && (
-                      <BadgeCheck className="w-3.5 h-3.5 text-primary shrink-0" data-testid="badge-verified-author-header" />
+                      <BadgeCheck className="w-4 h-4 text-[#1D9BF0] shrink-0" title="كاتب موثّق" data-testid="badge-verified-author-header" />
                     )}
                   </div>
                   {essay.authorAverageRating > 0 && (
@@ -531,7 +531,7 @@ export default function EssayPublic() {
                   <div className="flex items-center gap-1">
                     <p className="font-semibold">{essay.authorName}</p>
                     {essay.authorIsVerified && (
-                      <BadgeCheck className="w-4 h-4 text-primary shrink-0" data-testid="badge-verified-author-card" />
+                      <BadgeCheck className="w-5 h-5 text-[#1D9BF0] shrink-0" title="كاتب موثّق" data-testid="badge-verified-author-card" />
                     )}
                   </div>
                   {essay.authorAverageRating > 0 && (
