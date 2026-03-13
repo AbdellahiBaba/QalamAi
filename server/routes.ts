@@ -7694,5 +7694,264 @@ ${ch.content}
     }
   });
 
+  // ===== Leaderboard =====
+  app.get("/api/public/leaderboard", async (_req, res) => {
+    try {
+      const rows = await storage.getLeaderboard(20);
+      res.json(rows);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب لوحة المتصدرين" });
+    }
+  });
+
+  // ===== Essay of Week =====
+  app.get("/api/public/essay-of-week", async (_req, res) => {
+    try {
+      const essay = await storage.getEssayOfWeek();
+      res.json(essay);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب مقال الأسبوع" });
+    }
+  });
+
+  // ===== Related Essays =====
+  app.get("/api/public/essays/:id/related", async (req, res) => {
+    try {
+      const essayId = parseInt(req.params.id);
+      const subject = (req.query.subject as string) || null;
+      const related = await storage.getRelatedEssays(essayId, subject, 3);
+      res.json(related);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المقالات المشابهة" });
+    }
+  });
+
+  // ===== Essay Comments =====
+  app.post("/api/public/essays/:id/comment", async (req, res) => {
+    try {
+      const essayId = parseInt(req.params.id);
+      const { authorName, content } = req.body;
+      if (!authorName?.trim() || !content?.trim()) return res.status(400).json({ error: "الاسم والتعليق مطلوبان" });
+      if (content.length > 1000) return res.status(400).json({ error: "التعليق طويل جداً" });
+      const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.ip || "unknown";
+      const ipHash = crypto.createHash("sha256").update(ip + String(essayId)).digest("hex");
+      const comment = await storage.createEssayComment({ essayId, authorName: authorName.trim(), content: content.trim(), ipHash });
+      res.json({ success: true, comment, message: "سيظهر تعليقك بعد المراجعة" });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إرسال التعليق" });
+    }
+  });
+
+  app.get("/api/public/essays/:id/comments", async (req, res) => {
+    try {
+      const essayId = parseInt(req.params.id);
+      const comments = await storage.getEssayComments(essayId, true);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التعليقات" });
+    }
+  });
+
+  app.get("/api/admin/comments/pending", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const result = await storage.getPendingComments(limit, offset);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التعليقات المعلقة" });
+    }
+  });
+
+  app.patch("/api/admin/comments/:id/approve", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.approveEssayComment(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في الموافقة على التعليق" });
+    }
+  });
+
+  app.delete("/api/admin/comments/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteEssayComment(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف التعليق" });
+    }
+  });
+
+  // ===== Collections =====
+  app.get("/api/collections", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const cols = await storage.getUserCollections(userId);
+      res.json(cols);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب القوائم" });
+    }
+  });
+
+  app.post("/api/collections", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, description, isPublic } = req.body;
+      if (!name?.trim()) return res.status(400).json({ error: "اسم القائمة مطلوب" });
+      const slug = name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\u0600-\u06ff-]/g, "").substring(0, 50) + "-" + Date.now().toString(36);
+      const col = await storage.createCollection({ userId, name: name.trim(), slug, description: description?.trim() || null, isPublic: !!isPublic });
+      res.json(col);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إنشاء القائمة" });
+    }
+  });
+
+  app.get("/api/public/collections/:slug", async (req, res) => {
+    try {
+      const col = await storage.getCollectionBySlug(req.params.slug);
+      if (!col) return res.status(404).json({ error: "القائمة غير موجودة" });
+      res.json(col);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب القائمة" });
+    }
+  });
+
+  app.post("/api/collections/:id/items", isAuthenticated, async (req: any, res) => {
+    try {
+      const collectionId = parseInt(req.params.id);
+      const { essayId } = req.body;
+      if (!essayId) return res.status(400).json({ error: "essayId مطلوب" });
+      await storage.addToCollection(collectionId, parseInt(essayId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إضافة المقال" });
+    }
+  });
+
+  app.delete("/api/collections/:id/items/:essayId", isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.removeFromCollection(parseInt(req.params.id), parseInt(req.params.essayId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إزالة المقال" });
+    }
+  });
+
+  app.delete("/api/collections/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteCollection(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف القائمة" });
+    }
+  });
+
+  // ===== Verified Applications =====
+  app.post("/api/apply-verified", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { bio, writingSamples, socialLinks } = req.body;
+      if (!bio?.trim() || bio.trim().length < 50) return res.status(400).json({ error: "السيرة الذاتية مطلوبة (50 حرفاً على الأقل)" });
+      const app = await storage.submitVerifiedApplication({ userId, bio: bio.trim(), writingSamples: writingSamples?.trim() || null, socialLinks: socialLinks?.trim() || null });
+      res.json({ success: true, application: app });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إرسال الطلب" });
+    }
+  });
+
+  app.get("/api/admin/verified-applications", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const apps = await storage.getVerifiedApplications(status);
+      res.json(apps);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الطلبات" });
+    }
+  });
+
+  app.patch("/api/admin/verified-applications/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { status, adminNote } = req.body;
+      if (!["approved", "rejected"].includes(status)) return res.status(400).json({ error: "حالة غير صالحة" });
+      const updated = await storage.updateVerifiedApplication(parseInt(req.params.id), status, adminNote);
+      if (status === "approved" && updated.user_id) {
+        await storage.setUserVerified(updated.user_id as string, true);
+      }
+      res.json({ success: true, application: updated });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث الطلب" });
+    }
+  });
+
+  // ===== Referral Program =====
+  app.get("/api/me/referral", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getReferralStats(userId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب بيانات الإحالة" });
+    }
+  });
+
+  app.post("/api/apply-referral", async (req, res) => {
+    try {
+      const { referralCode, userId } = req.body;
+      if (!referralCode || !userId) return res.status(400).json({ error: "البيانات ناقصة" });
+      const result = await storage.applyReferral(referralCode, userId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تطبيق رمز الإحالة" });
+    }
+  });
+
+  // ===== Writing Streak =====
+  app.get("/api/me/streak", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json({ streakDays: user?.writingStreak || 0, lastWritingDate: user?.lastWritingDate || null });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب بيانات السلسلة" });
+    }
+  });
+
+  // ===== Embed Widget (HTML, not JSON) =====
+  app.get("/embed/essay/:token", async (req, res) => {
+    try {
+      const essay = await storage.getPublicEssayByShareToken(req.params.token);
+      if (!essay) return res.status(404).send("<p>المقال غير موجود</p>");
+      res.setHeader("X-Frame-Options", "ALLOWALL");
+      res.setHeader("Content-Security-Policy", "frame-ancestors *");
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${essay.title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Georgia', serif; background: #fafaf8; color: #1a1a1a; padding: 16px; line-height: 1.8; direction: rtl; }
+    .title { font-size: 1.2rem; font-weight: bold; margin-bottom: 8px; }
+    .author { font-size: 0.85rem; color: #666; margin-bottom: 12px; }
+    .excerpt { font-size: 0.95rem; color: #333; margin-bottom: 16px; line-height: 1.9; }
+    .cta { display: block; background: #1a1a2e; color: #fff; text-align: center; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; }
+    .brand { text-align: center; margin-top: 8px; font-size: 0.75rem; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="title">${essay.title}</div>
+  <div class="author">${essay.authorName}</div>
+  ${essay.mainIdea ? `<div class="excerpt">${essay.mainIdea.substring(0, 300)}...</div>` : ""}
+  <a class="cta" href="https://qalamai.net/essay/${essay.shareToken}" target="_blank">اقرأ المقال كاملاً على QalamAI</a>
+  <div class="brand">Powered by <a href="https://qalamai.net" target="_blank" style="color:#999;">QalamAI</a></div>
+</body>
+</html>`;
+      res.send(html);
+    } catch (error) {
+      res.status(500).send("<p>حدث خطأ</p>");
+    }
+  });
+
   return httpServer;
 }

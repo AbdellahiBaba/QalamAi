@@ -1,16 +1,19 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
-import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart } from "lucide-react";
+import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 interface PublicEssay {
   id: number;
@@ -52,10 +55,35 @@ const SUBJECT_LABELS: Record<string, string> = {
   fashion: "موضة", weather: "طقس",
 };
 
+interface EssayComment {
+  id: number;
+  author_name: string;
+  content: string;
+  created_at: string;
+}
+
+interface RelatedEssay {
+  id: number;
+  title: string;
+  coverImageUrl: string | null;
+  shareToken: string | null;
+  authorName: string;
+  views: number;
+}
+
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
 export default function EssayPublic() {
   const { shareToken } = useParams<{ shareToken: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [embedOpen, setEmbedOpen] = useState(false);
+  const [commentName, setCommentName] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [commentSent, setCommentSent] = useState(false);
 
   const { data: essay, isLoading: essayLoading, error: essayError } = useQuery<PublicEssay>({
     queryKey: ["/api/public/essay", shareToken],
@@ -93,6 +121,50 @@ export default function EssayPublic() {
     },
   });
 
+  const { data: comments } = useQuery<EssayComment[]>({
+    queryKey: ["/api/public/essays/comments", essay?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/public/essays/${essay!.id}/comments`);
+      return res.json();
+    },
+    enabled: !!essay?.id,
+  });
+
+  const { data: relatedEssays } = useQuery<RelatedEssay[]>({
+    queryKey: ["/api/public/essays/related", essay?.id],
+    queryFn: async () => {
+      const url = essay?.subject
+        ? `/api/public/essays/${essay!.id}/related?subject=${essay.subject}`
+        : `/api/public/essays/${essay!.id}/related`;
+      const res = await fetch(url);
+      return res.json();
+    },
+    enabled: !!essay?.id,
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: async () => {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+      const res = await fetch(`/api/public/essays/${essay!.id}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
+        body: JSON.stringify({ authorName: commentName, content: commentText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل الإرسال");
+      return data;
+    },
+    onSuccess: () => {
+      setCommentSent(true);
+      setCommentName("");
+      setCommentText("");
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل الإرسال", variant: "destructive" });
+    },
+  });
+
   useEffect(() => {
     if (!essay) return;
     document.title = `${essay.title} — قلم AI`;
@@ -123,6 +195,15 @@ export default function EssayPublic() {
     setMeta("twitter:title", essay.title);
     setMeta("twitter:description", description);
     setMeta("twitter:image", image);
+
+    // Canonical link
+    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", url);
 
     // JSON-LD structured data
     const existingScript = document.querySelector("#essay-jsonld");
@@ -310,24 +391,59 @@ export default function EssayPublic() {
           <div className="space-y-3">
             {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-4 w-full" />)}
           </div>
-        ) : shared?.chapters && shared.chapters.length > 0 ? (
-          <div className="space-y-8" data-testid="essay-content">
-            {shared.chapters.map((chapter) => (
-              <section key={chapter.chapterNumber}>
-                {chapter.title && chapter.title !== essay.title && (
-                  <h2 className="font-serif text-xl font-semibold mb-4 text-foreground" data-testid={`heading-chapter-${chapter.chapterNumber}`}>
-                    {chapter.title}
-                  </h2>
-                )}
-                <div className="prose prose-lg max-w-none text-foreground leading-8 font-serif space-y-4" data-testid={`content-chapter-${chapter.chapterNumber}`}>
-                  {chapter.content.split("\n\n").filter(p => p.trim()).map((para, i) => (
-                    <p key={i} className="leading-8 text-[1.05rem]">{para.trim()}</p>
-                  ))}
+        ) : shared?.chapters && shared.chapters.length > 0 ? (() => {
+          const allParagraphs: { chapterNum: number; chapterTitle: string; paraIdx: number; text: string }[] = [];
+          for (const chapter of shared.chapters) {
+            const paras = chapter.content.split("\n\n").filter(p => p.trim());
+            paras.forEach((p, i) => allParagraphs.push({ chapterNum: chapter.chapterNumber, chapterTitle: chapter.title, paraIdx: i, text: p.trim() }));
+          }
+
+          const FREE_WORD_LIMIT = 300;
+          let wordsSoFar = 0;
+          let cutoffIndex = allParagraphs.length;
+          if (!user) {
+            for (let i = 0; i < allParagraphs.length; i++) {
+              wordsSoFar += countWords(allParagraphs[i].text);
+              if (wordsSoFar >= FREE_WORD_LIMIT) { cutoffIndex = i + 1; break; }
+            }
+          }
+          const visibleParas = allParagraphs.slice(0, cutoffIndex);
+          const hiddenParas = !user ? allParagraphs.slice(cutoffIndex) : [];
+
+          return (
+            <div data-testid="essay-content">
+              <div className="space-y-4 font-serif prose prose-lg max-w-none text-foreground">
+                {visibleParas.map((item) => (
+                  <p key={`${item.chapterNum}-${item.paraIdx}`} className="leading-8 text-[1.05rem]">{item.text}</p>
+                ))}
+              </div>
+              {hiddenParas.length > 0 && (
+                <div className="relative mt-4">
+                  <div className="space-y-4 font-serif prose prose-lg max-w-none text-foreground opacity-30 blur-[3px] select-none pointer-events-none" aria-hidden="true">
+                    {hiddenParas.slice(0, 5).map((item) => (
+                      <p key={`${item.chapterNum}-${item.paraIdx}`} className="leading-8 text-[1.05rem]">{item.text}</p>
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-background/70 to-background">
+                    <div className="bg-card border rounded-xl p-6 text-center space-y-3 shadow-lg max-w-sm mx-auto mt-16" data-testid="card-paywall">
+                      <Lock className="w-8 h-8 text-primary mx-auto" />
+                      <p className="font-serif text-base font-semibold">اقرأ المقال كاملاً</p>
+                      <p className="text-sm text-muted-foreground">انضم إلى QalamAI مجاناً لقراءة هذا المقال بالكامل وآلاف المقالات الأخرى</p>
+                      <div className="flex gap-2 justify-center">
+                        <Link href="/register">
+                          <Button size="sm" data-testid="button-paywall-register">إنشاء حساب مجاني</Button>
+                        </Link>
+                        <Link href="/login">
+                          <Button variant="outline" size="sm" data-testid="button-paywall-login">تسجيل الدخول</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </section>
-            ))}
-          </div>
-        ) : null}
+              )}
+            </div>
+          );
+        })() : null}
 
         {/* Footer actions */}
         <div className="mt-10 pt-6 border-t flex flex-wrap items-center justify-between gap-4">
@@ -342,7 +458,7 @@ export default function EssayPublic() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -361,8 +477,37 @@ export default function EssayPublic() {
             >
               نسخ الرابط
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEmbedOpen(!embedOpen)}
+              data-testid="button-embed-toggle"
+              className="gap-1.5"
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              تضمين
+            </Button>
           </div>
         </div>
+
+        {/* Embed code */}
+        {embedOpen && (
+          <div className="mt-4 p-4 bg-muted rounded-lg space-y-2" data-testid="embed-code-section">
+            <p className="text-xs text-muted-foreground font-medium">انسخ هذا الكود لتضمين المقال في موقعك:</p>
+            <div
+              className="bg-background border rounded p-3 text-xs font-mono text-left leading-5 break-all cursor-pointer hover:bg-muted/50 transition-colors"
+              dir="ltr"
+              onClick={async () => {
+                const code = `<iframe src="https://qalamai.net/embed/essay/${shareToken}" width="100%" height="350" frameborder="0" scrolling="no" style="border-radius:8px;overflow:hidden;"></iframe>`;
+                try { await navigator.clipboard.writeText(code); toast({ title: "تم نسخ الكود" }); } catch {}
+              }}
+              data-testid="text-embed-code"
+            >
+              {`<iframe src="https://qalamai.net/embed/essay/${shareToken}" width="100%" height="350" frameborder="0" scrolling="no" style="border-radius:8px;overflow:hidden;"></iframe>`}
+            </div>
+            <p className="text-xs text-muted-foreground">اضغط على الكود لنسخه</p>
+          </div>
+        )}
 
         {/* Author card */}
         {essay.authorId && (
@@ -393,12 +538,103 @@ export default function EssayPublic() {
         )}
 
         {/* CTA for non-members */}
-        <div className="mt-8 p-6 bg-primary/5 border rounded-xl text-center space-y-3" data-testid="card-cta">
-          <p className="font-serif text-lg font-semibold">هل تريد نشر مقالك؟</p>
-          <p className="text-sm text-muted-foreground">انضم إلى QalamAI واكتب مقالاتك بمساعدة أبو هاشم</p>
-          <Link href="/register">
-            <Button data-testid="button-cta-register">إنشاء حساب مجاني</Button>
-          </Link>
+        {!user && (
+          <div className="mt-8 p-6 bg-primary/5 border rounded-xl text-center space-y-3" data-testid="card-cta">
+            <p className="font-serif text-lg font-semibold">هل تريد نشر مقالك؟</p>
+            <p className="text-sm text-muted-foreground">انضم إلى QalamAI واكتب مقالاتك بمساعدة أبو هاشم</p>
+            <Link href="/register">
+              <Button data-testid="button-cta-register">إنشاء حساب مجاني</Button>
+            </Link>
+          </div>
+        )}
+
+        {/* Related essays */}
+        {relatedEssays && relatedEssays.length > 0 && (
+          <div className="mt-12" data-testid="section-related-essays">
+            <h2 className="font-serif text-xl font-bold mb-5">قرأ القرّاء أيضاً</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {relatedEssays.map((rel) => (
+                <Link key={rel.id} href={rel.shareToken ? `/essay/${rel.shareToken}` : "#"}>
+                  <div className="border rounded-xl overflow-hidden hover:shadow-sm transition-shadow cursor-pointer" data-testid={`card-related-${rel.id}`}>
+                    {rel.coverImageUrl ? (
+                      <div className="aspect-[16/9] overflow-hidden">
+                        <img src={rel.coverImageUrl} alt={rel.title} className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                    ) : (
+                      <div className="aspect-[16/9] bg-primary/5 flex items-center justify-center">
+                        <BookOpen className="w-8 h-8 text-primary/30" />
+                      </div>
+                    )}
+                    <div className="p-3 space-y-1">
+                      <h3 className="font-serif font-semibold text-sm line-clamp-2">{rel.title}</h3>
+                      <p className="text-xs text-muted-foreground">{rel.authorName}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Comments section */}
+        <div className="mt-12" data-testid="section-comments">
+          <h2 className="font-serif text-xl font-bold mb-5 flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-primary" />
+            التعليقات {comments && comments.length > 0 ? `(${comments.length})` : ""}
+          </h2>
+
+          {comments && comments.length > 0 ? (
+            <div className="space-y-4 mb-8">
+              {comments.map((c) => (
+                <div key={c.id} className="p-4 bg-card border rounded-xl" data-testid={`comment-${c.id}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm" data-testid={`comment-author-${c.id}`}>{c.author_name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(c.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed" data-testid={`comment-content-${c.id}`}>{c.content}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm mb-6" data-testid="text-no-comments">لا توجد تعليقات بعد. كن أول من يعلّق.</p>
+          )}
+
+          {commentSent ? (
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center" data-testid="comment-sent-confirmation">
+              <p className="text-sm text-green-700 dark:text-green-400 font-medium">شكراً! سيظهر تعليقك بعد المراجعة.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 p-4 bg-card border rounded-xl" data-testid="form-add-comment">
+              <h3 className="text-sm font-semibold">أضف تعليقاً</h3>
+              <Input
+                placeholder="اسمك"
+                value={commentName}
+                onChange={(e) => setCommentName(e.target.value)}
+                maxLength={80}
+                data-testid="input-comment-name"
+              />
+              <Textarea
+                placeholder="تعليقك..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                rows={3}
+                maxLength={1000}
+                data-testid="textarea-comment-text"
+              />
+              <Button
+                size="sm"
+                disabled={!commentName.trim() || !commentText.trim() || commentMutation.isPending}
+                onClick={() => commentMutation.mutate()}
+                data-testid="button-submit-comment"
+                className="gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {commentMutation.isPending ? "جارٍ الإرسال..." : "إرسال التعليق"}
+              </Button>
+            </div>
+          )}
         </div>
       </article>
 

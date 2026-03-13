@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap, Users } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -100,6 +100,13 @@ export default function Home() {
     queryKey: ["/api/writing-streak"],
     staleTime: 60 * 1000,
   });
+
+  const { data: referralData } = useQuery<{ referralCode: string; referralCount: number; bonusGenerations: number }>({
+    queryKey: ["/api/me/referral"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const [referralCopied, setReferralCopied] = useState(false);
 
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [goalInput, setGoalInput] = useState("");
@@ -946,6 +953,50 @@ export default function Home() {
                     ترقية الآن
                   </Button>
                 </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {referralData && (
+          <Card className="mb-6 border-primary/20 bg-primary/5 dark:bg-primary/10" data-testid="card-referral">
+            <CardContent className="p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold">ادعُ أصدقاءك إلى QalamAI</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">عند تسجيل كل صديق برمزك، تحصل على <strong>توليدتين مجانيتين</strong> إضافيتين</p>
+                  <p className="text-xs text-muted-foreground" data-testid="text-referral-stats">
+                    أحلت <LtrNum>{referralData.referralCount}</LtrNum> {referralData.referralCount === 1 ? "شخص" : "أشخاص"} — <LtrNum>{referralData.bonusGenerations}</LtrNum> توليدة مكافأة
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-background border rounded-md font-mono text-sm font-bold tracking-widest text-primary min-w-[90px] text-center"
+                    dir="ltr"
+                    data-testid="text-referral-code"
+                  >
+                    {referralData.referralCode}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const url = `https://qalamai.net/register?ref=${referralData.referralCode}`;
+                      try {
+                        await navigator.clipboard.writeText(url);
+                        setReferralCopied(true);
+                        setTimeout(() => setReferralCopied(false), 2000);
+                      } catch {}
+                    }}
+                    data-testid="button-copy-referral"
+                  >
+                    {referralCopied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                    {referralCopied ? "تم النسخ" : "نسخ الرابط"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -48,6 +48,10 @@ const Privacy = lazy(() => import("@/pages/privacy"));
 const Terms = lazy(() => import("@/pages/terms"));
 const Refund = lazy(() => import("@/pages/refund"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const Leaderboard = lazy(() => import("@/pages/leaderboard"));
+const MyLists = lazy(() => import("@/pages/my-lists"));
+const CollectionPublic = lazy(() => import("@/pages/collection-public"));
+const ApplyVerified = lazy(() => import("@/pages/apply-verified"));
 
 function LoadingFallback() {
   return (
@@ -98,6 +102,10 @@ function AuthenticatedRouter() {
         <Route path="/essays" component={EssaysNews} />
         <Route path="/essay/:shareToken" component={EssayPublic} />
         <Route path="/memoires" component={MemoireGallery} />
+        <Route path="/leaderboard" component={Leaderboard} />
+        <Route path="/my-lists" component={MyLists} />
+        <Route path="/list/:slug" component={CollectionPublic} />
+        <Route path="/apply-verified" component={ApplyVerified} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
@@ -130,6 +138,9 @@ function PublicRouter() {
         <Route path="/essays" component={EssaysNews} />
         <Route path="/essay/:shareToken" component={EssayPublic} />
         <Route path="/memoires" component={MemoireGallery} />
+        <Route path="/leaderboard" component={Leaderboard} />
+        <Route path="/list/:slug" component={CollectionPublic} />
+        <Route path="/apply-verified" component={ApplyVerified} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />

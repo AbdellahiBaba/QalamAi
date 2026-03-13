@@ -680,6 +680,72 @@ export const insertWebhookDeliverySchema = createInsertSchema(webhookDeliveries)
 export type InsertWebhookDelivery = z.infer<typeof insertWebhookDeliverySchema>;
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 
+export const essayComments = pgTable("essay_comments", {
+  id: serial("id").primaryKey(),
+  essayId: integer("essay_id").notNull(),
+  authorName: varchar("author_name").notNull(),
+  content: text("content").notNull(),
+  approved: boolean("approved").default(false).notNull(),
+  ipHash: varchar("ip_hash"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_essay_comments_essay_id").on(table.essayId),
+  index("idx_essay_comments_approved").on(table.approved),
+]);
+
+export const insertEssayCommentSchema = createInsertSchema(essayComments).omit({ id: true, approved: true, ipHash: true, createdAt: true });
+export type InsertEssayComment = z.infer<typeof insertEssayCommentSchema>;
+export type EssayComment = typeof essayComments.$inferSelect;
+
+export const collections = pgTable("collections", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  name: varchar("name").notNull(),
+  slug: varchar("slug").notNull(),
+  description: text("description"),
+  isPublic: boolean("is_public").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("uq_collections_user_slug").on(table.userId, table.slug),
+  index("idx_collections_user_id").on(table.userId),
+  index("idx_collections_slug").on(table.slug),
+]);
+
+export const insertCollectionSchema = createInsertSchema(collections).omit({ id: true, createdAt: true });
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type Collection = typeof collections.$inferSelect;
+
+export const collectionItems = pgTable("collection_items", {
+  id: serial("id").primaryKey(),
+  collectionId: integer("collection_id").notNull(),
+  essayId: integer("essay_id").notNull(),
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => [
+  unique("uq_collection_items").on(table.collectionId, table.essayId),
+  index("idx_collection_items_collection_id").on(table.collectionId),
+]);
+
+export type CollectionItem = typeof collectionItems.$inferSelect;
+
+export const verifiedApplications = pgTable("verified_applications", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  bio: text("bio").notNull(),
+  writingSamples: text("writing_samples"),
+  socialLinks: text("social_links"),
+  status: varchar("status").default("pending").notNull(),
+  adminNote: text("admin_note"),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_verified_apps_user_id").on(table.userId),
+  index("idx_verified_apps_status").on(table.status),
+]);
+
+export const insertVerifiedApplicationSchema = createInsertSchema(verifiedApplications).omit({ id: true, status: true, adminNote: true, reviewedAt: true, createdAt: true });
+export type InsertVerifiedApplication = z.infer<typeof insertVerifiedApplicationSchema>;
+export type VerifiedApplication = typeof verifiedApplications.$inferSelect;
+
 export const authorFollows = pgTable("author_follows", {
   id: serial("id").primaryKey(),
   followerId: varchar("follower_id").notNull(),

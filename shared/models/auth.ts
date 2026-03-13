@@ -52,6 +52,9 @@ export const users = pgTable("users", {
   freeMonthlyResetAt: timestamp("free_monthly_reset_at"),
   verified: boolean("verified").default(false),
   notifyOnViews: boolean("notify_on_views").default(true),
+  referralCode: varchar("referral_code").unique(),
+  referralCount: integer("referral_count").default(0),
+  bonusGenerations: integer("bonus_generations").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

@@ -16,6 +16,7 @@ import {
   Clock,
   Flag,
   Share2,
+  Code2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -50,6 +51,7 @@ export default function EssaysNews() {
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
+  const [embedOpenId, setEmbedOpenId] = useState<number | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [page, setPage] = useState(1);
@@ -263,6 +265,19 @@ export default function EssaysNews() {
                       >
                         <Share2 className="w-3 h-3" /> مشاركة
                       </button>
+                      {essay.shareToken && (
+                        <button
+                          className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEmbedOpenId(embedOpenId === essay.id ? null : essay.id);
+                          }}
+                          data-testid={`button-embed-${essay.id}`}
+                        >
+                          <Code2 className="w-3 h-3" /> تضمين
+                        </button>
+                      )}
                       <button
                         className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors mr-auto"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(essay.id); setReportProjectTitle(essay.title); }}
@@ -271,6 +286,21 @@ export default function EssaysNews() {
                         <Flag className="w-3 h-3" /> إبلاغ
                       </button>
                     </div>
+                    {embedOpenId === essay.id && essay.shareToken && (
+                      <div
+                        className="mt-2 p-2 bg-muted rounded text-xs font-mono break-all cursor-pointer hover:bg-muted/70"
+                        dir="ltr"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const code = `<iframe src="https://qalamai.net/embed/essay/${essay.shareToken}" width="100%" height="300" frameborder="0" scrolling="no" style="border-radius:8px;"></iframe>`;
+                          try { await navigator.clipboard.writeText(code); } catch {}
+                        }}
+                        data-testid={`embed-code-${essay.id}`}
+                      >
+                        {`<iframe src="https://qalamai.net/embed/essay/${essay.shareToken}" width="100%" height="300" frameborder="0" scrolling="no" style="border-radius:8px;"></iframe>`}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

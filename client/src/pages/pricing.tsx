@@ -250,6 +250,7 @@ export default function Pricing() {
   useDocumentTitle("أسعار الخطط — قلم AI", "اختر الخطة المناسبة لك على QalamAI: خطة المقالات، السيناريوهات، الروايات، أو الخطة الشاملة. أسعار تنافسية ودفعة واحدة.");
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [billingPeriod, setBillingPeriod] = useState<"once" | "annual">("once");
   const [purchasingPlan, setPurchasingPlan] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState("");
   const [validatedPromo, setValidatedPromo] = useState<{ code: string; discountPercent: number; applicableTo: string } | null>(null);
@@ -632,11 +633,41 @@ export default function Pricing() {
         </div>
       </section>
 
+      <section className="pb-4 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto text-center mb-8">
+          <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-lg" data-testid="billing-toggle">
+            <button
+              onClick={() => setBillingPeriod("once")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${billingPeriod === "once" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid="button-billing-once"
+            >
+              دفعة واحدة
+            </button>
+            <button
+              onClick={() => setBillingPeriod("annual")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${billingPeriod === "annual" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid="button-billing-annual"
+            >
+              اشتراك سنوي
+              <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold">شهرين مجاناً</span>
+            </button>
+          </div>
+          {billingPeriod === "annual" && (
+            <p className="text-sm text-muted-foreground mt-3" data-testid="text-annual-note">
+              تُفعَّل الخطة لمدة ١٢ شهراً وتُجدَّد تلقائياً — يُعادل توفير شهرين مجاناً مقارنة بالدفع الشهري
+            </p>
+          )}
+        </div>
+      </section>
+
       <section className="pb-12 sm:pb-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6 items-stretch">
           {mainPlans.map((plan) => {
             const active = isPlanActive(userPlan, plan.planKey);
             const isPurchasing = purchasingPlan === plan.planKey && purchaseMutation.isPending;
+            const basePrice = planPriceUSD[plan.planKey] || 0;
+            const annualMonthly = billingPeriod === "annual" ? (basePrice * 10 / 12).toFixed(2) : null;
+            const annualTotal = billingPeriod === "annual" ? (basePrice * 10).toFixed(2) : null;
 
             return (
               <Card
@@ -670,8 +701,23 @@ export default function Pricing() {
                     </div>
                     <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
                     <div data-testid={`text-plan-price-${plan.id}`}>
-                      <span className="font-serif text-3xl font-bold text-primary">{plan.price}</span>
-                      <span className="text-sm text-muted-foreground mr-2">{plan.priceNote}</span>
+                      {billingPeriod === "annual" && annualMonthly ? (
+                        <div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="font-serif text-3xl font-bold text-primary" dir="ltr">${annualMonthly}</span>
+                            <span className="text-sm text-muted-foreground">/شهر</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-muted-foreground line-through" dir="ltr">{plan.price}</span>
+                            <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded font-medium" dir="ltr">${annualTotal}/سنة</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-serif text-3xl font-bold text-primary">{plan.price}</span>
+                          <span className="text-sm text-muted-foreground mr-2">{plan.priceNote}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <ul className="space-y-3 mb-8 flex-1">

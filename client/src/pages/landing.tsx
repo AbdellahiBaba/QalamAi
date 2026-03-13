@@ -14,6 +14,9 @@ import {
   MessageSquareQuote,
   Star,
   ChevronLeft,
+  Trophy,
+  Eye,
+  ArrowLeft,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { MarketingPopup } from "@/components/marketing-popup";
@@ -64,10 +67,25 @@ function PlatformStatsSection() {
   );
 }
 
+interface EssayOfWeek {
+  id: number;
+  title: string;
+  shareToken: string;
+  coverImageUrl: string | null;
+  authorName: string;
+  views: number;
+  mainIdea: string | null;
+}
+
 export default function Landing() {
   useDocumentTitle("QalamAI — حيث تتحوّل الفكرة إلى رواية");
   const { data: realReviews } = useQuery<LandingReview[]>({
     queryKey: ["/api/reviews"],
+  });
+
+  const { data: essayOfWeek } = useQuery<EssayOfWeek | null>({
+    queryKey: ["/api/public/essay-of-week"],
+    staleTime: 30 * 60 * 1000,
   });
 
   const averageRating = realReviews && realReviews.length > 0
@@ -242,6 +260,63 @@ export default function Landing() {
       </section>
 
       <PlatformStatsSection />
+
+      {essayOfWeek && (
+        <section className="py-12 sm:py-16 px-4 sm:px-6 bg-card/50" data-testid="section-essay-of-week">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 mb-6">
+              <Trophy className="w-5 h-5 text-yellow-500" />
+              <h2 className="font-serif text-2xl font-bold">مقال الأسبوع</h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6 items-center">
+              {essayOfWeek.coverImageUrl && (
+                <div className="rounded-xl overflow-hidden aspect-[16/9]">
+                  <img
+                    src={essayOfWeek.coverImageUrl}
+                    alt={essayOfWeek.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    data-testid="img-essay-of-week"
+                  />
+                </div>
+              )}
+              <div className={`space-y-4 ${!essayOfWeek.coverImageUrl ? "col-span-full" : ""}`}>
+                <h3 className="font-serif text-2xl font-bold leading-tight" data-testid="text-essay-of-week-title">
+                  {essayOfWeek.title}
+                </h3>
+                <p className="text-sm text-muted-foreground" data-testid="text-essay-of-week-author">
+                  بقلم {essayOfWeek.authorName}
+                </p>
+                {essayOfWeek.mainIdea && (
+                  <p className="text-muted-foreground leading-relaxed line-clamp-3" data-testid="text-essay-of-week-excerpt">
+                    {essayOfWeek.mainIdea}
+                  </p>
+                )}
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="stat-essay-of-week-views">
+                    <Eye className="w-3.5 h-3.5" />
+                    {essayOfWeek.views} مشاهدة
+                  </span>
+                  <Link href={`/essay/${essayOfWeek.shareToken}`}>
+                    <Button size="sm" data-testid="button-read-essay-of-week">
+                      اقرأ المقال
+                      <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+            <div className="mt-8 text-center">
+              <Link href="/leaderboard">
+                <Button variant="outline" size="sm" data-testid="button-view-leaderboard">
+                  <Trophy className="w-4 h-4 ml-2" />
+                  لوحة الكتّاب المتصدرين
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="py-12 sm:py-20 px-4 sm:px-6" data-testid="section-why-qalamai">
         <div className="max-w-6xl mx-auto">

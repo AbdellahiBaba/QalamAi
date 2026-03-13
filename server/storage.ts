@@ -147,6 +147,27 @@ export interface IStorage {
   setUserVerified(userId: string, verified: boolean): Promise<User>;
   getUsersWithEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
   getTopEssaysForWeek(limit?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>>;
+  getLeaderboard(limit?: number): Promise<Array<{ userId: string; displayName: string; profileImageUrl: string | null; verified: boolean; totalViews: number; followerCount: number; projectCount: number; averageRating: number }>>;
+  createEssayComment(data: { essayId: number; authorName: string; content: string; ipHash?: string }): Promise<import("@shared/schema").EssayComment>;
+  getEssayComments(essayId: number, onlyApproved?: boolean): Promise<import("@shared/schema").EssayComment[]>;
+  approveEssayComment(id: number): Promise<void>;
+  deleteEssayComment(id: number): Promise<void>;
+  getPendingComments(limit?: number, offset?: number): Promise<{ data: import("@shared/schema").EssayComment[]; total: number }>;
+  createCollection(data: import("@shared/schema").InsertCollection): Promise<import("@shared/schema").Collection>;
+  getUserCollections(userId: string): Promise<import("@shared/schema").Collection[]>;
+  getCollectionBySlug(slug: string): Promise<(import("@shared/schema").Collection & { items: Array<{ essayId: number; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string }> }) | undefined>;
+  addToCollection(collectionId: number, essayId: number): Promise<void>;
+  removeFromCollection(collectionId: number, essayId: number): Promise<void>;
+  deleteCollection(id: number): Promise<void>;
+  submitVerifiedApplication(data: import("@shared/schema").InsertVerifiedApplication): Promise<import("@shared/schema").VerifiedApplication>;
+  getVerifiedApplications(status?: string): Promise<import("@shared/schema").VerifiedApplication[]>;
+  updateVerifiedApplication(id: number, status: string, adminNote?: string): Promise<import("@shared/schema").VerifiedApplication>;
+  getOrCreateReferralCode(userId: string): Promise<string>;
+  applyReferral(referralCode: string, newUserId: string): Promise<{ success: boolean; referrerId?: string }>;
+  getReferralStats(userId: string): Promise<{ referralCode: string; referralCount: number; bonusGenerations: number }>;
+  getRelatedEssays(essayId: number, subject: string | null, limit?: number): Promise<Array<{ id: number; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; views: number }>>;
+  getEssayOfWeek(): Promise<{ id: number; title: string; shareToken: string; coverImageUrl: string | null; authorName: string; authorId: string; views: number; mainIdea: string | null } | null>;
+  updateWritingStreak(userId: string): Promise<{ streakDays: number; isNewRecord: boolean }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1580,6 +1601,257 @@ export class DatabaseStorage implements IStorage {
       LIMIT ${limit}
     `)).rows;
     return rows.map(r => ({ id: Number(r.id), title: r.title, shareToken: r.shareToken, authorName: r.authorName, views: Number(r.views) }));
+  }
+
+  async getLeaderboard(limit: number = 20): Promise<Array<{ userId: string; displayName: string; profileImageUrl: string | null; verified: boolean; totalViews: number; followerCount: number; projectCount: number; averageRating: number }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT
+        u.id as "userId",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "displayName",
+        u.profile_image_url as "profileImageUrl",
+        COALESCE(u.verified, false) as verified,
+        COALESCE(SUM(ev.view_count), 0)::int as "totalViews",
+        COALESCE(fc.cnt, 0)::int as "followerCount",
+        COUNT(DISTINCT p.id)::int as "projectCount",
+        COALESCE(AVG(ar.rating), 0)::float as "averageRating"
+      FROM users u
+      JOIN novel_projects p ON p.user_id = u.id
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
+        AND (p.flagged = false OR p.flagged IS NULL)
+      LEFT JOIN (
+        SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id
+      ) ev ON ev.project_id = p.id
+      LEFT JOIN (
+        SELECT following_id, COUNT(*)::int as cnt FROM author_follows GROUP BY following_id
+      ) fc ON fc.following_id = u.id
+      LEFT JOIN author_ratings ar ON ar.author_id = u.id
+      WHERE u.public_profile = true
+      GROUP BY u.id, u.display_name, u.first_name, u.email, u.profile_image_url, u.verified, fc.cnt
+      ORDER BY "totalViews" DESC, "followerCount" DESC
+      LIMIT ${limit}
+    `)).rows;
+    return rows.map(r => ({
+      userId: r.userId,
+      displayName: r.displayName,
+      profileImageUrl: r.profileImageUrl,
+      verified: r.verified,
+      totalViews: Number(r.totalViews),
+      followerCount: Number(r.followerCount),
+      projectCount: Number(r.projectCount),
+      averageRating: Number(r.averageRating),
+    }));
+  }
+
+  async createEssayComment(data: { essayId: number; authorName: string; content: string; ipHash?: string }): Promise<any> {
+    const [row] = await db.execute(sql`
+      INSERT INTO essay_comments (essay_id, author_name, content, ip_hash)
+      VALUES (${data.essayId}, ${data.authorName}, ${data.content}, ${data.ipHash || null})
+      RETURNING *
+    `).then(r => r.rows);
+    return row;
+  }
+
+  async getEssayComments(essayId: number, onlyApproved: boolean = true): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM essay_comments
+      WHERE essay_id = ${essayId}
+        ${onlyApproved ? sql`AND approved = true` : sql``}
+      ORDER BY created_at ASC
+    `)).rows;
+    return rows;
+  }
+
+  async approveEssayComment(id: number): Promise<void> {
+    await db.execute(sql`UPDATE essay_comments SET approved = true WHERE id = ${id}`);
+  }
+
+  async deleteEssayComment(id: number): Promise<void> {
+    await db.execute(sql`DELETE FROM essay_comments WHERE id = ${id}`);
+  }
+
+  async getPendingComments(limit: number = 50, offset: number = 0): Promise<{ data: any[]; total: number }> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT ec.*, p.title as "essayTitle"
+      FROM essay_comments ec
+      LEFT JOIN novel_projects p ON p.id = ec.essay_id
+      WHERE ec.approved = false
+      ORDER BY ec.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+    const [{ total }]: any[] = (await db.execute(sql`SELECT COUNT(*)::int as total FROM essay_comments WHERE approved = false`)).rows;
+    return { data: rows, total: Number(total) };
+  }
+
+  async createCollection(data: any): Promise<any> {
+    const [row] = (await db.execute(sql`
+      INSERT INTO collections (user_id, name, slug, description, is_public)
+      VALUES (${data.userId}, ${data.name}, ${data.slug}, ${data.description || null}, ${data.isPublic || false})
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getUserCollections(userId: string): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT c.*, COUNT(ci.id)::int as item_count
+      FROM collections c
+      LEFT JOIN collection_items ci ON ci.collection_id = c.id
+      WHERE c.user_id = ${userId}
+      GROUP BY c.id
+      ORDER BY c.created_at DESC
+    `)).rows;
+    return rows;
+  }
+
+  async getCollectionBySlug(slug: string): Promise<any | undefined> {
+    const [col]: any[] = (await db.execute(sql`
+      SELECT * FROM collections WHERE slug = ${slug} AND is_public = true
+    `)).rows;
+    if (!col) return undefined;
+    const items: any[] = (await db.execute(sql`
+      SELECT ci.essay_id as "essayId", p.title, p.cover_image_url as "coverImageUrl", p.share_token as "shareToken",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName"
+      FROM collection_items ci
+      JOIN novel_projects p ON p.id = ci.essay_id
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE ci.collection_id = ${col.id}
+      ORDER BY ci.added_at DESC
+    `)).rows;
+    return { ...col, items };
+  }
+
+  async addToCollection(collectionId: number, essayId: number): Promise<void> {
+    await db.execute(sql`
+      INSERT INTO collection_items (collection_id, essay_id)
+      VALUES (${collectionId}, ${essayId})
+      ON CONFLICT DO NOTHING
+    `);
+  }
+
+  async removeFromCollection(collectionId: number, essayId: number): Promise<void> {
+    await db.execute(sql`
+      DELETE FROM collection_items WHERE collection_id = ${collectionId} AND essay_id = ${essayId}
+    `);
+  }
+
+  async deleteCollection(id: number): Promise<void> {
+    await db.execute(sql`DELETE FROM collection_items WHERE collection_id = ${id}`);
+    await db.execute(sql`DELETE FROM collections WHERE id = ${id}`);
+  }
+
+  async submitVerifiedApplication(data: any): Promise<any> {
+    const [row] = (await db.execute(sql`
+      INSERT INTO verified_applications (user_id, bio, writing_samples, social_links)
+      VALUES (${data.userId}, ${data.bio}, ${data.writingSamples || null}, ${data.socialLinks || null})
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getVerifiedApplications(status?: string): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT va.*, u.email, COALESCE(u.display_name, u.first_name, u.email) as "displayName"
+      FROM verified_applications va
+      LEFT JOIN users u ON u.id = va.user_id
+      ${status ? sql`WHERE va.status = ${status}` : sql``}
+      ORDER BY va.created_at DESC
+    `)).rows;
+    return rows;
+  }
+
+  async updateVerifiedApplication(id: number, status: string, adminNote?: string): Promise<any> {
+    const [row] = (await db.execute(sql`
+      UPDATE verified_applications
+      SET status = ${status}, admin_note = ${adminNote || null}, reviewed_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getOrCreateReferralCode(userId: string): Promise<string> {
+    const [user]: any[] = (await db.execute(sql`SELECT referral_code FROM users WHERE id = ${userId}`)).rows;
+    if (user?.referral_code) return user.referral_code;
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    await db.execute(sql`UPDATE users SET referral_code = ${code} WHERE id = ${userId}`);
+    return code;
+  }
+
+  async applyReferral(referralCode: string, newUserId: string): Promise<{ success: boolean; referrerId?: string }> {
+    const [referrer]: any[] = (await db.execute(sql`SELECT id FROM users WHERE referral_code = ${referralCode}`)).rows;
+    if (!referrer || referrer.id === newUserId) return { success: false };
+    await db.execute(sql`
+      UPDATE users SET referral_count = referral_count + 1, bonus_generations = bonus_generations + 2 WHERE id = ${referrer.id}
+    `);
+    return { success: true, referrerId: referrer.id };
+  }
+
+  async getReferralStats(userId: string): Promise<{ referralCode: string; referralCount: number; bonusGenerations: number }> {
+    const code = await this.getOrCreateReferralCode(userId);
+    const [user]: any[] = (await db.execute(sql`SELECT referral_count, bonus_generations FROM users WHERE id = ${userId}`)).rows;
+    return {
+      referralCode: code,
+      referralCount: Number(user?.referral_count || 0),
+      bonusGenerations: Number(user?.bonus_generations || 0),
+    };
+  }
+
+  async getRelatedEssays(essayId: number, subject: string | null, limit: number = 3): Promise<Array<{ id: number; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; views: number }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT p.id, p.title, p.cover_image_url as "coverImageUrl", p.share_token as "shareToken",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName",
+        COUNT(v.id)::int as views
+      FROM novel_projects p
+      LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN essay_views v ON v.project_id = p.id
+      WHERE p.id != ${essayId}
+        AND p.project_type = 'essay'
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
+        AND p.share_token IS NOT NULL
+        AND (p.flagged = false OR p.flagged IS NULL)
+        ${subject ? sql`AND p.subject = ${subject}` : sql``}
+      GROUP BY p.id, p.title, p.cover_image_url, p.share_token, u.display_name, u.first_name, u.email
+      ORDER BY views DESC
+      LIMIT ${limit}
+    `)).rows;
+    return rows.map(r => ({ id: Number(r.id), title: r.title, coverImageUrl: r.coverImageUrl, shareToken: r.shareToken, authorName: r.authorName, views: Number(r.views) }));
+  }
+
+  async getEssayOfWeek(): Promise<{ id: number; title: string; shareToken: string; coverImageUrl: string | null; authorName: string; authorId: string; views: number; mainIdea: string | null } | null> {
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [row]: any[] = (await db.execute(sql`
+      SELECT p.id, p.title, p.share_token as "shareToken", p.cover_image_url as "coverImageUrl",
+        p.main_idea as "mainIdea", p.user_id as "authorId",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName",
+        COUNT(v.id)::int as views
+      FROM novel_projects p
+      LEFT JOIN users u ON u.id = p.user_id
+      LEFT JOIN essay_views v ON v.project_id = p.id AND v.viewed_at > ${oneWeekAgo}
+      WHERE p.project_type = 'essay'
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
+        AND p.share_token IS NOT NULL
+        AND (p.flagged = false OR p.flagged IS NULL)
+      GROUP BY p.id, p.title, p.share_token, p.cover_image_url, p.main_idea, p.user_id, u.display_name, u.first_name, u.email
+      ORDER BY views DESC
+      LIMIT 1
+    `)).rows;
+    if (!row) return null;
+    return { id: Number(row.id), title: row.title, shareToken: row.shareToken, coverImageUrl: row.coverImageUrl, authorName: row.authorName, authorId: row.authorId, views: Number(row.views), mainIdea: row.mainIdea };
+  }
+
+  async updateWritingStreak(userId: string): Promise<{ streakDays: number; isNewRecord: boolean }> {
+    const today = new Date().toISOString().split('T')[0];
+    const [user]: any[] = (await db.execute(sql`SELECT writing_streak, last_writing_date FROM users WHERE id = ${userId}`)).rows;
+    const lastDate = user?.last_writing_date;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    let newStreak = 1;
+    if (lastDate === today) {
+      newStreak = Number(user?.writing_streak || 1);
+    } else if (lastDate === yesterday) {
+      newStreak = Number(user?.writing_streak || 0) + 1;
+    }
+    await db.execute(sql`UPDATE users SET writing_streak = ${newStreak}, last_writing_date = ${today} WHERE id = ${userId}`);
+    return { streakDays: newStreak, isNewRecord: newStreak > Number(user?.writing_streak || 0) };
   }
 }
 
