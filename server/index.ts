@@ -595,11 +595,15 @@ app.use((req, res, next) => {
           const credentials = rawVal ? (typeof rawVal === "string" ? JSON.parse(rawVal) : rawVal) : {};
 
           for (const post of duePosts) {
-            const { anyPublished } = await publishSocialPostToAPIs(post, credentials);
+            const { publishResults, anyPublished } = await publishSocialPostToAPIs(post, credentials);
+            const allSucceeded = Object.values(publishResults).every((r) => r.success);
 
-            if (anyPublished) {
+            if (allSucceeded) {
               await storage.updateSocialPost(post.id, { status: "posted" });
-              log(`[AutoPublish] Post #${post.id} published successfully`);
+              log(`[AutoPublish] Post #${post.id} fully published`);
+            } else if (anyPublished) {
+              await storage.updateSocialPost(post.id, { status: "needs_manual" });
+              log(`[AutoPublish] Post #${post.id} partially published — marked needs_manual for remaining platforms`);
             } else {
               await storage.updateSocialPost(post.id, { status: "needs_manual" });
               log(`[AutoPublish] Post #${post.id} marked needs_manual`);

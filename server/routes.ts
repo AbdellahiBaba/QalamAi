@@ -8917,7 +8917,7 @@ ${platformInstructions}
       });
 
       if (fbCoverImageUrl && post?.id) {
-        await db.execute(dsql`UPDATE social_posts SET metadata = jsonb_build_object('fb_cover_url', ${fbCoverImageUrl}) WHERE id = ${post.id}`);
+        await db.execute(dsql`UPDATE social_posts SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('fb_cover_url', ${fbCoverImageUrl}) WHERE id = ${post.id}`);
       }
 
       res.json({ post: { ...post, fb_cover_url: fbCoverImageUrl }, index: postIndex });
@@ -9043,19 +9043,24 @@ ${platformInstructions}
       const credentials = rawVal ? (typeof rawVal === "string" ? JSON.parse(rawVal) : rawVal) : {};
 
       const { publishResults, anyPublished } = await publishSocialPostToAPIs(post, credentials);
+      const allSucceeded = Object.values(publishResults).every((r) => r.success);
 
-      if (anyPublished) {
+      if (allSucceeded) {
         await storage.updateSocialPost(id, { status: "posted" });
+      } else if (anyPublished) {
+        await storage.updateSocialPost(id, { status: "needs_manual" });
       }
 
       res.json({
         id,
         publishResults,
-        fullyPublished: Object.values(publishResults).every((r) => r.success),
+        fullyPublished: allSucceeded,
         partiallyPublished: anyPublished,
-        message: anyPublished
-          ? "تم النشر (أو محاولة النشر) على المنصات المتاحة"
-          : "لم يتم النشر — تحقق من بيانات الاعتماد في الإعدادات",
+        message: allSucceeded
+          ? "تم النشر على جميع المنصات"
+          : anyPublished
+            ? "تم النشر جزئياً — بعض المنصات تحتاج نشر يدوي"
+            : "لم يتم النشر — تحقق من بيانات الاعتماد في الإعدادات",
       });
     } catch (error: any) {
       console.error("Publish post error:", error);
