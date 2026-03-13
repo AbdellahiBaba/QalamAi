@@ -102,37 +102,45 @@ export default function EssayPublic() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // TTS audio
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  // TTS audio — browser SpeechSynthesis (free, no API cost, Arabic-capable)
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const synthUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const handleTTS = useCallback(async () => {
-    if (audioRef.current) {
-      if (audioPlaying) { audioRef.current.pause(); setAudioPlaying(false); }
-      else { audioRef.current.play(); setAudioPlaying(true); }
+  const handleTTS = useCallback(() => {
+    if (!window.speechSynthesis) {
+      toast({ title: "متصفّحك لا يدعم التشغيل الصوتي", variant: "destructive" });
       return;
     }
-    if (!shareToken) return;
-    setAudioLoading(true);
-    try {
-      const res = await fetch(`/api/tts/essay/${shareToken}`, { method: "POST" });
-      if (!res.ok) throw new Error("فشل");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => setAudioPlaying(false);
-      audio.play();
-      setAudioPlaying(true);
-    } catch {
-      toast({ title: "فشل تحميل التسجيل الصوتي", variant: "destructive" });
-    } finally {
-      setAudioLoading(false);
+    // If already playing — stop
+    if (audioPlaying) {
+      window.speechSynthesis.cancel();
+      setAudioPlaying(false);
+      return;
     }
-  }, [shareToken, audioPlaying, toast]);
+    // Gather text: title + essay body from the DOM
+    const titleEl = document.querySelector("[data-testid='text-essay-title']");
+    const bodyEl = document.querySelector("[data-testid='essay-content']");
+    const rawText = `${titleEl?.textContent || ""}\n\n${bodyEl?.textContent || ""}`.trim();
+    if (!rawText) {
+      toast({ title: "لا يوجد نص للقراءة", variant: "destructive" });
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(rawText);
+    utterance.lang = "ar-SA";
+    utterance.rate = 0.9;
+    // Prefer an Arabic voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const arVoice = voices.find(v => v.lang.startsWith("ar"));
+    if (arVoice) utterance.voice = arVoice;
+    utterance.onstart = () => setAudioPlaying(true);
+    utterance.onend = () => setAudioPlaying(false);
+    utterance.onerror = () => { setAudioPlaying(false); toast({ title: "فشل التشغيل الصوتي", variant: "destructive" }); };
+    synthUtteranceRef.current = utterance;
+    setAudioLoading(true);
+    window.speechSynthesis.speak(utterance);
+    setAudioLoading(false);
+  }, [audioPlaying, toast]);
 
   // Quote highlighting — state only, callback defined AFTER essay query to avoid TDZ
   const [quotePopup, setQuotePopup] = useState<{ text: string; x: number; y: number } | null>(null);

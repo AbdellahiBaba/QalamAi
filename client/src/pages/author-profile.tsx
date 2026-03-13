@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,6 +71,7 @@ export default function AuthorProfile() {
   const [emailSubInput, setEmailSubInput] = useState("");
   const [emailSubLoading, setEmailSubLoading] = useState(false);
   const [emailSubDone, setEmailSubDone] = useState(false);
+  const subscribeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (id) {
@@ -237,17 +238,16 @@ export default function AuthorProfile() {
                     ) : null;
                   })()}
                 </div>
-                <a
-                  href={`/rss/author/${id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => subscribeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-500 transition-colors"
-                  title="اشترك في خلاصة RSS"
-                  data-testid="link-author-rss"
+                  title="اشترك بالبريد الإلكتروني"
+                  data-testid="button-author-subscribe"
                 >
                   <Rss className="w-3.5 h-3.5" />
-                  RSS
-                </a>
+                  اشترك
+                </button>
               </div>
               {user && user.id !== author.id && (
                 <Button
@@ -343,7 +343,7 @@ export default function AuthorProfile() {
 
         {/* Email subscription form — visible to all visitors */}
         {(!user || user.id !== author.id) && (
-          <div className="p-4 border rounded-xl space-y-3 mb-6" data-testid="section-email-subscribe">
+          <div ref={subscribeRef} className="p-4 border rounded-xl space-y-3 mb-6" data-testid="section-email-subscribe">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold">اشترك في تحديثات الكاتب</h3>
