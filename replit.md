@@ -28,6 +28,12 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
 - **Security Hardening:** Implemented Helmet for comprehensive security headers (CSP, HSTS, X-Frame-Options, etc.), whitelist-based CORS, Double-submit cookie CSRF protection, server-side HTML sanitization, strong password policies, account lockout, reduced session TTL, secure Stripe webhook validation, request limits, and secure API response practices. Scanner probe blocking middleware prevents access to sensitive paths.
 - **Input Validation Hardening:** `parseInt` NaN safety implemented, Zod schemas used for major API endpoints, and public API rate limiting.
 - **Database Integrity:** Foreign key constraints and unique constraints ensure data consistency, along with optimized indexing for performance.
+- **Public Tipping System:** `/api/tips/public-checkout` allows anonymous and logged-in users to tip authors via Stripe Checkout with selectable amounts ($1/$3/$5/$10). Tip buttons are prominently placed on essay reader, essays listing, leaderboard, and author profile pages.
+- **Email Subscription System (non-platform followers):** `email_subscriptions` table stores email subscriptions from non-platform users. Routes: `POST /api/authors/:id/subscribe-email`, `GET /api/authors/:id/check-email-subscription`, `GET /api/unsubscribe/:token`. Author profile page includes an email subscription form visible to all visitors. When an author publishes a new essay, email subscribers receive a notification that includes the author's leaderboard rank.
+- **RSS Feed Per Author:** `/rss/author/:id` serves an RSS 2.0 feed of an author's published essays.
+- **Bug Fix — MonthlyReport flooding:** The 30-day `setInterval` (2,592,000,000ms) overflowed Node.js's 32-bit integer limit, causing it to run every 1ms and exhaust the DB connection pool. Fixed by using a 24-hour check interval with a last-run timestamp guard.
+- **Bug Fix — Author profile "not found":** `getPublicAuthor()` was blocking profiles where `publicProfile=false`. Fixed to allow any registered user to have a visible profile.
+- **Social Marketing AI:** Paid users can access the social marketing advisor (`/social-marketing`) for literary marketing advice. Admin marketing chat available to admin/superadmin roles.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Powers all AI content generation, analysis, and assistance.

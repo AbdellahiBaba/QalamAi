@@ -647,9 +647,10 @@ export default function EssayPublic() {
                     className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold min-w-[52px]"
                     onClick={async () => {
                       try {
+                        const csrfToken = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/)?.[1] ?? "";
                         const res = await fetch("/api/tips/public-checkout", {
                           method: "POST",
-                          headers: { "Content-Type": "application/json" },
+                          headers: { "Content-Type": "application/json", "X-CSRF-Token": decodeURIComponent(csrfToken) },
                           credentials: "include",
                           body: JSON.stringify({ toAuthorId: essay.authorId, projectId: essay.id, amountCents: cents }),
                         });

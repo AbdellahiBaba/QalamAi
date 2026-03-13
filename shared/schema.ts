@@ -836,3 +836,18 @@ export const seriesItems = pgTable("series_items", {
 ]);
 
 export type SeriesItem = typeof seriesItems.$inferSelect;
+
+// ── Email Subscriptions (non-platform followers) ─────────────────────────────
+export const emailSubscriptions = pgTable("email_subscriptions", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  authorId: varchar("author_id", { length: 255 }).notNull(),
+  token: varchar("token", { length: 128 }).notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("uq_email_author").on(table.email, table.authorId),
+  index("idx_email_subs_author").on(table.authorId),
+  index("idx_email_subs_token").on(table.token),
+]);
+
+export type EmailSubscription = typeof emailSubscriptions.$inferSelect;

@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -5564,15 +5564,39 @@ ${glossaryParagraphs}
       await storage.updateProject(projectId, { publishedToNews: true } as any);
       apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
-      // Fire follower notifications asynchronously (non-blocking)
+      // Fire follower + email-subscriber notifications asynchronously (non-blocking)
       (async () => {
         try {
           const author = await storage.getUser(userId);
           const authorName = author?.displayName || author?.firstName || "كاتب";
           const baseUrl = process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://qalamai.net");
+          const essayUrl = `${baseUrl}/essay/${project.shareToken}`;
+          // Platform followers
           const followers = await storage.getFollowerEmails(userId);
           for (const f of followers) {
-            await sendNewPublicationEmail(f.email, f.displayName, authorName, project.title, `${baseUrl}/essay/${project.shareToken}`);
+            await sendNewPublicationEmail(f.email, f.displayName, authorName, project.title, essayUrl);
+          }
+          // Non-platform email subscribers — include leaderboard rank
+          const emailSubs = await storage.getEmailSubscribersForAuthor(userId);
+          if (emailSubs.length > 0) {
+            let leaderboardRank: number | null = null;
+            try {
+              const lb: any[] = (await db.execute(dsql`
+                SELECT rank FROM (
+                  SELECT u.id, RANK() OVER (ORDER BY COALESCE(SUM(ev.view_count), 0) DESC) AS rank
+                  FROM users u
+                  LEFT JOIN (SELECT project_id, COUNT(*)::int as view_count FROM essay_views GROUP BY project_id) ev ON ev.project_id IN (SELECT id FROM novel_projects WHERE user_id = u.id)
+                  GROUP BY u.id
+                ) ranked WHERE ranked.id = ${userId}
+              `)).rows;
+              if (lb.length > 0) leaderboardRank = lb[0].rank;
+            } catch {}
+            const subTokens: any[] = (await db.execute(dsql`SELECT email, token FROM email_subscriptions WHERE author_id = ${userId}`)).rows;
+            const tokenMap = new Map(subTokens.map(r => [r.email, r.token]));
+            for (const sub of emailSubs) {
+              const tok = tokenMap.get(sub.email);
+              if (tok) await sendEmailSubscriberPublication(sub.email, authorName, userId, project.title, essayUrl, leaderboardRank, tok);
+            }
           }
         } catch (e) {
           console.error("[Followers] Failed to send publication emails:", e);
@@ -8086,6 +8110,52 @@ ${ch.content}
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب الإحصائيات" });
+    }
+  });
+
+  // ── Email subscriptions (non-platform followers) ─────────────────────────────
+  app.post("/api/authors/:id/subscribe-email", async (req, res) => {
+    try {
+      const authorId = req.params.id;
+      const { email } = req.body;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "البريد الإلكتروني غير صالح" });
+      const author = await storage.getUser(authorId);
+      if (!author) return res.status(404).json({ error: "الكاتب غير موجود" });
+      const { token, alreadySubscribed } = await storage.subscribeEmailToAuthor(email.trim().toLowerCase(), authorId);
+      if (!alreadySubscribed) {
+        const authorName = author.displayName || author.firstName || "الكاتب";
+        sendEmailSubscriptionConfirmation(email, authorName, authorId, token).catch(() => {});
+      }
+      res.json({ success: true, alreadySubscribed });
+    } catch (error) {
+      console.error("[Subscribe] Error:", error);
+      res.status(500).json({ error: "حدث خطأ أثناء الاشتراك" });
+    }
+  });
+
+  app.get("/api/unsubscribe/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const removed = await storage.unsubscribeEmailByToken(token);
+      if (removed) {
+        res.send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>إلغاء الاشتراك — QalamAI</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f0f0f;color:#e5e5e5;direction:rtl;} .box{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:40px;max-width:400px;text-align:center;}</style></head><body><div class="box"><h2 style="color:#d4a853;">تم إلغاء الاشتراك</h2><p>تم إلغاء اشتراكك بنجاح. لن تتلقّى تحديثات من هذا الكاتب بعد الآن.</p><a href="https://qalamai.net" style="color:#d4a853;">العودة إلى QalamAI</a></div></body></html>`);
+      } else {
+        res.status(404).send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>رابط غير صالح — QalamAI</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f0f0f;color:#e5e5e5;direction:rtl;} .box{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:40px;max-width:400px;text-align:center;}</style></head><body><div class="box"><h2>رابط غير صالح</h2><p>هذا الرابط منتهي أو لم يُعثر على الاشتراك.</p><a href="https://qalamai.net" style="color:#d4a853;">العودة إلى QalamAI</a></div></body></html>`);
+      }
+    } catch (error) {
+      res.status(500).send("حدث خطأ");
+    }
+  });
+
+  app.get("/api/authors/:id/check-email-subscription", async (req, res) => {
+    try {
+      const authorId = req.params.id;
+      const { email } = req.query as { email?: string };
+      if (!email) return res.json({ subscribed: false });
+      const subscribed = await storage.isEmailSubscribed(email.trim().toLowerCase(), authorId);
+      res.json({ subscribed });
+    } catch {
+      res.json({ subscribed: false });
     }
   });
 

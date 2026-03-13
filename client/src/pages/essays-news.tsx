@@ -291,9 +291,10 @@ export default function EssaysNews() {
                             e.preventDefault();
                             e.stopPropagation();
                             try {
+                              const csrfToken = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/)?.[1] ?? "";
                               const res = await fetch("/api/tips/public-checkout", {
                                 method: "POST",
-                                headers: { "Content-Type": "application/json" },
+                                headers: { "Content-Type": "application/json", "X-CSRF-Token": decodeURIComponent(csrfToken) },
                                 credentials: "include",
                                 body: JSON.stringify({ toAuthorId: essay.authorId, projectId: essay.id, amountCents: 500 }),
                               });

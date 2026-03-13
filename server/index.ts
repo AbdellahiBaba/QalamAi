@@ -488,9 +488,14 @@ app.use((req, res, next) => {
       }, WEEKLY_DIGEST_INTERVAL);
       log("Weekly digest job registered (every 7 days)");
 
-      // Monthly author performance report — every 30 days
-      const MONTHLY_INTERVAL = 30 * 24 * 60 * 60 * 1000;
+      // Monthly author performance report — checked every 24 hours, runs once per 30 days
+      let lastMonthlyReport = 0;
+      const MONTHLY_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24h — safe for 32-bit setInterval
+      const MONTHLY_THRESHOLD = 30 * 24 * 60 * 60 * 1000; // 30 days in ms (only for comparison, not setInterval)
       setInterval(async () => {
+        const now = Date.now();
+        if (now - lastMonthlyReport < MONTHLY_THRESHOLD) return;
+        lastMonthlyReport = now;
         try {
           const allUsers = await storage.getUsersWithEmails();
           let sent = 0;
@@ -506,7 +511,7 @@ app.use((req, res, next) => {
         } catch (err: any) {
           console.error("[MonthlyReport] Error:", err.message);
         }
-      }, MONTHLY_INTERVAL);
+      }, MONTHLY_CHECK_INTERVAL);
       log("Monthly author report job registered (every 30 days)");
     },
   );

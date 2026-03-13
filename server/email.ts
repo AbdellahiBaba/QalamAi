@@ -650,6 +650,73 @@ export async function sendNewPublicationEmail(
   }
 }
 
+export async function sendEmailSubscriptionConfirmation(
+  subscriberEmail: string,
+  authorName: string,
+  authorId: string,
+  unsubscribeToken: string
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+  const baseUrl = getBaseUrl();
+  const unsubscribeUrl = `${baseUrl}/unsubscribe/${unsubscribeToken}`;
+  const rssUrl = `${baseUrl}/rss/author/${authorId}`;
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">شكراً لاشتراكك في تحديثات الكاتب <strong>${authorName}</strong> على منصة QalamAI.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">ستصلك رسالة بريدية في كلّ مرة ينشر فيها الكاتب عملاً جديداً.</p>
+<div style="background:#f9f7f3;border-right:4px solid ${BRAND_GOLD};padding:16px 20px;margin:20px 0;border-radius:6px;">
+  <p style="margin:0 0 8px;font-size:14px;color:#666;">يمكنك أيضاً الاشتراك في خلاصة RSS لمتابعة المقالات مباشرةً من قارئ RSS المفضّل لديك:</p>
+  <a href="${rssUrl}" style="color:${BRAND_BLUE};font-size:13px;word-break:break-all;">${rssUrl}</a>
+</div>
+<p style="color:#999;font-size:12px;line-height:1.6;">إذا أردت إلغاء الاشتراك في أي وقت، <a href="${unsubscribeUrl}" style="color:#999;">اضغط هنا</a>.</p>`;
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: subscriberEmail,
+      subject: `تم اشتراكك في تحديثات ${authorName} — QalamAI`,
+      html: wrapInTemplate("تأكيد الاشتراك", body),
+    });
+  } catch (err) {
+    console.error("[Email] Failed to send subscription confirmation:", err);
+  }
+}
+
+export async function sendEmailSubscriberPublication(
+  subscriberEmail: string,
+  authorName: string,
+  authorId: string,
+  essayTitle: string,
+  essayUrl: string,
+  leaderboardRank: number | null,
+  unsubscribeToken: string
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+  const baseUrl = getBaseUrl();
+  const unsubscribeUrl = `${baseUrl}/unsubscribe/${unsubscribeToken}`;
+  const rankText = leaderboardRank && leaderboardRank <= 10 ? `<p style="color:#333;font-size:14px;">الكاتب في المرتبة <strong>${leaderboardRank}</strong> على لوحة المتصدرين حالياً.</p>` : "";
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">نشر الكاتب <strong>${authorName}</strong> عملاً جديداً بعنوان:</p>
+<div style="background:#f9f7f3;border-right:4px solid ${BRAND_GOLD};padding:16px 20px;margin:20px 0;border-radius:6px;">
+  <p style="margin:0 0 6px;font-size:18px;font-weight:bold;color:${BRAND_BLUE};">${essayTitle}</p>
+  ${rankText}
+</div>
+<div style="text-align:center;margin:24px 0;">
+  <a href="${essayUrl}" style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">اقرأ الآن</a>
+</div>
+<p style="color:#999;font-size:12px;line-height:1.6;">اشتركت في تلقّي تحديثات ${authorName} على QalamAI. <a href="${unsubscribeUrl}" style="color:#999;">إلغاء الاشتراك</a>.</p>`;
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: subscriberEmail,
+      subject: `${authorName} نشر عملاً جديداً — QalamAI`,
+      html: wrapInTemplate("نشر جديد من كاتب تتابعه", body),
+    });
+  } catch (err) {
+    console.error("[Email] Failed to send subscriber publication email:", err);
+  }
+}
+
 export async function sendMonthlyAuthorReport(
   email: string,
   authorName: string,

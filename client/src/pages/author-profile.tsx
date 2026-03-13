@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { SharedNavbar } from "@/components/shared-navbar";
@@ -65,6 +66,9 @@ export default function AuthorProfile() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [visitorRating, setVisitorRating] = useState(0);
+  const [emailSubInput, setEmailSubInput] = useState("");
+  const [emailSubLoading, setEmailSubLoading] = useState(false);
+  const [emailSubDone, setEmailSubDone] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -221,7 +225,7 @@ export default function AuthorProfile() {
                   </div>
                 )}
                 <a
-                  href={`/api/authors/${id}/rss`}
+                  href={`/rss/author/${id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-orange-500 transition-colors"
@@ -304,9 +308,10 @@ export default function AuthorProfile() {
                   className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold min-w-[52px]"
                   onClick={async () => {
                     try {
+                      const csrfToken = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/)?.[1] ?? "";
                       const res = await fetch("/api/tips/public-checkout", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { "Content-Type": "application/json", "X-CSRF-Token": decodeURIComponent(csrfToken) },
                         credentials: "include",
                         body: JSON.stringify({ toAuthorId: author.id, amountCents: cents }),
                       });
@@ -320,6 +325,67 @@ export default function AuthorProfile() {
                 </Button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Email subscription form — visible to all visitors */}
+        {(!user || user.id !== author.id) && (
+          <div className="p-4 border rounded-xl space-y-3 mb-6" data-testid="section-email-subscribe">
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">اشترك في تحديثات الكاتب</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">أدخل بريدك الإلكتروني ليصلك إشعار في كل مرة ينشر فيها {author.displayName || author.firstName} عملاً جديداً. لا تحتاج إلى حساب على المنصة.</p>
+            {emailSubDone ? (
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400" data-testid="text-subscribe-success">
+                <CheckCircle className="w-4 h-4" />
+                <span>تم الاشتراك بنجاح. تحقق من بريدك الإلكتروني.</span>
+              </div>
+            ) : (
+              <form
+                className="flex gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!emailSubInput || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailSubInput)) {
+                    toast({ title: "البريد الإلكتروني غير صالح", variant: "destructive" });
+                    return;
+                  }
+                  setEmailSubLoading(true);
+                  try {
+                    const csrfToken = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/)?.[1] ?? "";
+                    const res = await fetch(`/api/authors/${id}/subscribe-email`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "X-CSRF-Token": decodeURIComponent(csrfToken) },
+                      body: JSON.stringify({ email: emailSubInput }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setEmailSubDone(true);
+                      setEmailSubInput("");
+                    } else {
+                      toast({ title: data.error || "حدث خطأ", variant: "destructive" });
+                    }
+                  } catch {
+                    toast({ title: "حدث خطأ أثناء الاشتراك", variant: "destructive" });
+                  } finally {
+                    setEmailSubLoading(false);
+                  }
+                }}
+              >
+                <Input
+                  type="email"
+                  placeholder="بريدك الإلكتروني"
+                  value={emailSubInput}
+                  onChange={(e) => setEmailSubInput(e.target.value)}
+                  className="flex-1 text-sm"
+                  dir="ltr"
+                  data-testid="input-subscribe-email"
+                />
+                <Button type="submit" size="sm" disabled={emailSubLoading} data-testid="button-subscribe-email">
+                  {emailSubLoading ? <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" /> : "اشتراك"}
+                </Button>
+              </form>
+            )}
           </div>
         )}
 

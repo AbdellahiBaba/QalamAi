@@ -23,6 +23,7 @@ import {
   learningSessions, type LearningSession, type InsertLearningSession,
   webhookDeliveries, type WebhookDelivery, type InsertWebhookDelivery,
   PLAN_PRICES,
+  emailSubscriptions, type EmailSubscription,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -182,6 +183,10 @@ export interface IStorage {
   getUserPromptEntry(promptId: number, userId: string): Promise<import("@shared/schema").DailyPromptEntry | undefined>;
   setPromptWinner(promptId: number, winnerId: string, winnerEntryId: number): Promise<void>;
   createAuthorTip(data: { fromUserId?: string; toAuthorId: string; projectId?: number; amountCents: number; stripeSessionId: string }): Promise<import("@shared/schema").AuthorTip>;
+  subscribeEmailToAuthor(email: string, authorId: string): Promise<{ token: string; alreadySubscribed: boolean }>;
+  unsubscribeEmailByToken(token: string): Promise<boolean>;
+  getEmailSubscribersForAuthor(authorId: string): Promise<{ email: string }[]>;
+  isEmailSubscribed(email: string, authorId: string): Promise<boolean>;
   completeAuthorTip(stripeSessionId: string): Promise<void>;
   getTipsByAuthor(authorId: string): Promise<import("@shared/schema").AuthorTip[]>;
   createSeries(data: import("@shared/schema").InsertContentSeries): Promise<import("@shared/schema").ContentSeries>;
@@ -630,7 +635,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPublicAuthor(userId: string): Promise<{ user: User; projects: NovelProject[] } | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
-    if (!user || !user.publicProfile) return undefined;
+    if (!user) return undefined;
     const sharedProjects = await db.select().from(novelProjects).where(and(eq(novelProjects.userId, userId), isNotNull(novelProjects.shareToken)));
     return { user, projects: sharedProjects };
   }
@@ -2046,6 +2051,36 @@ export class DatabaseStorage implements IStorage {
       ORDER BY at.created_at DESC
     `)).rows;
     return rows;
+  }
+
+  // ── Email Subscriptions ───────────────────────────────────────────────────────
+  async subscribeEmailToAuthor(email: string, authorId: string): Promise<{ token: string; alreadySubscribed: boolean }> {
+    const existing: any[] = (await db.execute(sql`
+      SELECT token FROM email_subscriptions WHERE email = ${email} AND author_id = ${authorId}
+    `)).rows;
+    if (existing.length > 0) return { token: existing[0].token, alreadySubscribed: true };
+    const { randomBytes } = await import("crypto");
+    const token = randomBytes(48).toString("hex");
+    await db.execute(sql`
+      INSERT INTO email_subscriptions (email, author_id, token) VALUES (${email}, ${authorId}, ${token})
+      ON CONFLICT (email, author_id) DO NOTHING
+    `);
+    return { token, alreadySubscribed: false };
+  }
+
+  async unsubscribeEmailByToken(token: string): Promise<boolean> {
+    const result: any = await db.execute(sql`DELETE FROM email_subscriptions WHERE token = ${token} RETURNING id`);
+    return (result.rows?.length ?? 0) > 0;
+  }
+
+  async getEmailSubscribersForAuthor(authorId: string): Promise<{ email: string }[]> {
+    const rows: any[] = (await db.execute(sql`SELECT email FROM email_subscriptions WHERE author_id = ${authorId}`)).rows;
+    return rows.map(r => ({ email: r.email }));
+  }
+
+  async isEmailSubscribed(email: string, authorId: string): Promise<boolean> {
+    const rows: any[] = (await db.execute(sql`SELECT 1 FROM email_subscriptions WHERE email = ${email} AND author_id = ${authorId}`)).rows;
+    return rows.length > 0;
   }
 
   // ── Content Series ───────────────────────────────────────────────────────────
