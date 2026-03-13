@@ -8380,7 +8380,7 @@ ${ch.content}
       const total = tips.reduce((sum, t) => sum + t.amountCents, 0);
       res.json({ tips, totalCents: total });
     } catch (error) {
-      res.status(500).json({ error: "فشل في جلب الدعم المستلم" });
+      res.json({ tips: [], totalCents: 0 });
     }
   });
 
