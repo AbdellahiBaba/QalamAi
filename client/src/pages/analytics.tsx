@@ -64,7 +64,7 @@ export default function Analytics() {
     queryKey: ["/api/me/analytics/followers"],
   });
 
-  const { data: tipsData, isLoading: tipsLoading } = useQuery<{ totalCents: number; tips: Array<{ id: number; amountCents: number; fromUserId: string | null; projectId: number | null; createdAt: string; completed: boolean }> }>({
+  const { data: tipsData, isLoading: tipsLoading } = useQuery<{ totalCents: number; tips: Array<{ id: number; amountCents: number; fromName: string | null; fromUserId: string | null; projectId: number | null; createdAt: string; status: string }> }>({
     queryKey: ["/api/me/analytics/tips-history"],
   });
 
@@ -477,11 +477,11 @@ export default function Analytics() {
                     </p>
                   </div>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {tipsData.tips.filter(t => t.completed).map((tip) => (
+                    {tipsData.tips.map((tip) => (
                       <div key={tip.id} className="flex items-center justify-between p-2 rounded border text-sm" data-testid={`row-tip-${tip.id}`}>
                         <div>
-                          <span className="text-muted-foreground">
-                            {tip.fromUserId ? "من معجب" : "مجهول"}
+                          <span className="text-foreground font-medium">
+                            {tip.fromName ? tip.fromName : (tip.fromUserId ? "قارئ" : "مجهول")}
                           </span>
                           <span className="text-xs text-muted-foreground block">
                             {new Date(tip.createdAt).toLocaleDateString("ar-SA")}

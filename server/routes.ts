@@ -8387,20 +8387,8 @@ ${ch.content}
   app.get("/api/me/analytics/views", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { pool } = await import("./db");
-      const result = await pool.query(
-        `SELECT d.day::date as date, COUNT(v.id)::int as views
-         FROM generate_series(NOW() - INTERVAL '30 days', NOW(), '1 day') d(day)
-         LEFT JOIN essay_views v ON v.viewed_at::date = d.day::date
-           AND v.project_id IN (SELECT id FROM novel_projects WHERE user_id = $1 AND (published_to_news = true OR published_to_gallery = true))
-         GROUP BY d.day::date
-         ORDER BY d.day::date ASC`,
-        [userId]
-      );
-      res.json(result.rows.map((r: any) => ({
-        date: new Date(r.date).toISOString().split("T")[0],
-        views: Number(r.views),
-      })));
+      const data = await storage.getViewsSeries(userId);
+      res.json(data);
     } catch (error) {
       console.error("Analytics views error:", error);
       res.status(500).json({ error: "فشل في جلب بيانات المشاهدات" });
@@ -8410,19 +8398,8 @@ ${ch.content}
   app.get("/api/me/analytics/followers", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { pool } = await import("./db");
-      const result = await pool.query(
-        `SELECT date_trunc('week', created_at)::date as week, COUNT(*)::int as count
-         FROM author_follows
-         WHERE following_id = $1 AND created_at >= NOW() - INTERVAL '12 weeks'
-         GROUP BY week
-         ORDER BY week ASC`,
-        [userId]
-      );
-      res.json(result.rows.map((r: any) => ({
-        week: new Date(r.week).toISOString().split("T")[0],
-        count: Number(r.count),
-      })));
+      const data = await storage.getFollowerHistory(userId);
+      res.json(data);
     } catch (error) {
       console.error("Analytics followers error:", error);
       res.status(500).json({ error: "فشل في جلب بيانات المتابعين" });
@@ -8433,16 +8410,17 @@ ${ch.content}
     try {
       const userId = req.user.claims.sub;
       const tips = await storage.getTipsByAuthor(userId);
-      const total = tips.reduce((sum, t) => sum + t.amountCents, 0);
+      const total = tips.reduce((sum: number, t: any) => sum + Number(t.amount_cents || 0), 0);
       res.json({
         totalCents: total,
         tips: tips.map((t: any) => ({
           id: t.id,
-          amountCents: t.amountCents,
-          fromUserId: t.fromUserId,
-          projectId: t.projectId,
-          createdAt: t.createdAt,
-          completed: t.completed,
+          amountCents: Number(t.amount_cents || 0),
+          fromName: t.fromName || null,
+          fromUserId: t.from_user_id || null,
+          projectId: t.project_id || null,
+          createdAt: t.created_at,
+          status: t.status,
         })),
       });
     } catch (error) {
@@ -8454,31 +8432,8 @@ ${ch.content}
   app.get("/api/me/analytics/completion", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { pool } = await import("./db");
-      const result = await pool.query(
-        `SELECT np.id, np.title, np.share_token as "shareToken",
-                COUNT(DISTINCT c.id)::int as total_chapters,
-                COUNT(DISTINCT rp.id)::int as readers,
-                COUNT(DISTINCT CASE WHEN rp.last_chapter_id = (SELECT id FROM chapters WHERE project_id = np.id ORDER BY chapter_number DESC LIMIT 1) THEN rp.id END)::int as completions
-         FROM novel_projects np
-         LEFT JOIN chapters c ON c.project_id = np.id
-         LEFT JOIN reading_progress rp ON rp.project_id = np.id
-         WHERE np.user_id = $1 AND (np.published_to_news = true OR np.published_to_gallery = true)
-         GROUP BY np.id, np.title, np.share_token
-         HAVING COUNT(DISTINCT c.id) > 0
-         ORDER BY readers DESC
-         LIMIT 10`,
-        [userId]
-      );
-      res.json(result.rows.map((r: any) => ({
-        id: Number(r.id),
-        title: r.title,
-        shareToken: r.shareToken,
-        totalChapters: Number(r.total_chapters),
-        readers: Number(r.readers),
-        completions: Number(r.completions),
-        completionRate: r.readers > 0 ? Math.round((Number(r.completions) / Number(r.readers)) * 100) : 0,
-      })));
+      const data = await storage.getCompletionRates(userId);
+      res.json(data);
     } catch (error) {
       console.error("Analytics completion error:", error);
       res.status(500).json({ error: "فشل في جلب بيانات الإتمام" });
@@ -8492,26 +8447,8 @@ ${ch.content}
   app.get("/api/me/analytics/views-by-story", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { pool } = await import("./db");
-      const result = await pool.query(
-        `SELECT np.id, np.title,
-                d.day::date as date,
-                COUNT(v.id)::int as views
-         FROM novel_projects np
-         CROSS JOIN generate_series(NOW() - INTERVAL '30 days', NOW(), '1 day') d(day)
-         LEFT JOIN essay_views v ON v.project_id = np.id AND v.viewed_at::date = d.day::date
-         WHERE np.user_id = $1 AND (np.published_to_news = true OR np.published_to_gallery = true)
-         GROUP BY np.id, np.title, d.day::date
-         ORDER BY np.id, d.day::date ASC`,
-        [userId]
-      );
-      const stories: Record<number, { id: number; title: string; data: Array<{ date: string; views: number }> }> = {};
-      for (const r of result.rows as any[]) {
-        const sid = Number(r.id);
-        if (!stories[sid]) stories[sid] = { id: sid, title: r.title, data: [] };
-        stories[sid].data.push({ date: new Date(r.date).toISOString().split("T")[0], views: Number(r.views) });
-      }
-      res.json(Object.values(stories));
+      const data = await storage.getViewsByStory(userId);
+      res.json(data);
     } catch (error) {
       console.error("Analytics views-by-story error:", error);
       res.status(500).json({ error: "فشل في جلب بيانات المشاهدات حسب العمل" });

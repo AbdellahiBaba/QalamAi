@@ -189,6 +189,10 @@ export interface IStorage {
   isEmailSubscribed(email: string, authorId: string): Promise<boolean>;
   completeAuthorTip(stripeSessionId: string): Promise<void>;
   getTipsByAuthor(authorId: string): Promise<import("@shared/schema").AuthorTip[]>;
+  getViewsSeries(userId: string): Promise<Array<{ date: string; views: number }>>;
+  getFollowerHistory(userId: string): Promise<Array<{ week: string; count: number }>>;
+  getCompletionRates(userId: string): Promise<Array<{ id: number; title: string; shareToken: string | null; totalChapters: number; readers: number; completions: number; completionRate: number }>>;
+  getViewsByStory(userId: string): Promise<Array<{ id: number; title: string; data: Array<{ date: string; views: number }> }>>;
   createSeries(data: import("@shared/schema").InsertContentSeries): Promise<import("@shared/schema").ContentSeries>;
   getSeriesByUser(userId: string): Promise<import("@shared/schema").ContentSeries[]>;
   getSeriesById(id: number): Promise<(import("@shared/schema").ContentSeries & { items: Array<{ id: number; orderIndex: number; project: { id: number; title: string; shareToken: string | null; coverImageUrl: string | null; mainIdea: string | null } }> }) | undefined>;
@@ -2053,6 +2057,76 @@ export class DatabaseStorage implements IStorage {
       ORDER BY at.created_at DESC
     `)).rows;
     return rows;
+  }
+
+  async getViewsSeries(userId: string): Promise<Array<{ date: string; views: number }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT d.day::date as date, COUNT(v.id)::int as views
+      FROM generate_series(NOW() - INTERVAL '30 days', NOW(), '1 day') d(day)
+      LEFT JOIN essay_views v ON v.viewed_at::date = d.day::date
+        AND v.project_id IN (SELECT id FROM novel_projects WHERE user_id = ${userId} AND (published_to_news = true OR published_to_gallery = true))
+      GROUP BY d.day::date
+      ORDER BY d.day::date ASC
+    `)).rows;
+    return rows.map((r: any) => ({ date: new Date(r.date).toISOString().split("T")[0], views: Number(r.views) }));
+  }
+
+  async getFollowerHistory(userId: string): Promise<Array<{ week: string; count: number }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT date_trunc('week', created_at)::date as week, COUNT(*)::int as count
+      FROM author_follows
+      WHERE following_id = ${userId} AND created_at >= NOW() - INTERVAL '12 weeks'
+      GROUP BY week
+      ORDER BY week ASC
+    `)).rows;
+    return rows.map((r: any) => ({ week: new Date(r.week).toISOString().split("T")[0], count: Number(r.count) }));
+  }
+
+  async getCompletionRates(userId: string): Promise<Array<{ id: number; title: string; shareToken: string | null; totalChapters: number; readers: number; completions: number; completionRate: number }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT np.id, np.title, np.share_token as "shareToken",
+             COUNT(DISTINCT c.id)::int as total_chapters,
+             COUNT(DISTINCT rp.id)::int as readers,
+             COUNT(DISTINCT CASE WHEN rp.last_chapter_id = (SELECT id FROM chapters WHERE project_id = np.id ORDER BY chapter_number DESC LIMIT 1) THEN rp.id END)::int as completions
+      FROM novel_projects np
+      LEFT JOIN chapters c ON c.project_id = np.id
+      LEFT JOIN reading_progress rp ON rp.project_id = np.id
+      WHERE np.user_id = ${userId} AND (np.published_to_news = true OR np.published_to_gallery = true)
+      GROUP BY np.id, np.title, np.share_token
+      HAVING COUNT(DISTINCT c.id) > 0
+      ORDER BY readers DESC
+      LIMIT 10
+    `)).rows;
+    return rows.map((r: any) => ({
+      id: Number(r.id),
+      title: r.title,
+      shareToken: r.shareToken,
+      totalChapters: Number(r.total_chapters),
+      readers: Number(r.readers),
+      completions: Number(r.completions),
+      completionRate: Number(r.readers) > 0 ? Math.round((Number(r.completions) / Number(r.readers)) * 100) : 0,
+    }));
+  }
+
+  async getViewsByStory(userId: string): Promise<Array<{ id: number; title: string; data: Array<{ date: string; views: number }> }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT np.id, np.title,
+             d.day::date as date,
+             COUNT(v.id)::int as views
+      FROM novel_projects np
+      CROSS JOIN generate_series(NOW() - INTERVAL '30 days', NOW(), '1 day') d(day)
+      LEFT JOIN essay_views v ON v.project_id = np.id AND v.viewed_at::date = d.day::date
+      WHERE np.user_id = ${userId} AND (np.published_to_news = true OR np.published_to_gallery = true)
+      GROUP BY np.id, np.title, d.day::date
+      ORDER BY np.id, d.day::date ASC
+    `)).rows;
+    const stories: Record<number, { id: number; title: string; data: Array<{ date: string; views: number }> }> = {};
+    for (const r of rows) {
+      const sid = Number(r.id);
+      if (!stories[sid]) stories[sid] = { id: sid, title: r.title, data: [] };
+      stories[sid].data.push({ date: new Date(r.date).toISOString().split("T")[0], views: Number(r.views) });
+    }
+    return Object.values(stories);
   }
 
   // ── Email Subscriptions ───────────────────────────────────────────────────────
