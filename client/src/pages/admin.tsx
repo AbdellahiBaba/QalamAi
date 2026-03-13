@@ -949,6 +949,25 @@ export default function Admin() {
             </span>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
+            <Link href="/admin/social-hub">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 hidden sm:flex"
+                data-testid="button-social-hub"
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                مركز السوشيال
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="flex sm:hidden"
+                data-testid="button-social-hub-mobile"
+              >
+                <Megaphone className="w-4 h-4" />
+              </Button>
+            </Link>
             <Link href="/admin/marketing">
               <Button
                 size="sm"

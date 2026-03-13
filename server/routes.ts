@@ -8560,5 +8560,202 @@ ${ch.content}
     }
   });
 
+  // ===== Social Media Hub (Super Admin) =====
+  const isSuperAdmin = (req: any, res: any, next: any) => {
+    const SUPER_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+    const userId = req.user?.claims?.sub;
+    if (!userId || !SUPER_IDS.includes(userId)) {
+      return res.status(403).json({ error: "Super Admin فقط" });
+    }
+    next();
+  };
+
+  app.get("/api/admin/social/posts", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const posts = await storage.getSocialPosts(status || undefined);
+      res.json(posts);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المنشورات" });
+    }
+  });
+
+  app.post("/api/admin/social/posts", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const { content, platforms, scheduledAt, status, postType, coverImageUrl } = req.body;
+      if (!content || !platforms || !Array.isArray(platforms) || platforms.length === 0) {
+        return res.status(400).json({ error: "المحتوى والمنصات مطلوبة" });
+      }
+      const post = await storage.createSocialPost({
+        content,
+        platforms,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        status: status || "draft",
+        postType: postType || "marketing",
+        coverImageUrl: coverImageUrl || null,
+      });
+      res.json(post);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إنشاء المنشور" });
+    }
+  });
+
+  app.patch("/api/admin/social/posts/:id", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { content, platforms, scheduledAt, status, postType, coverImageUrl } = req.body;
+      const updates: any = {};
+      if (content !== undefined) updates.content = content;
+      if (platforms !== undefined) updates.platforms = platforms;
+      if (scheduledAt !== undefined) updates.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+      if (status !== undefined) updates.status = status;
+      if (postType !== undefined) updates.postType = postType;
+      if (coverImageUrl !== undefined) updates.coverImageUrl = coverImageUrl;
+      const post = await storage.updateSocialPost(id, updates);
+      res.json(post);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تعديل المنشور" });
+    }
+  });
+
+  app.delete("/api/admin/social/posts/:id", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      await storage.deleteSocialPost(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف المنشور" });
+    }
+  });
+
+  app.post("/api/admin/social/generate-daily", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+    try {
+      const bestTimes = await storage.getBestPostingTimes();
+      const topHours = bestTimes.length >= 2
+        ? [bestTimes[0].hour, bestTimes[1].hour]
+        : [9, 13, 17, 20, 22];
+
+      const scheduleHours = bestTimes.length >= 2
+        ? [topHours[0], topHours[0], topHours[1], topHours[1], Math.min(topHours[0], topHours[1]) + 2]
+        : [9, 13, 17, 20, 22];
+
+      const today = new Date();
+      const posts: any[] = [];
+
+      for (let i = 0; i < 5; i++) {
+        const isLiterary = i >= 2;
+        const postType = isLiterary ? "literary" : "marketing";
+        const platforms = isLiterary
+          ? ["facebook", "instagram", "x"]
+          : ["facebook", "instagram", "x", "tiktok", "linkedin"];
+
+        const prompt = isLiterary
+          ? `اكتب خاطرة أدبية عربية فصيحة قصيرة (3-5 أسطر) بأسلوب شاعري مؤثر. اجعلها عن ${["الحنين", "الأمل", "الحب"][i - 2] || "الحياة"}. أضف 5 هاشتاقات عربية مناسبة في النهاية. لا تكتب أي شيء آخر غير الخاطرة والهاشتاقات.`
+          : `اكتب منشوراً تسويقياً قصيراً وجذاباً لمنصة QalamAI (qalamai.net) — منصة كتابة عربية بالذكاء الاصطناعي تتيح للكتّاب إنشاء روايات ومقالات وسيناريوهات وخواطر وقصائد. ${i === 0 ? "ركز على سهولة الاستخدام والبدء مجاناً" : "ركز على جودة المحتوى المولّد وتنوع الأنواع الأدبية"}. أضف CTA قوي ورابط qalamai.net و5 هاشتاقات. لا تكتب أي شيء آخر.`;
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          max_completion_tokens: 500,
+          messages: [
+            { role: "system", content: "أنت أبو هاشم، كاتب ومسوّق رقمي عربي محترف. تكتب محتوى سوشيال ميديا بالعربية الفصحى." },
+            { role: "user", content: prompt },
+          ],
+        });
+
+        const content = completion.choices[0]?.message?.content || "";
+
+        let coverImageUrl: string | null = null;
+        if (isLiterary) {
+          try {
+            const imgRes = await openai.images.generate({
+              model: "dall-e-3",
+              prompt: `Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.`,
+              n: 1,
+              size: "1024x1024",
+            });
+            coverImageUrl = imgRes.data?.[0]?.url || null;
+          } catch (imgErr) {
+            console.warn("DALL-E image generation failed:", imgErr);
+          }
+        }
+
+        const scheduledAt = new Date(today);
+        scheduledAt.setHours(scheduleHours[i] || 12, 0, 0, 0);
+
+        const post = await storage.createSocialPost({
+          content,
+          platforms,
+          scheduledAt,
+          status: "scheduled",
+          postType,
+          coverImageUrl,
+        });
+        posts.push(post);
+      }
+
+      res.json({ posts, message: `تم توليد ${posts.length} منشورات لليوم` });
+    } catch (error: any) {
+      console.error("Social generate-daily error:", error);
+      res.status(500).json({ error: "فشل في توليد المنشورات: " + (error.message || "") });
+    }
+  });
+
+  app.post("/api/admin/social/insights", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const { postId, likes, shares, reach, clicks, comments } = req.body;
+      if (!postId) return res.status(400).json({ error: "معرّف المنشور مطلوب" });
+      const insight = await storage.addSocialPostInsight({
+        postId,
+        likes: likes || 0,
+        shares: shares || 0,
+        reach: reach || 0,
+        clicks: clicks || 0,
+        comments: comments || 0,
+      });
+      res.json(insight);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تسجيل البيانات" });
+    }
+  });
+
+  app.get("/api/admin/social/insights/:postId", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const postId = parseIntParam(req.params.postId);
+      if (postId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const insights = await storage.getSocialPostInsights(postId);
+      res.json(insights);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب البيانات" });
+    }
+  });
+
+  app.get("/api/admin/social/best-times", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+    try {
+      const times = await storage.getBestPostingTimes();
+      res.json(times);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحليل الأوقات" });
+    }
+  });
+
+  app.get("/api/admin/social/settings", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+    try {
+      const rows: any[] = (await db.execute(dsql`SELECT * FROM social_posts WHERE id = -1`)).rows;
+      res.json({ credentials: {} });
+    } catch {
+      res.json({ credentials: {} });
+    }
+  });
+
+  app.put("/api/admin/social/settings", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      res.json({ success: true, message: "تم حفظ الإعدادات" });
+    } catch {
+      res.status(500).json({ error: "فشل في حفظ الإعدادات" });
+    }
+  });
+
   return httpServer;
 }

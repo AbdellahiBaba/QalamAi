@@ -56,6 +56,7 @@ const ApplyVerified = lazy(() => import("@/pages/apply-verified"));
 const ContentSeries = lazy(() => import("@/pages/content-series"));
 const SeriesDetail = lazy(() => import("@/pages/series-detail"));
 const AdminMarketing = lazy(() => import("@/pages/admin-marketing"));
+const AdminSocialHub = lazy(() => import("@/pages/admin-social-hub"));
 const SocialMarketing = lazy(() => import("@/pages/social-marketing"));
 const DailyPrompt = lazy(() => import("@/pages/daily-prompt"));
 
@@ -115,6 +116,7 @@ function AuthenticatedRouter() {
         <Route path="/series" component={ContentSeries} />
         <Route path="/series/:id" component={SeriesDetail} />
         <Route path="/admin/marketing" component={AdminMarketing} />
+        <Route path="/admin/social-hub" component={AdminSocialHub} />
         <Route path="/social-marketing" component={SocialMarketing} />
         <Route path="/daily-prompt" component={DailyPrompt} />
         <Route path="/privacy" component={Privacy} />

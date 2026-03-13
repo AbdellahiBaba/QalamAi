@@ -851,3 +851,39 @@ export const emailSubscriptions = pgTable("email_subscriptions", {
 ]);
 
 export type EmailSubscription = typeof emailSubscriptions.$inferSelect;
+
+// ── Social Media Hub (Abu Hashim) ─────────────────────────────────────────────
+export const socialPosts = pgTable("social_posts", {
+  id: serial("id").primaryKey(),
+  content: text("content").notNull(),
+  platforms: text("platforms").array().notNull(),
+  scheduledAt: timestamp("scheduled_at"),
+  status: varchar("status", { length: 20 }).notNull().default("draft"),
+  postType: varchar("post_type", { length: 30 }).notNull().default("marketing"),
+  coverImageUrl: text("cover_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_social_posts_status").on(table.status),
+  index("idx_social_posts_scheduled").on(table.scheduledAt),
+]);
+
+export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({ id: true, createdAt: true });
+export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
+export type SocialPost = typeof socialPosts.$inferSelect;
+
+export const socialPostInsights = pgTable("social_post_insights", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => socialPosts.id, { onDelete: "cascade" }),
+  likes: integer("likes").notNull().default(0),
+  shares: integer("shares").notNull().default(0),
+  reach: integer("reach").notNull().default(0),
+  clicks: integer("clicks").notNull().default(0),
+  comments: integer("comments").notNull().default(0),
+  loggedAt: timestamp("logged_at").defaultNow(),
+}, (table) => [
+  index("idx_social_insights_post").on(table.postId),
+]);
+
+export const insertSocialPostInsightSchema = createInsertSchema(socialPostInsights).omit({ id: true, loggedAt: true });
+export type InsertSocialPostInsight = z.infer<typeof insertSocialPostInsightSchema>;
+export type SocialPostInsight = typeof socialPostInsights.$inferSelect;

@@ -2135,6 +2135,82 @@ export class DatabaseStorage implements IStorage {
   async deleteSeries(id: number): Promise<void> {
     await db.execute(sql`DELETE FROM content_series WHERE id = ${id}`);
   }
+  // ── Social Hub ──────────────────────────────────────────────────────────────
+  async createSocialPost(data: { content: string; platforms: string[]; scheduledAt?: Date | null; status?: string; postType?: string; coverImageUrl?: string | null }): Promise<any> {
+    const validPlatforms = ["facebook", "instagram", "x", "tiktok", "linkedin"];
+    const safePlatforms = data.platforms.filter(p => validPlatforms.includes(p));
+    const platformsLiteral = sql.raw(`ARRAY[${safePlatforms.map(p => `'${p}'`).join(",")}]::text[]`);
+    const [row] = (await db.execute(sql`
+      INSERT INTO social_posts (content, platforms, scheduled_at, status, post_type, cover_image_url)
+      VALUES (${data.content}, ${platformsLiteral}, ${data.scheduledAt || null}, ${data.status || "draft"}, ${data.postType || "marketing"}, ${data.coverImageUrl || null})
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getSocialPosts(status?: string): Promise<any[]> {
+    if (status) {
+      return (await db.execute(sql`SELECT * FROM social_posts WHERE status = ${status} ORDER BY COALESCE(scheduled_at, created_at) DESC`)).rows;
+    }
+    return (await db.execute(sql`SELECT * FROM social_posts ORDER BY COALESCE(scheduled_at, created_at) DESC`)).rows;
+  }
+
+  async getSocialPostById(id: number): Promise<any> {
+    const [row] = (await db.execute(sql`SELECT * FROM social_posts WHERE id = ${id}`)).rows;
+    return row;
+  }
+
+  async updateSocialPost(id: number, data: Partial<{ content: string; platforms: string[]; scheduledAt: Date | null; status: string; postType: string; coverImageUrl: string | null }>): Promise<any> {
+    const sets: string[] = [];
+    const vals: any[] = [];
+    if (data.content !== undefined) { sets.push("content"); vals.push(data.content); }
+    if (data.status !== undefined) { sets.push("status"); vals.push(data.status); }
+    if (data.postType !== undefined) { sets.push("post_type"); vals.push(data.postType); }
+    if (data.coverImageUrl !== undefined) { sets.push("cover_image_url"); vals.push(data.coverImageUrl); }
+    if (data.scheduledAt !== undefined) { sets.push("scheduled_at"); vals.push(data.scheduledAt); }
+
+    if (data.platforms !== undefined) {
+      const validPlatforms = ["facebook", "instagram", "x", "tiktok", "linkedin"];
+      const safePlatforms = data.platforms.filter(p => validPlatforms.includes(p));
+      const platformsArr = sql.raw(`ARRAY[${safePlatforms.map(p => `'${p}'`).join(",")}]::text[]`);
+      await db.execute(sql`UPDATE social_posts SET platforms = ${platformsArr} WHERE id = ${id}`);
+    }
+
+    for (let i = 0; i < sets.length; i++) {
+      await db.execute(sql`UPDATE social_posts SET ${sql.raw(`${sets[i]} = `)}${vals[i]} WHERE id = ${id}`);
+    }
+    return this.getSocialPostById(id);
+  }
+
+  async deleteSocialPost(id: number): Promise<void> {
+    await db.execute(sql`DELETE FROM social_posts WHERE id = ${id}`);
+  }
+
+  async addSocialPostInsight(data: { postId: number; likes: number; shares: number; reach: number; clicks: number; comments: number }): Promise<any> {
+    const [row] = (await db.execute(sql`
+      INSERT INTO social_post_insights (post_id, likes, shares, reach, clicks, comments)
+      VALUES (${data.postId}, ${data.likes}, ${data.shares}, ${data.reach}, ${data.clicks}, ${data.comments})
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getSocialPostInsights(postId: number): Promise<any[]> {
+    return (await db.execute(sql`SELECT * FROM social_post_insights WHERE post_id = ${postId} ORDER BY logged_at DESC`)).rows;
+  }
+
+  async getBestPostingTimes(): Promise<{ hour: number; avgEngagement: number }[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT EXTRACT(HOUR FROM sp.scheduled_at)::int as hour,
+        AVG(spi.likes + spi.shares + spi.reach + spi.clicks + spi.comments)::real as "avgEngagement"
+      FROM social_posts sp
+      JOIN social_post_insights spi ON spi.post_id = sp.id
+      WHERE sp.scheduled_at IS NOT NULL
+      GROUP BY hour
+      ORDER BY "avgEngagement" DESC
+    `)).rows;
+    return rows;
+  }
 }
 
 export const storage = new DatabaseStorage();

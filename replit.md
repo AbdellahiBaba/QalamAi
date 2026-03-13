@@ -34,6 +34,7 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
 - **Bug Fix — MonthlyReport flooding:** The 30-day `setInterval` (2,592,000,000ms) overflowed Node.js's 32-bit integer limit, causing it to run every 1ms and exhaust the DB connection pool. Fixed by using a 24-hour check interval with a last-run timestamp guard.
 - **Bug Fix — Author profile "not found":** `getPublicAuthor()` was blocking profiles where `publicProfile=false`. Fixed to allow any registered user to have a visible profile.
 - **Social Marketing AI:** Paid users can access the social marketing advisor (`/social-marketing`) for literary marketing advice. Admin marketing chat available to admin/superadmin roles.
+- **Abu Hashim Social Media Manager Hub:** Super Admin-only page at `/admin/social-hub` with 5 tabs (Dashboard, Post Queue, Content Generator, Insights, Settings). Generates 5 daily posts (2 marketing + 3 literary خواطر) with DALL-E cover images for literary posts. Supports scheduling, status tracking, manual engagement logging, and best posting time analysis. DB tables: `social_posts` and `social_post_insights`.
 
 ## External Dependencies
 - **OpenAI GPT-5.2**: Powers all AI content generation, analysis, and assistance.

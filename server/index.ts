@@ -490,6 +490,35 @@ app.use((req, res, next) => {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_email_subs_author ON email_subscriptions (author_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_email_subs_token ON email_subscriptions (token)`);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS social_posts (
+        id SERIAL PRIMARY KEY,
+        content TEXT NOT NULL,
+        platforms TEXT[] NOT NULL,
+        scheduled_at TIMESTAMP,
+        status VARCHAR(20) NOT NULL DEFAULT 'draft',
+        post_type VARCHAR(30) NOT NULL DEFAULT 'marketing',
+        cover_image_url TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_social_posts_status ON social_posts (status)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_social_posts_scheduled ON social_posts (scheduled_at)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS social_post_insights (
+        id SERIAL PRIMARY KEY,
+        post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+        likes INTEGER NOT NULL DEFAULT 0,
+        shares INTEGER NOT NULL DEFAULT 0,
+        reach INTEGER NOT NULL DEFAULT 0,
+        clicks INTEGER NOT NULL DEFAULT 0,
+        comments INTEGER NOT NULL DEFAULT 0,
+        logged_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_social_insights_post ON social_post_insights (post_id)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);
