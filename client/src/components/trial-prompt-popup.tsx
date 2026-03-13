@@ -99,7 +99,7 @@ export function TrialPromptPopup({ userPlan, trialUsed }: TrialPromptPopupProps)
         contentType: "popup",
         contentName: "Dashboard Trial Prompt",
       });
-    }, 3000);
+    }, 12000);
 
     return () => clearTimeout(timer);
   }, [canShow]);

@@ -1066,7 +1066,9 @@ export default function Home() {
                     data-testid="textarea-prompt-entry"
                   />
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{dailyPromptData.entryCount} مشارك اليوم</span>
+                    <Link href="/daily-prompt">
+                      <span className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer">{dailyPromptData.entryCount} مشارك اليوم — عرض الكل</span>
+                    </Link>
                     <Button
                       size="sm"
                       className="gap-1.5"

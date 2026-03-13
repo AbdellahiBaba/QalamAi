@@ -19,6 +19,7 @@ export const navLinks = [
   { label: "الرئيسية", href: "/" },
   { label: "المعرض", href: "/gallery" },
   { label: "المقالات", href: "/essays" },
+  { label: "تحدي الكتابة", href: "/daily-prompt" },
   { label: "مذكرات التخرج", href: "/memoires" },
   { label: "من نحن", href: "/about" },
   { label: "المميزات", href: "/features" },

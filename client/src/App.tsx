@@ -57,6 +57,7 @@ const ContentSeries = lazy(() => import("@/pages/content-series"));
 const SeriesDetail = lazy(() => import("@/pages/series-detail"));
 const AdminMarketing = lazy(() => import("@/pages/admin-marketing"));
 const SocialMarketing = lazy(() => import("@/pages/social-marketing"));
+const DailyPrompt = lazy(() => import("@/pages/daily-prompt"));
 
 function LoadingFallback() {
   return (
@@ -115,6 +116,7 @@ function AuthenticatedRouter() {
         <Route path="/series/:id" component={SeriesDetail} />
         <Route path="/admin/marketing" component={AdminMarketing} />
         <Route path="/social-marketing" component={SocialMarketing} />
+        <Route path="/daily-prompt" component={DailyPrompt} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
@@ -152,6 +154,7 @@ function PublicRouter() {
         <Route path="/apply-verified" component={ApplyVerified} />
         <Route path="/series" component={ContentSeries} />
         <Route path="/series/:id" component={SeriesDetail} />
+        <Route path="/daily-prompt" component={DailyPrompt} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />

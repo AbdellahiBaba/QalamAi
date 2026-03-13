@@ -11,7 +11,7 @@ export default function WriterMarketingPopup() {
   useEffect(() => {
     const seen = localStorage.getItem(STORAGE_KEY);
     if (!seen) {
-      const timer = setTimeout(() => setVisible(true), 2500);
+      const timer = setTimeout(() => setVisible(true), 9000);
       return () => clearTimeout(timer);
     }
   }, []);

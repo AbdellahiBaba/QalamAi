@@ -27,7 +27,7 @@ export function MarketingPopup() {
         contentType: "popup",
         contentName: "New Visitor Welcome Popup",
       });
-    }, 3000);
+    }, 22000);
 
     return () => clearTimeout(timer);
   }, []);

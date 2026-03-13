@@ -19,7 +19,7 @@ export function EssaysMarketingPopup() {
 
     const timer = setTimeout(() => {
       setVisible(true);
-    }, 5000);
+    }, 38000);
 
     return () => clearTimeout(timer);
   }, []);
