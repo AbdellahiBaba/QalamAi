@@ -723,7 +723,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async updateUserProfileExtended(userId: string, data: { firstName?: string; lastName?: string; bio?: string; displayName?: string; publicProfile?: boolean; onboardingCompleted?: boolean; profileImageUrl?: string; socialProfiles?: string | null }): Promise<User> {
+  async updateUserProfileExtended(userId: string, data: { firstName?: string; lastName?: string; bio?: string; displayName?: string; publicProfile?: boolean; onboardingCompleted?: boolean; profileImageUrl?: string; socialProfiles?: string | null; country?: string | null }): Promise<User> {
     const [updated] = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
     return updated;
   }

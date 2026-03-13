@@ -16,6 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { getCountry } from "@/lib/countries";
 
 interface AuthorProject {
   id: number;
@@ -46,6 +47,7 @@ interface AuthorData {
   verified: boolean;
   followerCount: number;
   socialProfiles: string | null;
+  country: string | null;
   projects: AuthorProject[];
 }
 
@@ -218,12 +220,23 @@ export default function AuthorProfile() {
                   size="md"
                   showCount={true}
                 />
-                {author.followerCount > 0 && (
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground" data-testid="text-follower-count">
-                    <Users className="w-3.5 h-3.5" />
-                    <span>{author.followerCount} متابع</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {author.followerCount > 0 && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground" data-testid="text-follower-count">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>{author.followerCount} متابع</span>
+                    </div>
+                  )}
+                  {author.country && (() => {
+                    const c = getCountry(author.country);
+                    return c ? (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground" data-testid="text-author-country">
+                        <span className="text-base leading-none" title={c.nameAr}>{c.flag}</span>
+                        <span>{c.nameAr}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
                 <a
                   href={`/rss/author/${id}`}
                   target="_blank"

@@ -47,7 +47,7 @@ export function registerAuthRoutes(app: Express): void {
 
   app.post("/api/auth/register", async (req: any, res) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, country } = req.body;
       if (!email || !password || !firstName) {
         return res.status(400).json({ message: "الاسم والبريد الإلكتروني وكلمة المرور مطلوبة" });
       }
@@ -68,11 +68,13 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
+      const validCountry = country && /^[A-Z]{2}$/i.test(country) ? country.toUpperCase().slice(0, 2) : null;
       const [user] = await db.insert(users).values({
         email: emailLower,
         password: hashedPassword,
         firstName: firstName.slice(0, 100).trim(),
         lastName: lastName ? lastName.slice(0, 100).trim() : null,
+        country: validCountry,
       }).returning();
 
       sendWelcomeEmail(user.email!, user.firstName || "عزيزي الكاتب").catch((e) =>

@@ -5402,6 +5402,7 @@ ${glossaryParagraphs}
         verified: (data.user as any).verified || false,
         followerCount,
         socialProfiles: (data.user as any).socialProfiles || null,
+        country: (data.user as any).country || null,
         projects: data.projects.map(p => ({
           id: p.id,
           title: p.title,
@@ -5847,8 +5848,8 @@ ${glossaryParagraphs}
   app.patch("/api/profile", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles } = req.body;
-      const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles: socialProfiles ?? undefined });
+      const { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles, country } = req.body;
+      const updated = await storage.updateUserProfileExtended(userId, { firstName, lastName, bio, displayName, publicProfile, onboardingCompleted, socialProfiles: socialProfiles ?? undefined, country: country ?? undefined });
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "فشل في تحديث الملف الشخصي" });
