@@ -182,13 +182,14 @@ export default function Gallery() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <Card key={i} data-testid={`skeleton-gallery-${i}`}>
-                <Skeleton className="aspect-square w-full rounded-t-md rounded-b-none" />
-                <CardContent className="p-3 space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Card key={i} className="overflow-hidden" data-testid={`skeleton-gallery-${i}`}>
+                <Skeleton className="aspect-[2/3] w-full" />
+                <CardContent className="p-4 space-y-2">
+                  <Skeleton className="h-5 w-1/3" />
                   <Skeleton className="h-5 w-3/4" />
-                  <Skeleton className="h-3.5 w-1/3" />
+                  <Skeleton className="h-3.5 w-1/2" />
                   <div className="space-y-1">
                     <Skeleton className="h-3 w-full" />
                     <Skeleton className="h-3 w-2/3" />
@@ -203,35 +204,35 @@ export default function Gallery() {
             <p className="text-muted-foreground" data-testid="text-no-results">لا توجد أعمال مطابقة</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" data-testid="grid-gallery">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5" data-testid="grid-gallery">
             {filteredProjects.map((project) => (
-              <Card key={project.id} className="transition-shadow hover:shadow-lg" data-testid={`card-gallery-${project.id}`}>
+              <Card key={project.id} className="transition-shadow hover:shadow-lg overflow-hidden" data-testid={`card-gallery-${project.id}`}>
                 <Link
                   href={project.shareToken ? `/shared/${project.shareToken}` : "#"}
                   data-testid={`link-gallery-project-${project.id}`}
                 >
-                  <div className="relative aspect-square bg-muted flex items-center justify-center rounded-t-md overflow-hidden cursor-pointer">
+                  <div className="relative aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden cursor-pointer">
                     {project.coverImageUrl ? (
                       <img
                         src={project.coverImageUrl}
                         alt={project.title}
                         width={400}
-                        height={400}
+                        height={600}
                         className="w-full h-full object-cover"
                         loading="lazy"
                         decoding="async"
                         data-testid={`img-gallery-cover-${project.id}`}
                       />
                     ) : (
-                      <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                      <ImageIcon className="w-16 h-16 text-muted-foreground" />
                     )}
-                    <Badge className="absolute bottom-2 right-2 text-xs bg-black/70 text-white border-0 shadow-md backdrop-blur-sm" data-testid={`badge-gallery-type-${project.id}`}>
-                      {typeLabels[project.projectType] || project.projectType}
-                    </Badge>
                   </div>
                 </Link>
-                <CardContent className="p-3 space-y-1">
-                  <h3 className="font-serif font-semibold truncate" data-testid={`text-gallery-title-${project.id}`}>
+                <CardContent className="p-4 space-y-2">
+                  <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5" data-testid={`badge-gallery-type-${project.id}`}>
+                    {typeLabels[project.projectType] || project.projectType}
+                  </Badge>
+                  <h3 className="font-serif font-semibold line-clamp-2 leading-snug" data-testid={`text-gallery-title-${project.id}`}>
                     {project.title}
                   </h3>
                   {project.authorName && (
