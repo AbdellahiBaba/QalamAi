@@ -123,7 +123,7 @@ export default function WriterMarketingPopup() {
           </div>
 
           <p className="text-[11px] text-center text-muted-foreground">
-            أكثر من 50,000 كاتب عربي يثقون بقلم AI — انضم إليهم اليوم
+            منصة QalamAI — أول منصة ذكاء اصطناعي متخصصة في الكتابة الأدبية العربية
           </p>
         </div>
       </div>

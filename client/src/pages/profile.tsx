@@ -41,6 +41,11 @@ import {
   CheckCircle2,
   GraduationCap,
   Users,
+  Flame,
+  Gift,
+  Coffee,
+  Copy,
+  Eye,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
@@ -61,7 +66,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Profile() {
-  useDocumentTitle("الملف الشخصي — قلم AI");
+  useDocumentTitle("الملف الشخصي — QalamAI");
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
@@ -188,6 +193,18 @@ export default function Profile() {
 
   const { data: analytics } = useQuery<{ followerCount: number; totalViews: number; totalEssays: number }>({
     queryKey: ["/api/me/analytics"],
+  });
+
+  const { data: streak } = useQuery<{ streakDays: number; lastWritingDate: string | null }>({
+    queryKey: ["/api/me/streak"],
+  });
+
+  const { data: referral } = useQuery<{ referralCode: string; referralCount: number; discount: number }>({
+    queryKey: ["/api/me/referral"],
+  });
+
+  const { data: tipsReceived } = useQuery<{ totalCents: number; tips: any[] }>({
+    queryKey: ["/api/tips/received"],
   });
 
   const updateProfileMutation = useMutation({
@@ -701,6 +718,92 @@ export default function Profile() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Writing streak */}
+            <Card data-testid="card-writing-streak">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`w-11 h-11 rounded-md flex items-center justify-center shrink-0 ${(streak?.streakDays ?? 0) > 0 ? "bg-orange-100 dark:bg-orange-900/30" : "bg-muted"}`}>
+                  <Flame className={`w-5 h-5 ${(streak?.streakDays ?? 0) > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">سلسلة الكتابة</p>
+                  <p className="text-xl font-bold" data-testid="text-streak-days">
+                    {streak?.streakDays ?? 0} <span className="text-sm font-normal text-muted-foreground">يوم متواصل</span>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tips received */}
+            {(tipsReceived?.totalCents ?? 0) > 0 && (
+              <Card data-testid="card-tips-received">
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-md bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                    <Coffee className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">إكراميات مستلمة</p>
+                    <p className="text-xl font-bold" data-testid="text-tips-total">
+                      ${((tipsReceived?.totalCents ?? 0) / 100).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">({tipsReceived?.tips?.length ?? 0} داعم)</span>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Stats: views + essays */}
+            {((analytics?.totalViews ?? 0) > 0 || (analytics?.totalEssays ?? 0) > 0) && (
+              <Card data-testid="card-author-stats">
+                <CardContent className="p-5 grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                      <Eye className="w-4 h-4" />
+                    </div>
+                    <p className="text-xl font-bold" data-testid="text-total-views">{(analytics?.totalViews ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">مشاهدة</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <p className="text-xl font-bold" data-testid="text-total-essays">{analytics?.totalEssays ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">مقال منشور</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Referral code */}
+            {referral?.referralCode && (
+              <Card data-testid="card-referral">
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Gift className="w-5 h-5 text-primary" />
+                    <p className="font-semibold text-sm">كود الإحالة</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-center font-mono text-sm bg-muted px-3 py-2 rounded-md tracking-widest" data-testid="text-referral-code">
+                      {referral.referralCode}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 shrink-0"
+                      data-testid="button-copy-referral"
+                      onClick={() => {
+                        navigator.clipboard.writeText(referral.referralCode);
+                        toast({ title: "تم نسخ الكود" });
+                      }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    أحال <span className="font-semibold text-foreground">{referral.referralCount}</span> مستخدم حتى الآن
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="lg:col-span-2">

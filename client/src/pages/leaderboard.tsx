@@ -10,12 +10,14 @@ import { Trophy, Eye, Users, BookOpen, Star, BadgeCheck, Coffee } from "lucide-r
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
+import { getCountry } from "@/lib/countries";
 
 interface LeaderboardEntry {
   userId: string;
   displayName: string;
   profileImageUrl: string | null;
   verified: boolean;
+  country: string | null;
   totalViews: number;
   followerCount: number;
   projectCount: number;
@@ -112,6 +114,12 @@ export default function Leaderboard() {
                         {entry.verified && (
                           <BadgeCheck className="w-5 h-5 text-[#1D9BF0] shrink-0" data-testid={`verified-${entry.userId}`} title="كاتب موثّق" />
                         )}
+                        {entry.country && (() => {
+                          const c = getCountry(entry.country!);
+                          return (
+                            <span className="text-base leading-none" title={c.nameAr} data-testid={`flag-${entry.userId}`}>{c.flag}</span>
+                          );
+                        })()}
                         {entry.averageRating > 0 && (
                           <div className="flex items-center gap-0.5 text-yellow-500" data-testid={`rating-${entry.userId}`}>
                             <Star className="w-3.5 h-3.5 fill-current" />

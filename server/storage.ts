@@ -1644,13 +1644,14 @@ export class DatabaseStorage implements IStorage {
     return rows.map(r => ({ id: Number(r.id), title: r.title, shareToken: r.shareToken, authorName: r.authorName, views: Number(r.views) }));
   }
 
-  async getLeaderboard(limit: number = 20): Promise<Array<{ userId: string; displayName: string; profileImageUrl: string | null; verified: boolean; totalViews: number; followerCount: number; projectCount: number; averageRating: number }>> {
+  async getLeaderboard(limit: number = 20): Promise<Array<{ userId: string; displayName: string; profileImageUrl: string | null; verified: boolean; country: string | null; totalViews: number; followerCount: number; projectCount: number; averageRating: number }>> {
     const rows: any[] = (await db.execute(sql`
       SELECT
         u.id as "userId",
         COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "displayName",
         u.profile_image_url as "profileImageUrl",
         COALESCE(u.verified, false) as verified,
+        u.country as "country",
         COALESCE(SUM(ev.view_count), 0)::int as "totalViews",
         COALESCE(fc.cnt, 0)::int as "followerCount",
         COUNT(DISTINCT p.id)::int as "projectCount",
@@ -1667,7 +1668,7 @@ export class DatabaseStorage implements IStorage {
       ) fc ON fc.following_id = u.id
       LEFT JOIN author_ratings ar ON ar.author_id = u.id
       WHERE u.public_profile = true
-      GROUP BY u.id, u.display_name, u.first_name, u.email, u.profile_image_url, u.verified, fc.cnt
+      GROUP BY u.id, u.display_name, u.first_name, u.email, u.profile_image_url, u.verified, u.country, fc.cnt
       ORDER BY "totalViews" DESC, "followerCount" DESC
       LIMIT ${limit}
     `)).rows;
@@ -1676,6 +1677,7 @@ export class DatabaseStorage implements IStorage {
       displayName: r.displayName,
       profileImageUrl: r.profileImageUrl,
       verified: r.verified,
+      country: r.country ?? null,
       totalViews: Number(r.totalViews),
       followerCount: Number(r.followerCount),
       projectCount: Number(r.projectCount),
