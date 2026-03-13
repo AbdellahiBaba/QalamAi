@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -994,19 +994,13 @@ function SettingsTab() {
     linkedin: "",
   });
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
-  const [loaded, setLoaded] = useState(false);
+  const [hasCredentials, setHasCredentials] = useState<Record<string, boolean>>({});
 
-  if (settings && !loaded) {
-    const creds = settings.credentials || {};
-    setCredentials({
-      facebook: creds.facebook || "",
-      instagram: creds.instagram || "",
-      x: creds.x || "",
-      tiktok: creds.tiktok || "",
-      linkedin: creds.linkedin || "",
-    });
-    setLoaded(true);
-  }
+  useEffect(() => {
+    if (settings?.hasCredentials) {
+      setHasCredentials(settings.hasCredentials);
+    }
+  }, [settings]);
 
   const updateCredential = (key: string, value: string) => {
     setCredentials((c) => ({ ...c, [key]: value }));
@@ -1017,7 +1011,10 @@ function SettingsTab() {
     mutationFn: async () => {
       const onlyChanged: Record<string, string> = {};
       for (const key of changedFields) {
-        onlyChanged[key] = credentials[key] || "";
+        const val = credentials[key] || "";
+        if (val.length > 0) {
+          onlyChanged[key] = val;
+        }
       }
       if (Object.keys(onlyChanged).length === 0) {
         throw new Error("لم يتم تغيير أي بيانات");
@@ -1055,10 +1052,15 @@ function SettingsTab() {
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs font-medium">{cfg.label}</label>
+                  <label className="text-xs font-medium flex items-center gap-2">
+                    {cfg.label}
+                    {hasCredentials[key] && !changedFields.has(key) && (
+                      <Badge variant="outline" className="text-[10px] py-0 text-green-600">مُعدّ</Badge>
+                    )}
+                  </label>
                   <Input
                     type="password"
-                    placeholder="Access Token / API Key"
+                    placeholder={hasCredentials[key] ? "اترك فارغاً للإبقاء على القيمة الحالية" : "Access Token / API Key"}
                     value={credentials[key] || ""}
                     onChange={(e) => updateCredential(key, e.target.value)}
                     className="text-sm mt-1"
