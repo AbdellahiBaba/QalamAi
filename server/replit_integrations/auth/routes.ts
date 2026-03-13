@@ -7,7 +7,7 @@ import { users } from "@shared/models/auth";
 import { db } from "../../db";
 import { eq } from "drizzle-orm";
 import { storage } from "../../storage";
-import { sendPasswordResetEmail } from "../../email";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "../../email";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
@@ -74,6 +74,10 @@ export function registerAuthRoutes(app: Express): void {
         firstName: firstName.slice(0, 100).trim(),
         lastName: lastName ? lastName.slice(0, 100).trim() : null,
       }).returning();
+
+      sendWelcomeEmail(user.email!, user.firstName || "عزيزي الكاتب").catch((e) =>
+        console.error("Failed to send welcome email:", e)
+      );
 
       req.login({ claims: { sub: user.id } }, (err: any) => {
         if (err) {

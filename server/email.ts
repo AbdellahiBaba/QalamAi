@@ -58,7 +58,7 @@ function wrapInTemplate(title: string, body: string): string {
 <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
 <tr><td style="background:${BRAND_BLUE};padding:24px 32px;text-align:center;">
 <h1 style="margin:0;color:${BRAND_GOLD};font-size:28px;font-weight:bold;">QalamAI</h1>
-<p style="margin:4px 0 0;color:#8899aa;font-size:13px;">منصّة الكتابة الروائية العربية</p>
+<p style="margin:4px 0 0;color:#8899aa;font-size:13px;">منصّة الكتابة الإبداعية العربية بالذكاء الاصطناعي</p>
 </td></tr>
 <tr><td style="padding:32px;">
 <h2 style="color:${BRAND_BLUE};margin:0 0 16px;font-size:20px;">${title}</h2>
@@ -217,29 +217,46 @@ export async function sendProjectPaymentEmail(email: string, projectTitle: strin
     novel: "رواية",
     essay: "مقال",
     scenario: "سيناريو",
+    short_story: "قصة قصيرة",
+    khawater: "خاطرة",
+    poetry: "قصيدة",
+    social_media: "منشور",
+    memoire: "مذكرة",
   };
-  const typeLabel = typeLabels[projectType || "novel"] || "رواية";
+  const typeLabel = typeLabels[projectType || "novel"] || "مشروع";
+
+  const typeNextSteps: Record<string, string> = {
+    novel: "يمكنك الآن البدء في توليد فصول روايتك مع أبو هاشم، مساعدك الأدبي الذكي.",
+    essay: "يمكنك الآن توليد مقالك وتحريره ونشره على منصّة QalamAI.",
+    scenario: "يمكنك الآن البدء في بناء مشاهد سيناريوهاتك فصلاً بفصل.",
+    short_story: "يمكنك الآن توليد قصتك القصيرة وصياغة شخصياتها وأحداثها.",
+    khawater: "يمكنك الآن كتابة خاطرتك والتأمل في معانيها مع أبو هاشم.",
+    poetry: "يمكنك الآن نظم قصيدتك باختيار البحر الشعري والأسلوب الذي يلائمك.",
+    social_media: "يمكنك الآن توليد منشوراتك وجدولتها لمنصّات التواصل الاجتماعي.",
+    memoire: "يمكنك الآن البدء في توثيق تجربتك وكتابة فصول مذكراتك.",
+  };
+  const nextStep = typeNextSteps[projectType || "novel"] || "يمكنك الآن فتح المشروع والبدء في الكتابة.";
 
   const projectUrl = `${getBaseUrl()}/project/${projectId}`;
 
   const body = `
-<p style="color:#333;line-height:1.8;font-size:15px;">تم تأكيد الدفع لمشروعك (${typeLabel}): <strong style="color:${BRAND_GOLD};">"${projectTitle}"</strong></p>
-<p style="color:#333;line-height:1.8;font-size:15px;">يمكنك الآن البدء في إنشاء المحتوى والكتابة.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">تم تأكيد الدفع وإنشاء مشروعك (<strong>${typeLabel}</strong>): <strong style="color:${BRAND_GOLD};">"${projectTitle}"</strong></p>
+<p style="color:#333;line-height:1.8;font-size:15px;">${nextStep}</p>
 <div style="text-align:center;margin:24px 0;">
 <a href="${projectUrl}" 
    style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
-فتح المشروع
+ابدأ الكتابة الآن
 </a>
 </div>`;
 
-  const subject = `تأكيد الدفع — "${projectTitle}"`;
+  const subject = `تم إنشاء مشروعك "${projectTitle}" — QalamAI`;
 
   try {
     await t.sendMail({
       from: `"QalamAI" <${process.env.SMTP_USER}>`,
       to: email,
       subject,
-      html: wrapInTemplate("تم تأكيد الدفع!", body),
+      html: wrapInTemplate("مشروعك جاهز للكتابة!", body),
     });
     console.log(`[Email] Sent project payment email to ${email} — project: "${projectTitle}"`);
   } catch (err) {
@@ -426,6 +443,111 @@ ${essayRows}
     }
   }
   console.log(`[Email] Weekly digest sent to ${sent}/${recipients.length} recipients`);
+}
+
+export async function sendWelcomeEmail(email: string, firstName: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const dashboardUrl = `${getBaseUrl()}/`;
+  const essaysUrl = `${getBaseUrl()}/essays`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">مرحباً بك <strong style="color:${BRAND_GOLD};">${firstName}</strong> في عائلة QalamAI!</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">أنت الآن على أعتاب منصّة كتابية استثنائية تجمع بين الإبداع العربي والذكاء الاصطناعي. يمكنك إنشاء روايات، مقالات، سيناريوهات، قصص قصيرة، قصائد وخواطر — كلها بالعربية وبلمسة أدبية راقية.</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+  <tr>
+    <td style="padding:8px 12px;background:#f9f7f3;border-radius:8px;border-right:3px solid ${BRAND_GOLD};margin-bottom:8px;display:block;">
+      <strong style="color:${BRAND_BLUE};">أبو هاشم</strong> — مساعدك الأدبي الذكي الذي يرافقك في كل خطوة من رحلة الكتابة
+    </td>
+  </tr>
+</table>
+<p style="color:#333;line-height:1.8;font-size:15px;">ابدأ بتصفّح المقالات المنشورة من الكتّاب العرب أو أنشئ مشروعك الأول الآن:</p>
+<div style="text-align:center;margin:24px 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+<a href="${dashboardUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;margin:4px;">
+ابدأ الكتابة
+</a>
+<a href="${essaysUrl}" 
+   style="display:inline-block;background:transparent;color:${BRAND_BLUE};padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;margin:4px;border:2px solid ${BRAND_BLUE};">
+استعرض المقالات
+</a>
+</div>
+<p style="color:#888;font-size:13px;line-height:1.7;">إذا احتجت مساعدة في أي وقت، فريق الدعم في QalamAI دائماً على استعداد للمساعدة على <a href="mailto:support@qalamai.net" style="color:${BRAND_GOLD};">support@qalamai.net</a></p>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: `مرحباً بك في QalamAI — ابدأ رحلتك الكتابية`,
+      html: wrapInTemplate(`أهلاً وسهلاً، ${firstName}!`, body),
+    });
+    console.log(`[Email] Sent welcome email to ${email}`);
+  } catch (err) {
+    console.error("[Email] Failed to send welcome email:", err);
+  }
+}
+
+export async function sendVerifiedApplicationStatusEmail(
+  email: string,
+  firstName: string,
+  status: "approved" | "rejected",
+  adminNote?: string,
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const dashboardUrl = `${getBaseUrl()}/`;
+
+  let subject: string;
+  let headerTitle: string;
+  let body: string;
+
+  if (status === "approved") {
+    subject = "تهانينا! طلبك للتوثيق قد قُبِل — QalamAI";
+    headerTitle = "أنت الآن كاتب موثّق على QalamAI";
+    body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">تهانينا <strong style="color:${BRAND_GOLD};">${firstName}</strong>!</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">يسعدنا إبلاغك بأن طلبك للحصول على شارة <strong>الكاتب الموثّق</strong> قد تمت الموافقة عليه. ستظهر الشارة الزرقاء بجانب اسمك على جميع مقالاتك ولوحة المتصدرين تلقائياً.</p>
+<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:16px 0;text-align:center;">
+  <p style="color:#166534;font-weight:bold;font-size:16px;margin:0;">تم التوثيق بنجاح ✓</p>
+</div>
+<p style="color:#333;line-height:1.8;font-size:15px;">استمر في نشر أعمالك الأدبية وشارك القرّاء العرب بإبداعك.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${dashboardUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+العودة إلى لوحة التحكم
+</a>
+</div>`;
+  } else {
+    subject = "بشأن طلب التوثيق — QalamAI";
+    headerTitle = "تحديث بشأن طلب التوثيق";
+    body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">شكراً لك <strong style="color:${BRAND_GOLD};">${firstName}</strong> على تقديم طلب التوثيق.</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">بعد مراجعة طلبك من قِبَل فريق QalamAI، نأسف لإبلاغك بأننا لم نتمكن من الموافقة على طلبك في الوقت الحالي.</p>
+${adminNote ? `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:16px;margin:16px 0;">
+  <p style="color:#991b1b;font-size:14px;margin:0;line-height:1.7;"><strong>ملاحظة الفريق:</strong> ${adminNote}</p>
+</div>` : ""}
+<p style="color:#333;line-height:1.8;font-size:15px;">يمكنك إعادة التقديم مستقبلاً مع تعزيز ملفك الكتابي بمزيد من الأعمال المنشورة. نحن دائماً سعداء بمرافقتك في رحلتك الأدبية.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${dashboardUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+استمر في الكتابة
+</a>
+</div>`;
+  }
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject,
+      html: wrapInTemplate(headerTitle, body),
+    });
+    console.log(`[Email] Sent verified application ${status} email to ${email}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send verified application ${status} email:`, err);
+  }
 }
 
 export async function sendTrialChargeFailedEmail(email: string): Promise<void> {

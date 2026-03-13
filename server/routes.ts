@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -7875,6 +7875,18 @@ ${ch.content}
       const updated = await storage.updateVerifiedApplication(parseInt(req.params.id), status, adminNote);
       if (status === "approved" && updated.user_id) {
         await storage.setUserVerified(updated.user_id as string, true);
+      }
+      if (updated.user_id) {
+        const appUser = await storage.getUser(updated.user_id as string);
+        if (appUser?.email) {
+          const firstName = appUser.firstName || appUser.displayName || "عزيزي الكاتب";
+          sendVerifiedApplicationStatusEmail(
+            appUser.email,
+            firstName,
+            status as "approved" | "rejected",
+            adminNote,
+          ).catch((e) => console.error("Failed to send verified application status email:", e));
+        }
       }
       res.json({ success: true, application: updated });
     } catch (error) {
