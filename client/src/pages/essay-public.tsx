@@ -324,6 +324,7 @@ export default function EssayPublic() {
       setCommentSent(true);
       setCommentName("");
       setCommentText("");
+      queryClient.invalidateQueries({ queryKey: ["/api/public/essays/comments", essay?.id] });
     },
     onError: (err: any) => {
       toast({ title: err.message || "فشل الإرسال", variant: "destructive" });
@@ -860,8 +861,13 @@ export default function EssayPublic() {
           )}
 
           {commentSent ? (
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center" data-testid="comment-sent-confirmation">
-              <p className="text-sm text-green-700 dark:text-green-400 font-medium">شكراً! سيظهر تعليقك بعد المراجعة.</p>
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center space-y-2" data-testid="comment-sent-confirmation">
+              <p className="text-sm text-green-700 dark:text-green-400 font-medium">شكراً! تم نشر تعليقك.</p>
+              <button
+                className="text-xs text-green-600 dark:text-green-500 underline underline-offset-2"
+                onClick={() => setCommentSent(false)}
+                data-testid="button-add-another-comment"
+              >إضافة تعليق آخر</button>
             </div>
           ) : (
             <div className="space-y-3 p-4 bg-card border rounded-xl" data-testid="form-add-comment">

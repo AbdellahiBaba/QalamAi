@@ -1571,20 +1571,15 @@ export default function ProjectDetail() {
                         )}
                       </>
                     )}
-                    {project.shareToken && project.projectType === "essay" && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => plagiarismCheckMutation.mutate()}
-                          disabled={plagiarismCheckMutation.isPending}
-                          data-testid="menu-plagiarism-check"
-                        >
-                          <Shield className="w-4 h-4 ml-2" />
-                          {plagiarismCheckMutation.isPending ? "جارٍ الفحص..." : "فحص الانتحال بالذكاء الاصطناعي"}
-                        </DropdownMenuItem>
-                      </>
-                    )}
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => plagiarismCheckMutation.mutate()}
+                      disabled={plagiarismCheckMutation.isPending}
+                      data-testid="menu-plagiarism-check"
+                    >
+                      <Shield className="w-4 h-4 ml-2" />
+                      {plagiarismCheckMutation.isPending ? "جارٍ الفحص..." : "فحص الانتحال بالذكاء الاصطناعي"}
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => { setSelectedSeriesId(""); setAddToSeriesOpen(true); }}
                       data-testid="menu-add-to-series"

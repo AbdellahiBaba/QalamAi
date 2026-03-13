@@ -1687,8 +1687,8 @@ export class DatabaseStorage implements IStorage {
 
   async createEssayComment(data: { essayId: number; authorName: string; content: string; ipHash?: string }): Promise<any> {
     const [row] = await db.execute(sql`
-      INSERT INTO essay_comments (essay_id, author_name, content, ip_hash)
-      VALUES (${data.essayId}, ${data.authorName}, ${data.content}, ${data.ipHash || null})
+      INSERT INTO essay_comments (essay_id, author_name, content, ip_hash, approved)
+      VALUES (${data.essayId}, ${data.authorName}, ${data.content}, ${data.ipHash || null}, true)
       RETURNING *
     `).then(r => r.rows);
     return row;

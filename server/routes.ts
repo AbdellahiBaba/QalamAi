@@ -7869,7 +7869,7 @@ ${ch.content}
       const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.ip || "unknown";
       const ipHash = crypto.createHash("sha256").update(ip + String(essayId)).digest("hex");
       const comment = await storage.createEssayComment({ essayId, authorName: authorName.trim(), content: content.trim(), ipHash });
-      res.json({ success: true, comment, message: "سيظهر تعليقك بعد المراجعة" });
+      res.json({ success: true, comment, message: "تم نشر تعليقك" });
     } catch (error) {
       res.status(500).json({ error: "فشل في إرسال التعليق" });
     }
