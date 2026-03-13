@@ -3593,9 +3593,27 @@ ${allPages.map(p => `  <url>
           if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0" || hostname.startsWith("10.") || hostname.startsWith("172.") || hostname.startsWith("192.168.") || hostname === "[::1]" || hostname.endsWith(".internal") || hostname === "metadata.google.internal" || hostname.startsWith("169.254.")) {
             return res.status(400).json({ error: "رابط الصورة غير مسموح به" });
           }
+          const dns = await import("dns");
+          const { promisify } = await import("util");
+          const dnsResolve = promisify(dns.resolve);
+          try {
+            const addresses = await dnsResolve(hostname);
+            const isPrivate = addresses.some((addr: string) => {
+              const parts = addr.split(".").map(Number);
+              return addr === "127.0.0.1" || addr === "0.0.0.0" ||
+                parts[0] === 10 ||
+                (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+                (parts[0] === 192 && parts[1] === 168) ||
+                parts[0] === 0 || addr.startsWith("169.254.") ||
+                addr === "::1" || addr.startsWith("fc") || addr.startsWith("fd") || addr.startsWith("fe80");
+            });
+            if (isPrivate) return res.status(400).json({ error: "رابط الصورة غير مسموح به" });
+          } catch {
+            return res.status(400).json({ error: "فشل في التحقق من الرابط" });
+          }
           const controller = new AbortController();
           const fetchTimeout = setTimeout(() => controller.abort(), 10000);
-          const coverRes = await fetch(coverUrl, { signal: controller.signal });
+          const coverRes = await fetch(coverUrl, { signal: controller.signal, redirect: "error" });
           clearTimeout(fetchTimeout);
           if (!coverRes.ok) {
             return res.status(400).json({ error: "فشل في تحميل صورة الغلاف من الرابط" });
@@ -3643,7 +3661,9 @@ ${allPages.map(p => `  <url>
 
       const epubAuthorName = (epubExportUser as any)?.displayName || (epubExportUser as any)?.firstName || epubExportUser?.email?.split("@")[0] || "المؤلف";
       const epubChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
-      const completedChapters = project.chapters.filter((ch: any) => ch.content);
+      const completedChapters = project.chapters
+        .filter((ch: any) => ch.status === "completed" && ch.content)
+        .sort((a: any, b: any) => (a.chapterNumber || 0) - (b.chapterNumber || 0));
       if (completedChapters.length === 0) return res.status(400).json({ error: "لا توجد فصول مكتملة" });
 
       const hasCover = !!project.coverImageUrl;
@@ -4102,7 +4122,9 @@ ${glossaryParagraphs}
       }
       const docxChapterLabel = project.projectType === "essay" ? "القسم" : project.projectType === "scenario" ? "المشهد" : project.projectType === "short_story" ? "المقطع" : project.projectType === "khawater" ? "النص" : project.projectType === "social_media" ? "المحتوى" : project.projectType === "poetry" ? "القصيدة" : project.projectType === "memoire" ? "الفصل" : "الفصل";
       const projectTypeLabel = project.projectType === "essay" ? "مقال" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "khawater" ? "خواطر" : project.projectType === "social_media" ? "محتوى" : project.projectType === "poetry" ? "شعر" : project.projectType === "memoire" ? "مذكرة تخرج" : "رواية";
-      const completedChapters = project.chapters.filter((ch: any) => ch.content);
+      const completedChapters = project.chapters
+        .filter((ch: any) => ch.status === "completed" && ch.content)
+        .sort((a: any, b: any) => (a.chapterNumber || 0) - (b.chapterNumber || 0));
       if (completedChapters.length === 0) {
         return res.status(400).json({ error: "لا توجد فصول مكتملة" });
       }

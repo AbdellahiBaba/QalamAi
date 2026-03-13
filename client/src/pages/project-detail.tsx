@@ -1586,109 +1586,107 @@ export default function ProjectDetail() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" dir="rtl" className="w-56" data-testid="dropdown-actions-menu">
-                    {project.shareToken && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const url = `${window.location.origin}/shared/${project.shareToken}`;
-                          navigator.clipboard.writeText(url);
-                          toast({ title: "تم نسخ رابط المشاركة" });
-                        }}
-                        data-testid="menu-copy-share-link"
-                      >
-                        <Copy className="w-4 h-4 ml-2" />
-                        نسخ الرابط
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onClick={async () => {
-                        try {
-                          if (project.shareToken) {
-                            await apiRequest("DELETE", `/api/projects/${projectId}/share`);
-                            toast({ title: "تم إلغاء المشاركة" });
-                          } else {
-                            await apiRequest("POST", `/api/projects/${projectId}/share`);
-                            toast({ title: "تم إنشاء رابط المشاركة" });
-                          }
-                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                        } catch {
-                          toast({ title: "حدث خطأ", variant: "destructive" });
-                        }
-                      }}
-                      data-testid="menu-toggle-share"
-                    >
-                      {project.shareToken ? (
-                        <><X className="w-4 h-4 ml-2" /> إلغاء المشاركة</>
-                      ) : (
-                        <><Share2 className="w-4 h-4 ml-2" /> مشاركة</>
-                      )}
-                    </DropdownMenuItem>
-                    {project.shareToken && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                          <Label className="text-xs cursor-pointer" data-testid="label-publish-gallery">{project.projectType === "memoire" ? "نشر في صفحة المذكرات" : "نشر في المعرض"}</Label>
-                          <Switch
-                            checked={!!project.publishedToGallery}
-                            onCheckedChange={async (checked) => {
-                              try {
-                                if (checked) {
-                                  await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
-                                  toast({ title: project.projectType === "memoire" ? "تم نشر المذكرة في صفحة المذكرات الأكاديمية" : "تم نشر المشروع في المعرض" });
-                                } else {
-                                  await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
-                                  toast({ title: project.projectType === "memoire" ? "تم إلغاء النشر من صفحة المذكرات" : "تم إلغاء النشر من المعرض" });
-                                }
-                                queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                              } catch {
-                                toast({ title: "حدث خطأ", variant: "destructive" });
-                              }
-                            }}
-                            data-testid="switch-publish-gallery"
-                          />
-                        </div>
-                        {project.projectType === "essay" && (
-                          <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                            <Label className="text-xs cursor-pointer" data-testid="label-publish-news">نشر في المقالات</Label>
-                            <Switch
-                              checked={!!project.publishedToNews}
-                              onCheckedChange={async (checked) => {
-                                try {
-                                  if (checked) {
-                                    await apiRequest("POST", `/api/projects/${projectId}/publish-to-news`);
-                                    toast({ title: "تم نشر المقال في صفحة المقالات" });
-                                  } else {
-                                    await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-news`);
-                                    toast({ title: "تم إلغاء النشر من صفحة المقالات" });
-                                  }
-                                  queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                                } catch {
-                                  toast({ title: "حدث خطأ", variant: "destructive" });
-                                }
-                              }}
-                              data-testid="switch-publish-news"
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
+                {project.shareToken && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const url = `${window.location.origin}/shared/${project.shareToken}`;
+                      navigator.clipboard.writeText(url);
+                      toast({ title: "تم نسخ رابط المشاركة" });
+                    }}
+                    data-testid="menu-copy-share-link"
+                  >
+                    <Copy className="w-4 h-4 ml-2" />
+                    نسخ الرابط
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      if (project.shareToken) {
+                        await apiRequest("DELETE", `/api/projects/${projectId}/share`);
+                        toast({ title: "تم إلغاء المشاركة" });
+                      } else {
+                        await apiRequest("POST", `/api/projects/${projectId}/share`);
+                        toast({ title: "تم إنشاء رابط المشاركة" });
+                      }
+                      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                    } catch {
+                      toast({ title: "حدث خطأ", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="menu-toggle-share"
+                >
+                  {project.shareToken ? (
+                    <><X className="w-4 h-4 ml-2" /> إلغاء المشاركة</>
+                  ) : (
+                    <><Share2 className="w-4 h-4 ml-2" /> مشاركة</>
+                  )}
+                </DropdownMenuItem>
+                {project.shareToken && (
+                  <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => plagiarismCheckMutation.mutate()}
-                      disabled={plagiarismCheckMutation.isPending}
-                      data-testid="menu-plagiarism-check"
-                    >
-                      <Shield className="w-4 h-4 ml-2" />
-                      {plagiarismCheckMutation.isPending ? "جارٍ الفحص..." : "فحص الانتحال بالذكاء الاصطناعي"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => { setSelectedSeriesId(""); setAddToSeriesOpen(true); }}
-                      data-testid="menu-add-to-series"
-                    >
-                      <Layers className="w-4 h-4 ml-2" />
-                      إضافة إلى سلسلة
-                    </DropdownMenuItem>
+                    <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                      <Label className="text-xs cursor-pointer" data-testid="label-publish-gallery">{project.projectType === "memoire" ? "نشر في صفحة المذكرات" : "نشر في المعرض"}</Label>
+                      <Switch
+                        checked={!!project.publishedToGallery}
+                        onCheckedChange={async (checked) => {
+                          try {
+                            if (checked) {
+                              await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
+                              toast({ title: project.projectType === "memoire" ? "تم نشر المذكرة في صفحة المذكرات الأكاديمية" : "تم نشر المشروع في المعرض" });
+                            } else {
+                              await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
+                              toast({ title: project.projectType === "memoire" ? "تم إلغاء النشر من صفحة المذكرات" : "تم إلغاء النشر من المعرض" });
+                            }
+                            queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                          } catch {
+                            toast({ title: "حدث خطأ", variant: "destructive" });
+                          }
+                        }}
+                        data-testid="switch-publish-gallery"
+                      />
+                    </div>
+                    {project.projectType === "essay" && (
+                      <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                        <Label className="text-xs cursor-pointer" data-testid="label-publish-news">نشر في المقالات</Label>
+                        <Switch
+                          checked={!!project.publishedToNews}
+                          onCheckedChange={async (checked) => {
+                            try {
+                              if (checked) {
+                                await apiRequest("POST", `/api/projects/${projectId}/publish-to-news`);
+                                toast({ title: "تم نشر المقال في صفحة المقالات" });
+                              } else {
+                                await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-news`);
+                                toast({ title: "تم إلغاء النشر من صفحة المقالات" });
+                              }
+                              queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                            } catch {
+                              toast({ title: "حدث خطأ", variant: "destructive" });
+                            }
+                          }}
+                          data-testid="switch-publish-news"
+                        />
+                      </div>
+                    )}
                   </>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => plagiarismCheckMutation.mutate()}
+                  disabled={plagiarismCheckMutation.isPending}
+                  data-testid="menu-plagiarism-check"
+                >
+                  <Shield className="w-4 h-4 ml-2" />
+                  {plagiarismCheckMutation.isPending ? "جارٍ الفحص..." : "فحص الانتحال بالذكاء الاصطناعي"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => { setSelectedSeriesId(""); setAddToSeriesOpen(true); }}
+                  data-testid="menu-add-to-series"
+                >
+                  <Layers className="w-4 h-4 ml-2" />
+                  إضافة إلى سلسلة
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setShowShortcutsDialog(true)}
                   data-testid="menu-shortcuts"
