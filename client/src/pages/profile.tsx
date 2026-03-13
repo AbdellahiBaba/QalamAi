@@ -468,9 +468,9 @@ export default function Profile() {
                     <div>
                       <p className="font-semibold text-sm">احصل على شارة الكاتب الموثّق</p>
                       <p className="text-[11px] text-muted-foreground">
-                        {(!user?.plan || user.plan === "free" || user.plan === "trial")
-                          ? "متاحة فقط لأصحاب الخطط المدفوعة"
-                          : "تظهر بجانب اسمك في كل مكان"}
+                        {(user?.role === "admin" || (user?.plan && user.plan !== "free" && user.plan !== "trial"))
+                          ? "تظهر بجانب اسمك في كل مكان"
+                          : "متاحة فقط لأصحاب الخطط المدفوعة"}
                       </p>
                     </div>
                   </div>
@@ -487,18 +487,18 @@ export default function Profile() {
                       </li>
                     ))}
                   </ul>
-                  {(!user?.plan || user.plan === "free" || user.plan === "trial") ? (
-                    <Link href="/pricing">
-                      <Button size="sm" variant="outline" className="w-full gap-1.5" data-testid="button-upgrade-for-verified-profile">
-                        <Lock className="w-4 h-4" />
-                        ترقية الخطة للحصول على الشارة
-                      </Button>
-                    </Link>
-                  ) : (
+                  {(user?.role === "admin" || (user?.plan && user.plan !== "free" && user.plan !== "trial")) ? (
                     <Link href="/apply-verified">
                       <Button size="sm" className="w-full gap-1.5" data-testid="button-apply-verified-profile">
                         <BadgeCheck className="w-4 h-4" />
                         تقديم طلب التوثيق
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href="/pricing">
+                      <Button size="sm" variant="outline" className="w-full gap-1.5" data-testid="button-upgrade-for-verified-profile">
+                        <Lock className="w-4 h-4" />
+                        ترقية الخطة للحصول على الشارة
                       </Button>
                     </Link>
                   )}

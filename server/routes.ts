@@ -7907,7 +7907,8 @@ ${ch.content}
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       const paidPlans = ["essay", "scenario", "all_in_one"];
-      if (!user || !paidPlans.includes(user.plan || "")) {
+      const isAdmin = user?.role === "admin";
+      if (!user || (!isAdmin && !paidPlans.includes(user.plan || ""))) {
         return res.status(403).json({ error: "شارة التوثيق متاحة فقط لأصحاب الخطط المدفوعة. يرجى الترقية أولاً." });
       }
       const { bio, writingSamples, socialLinks } = req.body;
