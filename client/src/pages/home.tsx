@@ -1031,14 +1031,27 @@ export default function Home() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm">احصل على شارة الكاتب الموثّق</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">كما في تويتر — شارة زرقاء بجانب اسمك في كل مكان</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {(!user?.plan || user.plan === "free" || user.plan === "trial")
+                        ? "متاحة فقط لأصحاب الخطط المدفوعة"
+                        : "كما في تويتر — شارة زرقاء بجانب اسمك في كل مكان"}
+                    </p>
                   </div>
                 </div>
-                <Link href="/apply-verified" className="shrink-0">
-                  <Button size="sm" data-testid="button-apply-verified">
-                    تقديم طلب
-                  </Button>
-                </Link>
+                {(!user?.plan || user.plan === "free" || user.plan === "trial") ? (
+                  <Link href="/pricing" className="shrink-0">
+                    <Button size="sm" variant="outline" data-testid="button-upgrade-for-verified">
+                      <Lock className="w-3.5 h-3.5 ml-1" />
+                      ترقية الخطة
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/apply-verified" className="shrink-0">
+                    <Button size="sm" data-testid="button-apply-verified">
+                      تقديم طلب
+                    </Button>
+                  </Link>
+                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[

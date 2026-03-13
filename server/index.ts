@@ -10,7 +10,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { runMigrations } from "stripe-replit-sync";
-import { getStripeSync } from "./stripeClient";
+import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
 import { checkSmtpStatus, sendWeeklyDigest } from "./email";
 import { processAllExpiredTrials } from "./trial-processor";
@@ -153,6 +153,27 @@ async function initStripe() {
         `${webhookBaseUrl}/api/stripe/webhook`
       );
       console.log("Webhook configured:", JSON.stringify(result)?.substring(0, 200));
+
+      // Ensure subscription lifecycle events are included in the webhook
+      if (result?.id) {
+        const stripeClient = await getUncachableStripeClient();
+        const existing = await stripeClient.webhookEndpoints.retrieve(result.id);
+        const requiredEvents = [
+          "invoice.payment_failed",
+          "invoice.payment_succeeded",
+          "invoice.paid",
+          "customer.subscription.deleted",
+          "customer.subscription.updated",
+        ];
+        const existingEvents: string[] = (existing.enabled_events as string[]) || [];
+        const missingEvents = requiredEvents.filter((e) => !existingEvents.includes(e) && !existingEvents.includes("*"));
+        if (missingEvents.length > 0) {
+          await stripeClient.webhookEndpoints.update(result.id, {
+            enabled_events: [...existingEvents, ...missingEvents] as any,
+          });
+          console.log("Webhook events updated with:", missingEvents.join(", "));
+        }
+      }
     } catch (webhookErr: any) {
       console.warn("Webhook setup failed (non-fatal):", webhookErr.message);
     }
