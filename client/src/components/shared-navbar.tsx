@@ -18,6 +18,7 @@ import {
   Users,
   BadgeCheck,
   Lightbulb,
+  ListOrdered,
 } from "lucide-react";
 
 export const navLinks = [
@@ -162,6 +163,7 @@ function NavbarSearch() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium text-xs">{p.title}</div>
                       <div className="truncate text-[10px] text-muted-foreground">{p.author_name}</div>
+                      {p.main_idea && <div className="truncate text-[10px] text-muted-foreground/70">{p.main_idea?.slice(0, 60)}</div>}
                     </div>
                   </button>
                 );
@@ -187,6 +189,28 @@ function NavbarSearch() {
                   </Avatar>
                   <span className="truncate text-xs">{a.displayName}</span>
                   {a.verified && <BadgeCheck className="w-3.5 h-3.5 text-[#1D9BF0] flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {results?.series?.length > 0 && (
+            <div className="p-2 border-t">
+              <div className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1 px-2">
+                <ListOrdered className="w-3 h-3" /> السلاسل
+              </div>
+              {results.series.slice(0, 2).map((s: any) => (
+                <button
+                  key={s.id}
+                  className="w-full text-right px-2 py-1.5 rounded hover:bg-accent flex items-center gap-2 text-sm"
+                  onClick={() => navigateTo(`/series/${s.id}`)}
+                  data-testid={`search-result-series-${s.id}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium text-xs">{s.title}</div>
+                    {s.author_name && <div className="truncate text-[10px] text-muted-foreground">{s.author_name}</div>}
+                    {s.description && <div className="truncate text-[10px] text-muted-foreground">{s.description?.slice(0, 50)}</div>}
+                  </div>
                 </button>
               ))}
             </div>
