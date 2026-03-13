@@ -165,6 +165,20 @@ export default function EssayPublic() {
     enabled: !!shareToken,
   });
 
+  // Defined AFTER essay query — safe from TDZ
+  const essayTitle = essay?.title;
+  const handleShareQuote = useCallback(async () => {
+    if (!quotePopup) return;
+    const text = `"${quotePopup.text}" — ${essayTitle ?? ""} | QalamAI\nhttps://qalamai.net/essay/${shareToken}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "تم نسخ الاقتباس" });
+    } catch {
+      toast({ title: "تعذّر النسخ" });
+    }
+    setQuotePopup(null);
+  }, [quotePopup, essayTitle, shareToken, toast]);
+
   const reactMutation = useMutation({
     mutationFn: async (reactionType: string) => {
       const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);

@@ -6,7 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { Trophy, Eye, Users, BookOpen, Star, BadgeCheck } from "lucide-react";
+import { Trophy, Eye, Users, BookOpen, Star, BadgeCheck, Coffee } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
 
 interface LeaderboardEntry {
@@ -28,10 +31,25 @@ function formatNum(n: number): string {
 
 export default function Leaderboard() {
   useDocumentTitle("لوحة الكتّاب المتصدرين — QalamAI");
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: entries, isLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/public/leaderboard"],
   });
+
+  const handleTip = async (e: React.MouseEvent, authorId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) { toast({ title: "يجب تسجيل الدخول لدعم الكاتب", variant: "destructive" }); return; }
+    try {
+      const res = await apiRequest("POST", "/api/tips/checkout", { toAuthorId: authorId, amountCents: 500 });
+      const data = await res.json();
+      if (data.url) window.open(data.url, "_blank");
+    } catch {
+      toast({ title: "حدث خطأ أثناء المعالجة", variant: "destructive" });
+    }
+  };
 
   const rankColors = ["text-yellow-500", "text-slate-400", "text-amber-600"];
   const rankBgs = ["bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800", "bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-700", "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800"];
@@ -67,64 +85,77 @@ export default function Leaderboard() {
         ) : (
           <div className="space-y-3" data-testid="leaderboard-list">
             {entries.map((entry, index) => (
-              <Link key={entry.userId} href={`/author/${entry.userId}`}>
-                <div
-                  className={`flex items-center gap-4 p-4 border rounded-xl hover:shadow-sm transition-shadow cursor-pointer ${index < 3 ? rankBgs[index] : "bg-card"}`}
-                  data-testid={`leaderboard-row-${entry.userId}`}
-                >
-                  <div className="w-8 text-center shrink-0">
-                    <span className={`font-bold text-lg ${index < 3 ? rankColors[index] : "text-muted-foreground"}`} data-testid={`rank-${index + 1}`}>
-                      {index + 1}
-                    </span>
-                  </div>
-
-                  <Avatar className="w-12 h-12 shrink-0">
-                    <AvatarImage src={entry.profileImageUrl || undefined} />
-                    <AvatarFallback className="text-base font-semibold">{entry.displayName[0]}</AvatarFallback>
-                  </Avatar>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold truncate" data-testid={`name-${entry.userId}`}>{entry.displayName}</span>
-                      {entry.verified && (
-                        <BadgeCheck className="w-5 h-5 text-[#1D9BF0] shrink-0" data-testid={`verified-${entry.userId}`} title="كاتب موثّق" />
-                      )}
-                      {entry.averageRating > 0 && (
-                        <div className="flex items-center gap-0.5 text-yellow-500" data-testid={`rating-${entry.userId}`}>
-                          <Star className="w-3.5 h-3.5 fill-current" />
-                          <span className="text-xs font-medium" dir="ltr">{entry.averageRating.toFixed(1)}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1" data-testid={`views-${entry.userId}`}>
-                        <Eye className="w-3 h-3" />
-                        <span dir="ltr">{formatNum(entry.totalViews)}</span>
-                        <span>مشاهدة</span>
-                      </span>
-                      <span className="flex items-center gap-1" data-testid={`followers-${entry.userId}`}>
-                        <Users className="w-3 h-3" />
-                        <span dir="ltr">{formatNum(entry.followerCount)}</span>
-                        <span>متابع</span>
-                      </span>
-                      <span className="flex items-center gap-1" data-testid={`projects-${entry.userId}`}>
-                        <BookOpen className="w-3 h-3" />
-                        <span dir="ltr">{entry.projectCount}</span>
-                        <span>عمل</span>
+              <div key={entry.userId} className="relative group" data-testid={`leaderboard-row-${entry.userId}`}>
+                <Link href={`/author/${entry.userId}`}>
+                  <div
+                    className={`flex items-center gap-4 p-4 border rounded-xl hover:shadow-sm transition-shadow cursor-pointer pr-16 ${index < 3 ? rankBgs[index] : "bg-card"}`}
+                  >
+                    <div className="w-8 text-center shrink-0">
+                      <span className={`font-bold text-lg ${index < 3 ? rankColors[index] : "text-muted-foreground"}`} data-testid={`rank-${index + 1}`}>
+                        {index + 1}
                       </span>
                     </div>
-                  </div>
 
-                  {index < 3 && (
-                    <Badge
-                      className={`shrink-0 text-xs ${index === 0 ? "bg-yellow-500 text-white" : index === 1 ? "bg-slate-400 text-white" : "bg-amber-600 text-white"}`}
-                      data-testid={`medal-${entry.userId}`}
-                    >
-                      {index === 0 ? "الأول" : index === 1 ? "الثاني" : "الثالث"}
-                    </Badge>
-                  )}
-                </div>
-              </Link>
+                    <Avatar className="w-12 h-12 shrink-0">
+                      <AvatarImage src={entry.profileImageUrl || undefined} />
+                      <AvatarFallback className="text-base font-semibold">{entry.displayName[0]}</AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold truncate" data-testid={`name-${entry.userId}`}>{entry.displayName}</span>
+                        {entry.verified && (
+                          <BadgeCheck className="w-5 h-5 text-[#1D9BF0] shrink-0" data-testid={`verified-${entry.userId}`} title="كاتب موثّق" />
+                        )}
+                        {entry.averageRating > 0 && (
+                          <div className="flex items-center gap-0.5 text-yellow-500" data-testid={`rating-${entry.userId}`}>
+                            <Star className="w-3.5 h-3.5 fill-current" />
+                            <span className="text-xs font-medium" dir="ltr">{entry.averageRating.toFixed(1)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-1" data-testid={`views-${entry.userId}`}>
+                          <Eye className="w-3 h-3" />
+                          <span dir="ltr">{formatNum(entry.totalViews)}</span>
+                          <span>مشاهدة</span>
+                        </span>
+                        <span className="flex items-center gap-1" data-testid={`followers-${entry.userId}`}>
+                          <Users className="w-3 h-3" />
+                          <span dir="ltr">{formatNum(entry.followerCount)}</span>
+                          <span>متابع</span>
+                        </span>
+                        <span className="flex items-center gap-1" data-testid={`projects-${entry.userId}`}>
+                          <BookOpen className="w-3 h-3" />
+                          <span dir="ltr">{entry.projectCount}</span>
+                          <span>عمل</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {index < 3 && (
+                      <Badge
+                        className={`shrink-0 text-xs ${index === 0 ? "bg-yellow-500 text-white" : index === 1 ? "bg-slate-400 text-white" : "bg-amber-600 text-white"}`}
+                        data-testid={`medal-${entry.userId}`}
+                      >
+                        {index === 0 ? "الأول" : index === 1 ? "الثاني" : "الثالث"}
+                      </Badge>
+                    )}
+                  </div>
+                </Link>
+                {/* Tip button — absolute so it doesn't interfere with Link */}
+                {(!user || user.id !== entry.userId) && (
+                  <button
+                    onClick={(e) => handleTip(e, entry.userId)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-amber-600 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors opacity-0 group-hover:opacity-100"
+                    title="ادعم الكاتب بـ $5"
+                    data-testid={`button-tip-author-${entry.userId}`}
+                  >
+                    <Coffee className="w-3 h-3" />
+                    دعم
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}

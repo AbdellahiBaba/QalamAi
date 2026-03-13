@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap, Users, BadgeCheck, TrendingUp, Eye, Send, PenLine, Layers } from "lucide-react";
+import { Plus, BookOpen, Feather, LogOut, Clock, FileText, Lock, CreditCard, TicketCheck, ShieldCheck, PenTool, CheckCircle, Activity, Sun, Moon, Newspaper, Film, ChevronDown, AlignRight, Hash, Search, SlidersHorizontal, ArrowUpDown, X, Bell, CheckCheck, Sparkles, Download, List, BookMarked, BarChart3, Keyboard, MessageCircle, Lightbulb, Heart, Share2, MessageSquareQuote, Flame, Target, Trophy, Award, Loader2, ArrowRight, ImageIcon, GraduationCap, Users, BadgeCheck, TrendingUp, Eye, Send, PenLine, Layers, Coffee } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -113,6 +113,14 @@ export default function Home() {
   }>({
     queryKey: ["/api/me/analytics"],
     staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: tipsReceived } = useQuery<Array<{
+    id: number; fromUserName: string | null; fromUserImage: string | null;
+    amountCents: number; status: string; createdAt: string; projectId: number | null;
+  }>>({
+    queryKey: ["/api/tips/received"],
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: dailyPromptData } = useQuery<{
@@ -996,6 +1004,36 @@ export default function Home() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tips Received */}
+        {tipsReceived && tipsReceived.filter(t => t.status === "completed").length > 0 && (
+          <Card className="mb-6 border-amber-200 dark:border-amber-800" data-testid="card-tips-received">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Coffee className="w-4 h-4 text-amber-600" />
+                <h3 className="font-semibold text-sm">الدعم الذي تلقيته</h3>
+                <span className="mr-auto text-xs text-amber-600 font-medium">
+                  {(tipsReceived.filter(t => t.status === "completed").reduce((sum, t) => sum + t.amountCents, 0) / 100).toFixed(2)} USD
+                </span>
+              </div>
+              <div className="space-y-2">
+                {tipsReceived.filter(t => t.status === "completed").slice(0, 5).map((tip) => (
+                  <div key={tip.id} className="flex items-center gap-3 text-sm" data-testid={`tip-row-${tip.id}`}>
+                    <Avatar className="w-7 h-7 shrink-0">
+                      <AvatarImage src={tip.fromUserImage || undefined} />
+                      <AvatarFallback className="text-xs">{tip.fromUserName?.[0] ?? "?"}</AvatarFallback>
+                    </Avatar>
+                    <span className="flex-1 truncate text-muted-foreground">{tip.fromUserName ?? "قارئ مجهول"}</span>
+                    <span className="text-amber-600 font-medium shrink-0" dir="ltr">${(tip.amountCents / 100).toFixed(2)}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {new Date(tip.createdAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}

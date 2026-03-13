@@ -18,6 +18,7 @@ import {
   Share2,
   Code2,
   BadgeCheck,
+  Coffee,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -281,6 +282,30 @@ export default function EssaysNews() {
                           data-testid={`button-embed-${essay.id}`}
                         >
                           <Code2 className="w-3 h-3" /> تضمين
+                        </button>
+                      )}
+                      {essay.authorId && (
+                        <button
+                          className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            try {
+                              const res = await fetch("/api/tips/checkout", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                credentials: "include",
+                                body: JSON.stringify({ toAuthorId: essay.authorId, projectId: essay.id, amountCents: 500 }),
+                              });
+                              const data = await res.json();
+                              if (data.url) window.open(data.url, "_blank");
+                              else if (data.error) alert("يجب تسجيل الدخول لدعم الكاتب");
+                            } catch {}
+                          }}
+                          title="ادعم الكاتب بـ $5"
+                          data-testid={`button-tip-essay-${essay.id}`}
+                        >
+                          <Coffee className="w-3 h-3" /> دعم
                         </button>
                       )}
                       <button
