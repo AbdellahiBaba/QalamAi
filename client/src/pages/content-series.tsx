@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
-import { Layers, Plus, Trash2, BookOpen, ArrowRight } from "lucide-react";
+import { Layers, Plus, Trash2, BookOpen, ArrowRight, Wand2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,6 +30,7 @@ export default function ContentSeries() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [suggestingDesc, setSuggestingDesc] = useState(false);
 
   const { data: series, isLoading } = useQuery<Series[]>({
     queryKey: ["/api/series"],
@@ -183,7 +184,44 @@ export default function ContentSeries() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1.5">وصف السلسلة (اختياري)</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-medium">وصف السلسلة (اختياري)</label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1 text-primary hover:text-primary"
+                    disabled={!newTitle.trim() || suggestingDesc}
+                    data-testid="button-suggest-description"
+                    onClick={async () => {
+                      if (!newTitle.trim()) {
+                        toast({ title: "أدخل عنوان السلسلة أولاً", variant: "destructive" });
+                        return;
+                      }
+                      setSuggestingDesc(true);
+                      try {
+                        const res = await apiRequest("POST", "/api/series/suggest-description", { title: newTitle.trim() });
+                        const data = await res.json();
+                        if (data.description) {
+                          setNewDescription(data.description);
+                        } else {
+                          toast({ title: "لم يتمكن أبو هاشم من اقتراح وصف", variant: "destructive" });
+                        }
+                      } catch {
+                        toast({ title: "فشل في الاقتراح", variant: "destructive" });
+                      } finally {
+                        setSuggestingDesc(false);
+                      }
+                    }}
+                  >
+                    {suggestingDesc ? (
+                      <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Wand2 className="w-3 h-3" />
+                    )}
+                    {suggestingDesc ? "أبو هاشم يكتب..." : "اقتراح من أبو هاشم"}
+                  </Button>
+                </div>
                 <Textarea
                   placeholder="وصف مختصر للسلسلة..."
                   value={newDescription}

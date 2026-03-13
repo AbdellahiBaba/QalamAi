@@ -8462,6 +8462,32 @@ ${ch.content}
     }
   });
 
+  app.post("/api/series/suggest-description", isAuthenticated, async (req: any, res) => {
+    try {
+      const { title } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "العنوان مطلوب" });
+      const openai = await getOpenAIClient();
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_completion_tokens: 120,
+        messages: [
+          {
+            role: "system",
+            content: "أنت أبو هاشم، وكيل أدبي عربي متمرس. مهمتك كتابة وصف موجز وجذاب لسلسلة محتوى أدبي بناءً على عنوانها. اكتب وصفاً عربياً من 2-3 جمل يوضح موضوع السلسلة وما يمكن أن يتوقعه القارئ منها. لا تستخدم النقاط أو العناوين، فقط نص متدفق."
+          },
+          {
+            role: "user",
+            content: `اكتب وصفاً لسلسلة محتوى بعنوان: "${title.trim()}"`
+          }
+        ]
+      });
+      const description = completion.choices[0]?.message?.content?.trim() || "";
+      res.json({ description });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في اقتراح الوصف" });
+    }
+  });
+
   app.get("/api/series/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseIntParam(req.params.id);

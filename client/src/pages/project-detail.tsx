@@ -19,7 +19,7 @@ import {
   ArrowRight, BookOpen, Users, Feather, Loader2, CheckCircle, FileText,
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
-  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Film
+  Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Film, Layers
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -237,6 +237,8 @@ export default function ProjectDetail() {
   const [originalityResult, setOriginalityResult] = useState<any>(null);
   const [plagiarismOpen, setPlagiarismOpen] = useState(false);
   const [plagiarismResult, setPlagiarismResult] = useState<{ isOriginal: boolean; similarityScore: number; report: string } | null>(null);
+  const [addToSeriesOpen, setAddToSeriesOpen] = useState(false);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkChapterId, setBookmarkChapterId] = useState<number | null>(null);
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
@@ -564,6 +566,29 @@ export default function ProjectDetail() {
     },
     onError: (err: any) => {
       toast({ title: err?.message || "فشل فحص الانتحال", variant: "destructive" });
+    },
+  });
+
+  const { data: userSeriesList } = useQuery<{ id: number; title: string; item_count: number }[]>({
+    queryKey: ["/api/series"],
+    enabled: !!project,
+  });
+
+  const addToSeriesMutation = useMutation({
+    mutationFn: async (seriesId: number) => {
+      const res = await apiRequest("POST", `/api/series/${seriesId}/items`, {
+        projectId,
+        orderIndex: 999,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setAddToSeriesOpen(false);
+      setSelectedSeriesId("");
+      toast({ title: "تم إضافة العمل إلى السلسلة" });
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "فشل في الإضافة إلى السلسلة", variant: "destructive" });
     },
   });
 
@@ -1560,6 +1585,13 @@ export default function ProjectDetail() {
                       </>
                     )}
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => { setSelectedSeriesId(""); setAddToSeriesOpen(true); }}
+                      data-testid="menu-add-to-series"
+                    >
+                      <Layers className="w-4 h-4 ml-2" />
+                      إضافة إلى سلسلة
+                    </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuItem
@@ -4637,7 +4669,64 @@ export default function ProjectDetail() {
           </DialogContent>
         </Dialog>
 
-        {/* Plagiarism Check Dialog */}
+        <Dialog open={addToSeriesOpen} onOpenChange={(open) => { if (!open) { setAddToSeriesOpen(false); setSelectedSeriesId(""); } }}>
+          <DialogContent dir="rtl" data-testid="dialog-add-to-series">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-primary" />
+                إضافة إلى سلسلة
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              {!userSeriesList || userSeriesList.length === 0 ? (
+                <div className="text-center py-6 space-y-3">
+                  <Layers className="w-10 h-10 text-muted-foreground mx-auto" />
+                  <p className="text-sm text-muted-foreground">ليس لديك سلاسل محتوى بعد.</p>
+                  <Link href="/series">
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      <Plus className="w-4 h-4" />
+                      إنشاء سلسلة جديدة
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">اختر السلسلة التي تريد إضافة هذا العمل إليها:</p>
+                  <Select value={selectedSeriesId} onValueChange={setSelectedSeriesId}>
+                    <SelectTrigger data-testid="select-target-series">
+                      <SelectValue placeholder="اختر سلسلة..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userSeriesList.map(s => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          {s.title}
+                          <span className="text-muted-foreground mr-1 text-xs">({s.item_count} أعمال)</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1"
+                      disabled={!selectedSeriesId || addToSeriesMutation.isPending}
+                      onClick={() => addToSeriesMutation.mutate(parseInt(selectedSeriesId))}
+                      data-testid="button-confirm-add-to-series"
+                    >
+                      {addToSeriesMutation.isPending ? "جارٍ الإضافة..." : "إضافة إلى السلسلة"}
+                    </Button>
+                    <Link href="/series">
+                      <Button variant="outline" size="sm" className="gap-1" data-testid="button-manage-series">
+                        <Layers className="w-3.5 h-3.5" />
+                        إدارة السلاسل
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={plagiarismOpen} onOpenChange={(open) => { if (!open) { setPlagiarismOpen(false); setPlagiarismResult(null); } }}>
           <DialogContent className="max-w-lg" dir="rtl">
             <DialogHeader>
