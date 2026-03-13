@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowRight, Megaphone, Calendar, Clock, Copy, Check, Trash2, Edit3,
   Loader2, Sparkles, BarChart3, Settings, LayoutDashboard, ListOrdered,
-  Wand2, Eye, Facebook, Instagram, Linkedin, Video, RefreshCw
+  Wand2, Facebook, Instagram, Linkedin, RefreshCw, Search
 } from "lucide-react";
 import { SiX, SiTiktok } from "react-icons/si";
 
@@ -71,9 +72,16 @@ function PlatformBadges({ platforms }: { platforms: string[] }) {
   );
 }
 
-function PostCard({ post, onDelete, onStatusChange }: { post: any; onDelete: (id: number) => void; onStatusChange: (id: number, status: string) => void }) {
+function PostCard({ post, onDelete, onStatusChange, onReschedule }: {
+  post: any;
+  onDelete: (id: number) => void;
+  onStatusChange: (id: number, status: string) => void;
+  onReschedule: (id: number, scheduledAt: string) => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleTime, setRescheduleTime] = useState("");
   const { toast } = useToast();
 
   const updateMutation = useMutation({
@@ -108,6 +116,14 @@ function PostCard({ post, onDelete, onStatusChange }: { post: any; onDelete: (id
               data-testid={`button-edit-post-${post.id}`}
             >
               <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => setShowReschedule(!showReschedule)}
+              className="p-1.5 rounded hover:bg-muted transition-colors"
+              title="إعادة جدولة"
+              data-testid={`button-reschedule-${post.id}`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
             </button>
             <button
               onClick={() => onDelete(post.id)}
@@ -150,6 +166,30 @@ function PostCard({ post, onDelete, onStatusChange }: { post: any; onDelete: (id
           <p className="text-sm leading-relaxed whitespace-pre-wrap" data-testid={`text-post-content-${post.id}`}>
             {post.content}
           </p>
+        )}
+
+        {showReschedule && (
+          <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+            <Input
+              type="datetime-local"
+              value={rescheduleTime}
+              onChange={(e) => setRescheduleTime(e.target.value)}
+              className="text-sm flex-1"
+              data-testid={`input-reschedule-${post.id}`}
+            />
+            <Button
+              size="sm"
+              onClick={() => {
+                if (rescheduleTime) {
+                  onReschedule(post.id, new Date(rescheduleTime).toISOString());
+                  setShowReschedule(false);
+                }
+              }}
+              data-testid={`button-confirm-reschedule-${post.id}`}
+            >
+              تأكيد
+            </Button>
+          </div>
         )}
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -196,6 +236,25 @@ function PostCard({ post, onDelete, onStatusChange }: { post: any; onDelete: (id
 function DashboardTab() {
   const { data: posts = [] } = useQuery<any[]>({ queryKey: ["/api/admin/social/posts"] });
   const { data: bestTimes = [] } = useQuery<any[]>({ queryKey: ["/api/admin/social/best-times"] });
+  const { toast } = useToast();
+  const [generating, setGenerating] = useState(false);
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      setGenerating(true);
+      const res = await apiRequest("POST", "/api/admin/social/generate-daily", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      toast({ title: data.message || "تم توليد المنشورات" });
+      setGenerating(false);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل في التوليد", variant: "destructive" });
+      setGenerating(false);
+    },
+  });
 
   const todayPosts = posts.filter((p: any) => {
     if (!p.scheduled_at) return false;
@@ -234,6 +293,28 @@ function DashboardTab() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardContent className="p-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-medium text-sm">توليد منشورات اليوم</h3>
+            <p className="text-xs text-muted-foreground">يولّد 5 منشورات (2 تسويقية + 3 أدبية) ويجدولها تلقائياً</p>
+          </div>
+          <Button
+            className="gap-2 bg-gradient-to-r from-violet-600 to-primary shrink-0"
+            onClick={() => generateMutation.mutate()}
+            disabled={generating}
+            data-testid="button-dashboard-generate"
+          >
+            {generating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            {generating ? "جاري التوليد..." : "توليد 5 منشورات"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {bestTimes.length > 0 && (
         <Card>
@@ -318,6 +399,17 @@ function PostQueueTab() {
     },
   });
 
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ id, scheduledAt }: { id: number; scheduledAt: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/social/posts/${id}`, { scheduledAt });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      toast({ title: "تم إعادة الجدولة" });
+    },
+  });
+
   const filtered = filter === "all" ? posts : posts.filter((p: any) => p.status === filter);
 
   if (isLoading) {
@@ -359,6 +451,7 @@ function PostQueueTab() {
               post={post}
               onDelete={(id) => deleteMutation.mutate(id)}
               onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
+              onReschedule={(id, scheduledAt) => rescheduleMutation.mutate({ id, scheduledAt })}
             />
           ))}
         </div>
@@ -370,17 +463,34 @@ function PostQueueTab() {
 function GeneratorTab() {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [generatedPosts, setGeneratedPosts] = useState<any[]>([]);
+  const [confirmed, setConfirmed] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["facebook", "instagram", "x", "tiktok", "linkedin"]);
+
+  const togglePlatform = (p: string) => {
+    setSelectedPlatforms((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+    );
+  };
 
   const generateMutation = useMutation({
     mutationFn: async () => {
       setGenerating(true);
-      const res = await apiRequest("POST", "/api/admin/social/generate-daily", {});
+      setProgress(0);
+      setConfirmed(false);
+      setGeneratedPosts([]);
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => Math.min(prev + 1, 4));
+      }, 8000);
+      const res = await apiRequest("POST", "/api/admin/social/generate-daily", { platforms: selectedPlatforms });
+      clearInterval(progressInterval);
+      setProgress(5);
       return res.json();
     },
     onSuccess: (data) => {
-      setGeneratedPosts(data.posts || []);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      const posts = data.posts || [];
+      setGeneratedPosts(posts);
       toast({ title: data.message || "تم توليد المنشورات" });
       setGenerating(false);
     },
@@ -390,30 +500,98 @@ function GeneratorTab() {
     },
   });
 
+  const editPost = (idx: number, content: string) => {
+    setGeneratedPosts((prev) => prev.map((p, i) => (i === idx ? { ...p, content } : p)));
+  };
+
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      for (const post of generatedPosts) {
+        await apiRequest("PATCH", `/api/admin/social/posts/${post.id}`, {
+          content: post.content,
+          status: "scheduled",
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      toast({ title: "تم تأكيد وجدولة جميع المنشورات" });
+      setConfirmed(true);
+    },
+  });
+
+  const regenerateImageMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      const res = await apiRequest("POST", `/api/admin/social/regenerate-image/${postId}`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.coverImageUrl) {
+        setGeneratedPosts((prev) =>
+          prev.map((p) => (p.id === data.id ? { ...p, cover_image_url: data.coverImageUrl } : p))
+        );
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+        toast({ title: "تم إعادة توليد الصورة" });
+      }
+    },
+    onError: () => {
+      toast({ title: "فشل في إعادة توليد الصورة", variant: "destructive" });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <Card>
-        <CardContent className="p-6 text-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-primary flex items-center justify-center mx-auto">
-            <Wand2 className="w-8 h-8 text-white" />
+        <CardContent className="p-6 space-y-5">
+          <div className="text-center space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-primary flex items-center justify-center mx-auto">
+              <Wand2 className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h3 className="font-serif text-lg font-bold">مولّد المحتوى اليومي</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                يولّد 5 منشورات: 2 تسويقية لـ QalamAI + 3 خواطر أدبية — مع صور DALL-E للخواطر
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-serif text-lg font-bold">مولّد المحتوى اليومي</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              يولّد 5 منشورات: 2 تسويقية لـ QalamAI + 3 خواطر أدبية — مع صور DALL-E للخواطر
-            </p>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">المنصات المستهدفة:</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
+                const Icon = cfg.icon;
+                const selected = selectedPlatforms.includes(key);
+                return (
+                  <label
+                    key={key}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                      selected ? "border-primary bg-primary/5" : "border-border"
+                    }`}
+                    data-testid={`platform-toggle-${key}`}
+                  >
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={() => togglePlatform(key)}
+                    />
+                    <Icon className={`w-4 h-4 ${cfg.color}`} />
+                    <span className="text-sm">{cfg.label}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
+
           <Button
             size="lg"
-            className="gap-2 bg-gradient-to-r from-violet-600 to-primary"
+            className="gap-2 bg-gradient-to-r from-violet-600 to-primary w-full"
             onClick={() => generateMutation.mutate()}
-            disabled={generating}
+            disabled={generating || selectedPlatforms.length === 0}
             data-testid="button-generate-daily"
           >
             {generating ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                جاري التوليد... (قد يأخذ دقيقة)
+                جاري توليد المنشور {progress + 1} من 5...
               </>
             ) : (
               <>
@@ -422,38 +600,127 @@ function GeneratorTab() {
               </>
             )}
           </Button>
+
+          {generating && (
+            <div className="space-y-2">
+              <div className="flex gap-1">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className={`h-2 flex-1 rounded-full transition-colors ${
+                      i <= progress ? "bg-primary" : "bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                {progress < 2 ? "يولّد المنشورات التسويقية..." : progress < 5 ? "يولّد الخواطر الأدبية مع الصور..." : "انتهى"}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {generatedPosts.length > 0 && (
+      {generatedPosts.length > 0 && !confirmed && (
         <div className="space-y-4">
-          <h3 className="font-medium text-sm flex items-center gap-2">
-            <Check className="w-4 h-4 text-green-500" />
-            تم توليد {generatedPosts.length} منشورات وجدولتها
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {generatedPosts.map((post: any) => (
-              <Card key={post.id} data-testid={`generated-post-${post.id}`}>
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {post.post_type === "literary" ? "خاطرة أدبية" : "تسويقي"}
-                    </Badge>
-                    <PlatformBadges platforms={post.platforms || []} />
-                  </div>
-                  {post.cover_image_url && (
-                    <img src={post.cover_image_url} alt="غلاف" className="w-full h-32 object-cover rounded-md" />
-                  )}
-                  <p className="text-sm whitespace-pre-wrap">{post.content}</p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    {post.scheduled_at && new Date(post.scheduled_at).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-sm flex items-center gap-2">
+              <Check className="w-4 h-4 text-green-500" />
+              تم توليد {generatedPosts.length} منشورات — راجع وعدّل ثم أكّد
+            </h3>
+            <Button
+              className="gap-2"
+              onClick={() => confirmMutation.mutate()}
+              disabled={confirmMutation.isPending}
+              data-testid="button-confirm-all"
+            >
+              {confirmMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              تأكيد وجدولة الكل
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-xs font-medium text-muted-foreground">تسويقي</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {generatedPosts.filter((p) => p.post_type !== "literary").map((post, idx) => {
+                const realIdx = generatedPosts.indexOf(post);
+                return (
+                  <Card key={post.id} data-testid={`generated-post-${post.id}`}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">تسويقي</Badge>
+                        <PlatformBadges platforms={post.platforms || []} />
+                        <span className="text-xs text-muted-foreground mr-auto">
+                          {post.scheduled_at && new Date(post.scheduled_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <Textarea
+                        value={post.content}
+                        onChange={(e) => editPost(realIdx, e.target.value)}
+                        rows={4}
+                        className="text-sm"
+                        data-testid={`textarea-generated-${post.id}`}
+                      />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <h4 className="text-xs font-medium text-muted-foreground mt-4">خاطرة أدبية</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {generatedPosts.filter((p) => p.post_type === "literary").map((post) => {
+                const realIdx = generatedPosts.indexOf(post);
+                return (
+                  <Card key={post.id} data-testid={`generated-post-${post.id}`}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">خاطرة أدبية</Badge>
+                        <PlatformBadges platforms={post.platforms || []} />
+                        <span className="text-xs text-muted-foreground mr-auto">
+                          {post.scheduled_at && new Date(post.scheduled_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      {post.cover_image_url && (
+                        <div className="relative">
+                          <img src={post.cover_image_url} alt="غلاف" className="w-full h-32 object-cover rounded-md" />
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="absolute bottom-2 left-2 gap-1 text-xs"
+                            onClick={() => regenerateImageMutation.mutate(post.id)}
+                            disabled={regenerateImageMutation.isPending}
+                            data-testid={`button-regenerate-image-${post.id}`}
+                          >
+                            {regenerateImageMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                            إعادة توليد الصورة
+                          </Button>
+                        </div>
+                      )}
+                      <Textarea
+                        value={post.content}
+                        onChange={(e) => editPost(realIdx, e.target.value)}
+                        rows={4}
+                        className="text-sm"
+                        data-testid={`textarea-generated-${post.id}`}
+                      />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         </div>
+      )}
+
+      {confirmed && (
+        <Card>
+          <CardContent className="p-6 text-center space-y-2">
+            <Check className="w-10 h-10 text-green-500 mx-auto" />
+            <p className="font-medium">تم تأكيد وجدولة جميع المنشورات</p>
+            <p className="text-sm text-muted-foreground">يمكنك مراجعتها في طابور المنشورات</p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
@@ -465,6 +732,7 @@ function InsightsTab() {
   const { toast } = useToast();
   const [selectedPost, setSelectedPost] = useState<number | null>(null);
   const [form, setForm] = useState({ likes: 0, shares: 0, reach: 0, clicks: 0, comments: 0 });
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const postedPosts = posts.filter((p: any) => p.status === "posted");
 
@@ -487,66 +755,116 @@ function InsightsTab() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">تسجيل التفاعل</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 space-y-4">
-          <Select value={selectedPost?.toString() || ""} onValueChange={(v) => setSelectedPost(Number(v))}>
-            <SelectTrigger data-testid="select-post-insight">
-              <SelectValue placeholder="اختر منشوراً منشوراً" />
-            </SelectTrigger>
-            <SelectContent>
-              {postedPosts.map((p: any) => (
-                <SelectItem key={p.id} value={p.id.toString()} data-testid={`option-post-${p.id}`}>
-                  {p.content.substring(0, 60)}...
-                </SelectItem>
+      {postedPosts.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">المنشورات المنشورة — تسجيل التفاعل</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-xs text-muted-foreground">
+                    <th className="text-right p-2">المحتوى</th>
+                    <th className="text-center p-2">المنصات</th>
+                    <th className="text-center p-2">الوقت</th>
+                    <th className="text-center p-2">إجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {postedPosts.map((p: any) => (
+                    <tr key={p.id} className="border-b last:border-0" data-testid={`insight-row-${p.id}`}>
+                      <td className="p-2 max-w-[200px]">
+                        <p className="text-xs line-clamp-2">{p.content}</p>
+                      </td>
+                      <td className="p-2 text-center">
+                        <PlatformBadges platforms={p.platforms || []} />
+                      </td>
+                      <td className="p-2 text-center text-xs text-muted-foreground">
+                        {p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }) : "-"}
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          size="sm"
+                          variant={selectedPost === p.id ? "default" : "outline"}
+                          className="text-xs"
+                          onClick={() => setSelectedPost(selectedPost === p.id ? null : p.id)}
+                          data-testid={`button-log-insight-${p.id}`}
+                        >
+                          {selectedPost === p.id ? "إلغاء" : "تسجيل"}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedPost && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">تسجيل تفاعل المنشور #{selectedPost}</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {(["likes", "shares", "reach", "clicks", "comments"] as const).map((field) => (
+                <div key={field} className="space-y-1">
+                  <label className="text-xs text-muted-foreground">
+                    {field === "likes" ? "إعجابات" : field === "shares" ? "مشاركات" : field === "reach" ? "وصول" : field === "clicks" ? "نقرات" : "تعليقات"}
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form[field]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field]: parseInt(e.target.value) || 0 }))}
+                    className="text-sm"
+                    data-testid={`input-insight-${field}`}
+                  />
+                </div>
               ))}
-            </SelectContent>
-          </Select>
-
-          {selectedPost && (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {(["likes", "shares", "reach", "clicks", "comments"] as const).map((field) => (
-                  <div key={field} className="space-y-1">
-                    <label className="text-xs text-muted-foreground">
-                      {field === "likes" ? "إعجابات" : field === "shares" ? "مشاركات" : field === "reach" ? "وصول" : field === "clicks" ? "نقرات" : "تعليقات"}
-                    </label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={form[field]}
-                      onChange={(e) => setForm((f) => ({ ...f, [field]: parseInt(e.target.value) || 0 }))}
-                      className="text-sm"
-                      data-testid={`input-insight-${field}`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <Button
-                onClick={() => insightMutation.mutate()}
-                disabled={insightMutation.isPending}
-                className="gap-2"
-                data-testid="button-save-insight"
-              >
-                {insightMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
-                تسجيل
-              </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            </div>
+            <Button
+              onClick={() => insightMutation.mutate()}
+              disabled={insightMutation.isPending}
+              className="gap-2"
+              data-testid="button-save-insight"
+            >
+              {insightMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BarChart3 className="w-4 h-4" />}
+              تسجيل
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            تحليل أفضل أوقات النشر
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              أفضل أوقات النشر
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/admin/social/best-times"] });
+                setShowAnalysis(true);
+              }}
+              data-testid="button-analyze-times"
+            >
+              <Search className="w-3 h-3" />
+              تحليل الأوقات
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-4">
-          {bestTimes.length === 0 ? (
+          {!showAnalysis && bestTimes.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">اضغط "تحليل الأوقات" لتحليل بيانات التفاعل وتحديد أفضل أوقات النشر.</p>
+          ) : bestTimes.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">لا توجد بيانات كافية بعد. سجّل تفاعل المنشورات أولاً.</p>
           ) : (
             <div className="space-y-3">
@@ -587,12 +905,40 @@ function InsightsTab() {
 
 function SettingsTab() {
   const { toast } = useToast();
+  const { data: settings } = useQuery<any>({ queryKey: ["/api/admin/social/settings"] });
   const [credentials, setCredentials] = useState<Record<string, string>>({
     facebook: "",
     instagram: "",
     x: "",
     tiktok: "",
     linkedin: "",
+  });
+  const [loaded, setLoaded] = useState(false);
+
+  if (settings && !loaded) {
+    const creds = settings.credentials || {};
+    setCredentials({
+      facebook: creds.facebook || "",
+      instagram: creds.instagram || "",
+      x: creds.x || "",
+      tiktok: creds.tiktok || "",
+      linkedin: creds.linkedin || "",
+    });
+    setLoaded(true);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PUT", "/api/admin/social/settings", { credentials });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/settings"] });
+      toast({ title: "تم حفظ الإعدادات" });
+    },
+    onError: () => {
+      toast({ title: "فشل في حفظ الإعدادات", variant: "destructive" });
+    },
   });
 
   return (
@@ -631,12 +977,11 @@ function SettingsTab() {
           })}
           <Button
             className="w-full gap-2"
-            onClick={() => {
-              toast({ title: "تم حفظ الإعدادات" });
-            }}
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
             data-testid="button-save-settings"
           >
-            <Settings className="w-4 h-4" />
+            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
             حفظ الإعدادات
           </Button>
         </CardContent>
@@ -648,7 +993,7 @@ function SettingsTab() {
 export default function AdminSocialHub() {
   useDocumentTitle("مركز السوشيال ميديا | QalamAI");
   const { user } = useAuth();
-  const isSuperAdmin = user && (SUPER_ADMIN_IDS.includes((user as any).id || "") || (user as any).role === "admin");
+  const isSuperAdmin = user && SUPER_ADMIN_IDS.includes((user as any).id || "");
 
   if (!isSuperAdmin) {
     return (
@@ -656,7 +1001,7 @@ export default function AdminSocialHub() {
         <div className="text-center space-y-4">
           <Megaphone className="w-12 h-12 text-muted-foreground mx-auto" />
           <h1 className="text-2xl font-serif font-bold">غير مصرّح</h1>
-          <p className="text-muted-foreground">هذه الصفحة للمشرفين فقط.</p>
+          <p className="text-muted-foreground">هذه الصفحة للمشرفين الأعلى فقط.</p>
           <Link href="/"><Button variant="outline">العودة</Button></Link>
         </div>
       </div>

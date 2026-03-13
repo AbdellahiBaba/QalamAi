@@ -8630,8 +8630,9 @@ ${ch.content}
     }
   });
 
-  app.post("/api/admin/social/generate-daily", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+  app.post("/api/admin/social/generate-daily", isAuthenticated, isSuperAdmin, async (req: any, res) => {
     try {
+      const requestedPlatforms = req.body?.platforms;
       const bestTimes = await storage.getBestPostingTimes();
       const topHours = bestTimes.length >= 2
         ? [bestTimes[0].hour, bestTimes[1].hour]
@@ -8647,9 +8648,15 @@ ${ch.content}
       for (let i = 0; i < 5; i++) {
         const isLiterary = i >= 2;
         const postType = isLiterary ? "literary" : "marketing";
-        const platforms = isLiterary
-          ? ["facebook", "instagram", "x"]
-          : ["facebook", "instagram", "x", "tiktok", "linkedin"];
+        const validPlatformKeys = ["facebook", "instagram", "x", "tiktok", "linkedin"];
+        const userPlatforms = Array.isArray(requestedPlatforms)
+          ? requestedPlatforms.filter((p: string) => validPlatformKeys.includes(p))
+          : null;
+        const platforms = userPlatforms && userPlatforms.length > 0
+          ? userPlatforms
+          : isLiterary
+            ? ["facebook", "instagram", "x"]
+            : ["facebook", "instagram", "x", "tiktok", "linkedin"];
 
         const prompt = isLiterary
           ? `اكتب خاطرة أدبية عربية فصيحة قصيرة (3-5 أسطر) بأسلوب شاعري مؤثر. اجعلها عن ${["الحنين", "الأمل", "الحب"][i - 2] || "الحياة"}. أضف 5 هاشتاقات عربية مناسبة في النهاية. لا تكتب أي شيء آخر غير الخاطرة والهاشتاقات.`
@@ -8740,10 +8747,36 @@ ${ch.content}
     }
   });
 
+  app.post("/api/admin/social/regenerate-image/:id", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const post = await storage.getSocialPostById(id);
+      if (!post) return res.status(404).json({ error: "المنشور غير موجود" });
+      const imgRes = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: "Artistic Arabic calligraphy poster with a warm aesthetic, suitable for a literary social media post. Elegant minimalist design with golden and dark tones. No text.",
+        n: 1,
+        size: "1024x1024",
+      });
+      const coverImageUrl = imgRes.data?.[0]?.url || null;
+      if (coverImageUrl) {
+        await storage.updateSocialPost(id, { coverImageUrl });
+      }
+      res.json({ id, coverImageUrl });
+    } catch (error: any) {
+      console.error("Regenerate image error:", error);
+      res.status(500).json({ error: "فشل في إعادة توليد الصورة" });
+    }
+  });
+
   app.get("/api/admin/social/settings", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
     try {
-      const rows: any[] = (await db.execute(dsql`SELECT * FROM social_posts WHERE id = -1`)).rows;
-      res.json({ credentials: {} });
+      const rows: any[] = (await db.execute(dsql`
+        SELECT value FROM social_hub_settings WHERE key = 'platform_credentials'
+      `)).rows;
+      const credentials = rows[0]?.value ? JSON.parse(rows[0].value) : {};
+      res.json({ credentials });
     } catch {
       res.json({ credentials: {} });
     }
@@ -8751,8 +8784,25 @@ ${ch.content}
 
   app.put("/api/admin/social/settings", isAuthenticated, isSuperAdmin, async (req: any, res) => {
     try {
+      const { credentials } = req.body;
+      if (!credentials || typeof credentials !== "object") {
+        return res.status(400).json({ error: "بيانات غير صالحة" });
+      }
+      const safeCredentials: Record<string, string> = {};
+      for (const key of ["facebook", "instagram", "x", "tiktok", "linkedin"]) {
+        if (typeof credentials[key] === "string") {
+          safeCredentials[key] = credentials[key];
+        }
+      }
+      const val = JSON.stringify(safeCredentials);
+      await db.execute(dsql`
+        INSERT INTO social_hub_settings (key, value)
+        VALUES ('platform_credentials', ${val})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
       res.json({ success: true, message: "تم حفظ الإعدادات" });
-    } catch {
+    } catch (error) {
+      console.error("Save social settings error:", error);
       res.status(500).json({ error: "فشل في حفظ الإعدادات" });
     }
   });

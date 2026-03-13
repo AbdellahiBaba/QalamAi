@@ -519,6 +519,14 @@ app.use((req, res, next) => {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_social_insights_post ON social_post_insights (post_id)`);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS social_hub_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT '{}',
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);
