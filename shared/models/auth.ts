@@ -56,6 +56,7 @@ export const users = pgTable("users", {
   referralCount: integer("referral_count").default(0),
   bonusGenerations: integer("bonus_generations").default(0),
   socialProfiles: text("social_profiles"),
+  country: varchar("country", { length: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
