@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useEffect, lazy, Suspense } from "react";
 import TrackingPixels from "@/components/tracking-pixels";
 import { ErrorBoundary } from "@/components/error-boundary";
+import WriterMarketingPopup from "@/components/writer-marketing-popup";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Home = lazy(() => import("@/pages/home"));
@@ -211,7 +212,12 @@ function AppRouter() {
   }
 
   if (!user) {
-    return <PublicRouter />;
+    return (
+      <>
+        <WriterMarketingPopup />
+        <PublicRouter />
+      </>
+    );
   }
 
   return <AuthenticatedRouter />;
