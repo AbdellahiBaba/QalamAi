@@ -36,9 +36,9 @@ function PlatformStatsSection() {
 
   if (!stats || (stats.userCount === 0 && stats.projectCount === 0)) return null;
 
-  const formatNum = (n: number) => {
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}م`;
-    if (n >= 1000) return `${Math.floor(n / 1000)}ك`;
+  const formatNum = (n: number): string => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${Math.floor(n / 1000)}K`;
     return n.toString();
   };
 
@@ -47,15 +47,15 @@ function PlatformStatsSection() {
       <div className="max-w-4xl mx-auto">
         <div className="grid grid-cols-3 gap-6 text-center">
           <div className="space-y-1" data-testid="stat-users">
-            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary">{formatNum(stats.userCount)}+</p>
+            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary" dir="ltr">{formatNum(stats.userCount)}+</p>
             <p className="text-sm text-muted-foreground">كاتب عربي</p>
           </div>
           <div className="space-y-1" data-testid="stat-projects">
-            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary">{formatNum(stats.projectCount)}+</p>
+            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary" dir="ltr">{formatNum(stats.projectCount)}+</p>
             <p className="text-sm text-muted-foreground">مشروع أدبي</p>
           </div>
           <div className="space-y-1" data-testid="stat-words">
-            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary">{formatNum(stats.totalWords)}+</p>
+            <p className="font-serif text-3xl sm:text-4xl font-bold text-primary" dir="ltr">{formatNum(stats.totalWords)}+</p>
             <p className="text-sm text-muted-foreground">كلمة مكتوبة</p>
           </div>
         </div>
