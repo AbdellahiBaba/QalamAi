@@ -28,6 +28,51 @@ import LtrNum from "@/components/ui/ltr-num";
 
 const STORY_COLORS = ["hsl(var(--primary))", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
 
+const countryCodeToName: Record<string, string> = {
+  SA: "السعودية",
+  AE: "الإمارات",
+  EG: "مصر",
+  KW: "الكويت",
+  QA: "قطر",
+  BH: "البحرين",
+  OM: "عُمان",
+  JO: "الأردن",
+  LB: "لبنان",
+  IQ: "العراق",
+  SY: "سوريا",
+  PS: "فلسطين",
+  YE: "اليمن",
+  LY: "ليبيا",
+  TN: "تونس",
+  DZ: "الجزائر",
+  MA: "المغرب",
+  SD: "السودان",
+  MR: "موريتانيا",
+  SO: "الصومال",
+  DJ: "جيبوتي",
+  KM: "جزر القمر",
+  US: "أمريكا",
+  GB: "بريطانيا",
+  FR: "فرنسا",
+  DE: "ألمانيا",
+  CA: "كندا",
+  AU: "أستراليا",
+  TR: "تركيا",
+  IN: "الهند",
+  PK: "باكستان",
+  MY: "ماليزيا",
+  ID: "إندونيسيا",
+  NG: "نيجيريا",
+  BR: "البرازيل",
+  CN: "الصين",
+  JP: "اليابان",
+  KR: "كوريا الجنوبية",
+  IT: "إيطاليا",
+  ES: "إسبانيا",
+  NL: "هولندا",
+  SE: "السويد",
+};
+
 export default function Analytics() {
   useDocumentTitle("إحصائياتي — QalamAI");
   const { user, isLoading: authLoading } = useAuth();
@@ -435,9 +480,10 @@ export default function Analytics() {
                 <div className="space-y-3">
                   {countriesData.map((c, i) => {
                     const maxCount = countriesData[0]?.count || 1;
+                    const countryName = countryCodeToName[c.country] || c.country;
                     return (
                       <div key={c.country} className="flex items-center gap-3" data-testid={`row-country-${i}`}>
-                        <span className="text-sm w-20 flex-shrink-0">{c.country}</span>
+                        <span className="text-sm w-20 flex-shrink-0">{countryName}</span>
                         <div className="flex-1 h-6 bg-muted rounded overflow-hidden">
                           <div
                             className="h-full bg-primary/60 rounded transition-all flex items-center justify-end px-2"

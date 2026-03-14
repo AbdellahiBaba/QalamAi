@@ -269,6 +269,10 @@ export default function SharedProject() {
         contentType: project.projectType || "product",
         contentName: project.title,
       });
+      fetch(`/api/public/essays/${project.id}/view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch(() => {});
     }
   }, [project]);
 

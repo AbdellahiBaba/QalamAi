@@ -32,6 +32,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
+import { createHash } from "crypto";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -86,7 +87,8 @@ export interface IStorage {
   updateUserTrial(userId: string, data: Partial<User>): Promise<User>;
   grantAnalysisUses(projectId: number, continuityUses: number, styleUses: number): Promise<void>;
   grantAnalysisUsesForAllProjects(userId: string, continuityUses: number, styleUses: number): Promise<void>;
-  recordEssayView(projectId: number, visitorIp: string, referrer?: string): Promise<void>;
+  recordEssayView(projectId: number, visitorIp: string, referrer?: string, country?: string | null): Promise<void>;
+  getViewsByCountry(userId: string): Promise<Array<{ country: string; count: number }>>;
   recordEssayClick(projectId: number, visitorIp: string): Promise<void>;
   getEssayViewCount(projectId: number): Promise<number>;
   getEssayClickCount(projectId: number): Promise<number>;
@@ -902,18 +904,33 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(novelProjects.userId, userId));
   }
 
-  async recordEssayView(projectId: number, visitorIp: string, referrer?: string): Promise<void> {
+  async recordEssayView(projectId: number, visitorIp: string, referrer?: string, country?: string | null): Promise<void> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const dayKey = today.toISOString().slice(0, 10);
+    const hashedIp = createHash("sha256").update(visitorIp + dayKey).digest("hex").slice(0, 16);
     const [existing] = await db.select().from(essayViews)
       .where(and(
         eq(essayViews.projectId, projectId),
-        eq(essayViews.visitorIp, visitorIp),
+        eq(essayViews.visitorIp, hashedIp),
         sql`${essayViews.viewedAt} >= ${today}`
       ));
     if (!existing) {
-      await db.insert(essayViews).values({ projectId, visitorIp, referrer: referrer || null });
+      await db.insert(essayViews).values({ projectId, visitorIp: hashedIp, referrer: referrer || null, country: country || null });
     }
+  }
+
+  async getViewsByCountry(userId: string): Promise<Array<{ country: string; count: number }>> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT ev.country, COUNT(*)::int as count
+      FROM essay_views ev
+      JOIN novel_projects np ON np.id = ev.project_id
+      WHERE np.user_id = ${userId} AND ev.country IS NOT NULL AND ev.country != ''
+      GROUP BY ev.country
+      ORDER BY count DESC
+      LIMIT 20
+    `)).rows;
+    return rows.map(r => ({ country: r.country, count: Number(r.count) }));
   }
 
   async recordEssayClick(projectId: number, visitorIp: string): Promise<void> {

@@ -524,6 +524,7 @@ export const essayViews = pgTable("essay_views", {
   visitorIp: varchar("visitor_ip").notNull(),
   viewedAt: timestamp("viewed_at").defaultNow(),
   referrer: text("referrer"),
+  country: varchar("country", { length: 2 }),
 }, (table) => [
   index("idx_essay_views_project_id").on(table.projectId),
 ]);

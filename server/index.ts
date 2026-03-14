@@ -659,6 +659,8 @@ app.use((req, res, next) => {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_newsletter_sends_author ON newsletter_sends (author_id)`);
 
+    await pool.query(`ALTER TABLE essay_views ADD COLUMN IF NOT EXISTS country VARCHAR(2)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

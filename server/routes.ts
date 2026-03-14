@@ -16,6 +16,7 @@ import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import { apiCache } from "./cache";
+import geoip from "geoip-lite";
 import { runLearningSession } from "./learning-engine";
 import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
 import { sanitizeText, sanitizeRichText } from "./sanitize";
@@ -6170,7 +6171,13 @@ ${glossaryParagraphs}
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
       const referrer = req.headers.referer || null;
-      await storage.recordEssayView(id, visitorIp, referrer as string | undefined);
+      let rawCountry = ((req.headers["cf-ipcountry"] as string) || "").toUpperCase().slice(0, 2);
+      if (!rawCountry || rawCountry === "XX" || rawCountry === "T1") {
+        const geo = geoip.lookup(visitorIp);
+        rawCountry = geo?.country || "";
+      }
+      const country = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : null;
+      await storage.recordEssayView(id, visitorIp, referrer as string | undefined, country);
       res.json({ success: true });
       // Fire milestone notification asynchronously (non-blocking)
       const VIEW_MILESTONES = [10, 50, 100, 500, 1000, 5000];
@@ -8998,8 +9005,15 @@ ${ch.content}
     }
   });
 
-  app.get("/api/me/analytics/countries", isAuthenticated, async (_req: any, res) => {
-    res.json([]);
+  app.get("/api/me/analytics/countries", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = await storage.getViewsByCountry(userId);
+      res.json(data);
+    } catch (error) {
+      console.error("Analytics countries error:", error);
+      res.status(500).json({ error: "فشل في جلب بيانات الدول" });
+    }
   });
 
   app.get("/api/me/analytics/views-by-story", isAuthenticated, async (req: any, res) => {
