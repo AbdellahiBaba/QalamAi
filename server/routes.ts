@@ -5743,6 +5743,8 @@ ${glossaryParagraphs}
           authorIsVerified: (p as any).authorIsVerified ?? false,
           tags: (p as any).tags || [],
           seekingBetaReaders: (p as any).seekingBetaReaders || false,
+          challengeWinId: (p as any).challengeWinId || null,
+          challengeWinTitle: (p as any).challengeWinTitle || null,
         })),
         total: result.total,
         page,
@@ -9915,7 +9917,20 @@ ${platformInstructions}
       if (!challengeId) return res.status(400).json({ error: "معرف غير صالح" });
       const { winnerId, winnerEntryId } = req.body;
       if (!winnerId || !winnerEntryId) return res.status(400).json({ error: "بيانات ناقصة" });
+      const challenge = await storage.getWritingChallenge(challengeId);
+      if (!challenge) return res.status(404).json({ error: "التحدي غير موجود" });
       const updated = await storage.setChallengWinner(challengeId, winnerId, parseInt(winnerEntryId));
+      try {
+        await storage.createNotification({
+          userId: winnerId,
+          type: "challenge_winner",
+          title: "تهانينا!",
+          message: `تهانينا! فزت في التحدي "${challenge.title}"`,
+          link: `/challenges/${challengeId}`,
+        });
+      } catch (notifErr) {
+        console.error("Failed to create challenge winner notification:", notifErr);
+      }
       res.json(updated);
     } catch (error: any) {
       console.error("Set challenge winner error:", error);
@@ -9950,6 +9965,19 @@ ${platformInstructions}
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
       const request = await storage.requestBetaReader({ projectId, userId, message: parsed.data.message || null });
+      if (request) {
+        try {
+          await storage.createNotification({
+            userId: project.userId,
+            type: "beta_reader",
+            title: "قارئ بيتا جديد",
+            message: `قارئ جديد يريد المشاركة كقارئ بيتا لمشروعك "${project.title}"`,
+            link: `/projects/${projectId}`,
+          });
+        } catch (notifErr) {
+          console.error("Failed to create beta reader notification:", notifErr);
+        }
+      }
       res.json(request || { success: true });
     } catch (error: any) {
       console.error("Beta reader request error:", error);

@@ -183,11 +183,49 @@ export default function ChallengeDetailPage() {
           </div>
         )}
 
+        {challenge.winner_entry_id && challenge.entries && (() => {
+          const winnerEntry = challenge.entries.find(e => e.id === challenge.winner_entry_id);
+          if (!winnerEntry) return null;
+          return (
+            <Card className="ring-2 ring-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20" data-testid="card-winner-entry">
+              <CardContent className="p-6 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <span className="font-bold text-yellow-600 dark:text-yellow-400 text-lg">الفائز</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {winnerEntry.authorProfileImage ? (
+                      <img src={winnerEntry.authorProfileImage} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-400" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center text-sm font-bold text-yellow-700 dark:text-yellow-300 ring-2 ring-yellow-400">
+                        {(winnerEntry.authorName || "?")[0]}
+                      </div>
+                    )}
+                    <Link href={`/author/${winnerEntry.user_id}`}>
+                      <span className="font-semibold hover:underline cursor-pointer">{winnerEntry.authorName}</span>
+                    </Link>
+                    <Badge className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30 gap-1" data-testid="badge-winner">
+                      <Crown className="w-3 h-3" /> الفائز
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(winnerEntry.created_at).toLocaleDateString("ar-SA")}
+                  </span>
+                </div>
+                <p className="font-serif leading-relaxed whitespace-pre-wrap" data-testid="text-winner-content">
+                  {winnerEntry.content}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         {challenge.entries && challenge.entries.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold" data-testid="text-entries-section">المشاركات</h2>
-            {challenge.entries.map(entry => (
-              <Card key={entry.id} className={`${challenge.winner_entry_id === entry.id ? "ring-2 ring-yellow-500" : ""}`} data-testid={`card-entry-${entry.id}`}>
+            {challenge.entries.filter(e => e.id !== challenge.winner_entry_id).map(entry => (
+              <Card key={entry.id} data-testid={`card-entry-${entry.id}`}>
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -201,11 +239,6 @@ export default function ChallengeDetailPage() {
                       <Link href={`/author/${entry.user_id}`}>
                         <span className="text-sm font-medium hover:underline cursor-pointer">{entry.authorName}</span>
                       </Link>
-                      {challenge.winner_entry_id === entry.id && (
-                        <Badge className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30 gap-1">
-                          <Crown className="w-3 h-3" /> الفائز
-                        </Badge>
-                      )}
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {new Date(entry.created_at).toLocaleDateString("ar-SA")}

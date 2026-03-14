@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2 } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
@@ -29,6 +29,8 @@ interface GalleryProject {
   authorIsVerified?: boolean;
   tags?: string[];
   seekingBetaReaders?: boolean;
+  challengeWinId?: number | null;
+  challengeWinTitle?: string | null;
 }
 
 const typeLabels: Record<string, string> = {
@@ -365,6 +367,17 @@ export default function Gallery() {
                   )}
                   {project.seekingBetaReaders && (
                     <BetaReaderGalleryButton projectId={project.id} />
+                  )}
+                  {project.challengeWinId && (
+                    <Link
+                      href={`/challenges/${project.challengeWinId}`}
+                      onClick={(e) => e.stopPropagation()}
+                      data-testid={`badge-challenge-winner-${project.id}`}
+                    >
+                      <Badge className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30 dark:text-yellow-400 gap-1 text-[10px] w-fit cursor-pointer">
+                        <Trophy className="w-3 h-3" /> فائز بتحدي
+                      </Badge>
+                    </Link>
                   )}
                   {project.mainIdea && (
                     <p

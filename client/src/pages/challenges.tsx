@@ -21,6 +21,7 @@ interface Challenge {
   winner_entry_id: number | null;
   created_at: string;
   entryCount: number;
+  winnerName: string | null;
 }
 
 function getTimeRemaining(endDate: string) {
@@ -122,7 +123,13 @@ export default function Challenges() {
                         <p className="text-sm text-muted-foreground line-clamp-2">{ch.description}</p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> <LtrNum>{ch.entryCount}</LtrNum> مشاركة</span>
-                          {ch.winner_id && <span className="flex items-center gap-1 text-yellow-600"><Crown className="w-3.5 h-3.5" /> تم اختيار الفائز</span>}
+                          {ch.winner_id && ch.winnerName ? (
+                            <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400"><Crown className="w-3.5 h-3.5" /> الفائز: {ch.winnerName}</span>
+                          ) : !ch.winner_id ? (
+                            <span className="flex items-center gap-1 text-muted-foreground"><Crown className="w-3.5 h-3.5" /> اختر الفائز</span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-yellow-600"><Crown className="w-3.5 h-3.5" /> تم اختيار الفائز</span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

@@ -723,7 +723,9 @@ export class DatabaseStorage implements IStorage {
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
         COALESCE(u.verified, false) as "authorIsVerified",
         p.tags,
-        COALESCE(p.seeking_beta_readers, false) as "seekingBetaReaders"
+        COALESCE(p.seeking_beta_readers, false) as "seekingBetaReaders",
+        (SELECT wc.id FROM writing_challenges wc WHERE wc.winner_id = p.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinId",
+        (SELECT wc.title FROM writing_challenges wc WHERE wc.winner_id = p.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinTitle"
       FROM novel_projects p
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
@@ -2379,7 +2381,9 @@ export class DatabaseStorage implements IStorage {
         COALESCE(u.display_name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')), 'كاتب مجهول') as "authorName",
         COALESCE(u.id, np.user_id) as "authorId",
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
-        COALESCE(u.verified, false) as "authorIsVerified"
+        COALESCE(u.verified, false) as "authorIsVerified",
+        (SELECT wc.id FROM writing_challenges wc WHERE wc.winner_id = np.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinId",
+        (SELECT wc.title FROM writing_challenges wc WHERE wc.winner_id = np.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinTitle"
       FROM novel_projects np
       LEFT JOIN users u ON u.id = np.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = np.user_id
@@ -2413,10 +2417,12 @@ export class DatabaseStorage implements IStorage {
 
   async getWritingChallenges(): Promise<any[]> {
     return (await db.execute(sql`
-      SELECT wc.*, COUNT(ce.id)::int as "entryCount"
+      SELECT wc.*, COUNT(ce.id)::int as "entryCount",
+        COALESCE(wu.first_name || ' ' || wu.last_name, wu.username, NULL) as "winnerName"
       FROM writing_challenges wc
       LEFT JOIN challenge_entries ce ON ce.challenge_id = wc.id
-      GROUP BY wc.id
+      LEFT JOIN users wu ON wu.id = wc.winner_id
+      GROUP BY wc.id, wu.first_name, wu.last_name, wu.username
       ORDER BY wc.end_date DESC
     `)).rows;
   }
