@@ -1268,6 +1268,7 @@ export default function ProjectDetail() {
   }, [project?.chapters, generatingChapter, hasAccess]);
 
   const handleEscapeClose = useCallback(() => {
+    if (isFullscreen) return;
     if (editingChapter !== null) { setEditingChapter(null); return; }
     if (editingSettings) { setEditingSettings(false); return; }
     if (editingTitle) { setEditingTitle(false); setTitleSuggestions([]); return; }
@@ -1278,7 +1279,7 @@ export default function ProjectDetail() {
     if (rewriteChapterId !== null) { setRewriteChapterId(null); setRewrittenResult(null); return; }
     if (versionHistoryChapterId !== null) { setVersionHistoryChapterId(null); return; }
     if (originalityChapterId !== null) { setOriginalityChapterId(null); setOriginalityResult(null); return; }
-  }, [editingChapter, editingSettings, editingTitle, editingMainIdea, editingOutline, showRefineInput, showShortcutsDialog, rewriteChapterId, versionHistoryChapterId, originalityChapterId]);
+  }, [isFullscreen, editingChapter, editingSettings, editingTitle, editingMainIdea, editingOutline, showRefineInput, showShortcutsDialog, rewriteChapterId, versionHistoryChapterId, originalityChapterId]);
 
   const keyboardShortcuts: KeyboardShortcut[] = useMemo(() => [
     { key: "s", ctrl: true, handler: handleCtrlSave, description: "حفظ التعديلات الحالية", label: "Ctrl + S" },
