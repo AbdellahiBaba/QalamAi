@@ -8453,13 +8453,14 @@ ${ch.content}
       if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "لا توجد بلاغات محددة" });
       const adminId = req.user.claims.sub;
       let dismissed = 0;
+      const failed: number[] = [];
       for (const id of ids) {
         try {
           await storage.updateContentReport(Number(id), { status: "dismissed", reviewedBy: adminId, reviewedAt: new Date(), resolvedAt: new Date() });
           dismissed++;
-        } catch {}
+        } catch { failed.push(Number(id)); }
       }
-      res.json({ success: true, dismissed });
+      res.json({ success: true, dismissed, failed });
     } catch (error) {
       res.status(500).json({ error: "فشل في رفض البلاغات" });
     }
@@ -8471,6 +8472,7 @@ ${ch.content}
       if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "لا توجد بلاغات محددة" });
       const adminId = req.user.claims.sub;
       let warned = 0;
+      const failed: number[] = [];
       for (const id of ids) {
         try {
           const report = await storage.getContentReport(Number(id));
@@ -8481,10 +8483,10 @@ ${ch.content}
               notifyUser(project.userId, "content_warning", "تحذير بشأن المحتوى", "تم تلقي بلاغ عن أحد أعمالك. يرجى مراجعة المحتوى والتأكد من التزامه بسياسة المنصة.", "/profile");
             }
             warned++;
-          }
-        } catch {}
+          } else { failed.push(Number(id)); }
+        } catch { failed.push(Number(id)); }
       }
-      res.json({ success: true, warned });
+      res.json({ success: true, warned, failed });
     } catch (error) {
       res.status(500).json({ error: "فشل في إرسال التحذيرات" });
     }
@@ -8496,6 +8498,7 @@ ${ch.content}
       if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "لا توجد بلاغات محددة" });
       const adminId = req.user.claims.sub;
       let removed = 0;
+      const failed: number[] = [];
       for (const id of ids) {
         try {
           const report = await storage.getContentReport(Number(id));
@@ -8503,10 +8506,10 @@ ${ch.content}
             await storage.updateProject(report.projectId, { publishedToGallery: false, publishedToNews: false });
             await storage.updateContentReport(Number(id), { status: "action_taken", actionTaken: "unpublished", reviewedBy: adminId, reviewedAt: new Date(), resolvedAt: new Date() });
             removed++;
-          }
-        } catch {}
+          } else { failed.push(Number(id)); }
+        } catch { failed.push(Number(id)); }
       }
-      res.json({ success: true, removed });
+      res.json({ success: true, removed, failed });
     } catch (error) {
       res.status(500).json({ error: "فشل في إزالة المحتوى" });
     }
@@ -8565,26 +8568,6 @@ ${ch.content}
     } catch (error) {
       console.error("Revenue summary error:", error);
       res.status(500).json({ error: "فشل في جلب بيانات الإيرادات" });
-    }
-  });
-
-  app.get("/api/admin/impersonate/:userId", isAuthenticated, isSuperAdmin, async (req: any, res) => {
-    try {
-      const targetUserId = req.params.userId;
-      const targetUser = await storage.getUser(targetUserId);
-      if (!targetUser) return res.status(404).json({ error: "المستخدم غير موجود" });
-      res.json({
-        success: true,
-        user: {
-          id: targetUser.id,
-          displayName: (targetUser as any).displayName || targetUser.firstName || targetUser.email || "مستخدم",
-          email: targetUser.email,
-          plan: targetUser.plan,
-          profileImageUrl: targetUser.profileImageUrl,
-        },
-      });
-    } catch (error) {
-      res.status(500).json({ error: "فشل في تحميل بيانات المستخدم" });
     }
   });
 
@@ -9474,6 +9457,26 @@ ${ch.content}
     }
     next();
   };
+
+  app.get("/api/admin/impersonate/:userId", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const targetUserId = req.params.userId;
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) return res.status(404).json({ error: "المستخدم غير موجود" });
+      res.json({
+        success: true,
+        user: {
+          id: targetUser.id,
+          displayName: (targetUser as any).displayName || targetUser.firstName || targetUser.email || "مستخدم",
+          email: targetUser.email,
+          plan: targetUser.plan,
+          profileImageUrl: targetUser.profileImageUrl,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحميل بيانات المستخدم" });
+    }
+  });
 
   app.get("/api/admin/social/posts", isAuthenticated, isSuperAdmin, async (req: any, res) => {
     try {

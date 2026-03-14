@@ -21,7 +21,7 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
 - **UI/UX and Accessibility:** Adheres to Arabic display standards (ordinal words, BiDi reordering), includes dark mode, keyboard shortcuts, focus mode, drag-and-drop chapter management, and SEO optimization.
 - **Content Reporting System:** A multi-step reporting dialog for public users, categorizing issues by type and severity.
 - **Free Plan:** Offers limited monthly project and chapter generations with upgrade calls to action.
-- **Admin Tools:** A comprehensive admin panel for managing users, content moderation, reports, reviews, API usage, analytics, and promo codes.
+- **Admin Tools:** A comprehensive admin panel for managing users, content moderation, reports, reviews, API usage, analytics, promo codes, revenue dashboard (MRR, churn rate, plan distribution), bulk content moderation (multi-select reports with dismiss/warn/remove), user impersonation (super-admin only view-as with sticky banner), and AI daily prompt auto-generation (GPT-4o powered).
 - **Abu Hashim Self-Learning System:** A RAG-based intelligence engine that extracts knowledge from user interactions, validates entries, and injects curated knowledge into all AI prompts.
 - **AI Profile Avatar & Chat:** Users can generate AI profile images using DALL-E. A contextual AI chat, "Abu Hashim," provides literary advice and brainstorming.
 - **Performance Optimizations:** Dashboard optimized with single-query joins, server-side caching, lazy-loading of heavy components, and stable queries. Database performance improved with indexes and optimized SQL queries.

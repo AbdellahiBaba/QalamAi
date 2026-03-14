@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck, Brain, PlayCircle, CheckCircle, XCircle, RefreshCw, Webhook, Send, ChevronLeft, ChevronRight, Megaphone } from "lucide-react";
+import { Feather, LogOut, ShieldCheck, Ticket, Clock, Search, ArrowRight, AlertCircle, Users, FolderOpen, Crown, BarChart3, BookOpen, FileText, Film, Tag, DollarSign, Download, Eye, Flag, FlagOff, Loader2, PenTool, TrendingUp, Cpu, ShieldOff, ShieldAlert, Info, MessageSquare, Star, Check, Trash2, Crosshair, Share2, Plus, GripVertical, ExternalLink, Pencil, Settings, ToggleLeft, ToggleRight, X, Menu, GraduationCap, MapPin, Globe, Wifi, Monitor, Smartphone, Tablet, ChevronDown, ChevronUp, AlertTriangle, Hash, CalendarCheck, Brain, PlayCircle, CheckCircle, XCircle, RefreshCw, Webhook, Send, ChevronLeft, ChevronRight, Megaphone, Sparkles, UserCheck, Square, CheckSquare } from "lucide-react";
 import { SiLinkedin, SiTiktok, SiX, SiInstagram, SiFacebook, SiYoutube, SiSnapchat, SiTelegram, SiWhatsapp } from "react-icons/si";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -125,6 +125,8 @@ const planLabels: Record<string, string> = {
   all_in_one: "الخطة الشاملة",
 };
 
+const SUPER_ADMIN_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
+
 const projectTypeLabels: Record<string, string> = {
   novel: "رواية",
   essay: "مقال",
@@ -180,6 +182,9 @@ function AdminChallengesTab() {
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
   const [endDays, setEndDays] = useState("7");
+  const [generatedPrompt, setGeneratedPrompt] = useState<{ promptText: string; promptDate: string } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false);
 
   const { data: challenges, isLoading } = useQuery<any[]>({
     queryKey: ["/api/challenges"],
@@ -202,8 +207,73 @@ function AdminChallengesTab() {
     onError: () => toast({ title: "فشل في إنشاء التحدي", variant: "destructive" }),
   });
 
+  const handleGeneratePrompt = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/daily-prompts/generate");
+      const data = await res.json();
+      setGeneratedPrompt(data);
+      toast({ title: "تم توليد البروبت بنجاح" });
+    } catch {
+      toast({ title: "فشل في توليد البروبت", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSaveGeneratedPrompt = async () => {
+    if (!generatedPrompt) return;
+    setIsSavingPrompt(true);
+    try {
+      await apiRequest("POST", "/api/daily-prompt", { promptText: generatedPrompt.promptText, promptDate: generatedPrompt.promptDate });
+      toast({ title: "تم حفظ البروبت اليومي" });
+      setGeneratedPrompt(null);
+    } catch {
+      toast({ title: "فشل في حفظ البروبت", variant: "destructive" });
+    } finally {
+      setIsSavingPrompt(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <h3 className="font-serif text-lg font-semibold flex items-center gap-2" data-testid="text-ai-prompt-gen-title">
+            <Sparkles className="w-5 h-5 text-purple-500" /> توليد بروبت يومي بالذكاء الاصطناعي
+          </h3>
+          <p className="text-sm text-muted-foreground">توليد بروبت كتابي تلقائي ليوم الغد باستخدام الذكاء الاصطناعي</p>
+          <div className="flex items-center gap-3">
+            <Button onClick={handleGeneratePrompt} disabled={isGenerating} className="gap-1.5" data-testid="button-generate-prompt">
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {isGenerating ? "جارٍ التوليد..." : "توليد بالذكاء الاصطناعي"}
+            </Button>
+          </div>
+          {generatedPrompt && (
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg border" data-testid="generated-prompt-preview">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarCheck className="w-3.5 h-3.5" />
+                <span dir="ltr">{generatedPrompt.promptDate}</span>
+              </div>
+              <p className="text-sm leading-relaxed font-medium" data-testid="text-generated-prompt">{generatedPrompt.promptText}</p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={handleSaveGeneratedPrompt} disabled={isSavingPrompt} className="gap-1" data-testid="button-save-prompt">
+                  {isSavingPrompt ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  حفظ ونشر
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleGeneratePrompt} disabled={isGenerating} data-testid="button-regenerate-prompt">
+                  <RefreshCw className="w-3.5 h-3.5 ml-1" />
+                  إعادة التوليد
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setGeneratedPrompt(null)} data-testid="button-discard-prompt">
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="p-6 space-y-4">
           <h3 className="font-serif text-lg font-semibold flex items-center gap-2" data-testid="text-create-challenge-title">
@@ -280,7 +350,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -303,6 +373,8 @@ export default function Admin() {
   const [apiUsageDetailUser, setApiUsageDetailUser] = useState<string | null>(null);
   const [showApiUsageDialog, setShowApiUsageDialog] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedReports, setSelectedReports] = useState<Set<number>>(new Set());
+  const [impersonating, setImpersonating] = useState<{ id: string; displayName: string } | null>(null);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [usersPage, setUsersPage] = useState(1);
   const [promosPage, setPromosPage] = useState(1);
@@ -664,6 +736,53 @@ export default function Admin() {
   const { data: reportStats } = useQuery<any>({
     queryKey: ["/api/admin/reports/stats"],
     enabled: activeTab === "reports",
+  });
+
+  const { data: revenueData, isLoading: revenueLoading } = useQuery<any>({
+    queryKey: ["/api/admin/revenue-summary"],
+    enabled: activeTab === "revenue",
+  });
+
+  const bulkDismissMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res = await apiRequest("POST", "/api/admin/reports/bulk-dismiss", { ids });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: `تم رفض ${data.dismissed} بلاغ` });
+      setSelectedReports(new Set());
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports/stats"] });
+    },
+    onError: () => toast({ title: "فشل في رفض البلاغات", variant: "destructive" }),
+  });
+
+  const bulkWarnMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res = await apiRequest("POST", "/api/admin/reports/bulk-warn", { ids });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: `تم تحذير ${data.warned} مؤلف` });
+      setSelectedReports(new Set());
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports/stats"] });
+    },
+    onError: () => toast({ title: "فشل في إرسال التحذيرات", variant: "destructive" }),
+  });
+
+  const bulkRemoveMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const res = await apiRequest("POST", "/api/admin/reports/bulk-remove", { ids });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: `تم إزالة ${data.removed} محتوى` });
+      setSelectedReports(new Set());
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports/stats"] });
+    },
+    onError: () => toast({ title: "فشل في إزالة المحتوى", variant: "destructive" }),
   });
 
   const { data: verifiedApps } = useQuery<any[]>({
@@ -1166,6 +1285,7 @@ export default function Admin() {
                 <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">التحليلات</p>
                 {[
                   { key: "analytics" as const, icon: BarChart3, label: "إحصائيات" },
+                  { key: "revenue" as const, icon: DollarSign, label: "الإيرادات" },
                   { key: "api-usage" as const, icon: Cpu, label: "استخدام API" },
                   { key: "tracking" as const, icon: Crosshair, label: "بكسل التتبع" },
                 ].map((item) => (
@@ -1206,6 +1326,25 @@ export default function Admin() {
         </aside>
 
         <main ref={mainContentRef} className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 py-6 sm:py-10">
+          {impersonating && (
+            <div className="sticky top-0 z-50 mb-4 flex items-center gap-3 p-3 bg-amber-100 dark:bg-amber-900/50 border border-amber-300 dark:border-amber-700 rounded-lg shadow-sm" data-testid="impersonation-banner">
+              <UserCheck className="w-5 h-5 text-amber-700 dark:text-amber-300 shrink-0" />
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                أنت تعرض المنصة كـ: <strong>{impersonating.displayName}</strong>
+              </span>
+              <div className="flex-1" />
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800"
+                onClick={() => { setImpersonating(null); toast({ title: "تم الخروج من وضع العرض" }); }}
+                data-testid="button-exit-impersonation"
+              >
+                <X className="w-3.5 h-3.5 ml-1" />
+                خروج
+              </Button>
+            </div>
+          )}
           <div className="flex items-center gap-3 mb-6 sm:mb-8">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -1276,6 +1415,7 @@ export default function Admin() {
                       <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">التحليلات</p>
                       {[
                         { key: "analytics" as const, icon: BarChart3, label: "إحصائيات" },
+                        { key: "revenue" as const, icon: DollarSign, label: "الإيرادات" },
                         { key: "api-usage" as const, icon: Cpu, label: "استخدام API" },
                         { key: "tracking" as const, icon: Crosshair, label: "بكسل التتبع" },
                       ].map((item) => (
@@ -1661,6 +1801,28 @@ export default function Admin() {
                                 <BarChart3 className="w-4 h-4 ml-1" />
                                 منح تحليل
                               </Button>
+                              {user && SUPER_ADMIN_IDS.includes(String(user.id)) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    const res = await apiRequest("GET", `/api/admin/impersonate/${u.id}`);
+                                    const data = await res.json();
+                                    if (data.success) {
+                                      setImpersonating({ id: data.user.id, displayName: data.user.displayName });
+                                      toast({ title: `وضع العرض: ${data.user.displayName}` });
+                                    }
+                                  } catch {
+                                    toast({ title: "فشل في تحميل بيانات المستخدم", variant: "destructive" });
+                                  }
+                                }}
+                                data-testid={`button-impersonate-${u.id}`}
+                              >
+                                <Eye className="w-4 h-4 ml-1" />
+                                عرض كمستخدم
+                              </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -4551,6 +4713,28 @@ export default function Admin() {
               ))}
             </div>
 
+            {selectedReports.size > 0 && (
+              <div className="flex items-center gap-2 p-3 bg-muted/60 rounded-lg border" data-testid="bulk-moderation-toolbar">
+                <span className="text-sm font-medium"><LtrNum>{selectedReports.size}</LtrNum> محدد</span>
+                <div className="flex-1" />
+                <Button size="sm" variant="outline" onClick={() => bulkDismissMutation.mutate(Array.from(selectedReports))} disabled={bulkDismissMutation.isPending} data-testid="button-bulk-dismiss">
+                  {bulkDismissMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <XCircle className="w-3.5 h-3.5 ml-1" />}
+                  رفض الكل
+                </Button>
+                <Button size="sm" variant="outline" className="text-yellow-600 border-yellow-300" onClick={() => bulkWarnMutation.mutate(Array.from(selectedReports))} disabled={bulkWarnMutation.isPending} data-testid="button-bulk-warn">
+                  {bulkWarnMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <ShieldAlert className="w-3.5 h-3.5 ml-1" />}
+                  تحذير الكل
+                </Button>
+                <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={() => bulkRemoveMutation.mutate(Array.from(selectedReports))} disabled={bulkRemoveMutation.isPending} data-testid="button-bulk-remove">
+                  {bulkRemoveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <FlagOff className="w-3.5 h-3.5 ml-1" />}
+                  إزالة المحتوى
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedReports(new Set())} data-testid="button-bulk-clear">
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -4591,9 +4775,20 @@ export default function Admin() {
                 {filteredReports.map((report: any) => {
                   const isExpanded = expandedReporterInfo[report.id] || false;
                   return (
-                    <Card key={report.id} className={report.severity === "critical" ? "border-red-300 dark:border-red-800" : report.severity === "high" ? "border-orange-300 dark:border-orange-800" : ""} data-testid={`card-report-${report.id}`}>
+                    <Card key={report.id} className={`${report.severity === "critical" ? "border-red-300 dark:border-red-800" : report.severity === "high" ? "border-orange-300 dark:border-orange-800" : ""} ${selectedReports.has(report.id) ? "ring-2 ring-primary" : ""}`} data-testid={`card-report-${report.id}`}>
                       <CardContent className="p-4 space-y-3">
                         <div className="flex flex-wrap items-start justify-between gap-2">
+                          <button
+                            className="mt-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setSelectedReports(prev => {
+                              const next = new Set(prev);
+                              next.has(report.id) ? next.delete(report.id) : next.add(report.id);
+                              return next;
+                            })}
+                            data-testid={`checkbox-report-${report.id}`}
+                          >
+                            {selectedReports.has(report.id) ? <CheckSquare className="w-4.5 h-4.5 text-primary" /> : <Square className="w-4.5 h-4.5" />}
+                          </button>
                           <div className="space-y-1.5 flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               {report.reportNumber && (
@@ -4880,6 +5075,105 @@ export default function Admin() {
           </div>
           );
         })()}
+
+        {activeTab === "revenue" && (
+          <div className="space-y-6" data-testid="section-revenue">
+            <h2 className="text-xl font-serif font-semibold flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-600" />
+              لوحة الإيرادات
+            </h2>
+            {revenueLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => <Card key={i}><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>)}
+              </div>
+            ) : revenueData ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card className="border-green-200 dark:border-green-800">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-bold text-green-600" data-testid="text-revenue-mrr">
+                        $<LtrNum>{revenueData.mrr?.toFixed(0) || 0}</LtrNum>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">الإيراد الشهري المتكرر (MRR)</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-bold" data-testid="text-revenue-subscribers">
+                        <LtrNum>{revenueData.totalSubscribers || 0}</LtrNum>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">إجمالي المشتركين</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-bold text-blue-600" data-testid="text-revenue-new-subs">
+                        +<LtrNum>{revenueData.newSubscribers || 0}</LtrNum>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">مشتركين جدد (30 يوم)</p>
+                    </CardContent>
+                  </Card>
+                  <Card className={revenueData.churnRate > 10 ? "border-red-200 dark:border-red-800" : "border-green-200 dark:border-green-800"}>
+                    <CardContent className="p-4 text-center">
+                      <p className={`text-3xl font-bold ${revenueData.churnRate > 10 ? "text-red-600" : "text-green-600"}`} data-testid="text-revenue-churn">
+                        <LtrNum>{revenueData.churnRate || 0}</LtrNum>%
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">معدل الإلغاء ({revenueData.churned || 0} ألغوا)</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {revenueData.planDistribution && revenueData.planDistribution.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="font-serif font-semibold mb-4" data-testid="text-plan-distribution-title">توزيع الخطط</h3>
+                      <div className="space-y-3">
+                        {revenueData.planDistribution.map((pd: any) => {
+                          const percentage = revenueData.totalSubscribers > 0 ? Math.round((pd.count / revenueData.totalSubscribers) * 100) : 0;
+                          const colors: Record<string, string> = {
+                            all_in_one: "bg-amber-500",
+                            essay: "bg-blue-500",
+                            scenario: "bg-purple-500",
+                            trial: "bg-gray-400",
+                          };
+                          return (
+                            <div key={pd.plan} className="space-y-1" data-testid={`plan-dist-${pd.plan}`}>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium">{pd.label}</span>
+                                <span className="text-muted-foreground">
+                                  <LtrNum>{pd.count}</LtrNum> مشترك — $<LtrNum>{pd.revenue?.toFixed(0) || 0}</LtrNum>/شهر
+                                </span>
+                              </div>
+                              <div className="h-3 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${colors[pd.plan] || "bg-primary"}`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground text-left" dir="ltr"><LtrNum>{percentage}</LtrNum>%</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="font-serif font-semibold mb-2" data-testid="text-total-revenue-title">إجمالي الإيرادات</h3>
+                    <p className="text-4xl font-bold text-green-600" data-testid="text-total-revenue">
+                      $<LtrNum>{revenueData.totalRevenue?.toFixed(0) || 0}</LtrNum>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">إجمالي المبيعات من المشاريع المدفوعة</p>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">فشل في تحميل بيانات الإيرادات</p>
+            )}
+          </div>
+        )}
 
         {activeTab === "challenges" && (
           <AdminChallengesTab />
