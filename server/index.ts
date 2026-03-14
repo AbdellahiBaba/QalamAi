@@ -634,6 +634,90 @@ app.use((req, res, next) => {
       }, SOCIAL_AUTOPUBLISH_INTERVAL);
       log("Social auto-publish background job started (every 60 seconds)");
 
+      const SOCIAL_AUTOGENERATE_CHECK_INTERVAL = 60 * 60 * 1000; // check every hour
+      const SOCIAL_AUTOGENERATE_COOLDOWN = 23 * 60 * 60 * 1000; // at most once per 23h
+      setInterval(async () => {
+        try {
+          const { pool } = await import("./db");
+          const cfgRows = await pool.query(`SELECT value FROM social_hub_settings WHERE key = 'auto_generate_config'`);
+          const rawCfg = cfgRows.rows[0]?.value;
+          if (!rawCfg) return;
+          const cfg = typeof rawCfg === "string" ? JSON.parse(rawCfg) : rawCfg;
+          if (!cfg.enabled) return;
+
+          const lastRunRows = await pool.query(`SELECT value FROM social_hub_settings WHERE key = 'auto_generate_last_run'`);
+          const lastRunRaw = lastRunRows.rows[0]?.value;
+          if (lastRunRaw) {
+            const lastRunStr = typeof lastRunRaw === "string" ? lastRunRaw.replace(/^"|"$/g, "") : String(lastRunRaw);
+            const lastRun = new Date(lastRunStr);
+            if (Date.now() - lastRun.getTime() < SOCIAL_AUTOGENERATE_COOLDOWN) return;
+          }
+
+          log("[AutoGenerate] Starting daily content generation...");
+          const platforms: string[] = cfg.platforms || ["facebook", "instagram", "x", "tiktok", "linkedin"];
+          const bestTimes = await storage.getBestPostingTimes();
+          const scheduleHours = bestTimes.length >= 2
+            ? [bestTimes[0].hour, bestTimes[0].hour + 1, bestTimes[1].hour, bestTimes[1].hour + 1, Math.min(bestTimes[0].hour, bestTimes[1].hour) + 2]
+            : [9, 12, 15, 18, 21];
+
+          const { default: OpenAI } = await import("openai");
+          const aiClient = new OpenAI({
+            apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+            baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+          });
+
+          let createdCount = 0;
+          for (let i = 0; i < 5; i++) {
+            try {
+              const isLiterary = i >= 2;
+              const postType = isLiterary ? "literary" : "marketing";
+              const topics = ["الحنين", "الأمل", "الحب", "الصمت", "الغياب"];
+              const prompt = isLiterary
+                ? `اكتب خاطرة أدبية عربية فصيحة قصيرة (3-5 أسطر) بأسلوب شاعري مؤثر عن ${topics[i - 2] || "الحياة"}. أضف CTA: "اكتشف عالم الكتابة العربية على QalamAI.net" ورابط qalamai.net و5 هاشتاقات عربية.`
+                : `اكتب منشوراً تسويقياً لمنصة QalamAI (qalamai.net). ${i === 0 ? "ركز على سهولة البدء مجاناً." : "ركز على جودة المحتوى وتنوع الأنواع الأدبية."} أضف CTA قوي ورابط qalamai.net و5 هاشتاقات.`;
+
+              const completion = await aiClient.chat.completions.create({
+                model: "gpt-4o",
+                max_completion_tokens: 600,
+                messages: [
+                  { role: "system", content: "أنت أبو هاشم، كاتب ومسوّق رقمي عربي محترف. تكتب محتوى سوشيال ميديا بالعربية الفصحى مع CTA فعّال ورابط qalamai.net." },
+                  { role: "user", content: prompt },
+                ],
+              });
+              const content = completion.choices[0]?.message?.content || "";
+
+              let coverImageUrl: string | null = null;
+              if (isLiterary) {
+                try {
+                  const imgRes = await aiClient.images.generate({
+                    model: "dall-e-3",
+                    prompt: "Artistic Arabic calligraphy poster with warm golden tones, minimalist elegant design, square composition. No text.",
+                    n: 1,
+                    size: "1024x1024",
+                  });
+                  coverImageUrl = imgRes.data?.[0]?.url || null;
+                } catch { /* skip */ }
+              }
+
+              const scheduledAt = new Date();
+              scheduledAt.setHours(scheduleHours[i] || 12, 0, 0, 0);
+              if (scheduledAt <= new Date()) scheduledAt.setDate(scheduledAt.getDate() + 1);
+
+              await storage.createSocialPost({ content, platforms, scheduledAt, status: "scheduled", postType, coverImageUrl });
+              createdCount++;
+            } catch (postErr: any) {
+              console.error(`[AutoGenerate] Post ${i} failed:`, postErr.message);
+            }
+          }
+
+          await pool.query(`INSERT INTO social_hub_settings (key, value) VALUES ('auto_generate_last_run', $1) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`, [new Date().toISOString()]);
+          log(`[AutoGenerate] Daily generation complete — ${createdCount} posts created`);
+        } catch (err: any) {
+          console.error("[AutoGenerate] Background job error:", err.message);
+        }
+      }, SOCIAL_AUTOGENERATE_CHECK_INTERVAL);
+      log("Social auto-generate background job started (checks every hour)");
+
       const LEARNING_INTERVAL = 24 * 60 * 60 * 1000;
       setInterval(async () => {
         try {

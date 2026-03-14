@@ -466,6 +466,45 @@ function PostQueueTab() {
   const [filter, setFilter] = useState<string>("all");
   const [duplicatedPostId, setDuplicatedPostId] = useState<number | null>(null);
   const [duplicateRescheduleTime, setDuplicateRescheduleTime] = useState("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newPost, setNewPost] = useState({
+    content: "",
+    platforms: ["facebook", "instagram", "x"] as string[],
+    scheduledAt: "",
+    postType: "marketing",
+    status: "scheduled",
+  });
+
+  const createPostMutation = useMutation({
+    mutationFn: async () => {
+      if (!newPost.content.trim()) throw new Error("المحتوى مطلوب");
+      if (newPost.platforms.length === 0) throw new Error("اختر منصة واحدة على الأقل");
+      const res = await apiRequest("POST", "/api/admin/social/posts", {
+        content: newPost.content,
+        platforms: newPost.platforms,
+        scheduledAt: newPost.scheduledAt ? new Date(newPost.scheduledAt).toISOString() : null,
+        postType: newPost.postType,
+        status: newPost.scheduledAt ? "scheduled" : "draft",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      toast({ title: "تم إنشاء المنشور" });
+      setShowCreateDialog(false);
+      setNewPost({ content: "", platforms: ["facebook", "instagram", "x"], scheduledAt: "", postType: "marketing", status: "scheduled" });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل في إنشاء المنشور", variant: "destructive" });
+    },
+  });
+
+  const toggleNewPostPlatform = (p: string) => {
+    setNewPost((prev) => ({
+      ...prev,
+      platforms: prev.platforms.includes(p) ? prev.platforms.filter((x) => x !== p) : [...prev.platforms, p],
+    }));
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -554,20 +593,31 @@ function PostQueueTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        {["all", "draft", "scheduled", "posted", "needs_manual"].map((s) => (
-          <Button
-            key={s}
-            size="sm"
-            variant={filter === s ? "default" : "outline"}
-            onClick={() => setFilter(s)}
-            className="text-xs"
-            data-testid={`filter-${s}`}
-          >
-            {s === "all" ? "الكل" : STATUS_MAP[s]?.label || s}
-            {s !== "all" && <span className="mr-1 opacity-70">({posts.filter((p: any) => p.status === s).length})</span>}
-          </Button>
-        ))}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          {["all", "draft", "scheduled", "posted", "needs_manual"].map((s) => (
+            <Button
+              key={s}
+              size="sm"
+              variant={filter === s ? "default" : "outline"}
+              onClick={() => setFilter(s)}
+              className="text-xs"
+              data-testid={`filter-${s}`}
+            >
+              {s === "all" ? "الكل" : STATUS_MAP[s]?.label || s}
+              {s !== "all" && <span className="mr-1 opacity-70">({posts.filter((p: any) => p.status === s).length})</span>}
+            </Button>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => setShowCreateDialog(true)}
+          data-testid="button-create-post"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+          إنشاء منشور
+        </Button>
       </div>
 
       {filtered.length === 0 ? (
@@ -590,6 +640,86 @@ function PostQueueTab() {
           ))}
         </div>
       )}
+
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-serif">إنشاء منشور جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">نوع المنشور</label>
+              <Select value={newPost.postType} onValueChange={(v) => setNewPost((p) => ({ ...p, postType: v }))}>
+                <SelectTrigger className="text-sm" data-testid="select-new-post-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="marketing">تسويقي</SelectItem>
+                  <SelectItem value="literary">أدبي / خاطرة</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">المحتوى</label>
+              <Textarea
+                value={newPost.content}
+                onChange={(e) => setNewPost((p) => ({ ...p, content: e.target.value }))}
+                rows={5}
+                placeholder="اكتب محتوى المنشور هنا..."
+                className="text-sm"
+                data-testid="textarea-new-post-content"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">{newPost.content.length} حرف</p>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">المنصات</label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
+                  const Icon = cfg.icon;
+                  const selected = newPost.platforms.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleNewPostPlatform(key)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${selected ? "border-primary bg-primary/10" : "border-border"}`}
+                      data-testid={`new-post-platform-${key}`}
+                    >
+                      <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">موعد النشر (اختياري)</label>
+              <Input
+                type="datetime-local"
+                value={newPost.scheduledAt}
+                onChange={(e) => setNewPost((p) => ({ ...p, scheduledAt: e.target.value }))}
+                className="text-sm"
+                data-testid="input-new-post-schedule"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {newPost.scheduledAt ? "سيُجدوَل للنشر في هذا الوقت" : "إذا تركت فارغاً سيُحفظ كمسودة"}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => createPostMutation.mutate()}
+                disabled={createPostMutation.isPending || !newPost.content.trim() || newPost.platforms.length === 0}
+                data-testid="button-confirm-create-post"
+                className="flex-1"
+              >
+                {createPostMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : null}
+                {newPost.scheduledAt ? "جدولة المنشور" : "حفظ كمسودة"}
+              </Button>
+              <Button variant="ghost" onClick={() => setShowCreateDialog(false)}>إلغاء</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={duplicatedPostId !== null} onOpenChange={() => setDuplicatedPostId(null)}>
         <DialogContent dir="rtl">
@@ -1322,15 +1452,62 @@ const X_FIELDS = [
 function SettingsTab() {
   const { toast } = useToast();
   const { data: settings } = useQuery<any>({ queryKey: ["/api/admin/social/settings"] });
+  const { data: autoGenSettings } = useQuery<any>({ queryKey: ["/api/admin/social/auto-generate-settings"] });
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [hasCredentials, setHasCredentials] = useState<Record<string, boolean>>({});
+  const [autoGen, setAutoGen] = useState({ enabled: false, platforms: ["facebook", "instagram", "x", "tiktok", "linkedin"], postsPerDay: 5 });
 
   useEffect(() => {
     if (settings?.hasCredentials) {
       setHasCredentials(settings.hasCredentials);
     }
   }, [settings]);
+
+  useEffect(() => {
+    if (autoGenSettings) {
+      setAutoGen({
+        enabled: autoGenSettings.enabled || false,
+        platforms: autoGenSettings.platforms || ["facebook", "instagram", "x", "tiktok", "linkedin"],
+        postsPerDay: autoGenSettings.postsPerDay || 5,
+      });
+    }
+  }, [autoGenSettings]);
+
+  const saveAutoGenMutation = useMutation({
+    mutationFn: async (cfg: typeof autoGen) => {
+      const res = await apiRequest("PUT", "/api/admin/social/auto-generate-settings", cfg);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/auto-generate-settings"] });
+      toast({ title: "تم حفظ إعدادات التوليد التلقائي" });
+    },
+    onError: () => {
+      toast({ title: "فشل في حفظ الإعدادات", variant: "destructive" });
+    },
+  });
+
+  const runNowMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/social/auto-generate-now", { platforms: autoGen.platforms });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/posts"] });
+      toast({ title: `تم توليد ${data.created || 0} منشورات وجدولتها تلقائياً` });
+    },
+    onError: () => {
+      toast({ title: "فشل التوليد التلقائي", variant: "destructive" });
+    },
+  });
+
+  const toggleAutoGenPlatform = (p: string) => {
+    setAutoGen((prev) => ({
+      ...prev,
+      platforms: prev.platforms.includes(p) ? prev.platforms.filter((x) => x !== p) : [...prev.platforms, p],
+    }));
+  };
 
   const updateCredential = (key: string, value: string) => {
     setCredentials((c) => ({ ...c, [key]: value }));
@@ -1366,6 +1543,82 @@ function SettingsTab() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-violet-500" />
+            التوليد التلقائي اليومي
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            عند التفعيل، يقوم أبو هاشم تلقائياً بكتابة 5 منشورات يومياً (2 تسويقية + 3 أدبية) وجدولتها في أفضل الأوقات. يتم التحقق كل ساعة وتشغيل التوليد مرة واحدة كل 23 ساعة.
+          </p>
+          <div className="flex items-center justify-between p-3 bg-muted/40 rounded-lg">
+            <div>
+              <p className="text-sm font-medium">تشغيل التوليد التلقائي</p>
+              <p className="text-xs text-muted-foreground">{autoGen.enabled ? "مُفعّل — سيولّد المحتوى تلقائياً كل يوم" : "معطّل"}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAutoGen((p) => ({ ...p, enabled: !p.enabled }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoGen.enabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+              data-testid="toggle-auto-generate"
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoGen.enabled ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </div>
+          <div>
+            <p className="text-xs font-medium mb-2">المنصات المستهدفة للتوليد التلقائي</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
+                const Icon = cfg.icon;
+                const selected = autoGen.platforms.includes(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleAutoGenPlatform(key)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${selected ? "border-primary bg-primary/10" : "border-border"}`}
+                    data-testid={`auto-gen-platform-${key}`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              className="gap-2 flex-1"
+              onClick={() => saveAutoGenMutation.mutate(autoGen)}
+              disabled={saveAutoGenMutation.isPending}
+              data-testid="button-save-auto-gen"
+            >
+              {saveAutoGenMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
+              حفظ إعدادات التوليد
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => runNowMutation.mutate()}
+              disabled={runNowMutation.isPending || autoGen.platforms.length === 0}
+              data-testid="button-run-auto-gen-now"
+            >
+              {runNowMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              توليد الآن
+            </Button>
+          </div>
+          {autoGen.enabled && (
+            <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2 rounded-md">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>التوليد التلقائي يستهلك رصيد OpenAI (GPT-4o + DALL-E). تأكد من توفر الرصيد.</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">

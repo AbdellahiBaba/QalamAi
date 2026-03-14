@@ -392,11 +392,17 @@ export async function publishSocialPostToAPIs(
         publishResults[platform] = { success: true };
         anyPublished = true;
       } else if (platform === "x") {
-        const apiKey = credentials["x_api_key"] || "";
-        const apiSecret = credentials["x_api_secret"] || "";
-        const accessToken = credentials["x_access_token"] || "";
-        const accessTokenSecret = credentials["x_access_token_secret"] || "";
-        const bearerToken = credentials["x_bearer_token"] || credentials["x"] || "";
+        const apiKey = (credentials["x_api_key"] || "").trim();
+        const apiSecret = (credentials["x_api_secret"] || "").trim();
+        const accessToken = (credentials["x_access_token"] || "").trim();
+        const accessTokenSecret = (credentials["x_access_token_secret"] || "").trim();
+        const rawBearer = (credentials["x_bearer_token"] || credentials["x"] || "").trim();
+        const bearerToken = rawBearer ? decodeURIComponent(rawBearer) : "";
+
+        console.log("[X Publish] apiKey present:", !!apiKey, "len:", apiKey.length);
+        console.log("[X Publish] apiSecret present:", !!apiSecret, "len:", apiSecret.length);
+        console.log("[X Publish] accessToken present:", !!accessToken, "len:", accessToken.length);
+        console.log("[X Publish] accessTokenSecret present:", !!accessTokenSecret, "len:", accessTokenSecret.length);
 
         if (apiKey && apiSecret && accessToken && accessTokenSecret) {
           const tweetUrl = "https://api.twitter.com/2/tweets";
@@ -408,24 +414,20 @@ export async function publishSocialPostToAPIs(
           });
           if (!xRes.ok) {
             const xErr = await xRes.json().catch(() => ({}));
+            console.error("[X Publish] OAuth1 error:", xRes.status, JSON.stringify(xErr));
             throw new Error((xErr as any)?.detail || (xErr as any)?.title || "فشل النشر على X");
           }
           publishResults[platform] = { success: true };
           anyPublished = true;
-        } else if (bearerToken) {
-          const xRes = await fetch("https://api.twitter.com/2/tweets", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${bearerToken}` },
-            body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
-          });
-          if (!xRes.ok) {
-            const xErr = await xRes.json().catch(() => ({}));
-            throw new Error((xErr as any)?.detail || (xErr as any)?.title || "فشل النشر على X — Bearer Token لا يدعم النشر، يلزم Access Token");
-          }
-          publishResults[platform] = { success: true };
-          anyPublished = true;
         } else {
-          publishResults[platform] = { success: false, error: "يلزم توفير API Key + Secret + Access Token + Secret لنشر على X" };
+          const missing = [
+            !apiKey && "x_api_key",
+            !apiSecret && "x_api_secret",
+            !accessToken && "x_access_token",
+            !accessTokenSecret && "x_access_token_secret",
+          ].filter(Boolean).join(", ");
+          console.error("[X Publish] Missing credentials:", missing);
+          publishResults[platform] = { success: false, error: `يلزم توفير: ${missing} — اذهب إلى الإعدادات` };
         }
       } else if (platform === "linkedin") {
         publishResults[platform] = { success: false, error: "النشر المباشر على LinkedIn يتطلب OAuth2 — يرجى النسخ يدوياً" };
@@ -9619,6 +9621,110 @@ ${platformInstructions}
     } catch (error) {
       console.error("Save social settings error:", error);
       res.status(500).json({ error: "فشل في حفظ الإعدادات" });
+    }
+  });
+
+  app.get("/api/admin/social/auto-generate-settings", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+    try {
+      const rows: any[] = (await db.execute(dsql`
+        SELECT value FROM social_hub_settings WHERE key = 'auto_generate_config'
+      `)).rows;
+      const stored = rows[0]?.value
+        ? (typeof rows[0].value === "string" ? JSON.parse(rows[0].value) : rows[0].value)
+        : { enabled: false, platforms: ["facebook", "instagram", "x", "tiktok", "linkedin"], postsPerDay: 5 };
+      res.json(stored);
+    } catch {
+      res.json({ enabled: false, platforms: ["facebook", "instagram", "x", "tiktok", "linkedin"], postsPerDay: 5 });
+    }
+  });
+
+  app.put("/api/admin/social/auto-generate-settings", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const { enabled, platforms, postsPerDay } = req.body;
+      const config = {
+        enabled: !!enabled,
+        platforms: Array.isArray(platforms) ? platforms : ["facebook", "instagram", "x", "tiktok", "linkedin"],
+        postsPerDay: typeof postsPerDay === "number" ? Math.min(Math.max(postsPerDay, 1), 10) : 5,
+        updatedAt: new Date().toISOString(),
+      };
+      const val = JSON.stringify(config);
+      await db.execute(dsql`
+        INSERT INTO social_hub_settings (key, value)
+        VALUES ('auto_generate_config', ${val})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
+      res.json({ success: true, config });
+    } catch (error) {
+      console.error("Save auto-generate settings error:", error);
+      res.status(500).json({ error: "فشل في حفظ إعدادات التوليد التلقائي" });
+    }
+  });
+
+  app.post("/api/admin/social/auto-generate-now", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const { platforms: reqPlatforms } = req.body;
+      const validPlatformKeys = ["facebook", "instagram", "x", "tiktok", "linkedin"];
+      const platforms = Array.isArray(reqPlatforms) ? reqPlatforms.filter((p: string) => validPlatformKeys.includes(p)) : validPlatformKeys;
+
+      const bestTimes = await storage.getBestPostingTimes();
+      const scheduleHours = bestTimes.length >= 2
+        ? [bestTimes[0].hour, bestTimes[0].hour + 1, bestTimes[1].hour, bestTimes[1].hour + 1, Math.min(bestTimes[0].hour, bestTimes[1].hour) + 2]
+        : [9, 12, 15, 18, 21];
+
+      const created: any[] = [];
+      for (let i = 0; i < 5; i++) {
+        try {
+          const isLiterary = i >= 2;
+          const postType = isLiterary ? "literary" : "marketing";
+          const topicsLiterary = ["الحنين", "الأمل", "الحب", "الصمت", "الغياب"];
+          const prompt = isLiterary
+            ? `اكتب خاطرة أدبية عربية فصيحة قصيرة (3-5 أسطر) بأسلوب شاعري مؤثر عن ${topicsLiterary[i - 2] || "الحياة"}. أضف CTA: "اكتشف عالم الكتابة العربية على QalamAI.net" ورابط qalamai.net و5 هاشتاقات عربية.`
+            : `اكتب منشوراً تسويقياً لمنصة QalamAI (qalamai.net) — منصة كتابة عربية بالذكاء الاصطناعي. ${i === 0 ? "ركز على سهولة البدء مجاناً." : "ركز على جودة المحتوى وتنوع الأنواع الأدبية."} أضف CTA قوي ورابط qalamai.net و5 هاشتاقات.`;
+
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            max_completion_tokens: 600,
+            messages: [
+              { role: "system", content: "أنت أبو هاشم، كاتب ومسوّق رقمي عربي محترف. تكتب محتوى سوشيال ميديا بالعربية الفصحى مع CTA فعّال ورابط qalamai.net." },
+              { role: "user", content: prompt },
+            ],
+          });
+          const content = completion.choices[0]?.message?.content || "";
+
+          let coverImageUrl: string | null = null;
+          if (isLiterary) {
+            try {
+              const imgRes = await openai.images.generate({
+                model: "dall-e-3",
+                prompt: "Artistic Arabic calligraphy poster with warm golden tones, minimalist elegant design, square composition. No text.",
+                n: 1,
+                size: "1024x1024",
+              });
+              coverImageUrl = imgRes.data?.[0]?.url || null;
+            } catch { /* skip image on failure */ }
+          }
+
+          const scheduledAt = new Date();
+          scheduledAt.setHours(scheduleHours[i] || 12, 0, 0, 0);
+          if (scheduledAt <= new Date()) scheduledAt.setDate(scheduledAt.getDate() + 1);
+
+          const post = await storage.createSocialPost({ content, platforms, scheduledAt, status: "scheduled", postType, coverImageUrl });
+          if (post) created.push(post);
+        } catch (postErr: any) {
+          console.error(`[AutoGenerate] Post ${i} failed:`, postErr.message);
+        }
+      }
+
+      await db.execute(dsql`
+        INSERT INTO social_hub_settings (key, value)
+        VALUES ('auto_generate_last_run', ${new Date().toISOString()})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
+
+      res.json({ created: created.length, posts: created });
+    } catch (error: any) {
+      console.error("Auto-generate-now error:", error);
+      res.status(500).json({ error: "فشل في التوليد التلقائي: " + (error.message || "") });
     }
   });
 
