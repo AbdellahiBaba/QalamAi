@@ -10,29 +10,41 @@ Not specified.
 QalamAI is a React-based Single Page Application (SPA) utilizing Tailwind CSS and Shadcn UI for its frontend. The backend is an Express.js application connected to a PostgreSQL database. AI functionalities are integrated via OpenAI GPT-5.2, embodied by the "Abu Hashim" agent, which adapts its persona and knowledge base for different content types. Authentication supports email/password and Replit Auth, with Stripe handling payments. The platform's UI/UX emphasizes elegance and trustworthiness through a color palette of gold, deep blue, warm sand, and off-white, and uses Arabic-rooted fonts like Cairo and Amiri. All interfaces are mobile-responsive.
 
 **Key Architectural Decisions and Features:**
--   **AI-Driven Content Generation:** Provides multi-type project creation with dedicated workflows, AI-driven outline and sequential content generation, and specialized AI knowledge bases. Includes advanced modules for Arabic Classical Poetry (prosody engine) and Academic Memoire (specialization by major/country, dynamic faculty-aware filtering).
+-   **AI-Driven Content Generation:** Provides multi-type project creation with dedicated workflows, AI-driven outline and sequential content generation, and specialized AI knowledge bases. Includes advanced modules for Arabic Classical Poetry (prosody engine) and Academic Memoire (specialization by major/country, dynamic faculty-aware filtering). It also includes a Reels (short-form video scripts) generator that uses GPT-5.2 to parse scripts, DALL-E for scene images, TTS for Arabic voiceover, and FFmpeg to stitch them into MP4 videos.
 -   **Advanced Authoring Tools:** Features inline editing, chapter version history, AI-powered rewriting with tone selection, title/character suggestions, project blueprints, and originality/plagiarism checks.
--   **Content Type Specialization:** Each content type is tailored with specific AI personas and input fields, including a Reels generator that creates MP4 videos from scripts.
--   **Export and Publishing:** Supports server-side export to PDF, EPUB, and DOCX with specialized handling for Arabic text. Memoire projects include publisher-quality academic PDF export. Users can publish projects to a public gallery or essays to a news page.
--   **User Management & Engagement:** Includes user profiles, public author profiles, onboarding, notifications, reading progress, writing statistics, and a free trial system.
+-   **Content Type Specialization:** Each content type is tailored with specific AI personas and input fields.
+-   **Export and Publishing:** Robust server-side export to PDF, EPUB, and DOCX, with specialized handling for Arabic text (RTL, BiDi processing, font support). Memoire projects include publisher-quality academic PDF export with formal university thesis covers and structured back matter. Users can publish projects to a public gallery or essays to a news page.
+-   **User Management & Engagement:** Features user profiles, public author profiles, onboarding, notifications, reading progress, writing statistics, and a free trial system with automated billing.
 -   **Literary Analysis and Enhancements:** AI-powered continuity checks, literary style analysis, and enhanced proofreading for Arabic grammar and morphology.
--   **UI/UX and Accessibility:** Adheres to Arabic display standards (RTL, BiDi), includes dark mode, keyboard shortcuts, focus mode, drag-and-drop chapter management, and SEO optimization.
--   **Admin Tools:** A comprehensive admin panel for managing users, content moderation, reports, API usage, analytics, and promo codes. Includes bulk content moderation, user impersonation, and AI daily prompt auto-generation.
--   **Abu Hashim Self-Learning System:** A RAG-based intelligence engine that extracts and injects curated knowledge into AI prompts.
--   **AI Profile Avatar & Chat:** Users can generate AI profile images and interact with a contextual AI chat, "Abu Hashim," for literary advice.
+-   **UI/UX and Accessibility:** Adheres to Arabic display standards (RTL, BiDi, ordinal words), includes dark mode, keyboard shortcuts, focus mode, drag-and-drop chapter management, and SEO optimization.
+-   **Admin Tools:** A comprehensive admin panel for managing users, content moderation, reports, reviews, API usage, analytics, promo codes, revenue dashboard (MRR, churn rate, plan distribution), bulk content moderation (multi-select reports with dismiss/warn/remove), user impersonation (super-admin only view-as with sticky banner), and AI daily prompt auto-generation (GPT-4o powered).
+-   **Abu Hashim Self-Learning System:** A RAG-based intelligence engine that extracts and injects curated knowledge into AI prompts, validating entries and learning from user interactions.
+-   **AI Profile Avatar & Chat:** Users can generate AI profile images using DALL-E and interact with a contextual AI chat, "Abu Hashim," for literary advice and brainstorming.
+-   **Performance Optimizations:** Dashboard optimized with single-query joins, server-side caching, lazy-loading of heavy components, and stable queries. Database performance improved with indexes and optimized SQL queries.
 -   **Progressive Web App (PWA):** Installable on mobile/desktop with caching for Google Fonts, API responses, and static assets.
--   **Security Hardening:** Implemented Helmet for security headers, whitelist-based CORS, Double-submit cookie CSRF protection, server-side HTML sanitization, strong password policies, account lockout, and secure Stripe webhook validation.
+-   **Security Hardening:** Implemented Helmet for comprehensive security headers (CSP, HSTS, X-Frame-Options, etc.), whitelist-based CORS, Double-submit cookie CSRF protection, server-side HTML sanitization, strong password policies, account lockout, reduced session TTL, secure Stripe webhook validation, request limits, and secure API response practices. Scanner probe blocking middleware prevents access to sensitive paths.
+-   **Input Validation Hardening:** `parseInt` NaN safety implemented, Zod schemas used for major API endpoints, and public API rate limiting.
+-   **Database Integrity:** Foreign key constraints and unique constraints ensure data consistency, along with optimized indexing for performance.
+-   **Public Tipping System:** `/api/tips/public-checkout` allows anonymous and logged-in users to tip authors via Stripe Checkout with selectable amounts ($1/$3/$5/$10). Tip buttons are prominently placed on essay reader, essays listing, leaderboard, and author profile pages.
+-   **Email Subscription System (non-platform followers):** `email_subscriptions` table stores email subscriptions from non-platform users. Author profile page includes an email subscription form. When an author publishes a new essay, email subscribers receive a notification that includes the author's leaderboard rank.
+-   **RSS Feed Per Author:** `/rss/author/:id` serves an RSS 2.0 feed of an author's published essays.
+-   **Writing Editor Enhancements:** Includes auto-save indicator, distraction-free fullscreen mode, focus mode, session word counter, and ambient sounds (rain, cafe, keyboard clicks).
+-   **Reading Lists for All Content Types:** Support for saving any published gallery work (novel, short story, scenario, khawater, poetry, memoire). `collection_items` table supports both `essay_id` and `project_id`. Includes bookmark buttons and expandable collections with mixed content types.
 -   **Monetization Expansions:**
-    -   **Chapter Paywall:** Authors can set individual chapters as paid, requiring readers to unlock them via Stripe Checkout.
-    -   **Gift Subscriptions:** Allows purchasing gift subscriptions for various plans.
-    -   **Reading Rewards (Points):** Users earn points for activities, redeemable for discounts.
--   **Notifications & Author Newsletter:** Features an in-app notification system and allows authors to send newsletters to their email subscribers. Includes an enhanced weekly digest with personalized content.
+    -   **Chapter Paywall:** Authors can set individual chapters as paid, requiring readers to unlock them via Stripe Checkout. Reader sees 200-word preview.
+    -   **Gift Subscriptions:** Allows purchasing gift subscriptions for various plans (essay, scenario, all_in_one).
+    -   **Reading Rewards (Points):** Users earn points for activities (reading, login, sharing), redeemable for discounts.
+-   **Notifications & Author Newsletter:** Features an in-app notification system (NotificationBell UI) and allows authors to send newsletters to their email subscribers. Includes an enhanced weekly digest with personalized content.
 -   **Community Features:**
-    -   **Project Tags:** Supports tag-based filtering for projects.
+    -   **Project Tags:** Supports tag-based filtering for projects with up to 5 tags per project.
     -   **Writing Challenges:** Admin-created challenges with user entry and winner selection.
     -   **Beta Readers:** Authors can indicate if they are seeking beta readers, with an opt-in request system.
     -   **Related Works:** Displays up to 6 related projects based on type, genre, and tags.
--   **Social Marketing AI:** Paid users can access a social marketing advisor. Includes a Super Admin-only Social Media Manager Hub for generating, scheduling, and analyzing social media posts with DALL-E images.
+-   **Social Marketing AI:** Paid users can access a social marketing advisor. Includes a Super Admin-only Social Media Manager Hub (Abu Hashim Social Media Manager Hub) for generating, scheduling, and analyzing social media posts with DALL-E images across active platforms (Facebook, Instagram, X, TikTok, LinkedIn).
+-   **Author Analytics Dashboard:** Dedicated `/analytics` page with summary stats, growth charts, top works, reading completion rates, tips history, and geographic data.
+-   **Content Reporting System:** A multi-step reporting dialog for public users, categorizing issues by type and severity.
+-   **Free Plan:** Offers limited monthly project and chapter generations with upgrade calls to action.
+-   **Bug Fixes:** Fixed MonthlyReport flooding by using a 24-hour check interval and fixed author profile visibility in `getPublicAuthor()`.
 
 ## External Dependencies
 -   **OpenAI GPT-5.2**: AI content generation, analysis, and assistance.

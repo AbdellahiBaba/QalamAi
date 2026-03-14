@@ -7,7 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck, Bookmark } from "lucide-react";
+import { SaveToListButton } from "@/components/save-to-list-button";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
@@ -380,6 +381,9 @@ export default function Gallery() {
                     ) : (
                       <ImageIcon className="w-16 h-16 text-muted-foreground" />
                     )}
+                    <div className="absolute top-2 left-2 z-10">
+                      <SaveToListButton projectId={project.id} variant="icon" />
+                    </div>
                   </div>
                 </Link>
                 <CardContent className="p-4 space-y-2">

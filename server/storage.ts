@@ -29,6 +29,7 @@ import {
   userPoints, type UserPoints,
   pointTransactions, type PointTransaction,
   newsletterSends, type NewsletterSend,
+  collections, type Collection,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -170,9 +171,11 @@ export interface IStorage {
   getPendingComments(limit?: number, offset?: number): Promise<{ data: import("@shared/schema").EssayComment[]; total: number }>;
   createCollection(data: import("@shared/schema").InsertCollection): Promise<import("@shared/schema").Collection>;
   getUserCollections(userId: string): Promise<import("@shared/schema").Collection[]>;
-  getCollectionBySlug(slug: string): Promise<(import("@shared/schema").Collection & { items: Array<{ essayId: number; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string }> }) | undefined>;
-  addToCollection(collectionId: number, essayId: number): Promise<void>;
-  removeFromCollection(collectionId: number, essayId: number): Promise<void>;
+  getCollectionBySlug(slug: string): Promise<(import("@shared/schema").Collection & { items: Array<{ essayId: number | null; projectId: number | null; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; projectType: string | null }> }) | undefined>;
+  getCollectionById(id: number): Promise<import("@shared/schema").Collection | undefined>;
+  addToCollection(collectionId: number, essayId?: number, projectId?: number): Promise<void>;
+  removeFromCollection(collectionId: number, essayId?: number, projectId?: number): Promise<void>;
+  getCollectionItems(collectionId: number): Promise<Array<{ essayId: number | null; projectId: number | null; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; projectType: string | null }>>;
   deleteCollection(id: number): Promise<void>;
   submitVerifiedApplication(data: import("@shared/schema").InsertVerifiedApplication): Promise<import("@shared/schema").VerifiedApplication>;
   getVerifiedApplications(status?: string): Promise<import("@shared/schema").VerifiedApplication[]>;
@@ -1838,35 +1841,61 @@ export class DatabaseStorage implements IStorage {
     return rows;
   }
 
+  async getCollectionById(id: number): Promise<Collection | undefined> {
+    const rows = await db.select().from(collections).where(eq(collections.id, id));
+    return rows[0];
+  }
+
   async getCollectionBySlug(slug: string): Promise<any | undefined> {
     const [col]: any[] = (await db.execute(sql`
       SELECT * FROM collections WHERE slug = ${slug} AND is_public = true
     `)).rows;
     if (!col) return undefined;
-    const items: any[] = (await db.execute(sql`
-      SELECT ci.essay_id as "essayId", p.title, p.cover_image_url as "coverImageUrl", p.share_token as "shareToken",
-        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName"
-      FROM collection_items ci
-      JOIN novel_projects p ON p.id = ci.essay_id
-      LEFT JOIN users u ON u.id = p.user_id
-      WHERE ci.collection_id = ${col.id}
-      ORDER BY ci.added_at DESC
-    `)).rows;
+    const items = await this.getCollectionItems(col.id);
     return { ...col, items };
   }
 
-  async addToCollection(collectionId: number, essayId: number): Promise<void> {
-    await db.execute(sql`
-      INSERT INTO collection_items (collection_id, essay_id)
-      VALUES (${collectionId}, ${essayId})
-      ON CONFLICT DO NOTHING
-    `);
+  async getCollectionItems(collectionId: number): Promise<any[]> {
+    const items: any[] = (await db.execute(sql`
+      SELECT ci.essay_id as "essayId", ci.project_id as "projectId",
+        p.title, p.cover_image_url as "coverImageUrl", p.share_token as "shareToken",
+        p.project_type as "projectType",
+        COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName"
+      FROM collection_items ci
+      JOIN novel_projects p ON p.id = COALESCE(ci.project_id, ci.essay_id)
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE ci.collection_id = ${collectionId}
+      ORDER BY ci.added_at DESC
+    `)).rows;
+    return items;
   }
 
-  async removeFromCollection(collectionId: number, essayId: number): Promise<void> {
-    await db.execute(sql`
-      DELETE FROM collection_items WHERE collection_id = ${collectionId} AND essay_id = ${essayId}
-    `);
+  async addToCollection(collectionId: number, essayId?: number, projectId?: number): Promise<void> {
+    if (projectId) {
+      await db.execute(sql`
+        INSERT INTO collection_items (collection_id, project_id)
+        VALUES (${collectionId}, ${projectId})
+        ON CONFLICT DO NOTHING
+      `);
+    } else if (essayId) {
+      await db.execute(sql`
+        INSERT INTO collection_items (collection_id, essay_id)
+        VALUES (${collectionId}, ${essayId})
+        ON CONFLICT DO NOTHING
+      `);
+    }
+  }
+
+  async removeFromCollection(collectionId: number, essayId?: number, projectId?: number): Promise<void> {
+    if (projectId) {
+      await db.execute(sql`
+        DELETE FROM collection_items WHERE collection_id = ${collectionId} AND project_id = ${projectId}
+      `);
+    } else if (essayId) {
+      await db.execute(sql`
+        DELETE FROM collection_items WHERE collection_id = ${collectionId} AND essay_id = ${essayId}
+      `);
+    }
   }
 
   async deleteCollection(id: number): Promise<void> {

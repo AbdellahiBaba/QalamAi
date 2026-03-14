@@ -723,10 +723,10 @@ export type Collection = typeof collections.$inferSelect;
 export const collectionItems = pgTable("collection_items", {
   id: serial("id").primaryKey(),
   collectionId: integer("collection_id").notNull(),
-  essayId: integer("essay_id").notNull(),
+  essayId: integer("essay_id"),
+  projectId: integer("project_id"),
   addedAt: timestamp("added_at").defaultNow(),
 }, (table) => [
-  unique("uq_collection_items").on(table.collectionId, table.essayId),
   index("idx_collection_items_collection_id").on(table.collectionId),
 ]);
 

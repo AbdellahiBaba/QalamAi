@@ -663,6 +663,13 @@ app.use((req, res, next) => {
 
     await pool.query(`ALTER TABLE essay_views ADD COLUMN IF NOT EXISTS country VARCHAR(2)`);
 
+    await pool.query(`ALTER TABLE collection_items ADD COLUMN IF NOT EXISTS project_id INTEGER`);
+    await pool.query(`ALTER TABLE collection_items ALTER COLUMN essay_id DROP NOT NULL`);
+    await pool.query(`ALTER TABLE collection_items DROP CONSTRAINT IF EXISTS uq_collection_items`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_collection_items_essay ON collection_items (collection_id, essay_id) WHERE essay_id IS NOT NULL`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_collection_items_project ON collection_items (collection_id, project_id) WHERE project_id IS NOT NULL`);
+    await pool.query(`DO $$ BEGIN ALTER TABLE collection_items ADD CONSTRAINT chk_collection_items_one_ref CHECK ((essay_id IS NOT NULL AND project_id IS NULL) OR (essay_id IS NULL AND project_id IS NOT NULL)); EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

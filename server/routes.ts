@@ -8835,22 +8835,75 @@ ${ch.content}
 
   app.post("/api/collections/:id/items", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const collectionId = parseInt(req.params.id);
-      const { essayId } = req.body;
-      if (!essayId) return res.status(400).json({ error: "essayId مطلوب" });
-      await storage.addToCollection(collectionId, parseInt(essayId));
+      const col = await storage.getCollectionById(collectionId);
+      if (!col || col.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      let { essayId, projectId, shareToken } = req.body;
+
+      if (shareToken && !projectId && !essayId) {
+        const project = await storage.getProjectByShareToken(shareToken);
+        if (!project) return res.status(404).json({ error: "العمل غير موجود" });
+        projectId = project.id;
+      }
+
+      if (!essayId && !projectId) return res.status(400).json({ error: "essayId أو projectId أو shareToken مطلوب" });
+      if (essayId && projectId) return res.status(400).json({ error: "يجب تحديد essayId أو projectId وليس كلاهما" });
+
+      const resolvedProjectId = projectId ? parseInt(projectId) : undefined;
+      const resolvedEssayId = essayId ? parseInt(essayId) : undefined;
+
+      const targetId = resolvedProjectId || resolvedEssayId;
+      if (targetId) {
+        const targetProject = await storage.getProject(targetId);
+        if (!targetProject || !targetProject.shareToken) {
+          return res.status(400).json({ error: "لا يمكن حفظ عمل غير منشور" });
+        }
+      }
+
+      await storage.addToCollection(collectionId, resolvedEssayId, resolvedProjectId);
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "فشل في إضافة المقال" });
+      res.status(500).json({ error: "فشل في إضافة العنصر" });
+    }
+  });
+
+  app.get("/api/collections/:id/items", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const collectionId = parseInt(req.params.id);
+      const col = await storage.getCollectionById(collectionId);
+      if (!col || col.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      const items = await storage.getCollectionItems(collectionId);
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب العناصر" });
     }
   });
 
   app.delete("/api/collections/:id/items/:essayId", isAuthenticated, async (req: any, res) => {
     try {
-      await storage.removeFromCollection(parseInt(req.params.id), parseInt(req.params.essayId));
+      const userId = req.user.claims.sub;
+      const collectionId = parseInt(req.params.id);
+      const col = await storage.getCollectionById(collectionId);
+      if (!col || col.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      await storage.removeFromCollection(collectionId, parseInt(req.params.essayId));
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "فشل في إزالة المقال" });
+      res.status(500).json({ error: "فشل في إزالة العنصر" });
+    }
+  });
+
+  app.delete("/api/collections/:id/projects/:projectId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const collectionId = parseInt(req.params.id);
+      const col = await storage.getCollectionById(collectionId);
+      if (!col || col.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      await storage.removeFromCollection(collectionId, undefined, parseInt(req.params.projectId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إزالة العنصر" });
     }
   });
 

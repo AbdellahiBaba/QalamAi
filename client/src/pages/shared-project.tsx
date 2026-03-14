@@ -5,7 +5,8 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard, Bookmark } from "lucide-react";
+import { SaveToListButton } from "@/components/save-to-list-button";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -403,6 +404,7 @@ export default function SharedProject() {
           <h1 className="text-3xl font-serif font-bold mb-2" data-testid="text-shared-title">{project.title}</h1>
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <p className="text-muted-foreground">{typeLabel} — قلم AI</p>
+            <SaveToListButton projectId={project.id} variant="full" />
             {totalWords > 0 && (
               <Badge variant="secondary" className="no-default-active-elevate" data-testid="badge-reading-time">
                 <Clock className="w-3 h-3 ml-1" />

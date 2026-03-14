@@ -3,17 +3,20 @@ import { useParams, Link } from "wouter";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { BookMarked, BookOpen, ArrowRight } from "lucide-react";
 
 interface CollectionItem {
-  essayId: number;
+  essayId: number | null;
+  projectId: number | null;
   title: string;
   coverImageUrl: string | null;
   shareToken: string | null;
   authorName: string;
+  projectType: string | null;
 }
 
 interface CollectionPublic {
@@ -22,6 +25,17 @@ interface CollectionPublic {
   description: string | null;
   items: CollectionItem[];
 }
+
+const typeLabels: Record<string, string> = {
+  novel: "رواية",
+  essay: "مقال",
+  scenario: "سيناريو",
+  short_story: "قصة قصيرة",
+  khawater: "خاطرة",
+  social_media: "سوشيال ميديا",
+  poetry: "قصيدة",
+  memoire: "مذكرة تخرج",
+};
 
 export default function CollectionPublic() {
   const { slug } = useParams<{ slug: string }>();
@@ -62,10 +76,10 @@ export default function CollectionPublic() {
             <BookMarked className="w-16 h-16 text-muted-foreground mx-auto" />
             <h1 className="text-2xl font-serif font-bold">القائمة غير موجودة</h1>
             <p className="text-muted-foreground">هذه القائمة غير متاحة أو تمت إزالتها</p>
-            <Link href="/essays">
+            <Link href="/gallery">
               <Button variant="outline">
                 <ArrowRight className="w-4 h-4 ml-2" />
-                تصفح المقالات
+                تصفح المعرض
               </Button>
             </Link>
           </div>
@@ -88,43 +102,55 @@ export default function CollectionPublic() {
           <p className="text-muted-foreground mb-2">{collection.description}</p>
         )}
         <p className="text-sm text-muted-foreground mb-10" data-testid="text-collection-count">
-          {collection.items.length} {collection.items.length === 1 ? "مقال" : "مقالات"}
+          {collection.items.length} {collection.items.length === 1 ? "عنصر" : "عناصر"}
         </p>
 
         {collection.items.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground" data-testid="collection-empty">
             <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <p>لا توجد مقالات في هذه القائمة بعد</p>
+            <p>لا توجد عناصر في هذه القائمة بعد</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-testid="collection-items">
-            {collection.items.map((item) => (
-              <Link key={item.essayId} href={item.shareToken ? `/essay/${item.shareToken}` : "#"}>
-                <Card className="hover-elevate cursor-pointer h-full" data-testid={`card-collection-item-${item.essayId}`}>
-                  {item.coverImageUrl ? (
-                    <div className="aspect-[16/9] overflow-hidden rounded-t-lg">
-                      <img
-                        src={item.coverImageUrl}
-                        alt={item.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="aspect-[16/9] bg-primary/5 rounded-t-lg flex items-center justify-center">
-                      <BookOpen className="w-10 h-10 text-primary/30" />
-                    </div>
-                  )}
-                  <CardContent className="p-4 space-y-1">
-                    <h2 className="font-serif font-semibold line-clamp-2" data-testid={`title-item-${item.essayId}`}>
-                      {item.title}
-                    </h2>
-                    <p className="text-sm text-muted-foreground" data-testid={`author-item-${item.essayId}`}>
-                      {item.authorName}
-                    </p>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+            {collection.items.map((item, idx) => {
+              const itemKey = item.projectId || item.essayId || idx;
+              const href = item.shareToken
+                ? (item.projectId ? `/shared/${item.shareToken}` : `/essay/${item.shareToken}`)
+                : "#";
+
+              return (
+                <Link key={itemKey} href={href}>
+                  <Card className="hover-elevate cursor-pointer h-full" data-testid={`card-collection-item-${itemKey}`}>
+                    {item.coverImageUrl ? (
+                      <div className="aspect-[16/9] overflow-hidden rounded-t-lg">
+                        <img
+                          src={item.coverImageUrl}
+                          alt={item.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-[16/9] bg-primary/5 rounded-t-lg flex items-center justify-center">
+                        <BookOpen className="w-10 h-10 text-primary/30" />
+                      </div>
+                    )}
+                    <CardContent className="p-4 space-y-1">
+                      {item.projectType && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0" data-testid={`badge-type-${itemKey}`}>
+                          {typeLabels[item.projectType] || item.projectType}
+                        </Badge>
+                      )}
+                      <h2 className="font-serif font-semibold line-clamp-2" data-testid={`title-item-${itemKey}`}>
+                        {item.title}
+                      </h2>
+                      <p className="text-sm text-muted-foreground" data-testid={`author-item-${itemKey}`}>
+                        {item.authorName}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
