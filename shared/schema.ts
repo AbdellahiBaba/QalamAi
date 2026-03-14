@@ -993,6 +993,7 @@ export const pointTransactions = pgTable("point_transactions", {
   userId: varchar("user_id").notNull(),
   points: integer("points").notNull(),
   reason: text("reason").notNull(),
+  metadata: text("metadata"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
   index("idx_point_tx_user").on(table.userId),

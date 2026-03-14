@@ -637,9 +637,11 @@ app.use((req, res, next) => {
         user_id VARCHAR NOT NULL,
         points INTEGER NOT NULL,
         reason TEXT NOT NULL,
+        metadata TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    await pool.query(`ALTER TABLE point_transactions ADD COLUMN IF NOT EXISTS metadata TEXT`).catch(() => {});
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_point_tx_user ON point_transactions (user_id)`);
 
     console.log("[startup] All tables and columns ensured");

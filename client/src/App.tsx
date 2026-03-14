@@ -130,6 +130,10 @@ function AuthenticatedRouter() {
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
+        <Route path="/redeem-gift/:token">{(params: any) => {
+          window.location.replace(`/pricing?redeem=${params.token}`);
+          return null;
+        }}</Route>
         <Route component={NotFound} />
       </Switch>
     </Suspense>

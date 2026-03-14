@@ -10276,7 +10276,7 @@ ${platformInstructions}
 
   app.post("/api/me/earn-points", isAuthenticated, async (req, res) => {
     try {
-      const { reason } = req.body;
+      const { reason, chapterId } = req.body;
       const pointsMap: Record<string, number> = {
         chapter_read: 10,
         daily_login: 5,
@@ -10284,12 +10284,34 @@ ${platformInstructions}
       };
       const pts = pointsMap[reason];
       if (!pts) return res.status(400).json({ error: "سبب غير صالح" });
-      const reasonLabels: Record<string, string> = {
-        chapter_read: "قراءة فصل",
-        daily_login: "تسجيل دخول يومي",
-        share_project: "مشاركة عمل",
-      };
-      const newBalance = await storage.addPoints(req.user.claims.sub, pts, reasonLabels[reason]);
+
+      const userId = req.user.claims.sub;
+      const history = await storage.getPointHistory(userId, 50);
+      const now = Date.now();
+
+      if (reason === "daily_login") {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const alreadyLoggedIn = history.some((h: any) => h.reason === "daily_login" && new Date(h.createdAt) >= todayStart);
+        if (alreadyLoggedIn) return res.json({ points: 0, newBalance: await storage.getPointsBalance(userId), duplicate: true });
+      }
+
+      if (reason === "chapter_read") {
+        if (!chapterId) return res.status(400).json({ error: "معرف الفصل مطلوب" });
+        const chapter = await storage.getChapter(chapterId);
+        if (!chapter) return res.status(400).json({ error: "الفصل غير موجود" });
+        const alreadyRead = history.some((h: any) => h.reason === "chapter_read" && h.metadata === String(chapterId));
+        if (alreadyRead) return res.json({ points: 0, newBalance: await storage.getPointsBalance(userId), duplicate: true });
+        const newBalance = await storage.addPoints(userId, pts, "chapter_read", String(chapterId));
+        return res.json({ points: pts, newBalance });
+      }
+
+      if (reason === "share_project") {
+        const recentShares = history.filter((h: any) => h.reason === "share_project" && (now - new Date(h.createdAt).getTime()) < 86400000);
+        if (recentShares.length >= 3) return res.json({ points: 0, newBalance: await storage.getPointsBalance(userId), duplicate: true });
+      }
+
+      const newBalance = await storage.addPoints(userId, pts, reason);
       res.json({ points: pts, newBalance });
     } catch (error: any) {
       console.error("Earn points error:", error);

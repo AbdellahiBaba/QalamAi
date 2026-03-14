@@ -225,7 +225,7 @@ export interface IStorage {
   redeemGift(token: string, userId: string): Promise<import("@shared/schema").GiftSubscription>;
   getGiftsByGifter(userId: string): Promise<import("@shared/schema").GiftSubscription[]>;
   getPointsBalance(userId: string): Promise<number>;
-  addPoints(userId: string, points: number, reason: string): Promise<number>;
+  addPoints(userId: string, points: number, reason: string, metadata?: string): Promise<number>;
   getPointHistory(userId: string, limit?: number): Promise<import("@shared/schema").PointTransaction[]>;
   redeemPoints(userId: string, points: number, reason: string): Promise<{ newBalance: number }>;
 }
@@ -2608,15 +2608,21 @@ export class DatabaseStorage implements IStorage {
     return rows[0]?.balance || 0;
   }
 
-  async addPoints(userId: string, points: number, reason: string): Promise<number> {
+  async addPoints(userId: string, points: number, reason: string, metadata?: string): Promise<number> {
     await db.execute(sql`
       INSERT INTO user_points (user_id, balance)
       VALUES (${userId}, ${points})
       ON CONFLICT (user_id) DO UPDATE SET balance = user_points.balance + ${points}
     `);
-    await db.execute(sql`
-      INSERT INTO point_transactions (user_id, points, reason) VALUES (${userId}, ${points}, ${reason})
-    `);
+    if (metadata) {
+      await db.execute(sql`
+        INSERT INTO point_transactions (user_id, points, reason, metadata) VALUES (${userId}, ${points}, ${reason}, ${metadata})
+      `);
+    } else {
+      await db.execute(sql`
+        INSERT INTO point_transactions (user_id, points, reason) VALUES (${userId}, ${points}, ${reason})
+      `);
+    }
     const balance = await this.getPointsBalance(userId);
     return balance;
   }
