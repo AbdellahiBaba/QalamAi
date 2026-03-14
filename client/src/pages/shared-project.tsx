@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard } from "lucide-react";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,10 @@ interface SharedChapter {
   chapterNumber: number;
   title: string;
   content: string | null;
+  id?: number;
+  isPaid?: boolean;
+  priceCents?: number;
+  locked?: boolean;
 }
 
 interface SharedProject {
@@ -154,6 +158,26 @@ export default function SharedProject() {
   const [reactionCounts, setReactionCounts] = useState<ReactionCounts>({ like: 0, love: 0, insightful: 0, thoughtful: 0 });
   const [reactingType, setReactingType] = useState<string | null>(null);
   const [animatingType, setAnimatingType] = useState<string | null>(null);
+  const [unlockingChapterId, setUnlockingChapterId] = useState<number | null>(null);
+  const { data: authUser } = useQuery<any>({ queryKey: ["/api/auth/user"] });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const chapterUnlocked = params.get("chapter_unlocked");
+    const sessionId = params.get("session_id");
+    if (chapterUnlocked && sessionId && authUser) {
+      apiRequest("POST", `/api/chapters/${chapterUnlocked}/verify-unlock`, { sessionId })
+        .then(r => r.json())
+        .then((data) => {
+          if (data.success) {
+            toast({ title: "تم فتح الفصل بنجاح!" });
+            queryClient.invalidateQueries({ queryKey: ["/api/shared", token] });
+          }
+        })
+        .catch(() => {});
+      window.history.replaceState({}, "", `/shared/${token}`);
+    }
+  }, [authUser, token]);
 
   const { data: project, isLoading, error } = useQuery<SharedProject>({
     queryKey: ["/api/shared", token],
@@ -405,6 +429,12 @@ export default function SharedProject() {
                   <div className="flex items-center gap-2 mb-4 pb-3 border-b">
                     <FileText className="w-4 h-4 text-primary" />
                     <span className="text-sm text-muted-foreground">{chapterLabel} <LtrNum>{ch.chapterNumber}</LtrNum></span>
+                    {ch.isPaid && (
+                      <Badge variant="outline" className="text-[10px] gap-0.5 border-amber-500/50 text-amber-600 dark:text-amber-400">
+                        <Lock className="w-2.5 h-2.5" />
+                        مدفوع
+                      </Badge>
+                    )}
                     {readChapters.has(ch.chapterNumber) && (
                       <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                     )}
@@ -414,6 +444,47 @@ export default function SharedProject() {
                   <div className="font-serif text-base leading-[2.2] whitespace-pre-wrap">
                     {ch.content}
                   </div>
+                  {ch.locked && ch.id && (
+                    <div className="mt-6 p-4 rounded-lg bg-gradient-to-b from-transparent via-background to-amber-50/50 dark:to-amber-950/20 border border-amber-500/30 text-center space-y-3" data-testid={`paywall-card-${ch.id}`}>
+                      <Lock className="w-8 h-8 text-amber-500 mx-auto" />
+                      <p className="font-serif text-base font-semibold">هذا الفصل مدفوع</p>
+                      <p className="text-sm text-muted-foreground">
+                        افتح هذا الفصل مقابل <span className="font-bold text-foreground">${((ch.priceCents || 199) / 100).toFixed(2)}</span>
+                      </p>
+                      <Button
+                        className="gap-2"
+                        disabled={unlockingChapterId === ch.id}
+                        onClick={async () => {
+                          if (!authUser) {
+                            window.location.href = "/login";
+                            return;
+                          }
+                          setUnlockingChapterId(ch.id!);
+                          try {
+                            const res = await apiRequest("POST", `/api/chapters/${ch.id}/unlock`, {});
+                            const data = await res.json();
+                            if (data.alreadyUnlocked) {
+                              toast({ title: "هذا الفصل مفتوح بالفعل" });
+                              queryClient.invalidateQueries({ queryKey: ["/api/shared", token] });
+                            } else if (data.checkoutUrl) {
+                              window.location.href = data.checkoutUrl;
+                            }
+                          } catch {
+                            toast({ title: "فشل في بدء عملية الدفع", variant: "destructive" });
+                          }
+                          setUnlockingChapterId(null);
+                        }}
+                        data-testid={`button-unlock-chapter-${ch.id}`}
+                      >
+                        {unlockingChapterId === ch.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CreditCard className="w-4 h-4" />
+                        )}
+                        فتح الفصل
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

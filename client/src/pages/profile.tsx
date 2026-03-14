@@ -47,6 +47,7 @@ import {
   Copy,
   Eye,
   BarChart3,
+  Star,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
@@ -206,6 +207,10 @@ export default function Profile() {
 
   const { data: tipsReceived } = useQuery<{ totalCents: number; tips: any[] }>({
     queryKey: ["/api/tips/received"],
+  });
+
+  const { data: pointsData } = useQuery<{ balance: number; history: any[] }>({
+    queryKey: ["/api/me/points"],
   });
 
   const updateProfileMutation = useMutation({
@@ -504,7 +509,7 @@ export default function Profile() {
                 {(analytics?.followerCount ?? 0) > 0 && (
                   <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium" data-testid="text-dashboard-follower-count">
                     <Users className="w-3.5 h-3.5" />
-                    <LtrNum n={analytics!.followerCount} /> متابع
+                    <LtrNum>{analytics!.followerCount}</LtrNum> متابع
                   </div>
                 )}
                 <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="text-member-since">
@@ -579,6 +584,42 @@ export default function Profile() {
                 </CardContent>
               </Card>
             )}
+
+            <Card className="border-amber-500/30 bg-gradient-to-br from-amber-50/30 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10" data-testid="card-profile-points">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Star className="w-5 h-5 text-amber-500" />
+                  <span className="font-semibold text-sm">نقاط القراءة</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400" data-testid="text-profile-points-balance">
+                      <LtrNum>{pointsData?.balance || 0}</LtrNum>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">نقطة متاحة</p>
+                  </div>
+                  <Link href="/pricing#points">
+                    <Button variant="outline" size="sm" className="gap-1 text-xs border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30" data-testid="button-profile-redeem-points">
+                      <Star className="w-3 h-3" />
+                      استبدل نقاطك
+                    </Button>
+                  </Link>
+                </div>
+                {pointsData?.history && pointsData.history.length > 0 && (
+                  <div className="border-t pt-2 space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground font-medium">آخر النشاطات</p>
+                    {pointsData.history.slice(0, 3).map((h: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center text-[11px]" data-testid={`text-point-history-${i}`}>
+                        <span className="text-muted-foreground">{h.reason === "chapter_read" ? "قراءة فصل" : h.reason === "daily_login" ? "تسجيل دخول" : h.reason === "share_project" ? "مشاركة عمل" : h.reason === "gift_received" ? "هدية" : h.reason === "redeem" ? "استبدال نقاط" : h.reason}</span>
+                        <span className={`font-medium ${h.points > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          {h.points > 0 ? "+" : ""}<LtrNum>{h.points}</LtrNum>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">

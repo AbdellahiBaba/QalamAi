@@ -587,6 +587,61 @@ app.use((req, res, next) => {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_beta_requests_project ON beta_reader_requests (project_id)`);
 
+    await pool.query(`ALTER TABLE chapters ADD COLUMN IF NOT EXISTS is_paid BOOLEAN NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE chapters ADD COLUMN IF NOT EXISTS price_cents INTEGER NOT NULL DEFAULT 0`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chapter_unlocks (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+        stripe_session_id TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS unique_chapter_unlock_user ON chapter_unlocks (user_id, chapter_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_chapter_unlocks_user ON chapter_unlocks (user_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS gift_subscriptions (
+        id SERIAL PRIMARY KEY,
+        gifter_user_id VARCHAR NOT NULL,
+        gifter_email VARCHAR NOT NULL,
+        recipient_email VARCHAR NOT NULL,
+        plan VARCHAR NOT NULL,
+        token VARCHAR NOT NULL,
+        redeemed BOOLEAN NOT NULL DEFAULT false,
+        redeemed_by VARCHAR,
+        stripe_session_id TEXT,
+        paid BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW(),
+        redeemed_at TIMESTAMP
+      )
+    `);
+    await pool.query(`ALTER TABLE gift_subscriptions ADD COLUMN IF NOT EXISTS paid BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS unique_gift_token ON gift_subscriptions (token)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_gifts_gifter ON gift_subscriptions (gifter_user_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_points (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        balance INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS unique_user_points ON user_points (user_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS point_transactions (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        points INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_point_tx_user ON point_transactions (user_id)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

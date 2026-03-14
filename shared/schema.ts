@@ -239,6 +239,8 @@ export const chapters = pgTable("chapters", {
   content: text("content"),
   summary: text("summary"),
   status: text("status").notNull().default("pending"),
+  isPaid: boolean("is_paid").notNull().default(false),
+  priceCents: integer("price_cents").notNull().default(0),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
   index("idx_chapters_project_id").on(table.projectId),
@@ -938,3 +940,69 @@ export const betaReaderRequests = pgTable("beta_reader_requests", {
 export const insertBetaReaderRequestSchema = createInsertSchema(betaReaderRequests).omit({ id: true, createdAt: true });
 export type InsertBetaReaderRequest = z.infer<typeof insertBetaReaderRequestSchema>;
 export type BetaReaderRequest = typeof betaReaderRequests.$inferSelect;
+
+export const chapterUnlocks = pgTable("chapter_unlocks", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  chapterId: integer("chapter_id").notNull().references(() => chapters.id, { onDelete: "cascade" }),
+  stripeSessionId: text("stripe_session_id"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  unique("unique_chapter_unlock_user").on(table.userId, table.chapterId),
+  index("idx_chapter_unlocks_user").on(table.userId),
+]);
+
+export const insertChapterUnlockSchema = createInsertSchema(chapterUnlocks).omit({ id: true, createdAt: true });
+export type InsertChapterUnlock = z.infer<typeof insertChapterUnlockSchema>;
+export type ChapterUnlock = typeof chapterUnlocks.$inferSelect;
+
+export const giftSubscriptions = pgTable("gift_subscriptions", {
+  id: serial("id").primaryKey(),
+  gifterUserId: varchar("gifter_user_id").notNull(),
+  gifterEmail: varchar("gifter_email").notNull(),
+  recipientEmail: varchar("recipient_email").notNull(),
+  plan: varchar("plan").notNull(),
+  token: varchar("token").notNull(),
+  redeemed: boolean("redeemed").notNull().default(false),
+  redeemedBy: varchar("redeemed_by"),
+  stripeSessionId: text("stripe_session_id"),
+  paid: boolean("paid").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  redeemedAt: timestamp("redeemed_at"),
+}, (table) => [
+  unique("unique_gift_token").on(table.token),
+  index("idx_gifts_gifter").on(table.gifterUserId),
+]);
+
+export const insertGiftSubscriptionSchema = createInsertSchema(giftSubscriptions).omit({ id: true, createdAt: true, redeemed: true, redeemedBy: true, redeemedAt: true, paid: true });
+export type InsertGiftSubscription = z.infer<typeof insertGiftSubscriptionSchema>;
+export type GiftSubscription = typeof giftSubscriptions.$inferSelect;
+
+export const userPoints = pgTable("user_points", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  balance: integer("balance").notNull().default(0),
+}, (table) => [
+  unique("unique_user_points").on(table.userId),
+]);
+
+export type UserPoints = typeof userPoints.$inferSelect;
+
+export const pointTransactions = pgTable("point_transactions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  points: integer("points").notNull(),
+  reason: text("reason").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_point_tx_user").on(table.userId),
+]);
+
+export const insertPointTransactionSchema = createInsertSchema(pointTransactions).omit({ id: true, createdAt: true });
+export type InsertPointTransaction = z.infer<typeof insertPointTransactionSchema>;
+export type PointTransaction = typeof pointTransactions.$inferSelect;
+
+export const POINTS_PER_CHAPTER_READ = 10;
+export const POINTS_PER_REFERRAL = 50;
+export const POINTS_REDEMPTION_THRESHOLD = 500;
+export const POINTS_DISCOUNT_PERCENT = 10;

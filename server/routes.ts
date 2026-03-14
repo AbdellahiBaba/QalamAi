@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq, and, or, gte, lt, desc, sql as dsql, count, isNotNull } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, giftSubscriptions, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
@@ -5440,6 +5440,12 @@ ${glossaryParagraphs}
       if (!project) return res.status(404).json({ error: "غير موجود" });
       const details = await storage.getProjectWithDetails(project.id);
       if (!details) return res.status(404).json({ error: "غير موجود" });
+      let unlockedIds: number[] = [];
+      const userId = (req as any).user?.claims?.sub;
+      const isAuthor = userId && userId === project.userId;
+      if (userId && !isAuthor) {
+        unlockedIds = await storage.getUnlockedChapterIds(userId, project.id);
+      }
       res.json({
         id: project.id,
         title: details.title,
@@ -5451,11 +5457,32 @@ ${glossaryParagraphs}
         chapters: details.chapters
           .filter((ch: any) => ch.content)
           .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
-          .map((ch: any) => ({
-            chapterNumber: ch.chapterNumber,
-            title: ch.title,
-            content: ch.content,
-          })),
+          .map((ch: any) => {
+            const isPaid = !!ch.isPaid;
+            const hasAccess = !isPaid || isAuthor || unlockedIds.includes(ch.id);
+            if (isPaid && !hasAccess) {
+              const words = (ch.content || "").split(/\s+/);
+              const preview = words.slice(0, 200).join(" ");
+              return {
+                id: ch.id,
+                chapterNumber: ch.chapterNumber,
+                title: ch.title,
+                content: preview + (words.length > 200 ? "..." : ""),
+                isPaid: true,
+                priceCents: ch.priceCents || 199,
+                locked: true,
+              };
+            }
+            return {
+              id: ch.id,
+              chapterNumber: ch.chapterNumber,
+              title: ch.title,
+              content: ch.content,
+              isPaid,
+              priceCents: ch.priceCents || 0,
+              locked: false,
+            };
+          }),
       });
     } catch (error) {
       console.error("Error fetching shared project:", error);
@@ -10025,6 +10052,244 @@ ${platformInstructions}
     } catch (error: any) {
       console.error("Update seeking beta readers error:", error);
       res.status(500).json({ error: "فشل في تحديث الحالة" });
+    }
+  });
+
+  // ── Chapter Paywall Routes ──
+  app.put("/api/chapters/:id/paywall", isAuthenticated, async (req, res) => {
+    try {
+      const chapterId = parseIntParam(req.params.id);
+      if (!chapterId) return res.status(400).json({ error: "معرف غير صالح" });
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project || project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
+      const { isPaid, priceCents } = req.body;
+      const updated = await storage.updateChapter(chapterId, {
+        isPaid: !!isPaid,
+        priceCents: isPaid ? Math.max(0, Math.min(9999, parseInt(priceCents) || 199)) : 0,
+      });
+      res.json({ isPaid: updated.isPaid, priceCents: updated.priceCents });
+    } catch (error: any) {
+      console.error("Chapter paywall update error:", error);
+      res.status(500).json({ error: "فشل في تحديث إعدادات الفصل" });
+    }
+  });
+
+  app.get("/api/chapters/:id/access", isAuthenticated, async (req, res) => {
+    try {
+      const chapterId = parseIntParam(req.params.id);
+      if (!chapterId) return res.status(400).json({ error: "معرف غير صالح" });
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
+      if (!chapter.isPaid) return res.json({ hasAccess: true, isPaid: false });
+      const project = await storage.getProject(chapter.projectId);
+      if (project && project.userId === req.user.claims.sub) return res.json({ hasAccess: true, isPaid: true, isAuthor: true });
+      const unlocked = await storage.checkChapterUnlock(req.user.claims.sub, chapterId);
+      res.json({ hasAccess: unlocked, isPaid: true, priceCents: chapter.priceCents });
+    } catch (error: any) {
+      console.error("Chapter access check error:", error);
+      res.status(500).json({ error: "فشل في التحقق" });
+    }
+  });
+
+  app.post("/api/chapters/:id/unlock", isAuthenticated, async (req, res) => {
+    try {
+      const chapterId = parseIntParam(req.params.id);
+      if (!chapterId) return res.status(400).json({ error: "معرف غير صالح" });
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter || !chapter.isPaid) return res.status(400).json({ error: "هذا الفصل ليس مدفوعًا" });
+      const already = await storage.checkChapterUnlock(req.user.claims.sub, chapterId);
+      if (already) return res.json({ alreadyUnlocked: true });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      const stripe = await getUncachableStripeClient();
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            unit_amount: chapter.priceCents,
+            product_data: {
+              name: `فتح الفصل: ${chapter.title}`,
+              description: `من ${project.title}`,
+            },
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/shared/${project.shareToken}?chapter_unlocked=${chapterId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/shared/${project.shareToken}`,
+      });
+      res.json({ checkoutUrl: session.url });
+    } catch (error: any) {
+      console.error("Chapter unlock checkout error:", error);
+      res.status(500).json({ error: "فشل في إنشاء جلسة الدفع" });
+    }
+  });
+
+  app.post("/api/chapters/:id/verify-unlock", isAuthenticated, async (req, res) => {
+    try {
+      const chapterId = parseIntParam(req.params.id);
+      if (!chapterId) return res.status(400).json({ error: "معرف غير صالح" });
+      const { sessionId } = req.body;
+      if (!sessionId) return res.status(400).json({ error: "معرف الجلسة مطلوب" });
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status !== "paid") return res.status(400).json({ error: "لم يتم الدفع" });
+      await storage.createChapterUnlock(req.user.claims.sub, chapterId, sessionId);
+      await storage.addPoints(req.user.claims.sub, 5, "فتح فصل مدفوع");
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Chapter unlock verify error:", error);
+      res.status(500).json({ error: "فشل في التحقق من الدفع" });
+    }
+  });
+
+  // ── Gift Subscription Routes ──
+  app.post("/api/gifts/purchase", isAuthenticated, async (req, res) => {
+    try {
+      const { recipientEmail, plan } = req.body;
+      if (!recipientEmail || !plan) return res.status(400).json({ error: "البريد والخطة مطلوبان" });
+      const validPlans = ["essay", "scenario", "all_in_one"];
+      if (!validPlans.includes(plan)) return res.status(400).json({ error: "خطة غير صالحة" });
+      const planLabels: Record<string, string> = { essay: "خطة المقالات", scenario: "خطة السيناريوهات", all_in_one: "الخطة الشاملة" };
+      const planPrices: Record<string, number> = { essay: 1999, scenario: 7999, all_in_one: 14999 };
+      const token = `gift_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const user = await storage.getUser(req.user.claims.sub);
+      const stripe = await getUncachableStripeClient();
+      const origin = `${req.protocol}://${req.get("host")}`;
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            unit_amount: planPrices[plan],
+            product_data: {
+              name: `هدية: ${planLabels[plan]}`,
+              description: `هدية لـ ${recipientEmail}`,
+            },
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/pricing?gift_success=true&gift_token=${token}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/pricing`,
+        metadata: { giftToken: token, recipientEmail, plan },
+      });
+      await storage.createGiftSubscription({
+        gifterUserId: req.user.claims.sub,
+        gifterEmail: user?.email || "",
+        recipientEmail,
+        plan,
+        token,
+        stripeSessionId: session.id,
+      });
+      res.json({ checkoutUrl: session.url, token });
+    } catch (error: any) {
+      console.error("Gift purchase error:", error);
+      res.status(500).json({ error: "فشل في إنشاء جلسة الدفع" });
+    }
+  });
+
+  app.post("/api/gifts/verify", isAuthenticated, async (req, res) => {
+    try {
+      const { sessionId, token } = req.body;
+      if (!sessionId || !token) return res.status(400).json({ error: "بيانات ناقصة" });
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status !== "paid") return res.status(400).json({ error: "لم يتم الدفع" });
+      if (session.metadata?.giftToken !== token) return res.status(400).json({ error: "رمز الهدية غير متطابق" });
+      await db.update(giftSubscriptions).set({ paid: true, stripeSessionId: sessionId }).where(eq(giftSubscriptions.token, token));
+      res.json({ success: true, token });
+    } catch (error: any) {
+      console.error("Gift verify error:", error);
+      res.status(500).json({ error: "فشل في التحقق" });
+    }
+  });
+
+  app.get("/api/gifts/redeem/:token", async (req, res) => {
+    try {
+      const gift = await storage.getGiftByToken(req.params.token);
+      if (!gift) return res.status(404).json({ error: "الهدية غير موجودة" });
+      if (gift.redeemed) return res.json({ redeemed: true, plan: gift.plan });
+      const planLabels: Record<string, string> = { essay: "خطة المقالات", scenario: "خطة السيناريوهات", all_in_one: "الخطة الشاملة" };
+      res.json({ redeemed: false, plan: gift.plan, planLabel: planLabels[gift.plan] || gift.plan, gifterEmail: gift.gifterEmail });
+    } catch (error: any) {
+      console.error("Gift redeem info error:", error);
+      res.status(500).json({ error: "فشل في جلب البيانات" });
+    }
+  });
+
+  app.post("/api/gifts/redeem/:token", isAuthenticated, async (req, res) => {
+    try {
+      const gift = await storage.getGiftByToken(req.params.token);
+      if (!gift) return res.status(404).json({ error: "الهدية غير موجودة" });
+      if (gift.redeemed) return res.status(400).json({ error: "تم استخدام هذه الهدية بالفعل" });
+      if (!gift.paid) return res.status(400).json({ error: "لم يتم الدفع لهذه الهدية بعد" });
+      await storage.redeemGift(req.params.token, req.user.claims.sub);
+      await storage.updateUserPlan(req.user.claims.sub, gift.plan);
+      await storage.addPoints(req.user.claims.sub, 25, "gift_received");
+      res.json({ success: true, plan: gift.plan });
+    } catch (error: any) {
+      console.error("Gift redeem error:", error);
+      res.status(500).json({ error: "فشل في تفعيل الهدية" });
+    }
+  });
+
+  app.get("/api/me/gifts", isAuthenticated, async (req, res) => {
+    try {
+      const gifts = await storage.getGiftsByGifter(req.user.claims.sub);
+      res.json(gifts);
+    } catch (error: any) {
+      console.error("Get gifts error:", error);
+      res.status(500).json({ error: "فشل في جلب الهدايا" });
+    }
+  });
+
+  // ── Reading Rewards (Points) Routes ──
+  app.get("/api/me/points", isAuthenticated, async (req, res) => {
+    try {
+      const balance = await storage.getPointsBalance(req.user.claims.sub);
+      const history = await storage.getPointHistory(req.user.claims.sub, 20);
+      res.json({ balance, history });
+    } catch (error: any) {
+      console.error("Get points error:", error);
+      res.status(500).json({ error: "فشل في جلب النقاط" });
+    }
+  });
+
+  app.post("/api/me/earn-points", isAuthenticated, async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const pointsMap: Record<string, number> = {
+        chapter_read: 10,
+        daily_login: 5,
+        share_project: 15,
+      };
+      const pts = pointsMap[reason];
+      if (!pts) return res.status(400).json({ error: "سبب غير صالح" });
+      const reasonLabels: Record<string, string> = {
+        chapter_read: "قراءة فصل",
+        daily_login: "تسجيل دخول يومي",
+        share_project: "مشاركة عمل",
+      };
+      const newBalance = await storage.addPoints(req.user.claims.sub, pts, reasonLabels[reason]);
+      res.json({ points: pts, newBalance });
+    } catch (error: any) {
+      console.error("Earn points error:", error);
+      res.status(500).json({ error: "فشل في إضافة النقاط" });
+    }
+  });
+
+  app.post("/api/me/redeem-points", isAuthenticated, async (req, res) => {
+    try {
+      const balance = await storage.getPointsBalance(req.user.claims.sub);
+      if (balance < 500) return res.status(400).json({ error: "رصيد النقاط غير كافٍ (500 نقطة مطلوبة)" });
+      const { newBalance } = await storage.redeemPoints(req.user.claims.sub, 500, "redeem");
+      res.json({ success: true, discountPercent: 10, newBalance });
+    } catch (error: any) {
+      console.error("Redeem points error:", error);
+      res.status(500).json({ error: "فشل في استبدال النقاط" });
     }
   });
 

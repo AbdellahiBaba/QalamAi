@@ -24,6 +24,10 @@ import {
   webhookDeliveries, type WebhookDelivery, type InsertWebhookDelivery,
   PLAN_PRICES,
   emailSubscriptions, type EmailSubscription,
+  chapterUnlocks, type ChapterUnlock,
+  giftSubscriptions, type GiftSubscription,
+  userPoints, type UserPoints,
+  pointTransactions, type PointTransaction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -213,6 +217,17 @@ export interface IStorage {
   getBetaReaderRequests(projectId: number): Promise<(import("@shared/schema").BetaReaderRequest & { userName: string; userProfileImage: string | null })[]>;
   cancelBetaReaderRequest(projectId: number, userId: string): Promise<void>;
   getRelatedProjects(projectId: number, limit?: number): Promise<Array<{ id: number; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; projectType: string }>>;
+  checkChapterUnlock(userId: string, chapterId: number): Promise<boolean>;
+  createChapterUnlock(userId: string, chapterId: number, stripeSessionId?: string): Promise<void>;
+  getUnlockedChapterIds(userId: string, projectId: number): Promise<number[]>;
+  createGiftSubscription(data: { gifterUserId: string; gifterEmail: string; recipientEmail: string; plan: string; token: string; stripeSessionId?: string }): Promise<import("@shared/schema").GiftSubscription>;
+  getGiftByToken(token: string): Promise<import("@shared/schema").GiftSubscription | undefined>;
+  redeemGift(token: string, userId: string): Promise<import("@shared/schema").GiftSubscription>;
+  getGiftsByGifter(userId: string): Promise<import("@shared/schema").GiftSubscription[]>;
+  getPointsBalance(userId: string): Promise<number>;
+  addPoints(userId: string, points: number, reason: string): Promise<number>;
+  getPointHistory(userId: string, limit?: number): Promise<import("@shared/schema").PointTransaction[]>;
+  redeemPoints(userId: string, points: number, reason: string): Promise<{ newBalance: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2527,6 +2542,103 @@ export class DatabaseStorage implements IStorage {
       LIMIT ${limit}
     `)).rows;
     return rows;
+  }
+
+  async checkChapterUnlock(userId: string, chapterId: number): Promise<boolean> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT 1 FROM chapter_unlocks WHERE user_id = ${userId} AND chapter_id = ${chapterId} LIMIT 1
+    `)).rows;
+    return rows.length > 0;
+  }
+
+  async createChapterUnlock(userId: string, chapterId: number, stripeSessionId?: string): Promise<void> {
+    await db.execute(sql`
+      INSERT INTO chapter_unlocks (user_id, chapter_id, stripe_session_id)
+      VALUES (${userId}, ${chapterId}, ${stripeSessionId || null})
+      ON CONFLICT (user_id, chapter_id) DO NOTHING
+    `);
+  }
+
+  async getUnlockedChapterIds(userId: string, projectId: number): Promise<number[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT cu.chapter_id FROM chapter_unlocks cu
+      JOIN chapters c ON c.id = cu.chapter_id
+      WHERE cu.user_id = ${userId} AND c.project_id = ${projectId}
+    `)).rows;
+    return rows.map((r: any) => r.chapter_id);
+  }
+
+  async createGiftSubscription(data: { gifterUserId: string; gifterEmail: string; recipientEmail: string; plan: string; token: string; stripeSessionId?: string }): Promise<GiftSubscription> {
+    const rows: any[] = (await db.execute(sql`
+      INSERT INTO gift_subscriptions (gifter_user_id, gifter_email, recipient_email, plan, token, stripe_session_id)
+      VALUES (${data.gifterUserId}, ${data.gifterEmail}, ${data.recipientEmail}, ${data.plan}, ${data.token}, ${data.stripeSessionId || null})
+      RETURNING *
+    `)).rows;
+    return rows[0];
+  }
+
+  async getGiftByToken(token: string): Promise<GiftSubscription | undefined> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM gift_subscriptions WHERE token = ${token} LIMIT 1
+    `)).rows;
+    return rows[0] || undefined;
+  }
+
+  async redeemGift(token: string, userId: string): Promise<GiftSubscription> {
+    const rows: any[] = (await db.execute(sql`
+      UPDATE gift_subscriptions SET redeemed = true, redeemed_by = ${userId}, redeemed_at = NOW()
+      WHERE token = ${token} AND redeemed = false
+      RETURNING *
+    `)).rows;
+    if (!rows[0]) throw new Error("Gift not found or already redeemed");
+    return rows[0];
+  }
+
+  async getGiftsByGifter(userId: string): Promise<GiftSubscription[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM gift_subscriptions WHERE gifter_user_id = ${userId} ORDER BY created_at DESC
+    `)).rows;
+    return rows;
+  }
+
+  async getPointsBalance(userId: string): Promise<number> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT balance FROM user_points WHERE user_id = ${userId} LIMIT 1
+    `)).rows;
+    return rows[0]?.balance || 0;
+  }
+
+  async addPoints(userId: string, points: number, reason: string): Promise<number> {
+    await db.execute(sql`
+      INSERT INTO user_points (user_id, balance)
+      VALUES (${userId}, ${points})
+      ON CONFLICT (user_id) DO UPDATE SET balance = user_points.balance + ${points}
+    `);
+    await db.execute(sql`
+      INSERT INTO point_transactions (user_id, points, reason) VALUES (${userId}, ${points}, ${reason})
+    `);
+    const balance = await this.getPointsBalance(userId);
+    return balance;
+  }
+
+  async getPointHistory(userId: string, limit = 50): Promise<PointTransaction[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM point_transactions WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT ${limit}
+    `)).rows;
+    return rows;
+  }
+
+  async redeemPoints(userId: string, points: number, reason: string): Promise<{ newBalance: number }> {
+    const balance = await this.getPointsBalance(userId);
+    if (balance < points) throw new Error("Insufficient points");
+    await db.execute(sql`
+      UPDATE user_points SET balance = balance - ${points} WHERE user_id = ${userId}
+    `);
+    await db.execute(sql`
+      INSERT INTO point_transactions (user_id, points, reason) VALUES (${userId}, ${-points}, ${reason})
+    `);
+    const newBalance = await this.getPointsBalance(userId);
+    return { newBalance };
   }
 }
 

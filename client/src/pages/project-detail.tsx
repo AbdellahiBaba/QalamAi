@@ -707,6 +707,20 @@ export default function ProjectDetail() {
     },
   });
 
+  const paywallMutation = useMutation({
+    mutationFn: async ({ chapterId, isPaid, priceCents }: { chapterId: number; isPaid: boolean; priceCents: number }) => {
+      const res = await apiRequest("PUT", `/api/chapters/${chapterId}/paywall`, { isPaid, priceCents });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تم تحديث إعدادات الفصل" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث إعدادات الفصل", variant: "destructive" });
+    },
+  });
+
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
       const res = await apiRequest("PATCH", `/api/projects/${projectId}/settings`, data);
@@ -3738,7 +3752,15 @@ export default function ProjectDetail() {
                             {chapter.chapterNumber}
                           </span>
                           <div className="text-right">
-                            <h4 className="font-serif font-semibold">{chapter.title}</h4>
+                            <h4 className="font-serif font-semibold flex items-center gap-2">
+                              {chapter.title}
+                              {chapter.isPaid && (
+                                <Badge variant="outline" className="text-[10px] gap-0.5 border-amber-500/50 text-amber-600 dark:text-amber-400" data-testid={`badge-paid-chapter-${chapter.id}`}>
+                                  <Lock className="w-2.5 h-2.5" />
+                                  مدفوع
+                                </Badge>
+                              )}
+                            </h4>
                             <div className="flex items-center gap-2 mt-0.5">
                               {chapter.content && (
                                 <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid={`text-chapter-reading-time-${chapter.id}`}>
@@ -4069,6 +4091,39 @@ export default function ProjectDetail() {
                                     <Pencil className="w-3.5 h-3.5 ml-1" />
                                     تحرير
                                   </Button>
+                                </div>
+                              )}
+                              {project.publishedToGallery && chapter.status === "completed" && (
+                                <div className="border-t p-3 flex items-center gap-3 flex-wrap bg-muted/30" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center gap-2">
+                                    <Lock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                    <span className="text-xs font-medium">جدار دفع:</span>
+                                    <Switch
+                                      checked={chapter.isPaid || false}
+                                      onCheckedChange={(checked) => {
+                                        paywallMutation.mutate({ chapterId: chapter.id, isPaid: checked, priceCents: checked ? (chapter.priceCents || 199) : 0 });
+                                      }}
+                                      data-testid={`switch-paywall-${chapter.id}`}
+                                    />
+                                  </div>
+                                  {chapter.isPaid && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs text-muted-foreground">السعر:</span>
+                                      <Input
+                                        type="number"
+                                        min={50}
+                                        max={9999}
+                                        defaultValue={chapter.priceCents || 199}
+                                        className="h-7 w-20 text-xs"
+                                        onBlur={(e) => {
+                                          const val = parseInt(e.target.value) || 199;
+                                          paywallMutation.mutate({ chapterId: chapter.id, isPaid: true, priceCents: val });
+                                        }}
+                                        data-testid={`input-paywall-price-${chapter.id}`}
+                                      />
+                                      <span className="text-[10px] text-muted-foreground">سنت</span>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </>

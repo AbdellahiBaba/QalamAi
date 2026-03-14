@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers, Loader2, CheckCircle, Tag, X, Clock, CreditCard, Shield } from "lucide-react";
+import { Feather, Check, Crown, BookOpen, FileText, Sparkles, Film, PenTool, Layers, Loader2, CheckCircle, Tag, X, Clock, CreditCard, Shield, Gift, Star, ArrowLeft } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -258,6 +258,10 @@ export default function Pricing() {
   const [trialClientSecret, setTrialClientSecret] = useState<string | null>(null);
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
   const [trialLoading, setTrialLoading] = useState(false);
+  const [giftEmail, setGiftEmail] = useState("");
+  const [giftPlan, setGiftPlan] = useState("all_in_one");
+  const [giftToken, setGiftToken] = useState<string | null>(null);
+  const [redeemToken, setRedeemToken] = useState("");
 
   const { data: authUser } = useQuery<any>({
     queryKey: ["/api/auth/user"],
@@ -458,6 +462,85 @@ export default function Pricing() {
     setPurchasingPlan(planKey);
     purchaseMutation.mutate(planKey);
   };
+
+  const giftPurchaseMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/gifts/purchase", { recipientEmail: giftEmail, plan: giftPlan });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.checkoutUrl) {
+        setGiftToken(data.token);
+        window.location.href = data.checkoutUrl;
+      }
+    },
+    onError: () => {
+      toast({ title: "فشل في إنشاء جلسة شراء الهدية", variant: "destructive" });
+    },
+  });
+
+  const redeemGiftMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/gifts/redeem/${redeemToken}`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "تم تفعيل الهدية بنجاح! 🎉" });
+        queryClient.invalidateQueries({ queryKey: ["/api/user/plan"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        setRedeemToken("");
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل في تفعيل الهدية", variant: "destructive" });
+    },
+  });
+
+  const { data: pointsData } = useQuery<{ balance: number; history: any[] }>({
+    queryKey: ["/api/me/points"],
+    enabled: !!authUser,
+  });
+
+  const redeemPointsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/me/redeem-points", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: `تم استبدال 500 نقطة بخصم ${data.discountPercent}%` });
+        queryClient.invalidateQueries({ queryKey: ["/api/me/points"] });
+      }
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل في استبدال النقاط", variant: "destructive" });
+    },
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const giftSuccess = params.get("gift_success");
+    const giftSessionId = params.get("session_id");
+    const gToken = params.get("gift_token");
+    if (giftSuccess === "true" && giftSessionId && gToken) {
+      apiRequest("POST", "/api/gifts/verify", { sessionId: giftSessionId, token: gToken })
+        .then(r => r.json())
+        .then((data) => {
+          if (data.success) {
+            toast({ title: "تم شراء الهدية بنجاح! شارك الرابط مع المتلقّي" });
+            setGiftToken(data.token);
+          }
+        })
+        .catch(() => {});
+      window.history.replaceState({}, "", "/pricing");
+    }
+    const redeemParam = params.get("redeem");
+    if (redeemParam) {
+      setRedeemToken(redeemParam);
+      window.history.replaceState({}, "", "/pricing");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -978,6 +1061,140 @@ export default function Pricing() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      </section>
+
+      <section className="py-12 sm:py-16 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
+          <Card className="border-2 border-pink-500/30 bg-gradient-to-br from-pink-50/30 to-rose-50/30 dark:from-pink-950/20 dark:to-rose-950/10" data-testid="card-gift-section">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <Gift className="w-6 h-6 text-pink-500" />
+                <h2 className="font-serif text-xl font-bold">أهدِ خطة</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">أهدِ صديقك أو زميلك خطة كتابة على QalamAI</p>
+              {giftToken && (
+                <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-500/30 space-y-2" data-testid="gift-success-info">
+                  <p className="text-sm text-green-700 dark:text-green-300 font-medium">تم شراء الهدية بنجاح!</p>
+                  <div className="flex items-center gap-2">
+                    <Input value={`${window.location.origin}/pricing?redeem=${giftToken}`} readOnly className="text-xs flex-1" dir="ltr" />
+                    <Button size="sm" variant="outline" onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/pricing?redeem=${giftToken}`);
+                      toast({ title: "تم نسخ رابط الهدية" });
+                    }}>نسخ</Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">شارك هذا الرابط مع المتلقّي لتفعيل الخطة</p>
+                </div>
+              )}
+              {!giftToken && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">بريد المتلقّي</label>
+                    <Input
+                      type="email"
+                      value={giftEmail}
+                      onChange={(e) => setGiftEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      dir="ltr"
+                      data-testid="input-gift-email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">الخطة</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { key: "essay", label: "المقالات", price: "١٩.٩٩" },
+                        { key: "scenario", label: "السيناريوهات", price: "٧٩.٩٩" },
+                        { key: "all_in_one", label: "الشاملة", price: "١٤٩.٩٩" },
+                      ].map(gp => (
+                        <button
+                          key={gp.key}
+                          className={`p-2 rounded-lg border text-center text-xs transition-colors ${giftPlan === gp.key ? "border-pink-500 bg-pink-50 dark:bg-pink-950/30 text-pink-700 dark:text-pink-300" : "border-border hover:border-pink-300"}`}
+                          onClick={() => setGiftPlan(gp.key)}
+                          data-testid={`button-gift-plan-${gp.key}`}
+                        >
+                          <div className="font-medium">{gp.label}</div>
+                          <div className="text-muted-foreground">${gp.price}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full gap-2 bg-pink-600 hover:bg-pink-700 text-white"
+                    disabled={!giftEmail.trim() || !isLoggedIn || giftPurchaseMutation.isPending}
+                    onClick={() => giftPurchaseMutation.mutate()}
+                    data-testid="button-buy-gift"
+                  >
+                    {giftPurchaseMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                    اشترِ الهدية
+                  </Button>
+                  {!isLoggedIn && <p className="text-[10px] text-muted-foreground text-center">سجّل دخولك أولاً لشراء الهدية</p>}
+                </>
+              )}
+              <div className="border-t pt-3 space-y-2">
+                <p className="text-xs font-medium">هل لديك رمز هدية؟</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={redeemToken}
+                    onChange={(e) => setRedeemToken(e.target.value)}
+                    placeholder="الصق رمز الهدية هنا..."
+                    className="flex-1 text-xs"
+                    dir="ltr"
+                    data-testid="input-redeem-gift"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!redeemToken.trim() || !isLoggedIn || redeemGiftMutation.isPending}
+                    onClick={() => redeemGiftMutation.mutate()}
+                    data-testid="button-redeem-gift"
+                  >
+                    {redeemGiftMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "تفعيل"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {isLoggedIn && (
+            <Card id="points" className="border-2 border-amber-500/30 bg-gradient-to-br from-amber-50/30 to-yellow-50/30 dark:from-amber-950/20 dark:to-yellow-950/10" data-testid="card-points-section">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Star className="w-6 h-6 text-amber-500" />
+                  <h2 className="font-serif text-xl font-bold">نقاط القراءة</h2>
+                </div>
+                <p className="text-sm text-muted-foreground">اكسب نقاطًا بقراءة الأعمال ومشاركتها، واستبدلها بخصومات</p>
+                <div className="text-center py-4">
+                  <div className="text-4xl font-bold text-amber-600 dark:text-amber-400" data-testid="text-points-balance">
+                    <LtrNum>{pointsData?.balance || 0}</LtrNum>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">نقطة</p>
+                </div>
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <div className="flex justify-between"><span>قراءة فصل</span><span className="font-medium text-foreground">+١٠ نقاط</span></div>
+                  <div className="flex justify-between"><span>تسجيل دخول يومي</span><span className="font-medium text-foreground">+٥ نقاط</span></div>
+                  <div className="flex justify-between"><span>مشاركة عمل</span><span className="font-medium text-foreground">+١٥ نقطة</span></div>
+                  <div className="flex justify-between"><span>إحالة صديق</span><span className="font-medium text-foreground">+٥٠ نقطة</span></div>
+                </div>
+                <div className="border-t pt-3">
+                  <Button
+                    className="w-full gap-2"
+                    variant={((pointsData?.balance || 0) >= 500) ? "default" : "outline"}
+                    disabled={(pointsData?.balance || 0) < 500 || redeemPointsMutation.isPending}
+                    onClick={() => redeemPointsMutation.mutate()}
+                    data-testid="button-redeem-points"
+                  >
+                    {redeemPointsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4" />}
+                    استبدل ٥٠٠ نقطة بخصم ١٠٪
+                  </Button>
+                  {(pointsData?.balance || 0) < 500 && (
+                    <p className="text-[10px] text-muted-foreground text-center mt-1">
+                      تحتاج <LtrNum>{500 - (pointsData?.balance || 0)}</LtrNum> نقطة إضافية
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </section>
 
