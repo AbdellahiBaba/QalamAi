@@ -9519,7 +9519,7 @@ ${ch.content}
       const targetUser = await storage.getUser(session.targetUserId);
       if (!targetUser) return res.status(404).json({ error: "المستخدم غير موجود" });
 
-      const projects = await storage.getProjectsByUserId(session.targetUserId);
+      const projects = await storage.getProjectsByUser(session.targetUserId);
       const notifications = await storage.getNotifications(session.targetUserId);
 
       res.json({
