@@ -547,6 +547,46 @@ app.use((req, res, next) => {
     ) STORED`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_series_search_tsv ON content_series USING gin (search_tsv)`);
 
+    await pool.query(`ALTER TABLE novel_projects ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
+    await pool.query(`ALTER TABLE novel_projects ADD COLUMN IF NOT EXISTS seeking_beta_readers BOOLEAN DEFAULT false`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS writing_challenges (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        start_date TIMESTAMP DEFAULT NOW(),
+        end_date TIMESTAMP,
+        status TEXT DEFAULT 'active',
+        created_by TEXT NOT NULL,
+        winner_entry_id INTEGER,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_challenges_status ON writing_challenges (status)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS challenge_entries (
+        id SERIAL PRIMARY KEY,
+        challenge_id INTEGER NOT NULL REFERENCES writing_challenges(id),
+        user_id TEXT NOT NULL,
+        project_id INTEGER NOT NULL,
+        submitted_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_challenge_entries_challenge ON challenge_entries (challenge_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS beta_reader_requests (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        message TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_beta_requests_project ON beta_reader_requests (project_id)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);
