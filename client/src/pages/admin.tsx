@@ -381,7 +381,8 @@ export default function Admin() {
   const [showApiUsageDialog, setShowApiUsageDialog] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedReports, setSelectedReports] = useState<Set<number>>(new Set());
-  const [impersonating, setImpersonating] = useState<{ id: string; displayName: string; email?: string; plan?: string } | null>(null);
+  const [impersonating, setImpersonating] = useState<{ id: string; displayName: string; email?: string; plan?: string; token: string } | null>(null);
+  const [impersonationData, setImpersonationData] = useState<any>(null);
   const [confirmBulkAction, setConfirmBulkAction] = useState<{ type: "dismiss" | "warn" | "remove"; ids: number[] } | null>(null);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [usersPage, setUsersPage] = useState(1);
@@ -753,7 +754,7 @@ export default function Admin() {
 
   const bulkDismissMutation = useMutation({
     mutationFn: async (ids: number[]) => {
-      const res = await apiRequest("POST", "/api/admin/reports/bulk-dismiss", { ids });
+      const res = await apiRequest("DELETE", "/api/admin/reports/bulk", { ids });
       return res.json();
     },
     onSuccess: (data) => {
@@ -1339,7 +1340,7 @@ export default function Admin() {
               <div className="flex items-center gap-3 p-3 bg-amber-100 dark:bg-amber-900/50 border border-amber-300 dark:border-amber-700 rounded-lg shadow-sm">
                 <UserCheck className="w-5 h-5 text-amber-700 dark:text-amber-300 shrink-0" />
                 <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  وضع العرض — <strong>{impersonating.displayName}</strong>
+                  أنت تتصفح كـ: <strong>{impersonating.displayName}</strong>
                   {impersonating.email && <span className="text-xs opacity-75 mr-2">({impersonating.email})</span>}
                   {impersonating.plan && <Badge variant="outline" className="mr-2 text-[10px]">{planLabels[impersonating.plan] || impersonating.plan}</Badge>}
                 </span>
@@ -1358,13 +1359,57 @@ export default function Admin() {
                   size="sm"
                   variant="outline"
                   className="border-amber-400 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800"
-                  onClick={() => { setImpersonating(null); toast({ title: "تم الخروج من وضع العرض" }); }}
+                  onClick={async () => {
+                    try { await apiRequest("POST", "/api/admin/impersonate/stop", { token: impersonating.token }); } catch {}
+                    setImpersonating(null);
+                    setImpersonationData(null);
+                    toast({ title: "تم الخروج من وضع العرض" });
+                  }}
                   data-testid="button-exit-impersonation"
                 >
                   <X className="w-3.5 h-3.5 ml-1" />
                   خروج
                 </Button>
               </div>
+              {impersonationData && (
+                <div className="p-4 bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg space-y-3" data-testid="impersonation-user-data">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="text-center p-2 bg-white dark:bg-background rounded border">
+                      <p className="text-lg font-bold"><LtrNum>{impersonationData.totalProjects || 0}</LtrNum></p>
+                      <p className="text-[10px] text-muted-foreground">إجمالي المشاريع</p>
+                    </div>
+                    <div className="text-center p-2 bg-white dark:bg-background rounded border">
+                      <p className="text-lg font-bold"><LtrNum>{impersonationData.notificationCount || 0}</LtrNum></p>
+                      <p className="text-[10px] text-muted-foreground">إشعارات غير مقروءة</p>
+                    </div>
+                    <div className="text-center p-2 bg-white dark:bg-background rounded border">
+                      <p className="text-lg font-bold">{impersonationData.user?.plan ? planLabels[impersonationData.user.plan] || impersonationData.user.plan : "مجانية"}</p>
+                      <p className="text-[10px] text-muted-foreground">الخطة</p>
+                    </div>
+                    <div className="text-center p-2 bg-white dark:bg-background rounded border">
+                      <p className="text-lg font-bold text-xs">{impersonationData.user?.createdAt ? new Date(impersonationData.user.createdAt).toLocaleDateString("ar-EG") : "—"}</p>
+                      <p className="text-[10px] text-muted-foreground">تاريخ الانضمام</p>
+                    </div>
+                  </div>
+                  {impersonationData.projects && impersonationData.projects.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-2">مشاريع المستخدم الأخيرة:</p>
+                      <div className="space-y-1">
+                        {impersonationData.projects.slice(0, 5).map((p: any) => (
+                          <div key={p.id} className="flex items-center gap-2 text-xs p-1.5 bg-white dark:bg-background rounded border">
+                            <Badge variant="outline" className="text-[10px]">{projectTypeLabels[p.type] || p.type}</Badge>
+                            <span className="font-medium truncate flex-1">{p.title || "بدون عنوان"}</span>
+                            <Badge variant={p.status === "completed" ? "default" : "secondary"} className="text-[10px]">
+                              {projectStatusLabels[p.status] || p.status}
+                            </Badge>
+                            {p.publishedToGallery && <Badge className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200">منشور</Badge>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <div className="flex items-center gap-3 mb-6 sm:mb-8">
@@ -1829,10 +1874,15 @@ export default function Admin() {
                                 size="sm"
                                 onClick={async () => {
                                   try {
-                                    const res = await apiRequest("GET", `/api/admin/impersonate/${u.id}`);
+                                    const res = await apiRequest("POST", `/api/admin/impersonate/${u.id}/start`);
                                     const data = await res.json();
                                     if (data.success) {
-                                      setImpersonating({ id: data.user.id, displayName: data.user.displayName, email: data.user.email, plan: data.user.plan });
+                                      setImpersonating({ id: data.user.id, displayName: data.user.displayName, email: data.user.email, plan: data.user.plan, token: data.token });
+                                      const viewRes = await fetch(`/api/admin/impersonate/view?token=${data.token}`, { credentials: "include" });
+                                      if (viewRes.ok) {
+                                        const viewData = await viewRes.json();
+                                        setImpersonationData(viewData);
+                                      }
                                       toast({ title: `وضع العرض: ${data.user.displayName}` });
                                     }
                                   } catch {
@@ -5165,6 +5215,16 @@ export default function Admin() {
                         +<LtrNum>{revenueData.newSubscribers || 0}</LtrNum>
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">مشتركين جدد (30 يوم)</p>
+                      {revenueData.lastMonthNewSubscribers !== undefined && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5" data-testid="text-revenue-mom">
+                          الشهر السابق: <LtrNum>{revenueData.lastMonthNewSubscribers}</LtrNum>
+                          {revenueData.newSubscribers > revenueData.lastMonthNewSubscribers ? (
+                            <span className="text-green-600 mr-1">↑</span>
+                          ) : revenueData.newSubscribers < revenueData.lastMonthNewSubscribers ? (
+                            <span className="text-red-600 mr-1">↓</span>
+                          ) : null}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                   <Card className={revenueData.churnRate > 10 ? "border-red-200 dark:border-red-800" : "border-green-200 dark:border-green-800"}>
@@ -5177,41 +5237,73 @@ export default function Admin() {
                   </Card>
                 </div>
 
-                {revenueData.planDistribution && revenueData.planDistribution.length > 0 && (
+                {revenueData.planDistribution && revenueData.planDistribution.length > 0 && (() => {
+                  const pieColors: Record<string, string> = {
+                    all_in_one: "#f59e0b",
+                    essay: "#3b82f6",
+                    scenario: "#8b5cf6",
+                    trial: "#9ca3af",
+                  };
+                  const barColors: Record<string, string> = {
+                    all_in_one: "bg-amber-500",
+                    essay: "bg-blue-500",
+                    scenario: "bg-purple-500",
+                    trial: "bg-gray-400",
+                  };
+                  const total = revenueData.totalSubscribers || 1;
+                  let cumulativeDeg = 0;
+                  const gradientParts = revenueData.planDistribution.map((pd: any) => {
+                    const pct = (pd.count / total) * 360;
+                    const start = cumulativeDeg;
+                    cumulativeDeg += pct;
+                    return `${pieColors[pd.plan] || "#6366f1"} ${start}deg ${cumulativeDeg}deg`;
+                  });
+                  const conicGradient = `conic-gradient(${gradientParts.join(", ")})`;
+
+                  return (
                   <Card>
                     <CardContent className="p-6">
                       <h3 className="font-serif font-semibold mb-4" data-testid="text-plan-distribution-title">توزيع الخطط</h3>
-                      <div className="space-y-3">
-                        {revenueData.planDistribution.map((pd: any) => {
-                          const percentage = revenueData.totalSubscribers > 0 ? Math.round((pd.count / revenueData.totalSubscribers) * 100) : 0;
-                          const colors: Record<string, string> = {
-                            all_in_one: "bg-amber-500",
-                            essay: "bg-blue-500",
-                            scenario: "bg-purple-500",
-                            trial: "bg-gray-400",
-                          };
-                          return (
-                            <div key={pd.plan} className="space-y-1" data-testid={`plan-dist-${pd.plan}`}>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="font-medium">{pd.label}</span>
-                                <span className="text-muted-foreground">
-                                  <LtrNum>{pd.count}</LtrNum> مشترك — $<LtrNum>{pd.revenue?.toFixed(0) || 0}</LtrNum>/شهر
-                                </span>
+                      <div className="flex flex-col md:flex-row gap-6 items-center">
+                        <div
+                          className="w-40 h-40 rounded-full shrink-0 relative"
+                          style={{ background: conicGradient }}
+                          data-testid="pie-chart-plans"
+                        >
+                          <div className="absolute inset-4 bg-background rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold"><LtrNum>{total}</LtrNum></span>
+                          </div>
+                        </div>
+                        <div className="flex-1 space-y-3 w-full">
+                          {revenueData.planDistribution.map((pd: any) => {
+                            const percentage = total > 0 ? Math.round((pd.count / total) * 100) : 0;
+                            return (
+                              <div key={pd.plan} className="space-y-1" data-testid={`plan-dist-${pd.plan}`}>
+                                <div className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: pieColors[pd.plan] || "#6366f1" }} />
+                                    <span className="font-medium">{pd.label}</span>
+                                  </div>
+                                  <span className="text-muted-foreground">
+                                    <LtrNum>{pd.count}</LtrNum> مشترك — $<LtrNum>{pd.revenue?.toFixed(0) || 0}</LtrNum>/شهر
+                                  </span>
+                                </div>
+                                <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${barColors[pd.plan] || "bg-primary"}`}
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                                <p className="text-[10px] text-muted-foreground text-left" dir="ltr"><LtrNum>{percentage}</LtrNum>%</p>
                               </div>
-                              <div className="h-3 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all ${colors[pd.plan] || "bg-primary"}`}
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                              <p className="text-[10px] text-muted-foreground text-left" dir="ltr"><LtrNum>{percentage}</LtrNum>%</p>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
-                )}
+                  );
+                })()}
 
                 <Card>
                   <CardContent className="p-6">

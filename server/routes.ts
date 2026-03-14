@@ -8447,7 +8447,7 @@ ${ch.content}
     }
   });
 
-  app.post("/api/admin/reports/bulk-dismiss", isAuthenticated, isAdmin, async (req: any, res) => {
+  app.delete("/api/admin/reports/bulk", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const { ids } = req.body;
       if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "لا توجد بلاغات محددة" });
@@ -8561,6 +8561,7 @@ ${ch.content}
         totalRevenue: Math.round(totalRevenue * 100) / 100,
         totalSubscribers,
         newSubscribers,
+        lastMonthNewSubscribers: lastMonthSubs,
         churnRate,
         churned,
         planDistribution,
@@ -9458,13 +9459,25 @@ ${ch.content}
     next();
   };
 
-  app.get("/api/admin/impersonate/:userId", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+  const impersonationSessions = new Map<string, { adminId: string; targetUserId: string; expiresAt: number }>();
+
+  app.post("/api/admin/impersonate/:userId/start", isAuthenticated, isSuperAdmin, async (req: any, res) => {
     try {
+      const adminId = req.user.claims.sub;
       const targetUserId = req.params.userId;
       const targetUser = await storage.getUser(targetUserId);
       if (!targetUser) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = Date.now() + 30 * 60 * 1000;
+      impersonationSessions.set(token, { adminId, targetUserId, expiresAt });
+
+      console.log(`[Impersonation] Admin ${adminId} started impersonation of user ${targetUserId}`);
+
       res.json({
         success: true,
+        token,
         user: {
           id: targetUser.id,
           displayName: (targetUser as any).displayName || targetUser.firstName || targetUser.email || "مستخدم",
@@ -9474,7 +9487,64 @@ ${ch.content}
         },
       });
     } catch (error) {
-      res.status(500).json({ error: "فشل في تحميل بيانات المستخدم" });
+      res.status(500).json({ error: "فشل في بدء وضع العرض" });
+    }
+  });
+
+  app.post("/api/admin/impersonate/stop", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const { token } = req.body;
+      if (token && impersonationSessions.has(token)) {
+        const session = impersonationSessions.get(token)!;
+        console.log(`[Impersonation] Admin ${session.adminId} stopped impersonation of user ${session.targetUserId}`);
+        impersonationSessions.delete(token);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إيقاف وضع العرض" });
+    }
+  });
+
+  app.get("/api/admin/impersonate/view", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const token = req.query.token as string;
+      if (!token || !impersonationSessions.has(token)) {
+        return res.status(401).json({ error: "جلسة العرض غير صالحة أو منتهية" });
+      }
+      const session = impersonationSessions.get(token)!;
+      if (Date.now() > session.expiresAt) {
+        impersonationSessions.delete(token);
+        return res.status(401).json({ error: "انتهت صلاحية جلسة العرض" });
+      }
+      const targetUser = await storage.getUser(session.targetUserId);
+      if (!targetUser) return res.status(404).json({ error: "المستخدم غير موجود" });
+
+      const projects = await storage.getProjectsByUserId(session.targetUserId);
+      const notifications = await storage.getNotifications(session.targetUserId);
+
+      res.json({
+        user: {
+          id: targetUser.id,
+          displayName: (targetUser as any).displayName || targetUser.firstName || targetUser.email || "مستخدم",
+          email: targetUser.email,
+          plan: targetUser.plan,
+          profileImageUrl: targetUser.profileImageUrl,
+          role: targetUser.role,
+          createdAt: targetUser.createdAt,
+        },
+        projects: projects.slice(0, 20).map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          type: p.type,
+          status: p.status,
+          createdAt: p.createdAt,
+          publishedToGallery: p.publishedToGallery,
+        })),
+        notificationCount: notifications.filter((n: any) => !n.read).length,
+        totalProjects: projects.length,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب بيانات العرض" });
     }
   });
 
