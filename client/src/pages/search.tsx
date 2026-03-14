@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, BookOpen, Users, ListOrdered, ChevronLeft, ChevronRight, BadgeCheck, FileText, Clapperboard, PenLine, MessageCircle, Feather as FeatherIcon, GraduationCap, Lightbulb } from "lucide-react";
+import { Search, BookOpen, Users, ListOrdered, ChevronLeft, ChevronRight, BadgeCheck, FileText, Clapperboard, PenLine, MessageCircle, Feather as FeatherIcon, GraduationCap, Lightbulb, Trophy } from "lucide-react";
 
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   novel: "رواية",
@@ -48,6 +48,7 @@ const TABS = [
   { key: "authors", label: "الكتّاب" },
   { key: "series", label: "السلاسل" },
   { key: "prompts", label: "تحدي الكتابة" },
+  { key: "challenges", label: "التحديات" },
 ];
 
 function useSearchParams() {
@@ -104,19 +105,22 @@ export default function SearchPage() {
   const authors = data?.authors || [];
   const series = data?.series || [];
   const prompts = data?.prompts || [];
+  const challenges = data?.challenges || [];
   const projectTotal = data?.projectTotal || 0;
   const authorTotal = data?.authorTotal || 0;
   const seriesTotal = data?.seriesTotal || 0;
   const promptTotal = data?.promptTotal || 0;
+  const challengeTotal = data?.challengeTotal || 0;
 
   const activeTotal = activeType === "projects" ? projectTotal
     : activeType === "authors" ? authorTotal
     : activeType === "series" ? seriesTotal
     : activeType === "prompts" ? promptTotal
+    : activeType === "challenges" ? challengeTotal
     : 0;
   const totalPages = activeType !== "all" ? Math.ceil(activeTotal / 12) : 0;
 
-  const hasAnyResults = projects.length > 0 || authors.length > 0 || series.length > 0 || prompts.length > 0;
+  const hasAnyResults = projects.length > 0 || authors.length > 0 || series.length > 0 || prompts.length > 0 || challenges.length > 0;
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -143,11 +147,13 @@ export default function SearchPage() {
         <div className="flex flex-wrap items-center gap-2 mb-6 border-b pb-3">
           <div className="flex gap-2 overflow-x-auto flex-1">
             {TABS.map((tab) => {
-              const count = tab.key === "all" ? (projectTotal + authorTotal + seriesTotal + promptTotal)
+              const count = tab.key === "all" ? (projectTotal + authorTotal + seriesTotal + promptTotal + challengeTotal)
                 : tab.key === "projects" ? projectTotal
                 : tab.key === "authors" ? authorTotal
                 : tab.key === "series" ? seriesTotal
-                : promptTotal;
+                : tab.key === "prompts" ? promptTotal
+                : tab.key === "challenges" ? challengeTotal
+                : 0;
               return (
                 <Button
                   key={tab.key}
@@ -316,6 +322,42 @@ export default function SearchPage() {
                           <span className="text-xs text-muted-foreground">{p.author_name}</span>
                           {p.prompt_date && (
                             <span className="text-xs text-muted-foreground">{p.prompt_date}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isLoading && (activeType === "all" || activeType === "challenges") && challenges.length > 0 && (
+          <div className="mb-10">
+            {activeType === "all" && <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Trophy className="w-5 h-5" /> التحديات ({challengeTotal})</h2>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {challenges.map((c: any) => (
+                <Link key={c.id} href="/challenges">
+                  <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer bg-card" data-testid={`card-challenge-${c.id}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                        <Trophy className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm" data-testid={`text-challenge-title-${c.id}`}>{c.title}</h3>
+                        {c.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.description}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                          <Badge variant={c.status === "active" ? "default" : "secondary"} className="text-xs" data-testid={`badge-challenge-status-${c.id}`}>
+                            {c.status === "active" ? "نشط" : "منتهي"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground" data-testid={`text-challenge-entries-${c.id}`}>{c.entry_count} مشاركة</span>
+                          {c.end_date && (
+                            <span className="text-xs text-muted-foreground" data-testid={`text-challenge-date-${c.id}`}>
+                              {new Date(c.end_date).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" })}
+                            </span>
                           )}
                         </div>
                       </div>

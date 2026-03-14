@@ -5696,6 +5696,33 @@ ${glossaryParagraphs}
       if (!data) return res.status(404).json({ error: "المؤلف غير موجود" });
       const ratingData = await storage.getAuthorAverageRating(userId);
       const followerCount = await storage.getAuthorFollowerCount(userId);
+
+      const { pool } = await import("./db");
+      const challengeResult = await pool.query(
+        `SELECT ce.id as entry_id, ce.challenge_id, ce.created_at as entry_date,
+                wc.title as challenge_title, wc.start_date, wc.end_date,
+                wc.winner_id, wc.winner_entry_id
+         FROM challenge_entries ce
+         JOIN writing_challenges wc ON ce.challenge_id = wc.id
+         WHERE ce.user_id = $1
+         ORDER BY wc.end_date DESC`,
+        [userId]
+      );
+      const challenges = challengeResult.rows.map((r: any) => ({
+        challengeId: r.challenge_id,
+        challengeTitle: r.challenge_title,
+        entryDate: r.entry_date,
+        startDate: r.start_date,
+        endDate: r.end_date,
+        isWinner: r.winner_entry_id === r.entry_id,
+      }));
+
+      const betaResult = await pool.query(
+        `SELECT COUNT(*)::int as count FROM novel_projects WHERE user_id = $1 AND seeking_beta_readers = true AND share_token IS NOT NULL`,
+        [userId]
+      );
+      const seekingBetaReaders = (betaResult.rows[0]?.count || 0) > 0;
+
       res.json({
         id: data.user.id,
         displayName: data.user.displayName || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim(),
@@ -5707,6 +5734,8 @@ ${glossaryParagraphs}
         followerCount,
         socialProfiles: (data.user as any).socialProfiles || null,
         country: (data.user as any).country || null,
+        challenges,
+        seekingBetaReaders,
         projects: data.projects.map(p => ({
           id: p.id,
           title: p.title,
@@ -5751,11 +5780,74 @@ ${glossaryParagraphs}
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const tag = ((req.query.tag as string) || "").trim();
-    const cacheKey = tag ? `gallery_tag_${tag}_p${page}_l${limit}` : `gallery_p${page}_l${limit}`;
+    const betaFilter = req.query.beta === "true";
+    const authorId = ((req.query.authorId as string) || "").trim();
+    const cacheKey = `gallery_p${page}_l${limit}${tag ? `_tag_${tag}` : ''}${betaFilter ? '_beta' : ''}${authorId ? `_author_${authorId}` : ''}`;
     serveCached(req, res, cacheKey, 300, async () => {
-      const result = tag
-        ? await storage.getGalleryProjectsByTag(tag, page, limit)
-        : await storage.getGalleryProjectsPaginated(page, limit);
+      if (betaFilter || authorId) {
+        const { pool } = await import("./db");
+        const offset = (page - 1) * limit;
+        const conditions: string[] = [
+          `p.share_token IS NOT NULL`,
+          `p.published_to_gallery = true`,
+          `(p.flagged = false OR p.flagged IS NULL)`,
+        ];
+        const countParams: any[] = [];
+        let paramIdx = 1;
+        if (betaFilter) {
+          conditions.push(`p.seeking_beta_readers = true`);
+        }
+        if (authorId) {
+          conditions.push(`p.user_id = $${paramIdx}`);
+          countParams.push(authorId);
+          paramIdx++;
+        }
+        if (tag) {
+          conditions.push(`$${paramIdx} = ANY(p.tags)`);
+          countParams.push(tag);
+          paramIdx++;
+        }
+        const whereClause = conditions.join(' AND ');
+        const countQuery = `SELECT COUNT(*)::int as total FROM novel_projects p WHERE ${whereClause}`;
+        const countResult = await pool.query(countQuery, countParams);
+        const total = countResult.rows[0]?.total || 0;
+
+        const dataParams = [...countParams, limit, offset];
+        const limitIdx = paramIdx;
+        const offsetIdx = paramIdx + 1;
+        const dataQuery = `SELECT
+            p.id, p.title, p.project_type as "projectType",
+            p.cover_image_url as "coverImageUrl", p.share_token as "shareToken",
+            LEFT(p.main_idea, 300) as "mainIdea",
+            COALESCE(u.display_name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')), 'كاتب مجهول') as "authorName",
+            COALESCE(u.id, p.user_id) as "authorId",
+            COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
+            COALESCE(u.verified, false) as "authorIsVerified",
+            p.tags,
+            COALESCE(p.seeking_beta_readers, false) as "seekingBetaReaders"
+          FROM novel_projects p
+          LEFT JOIN users u ON u.id = p.user_id
+          LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
+          WHERE ${whereClause}
+          ORDER BY COALESCE(u.verified, false) DESC, "authorAverageRating" DESC, p.updated_at DESC
+          LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
+        const dataResult = await pool.query(dataQuery, dataParams);
+        return {
+          data: dataResult.rows.map((r: any) => ({
+            ...r,
+            authorName: r.authorName?.trim() || 'كاتب مجهول',
+          })),
+          total,
+          page,
+          limit,
+        };
+      }
+      let result;
+      if (tag) {
+        result = await storage.getGalleryProjectsByTag(tag, page, limit);
+      } else {
+        result = await storage.getGalleryProjectsPaginated(page, limit);
+      }
       return {
         data: result.rows.map(p => ({
           id: p.id,
@@ -5787,7 +5879,7 @@ ${glossaryParagraphs}
         return res.json({ projects: [], authors: [], series: [], total: 0 });
       }
 
-      const validTypes = ["all", "projects", "authors", "series", "prompts"];
+      const validTypes = ["all", "projects", "authors", "series", "prompts", "challenges"];
       const type = validTypes.includes(req.query.type as string) ? (req.query.type as string) : "all";
       const category = (req.query.category as string) || "";
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -5813,6 +5905,8 @@ ${glossaryParagraphs}
       let seriesTotal = 0;
       let prompts: any[] = [];
       let promptTotal = 0;
+      let challenges: any[] = [];
+      let challengeTotal = 0;
 
       if (type === "all" || type === "projects") {
         const tsq = safeTsQuery(q);
@@ -5967,16 +6061,37 @@ ${glossaryParagraphs}
         promptTotal = parseInt(promptCountResult.rows[0]?.count || "0");
       }
 
+      if (type === "all" || type === "challenges") {
+        const challengeQuery = `SELECT wc.id, wc.title, wc.description, wc.theme, wc.start_date, wc.end_date,
+                                       wc.winner_id,
+                                       (SELECT COUNT(*)::int FROM challenge_entries WHERE challenge_id = wc.id) as entry_count,
+                                       CASE WHEN wc.end_date < NOW() THEN 'ended' ELSE 'active' END as status
+                                FROM writing_challenges wc
+                                WHERE wc.title ILIKE $1 OR wc.description ILIKE $1
+                                ORDER BY wc.end_date DESC
+                                LIMIT $2 OFFSET $3`;
+        const challengeResult = await pool.query(challengeQuery, [likeParam, limit, offset]);
+        challenges = challengeResult.rows;
+
+        const challengeCountResult = await pool.query(
+          `SELECT COUNT(*) FROM writing_challenges WHERE title ILIKE $1 OR description ILIKE $1`,
+          [likeParam]
+        );
+        challengeTotal = parseInt(challengeCountResult.rows[0]?.count || "0");
+      }
+
       res.json({
         projects,
         authors,
         series,
         prompts,
-        total: projectTotal + authorTotal + seriesTotal + promptTotal,
+        challenges,
+        total: projectTotal + authorTotal + seriesTotal + promptTotal + challengeTotal,
         projectTotal,
         authorTotal,
         seriesTotal,
         promptTotal,
+        challengeTotal,
         page,
         limit,
       });

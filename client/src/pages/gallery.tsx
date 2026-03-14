@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
@@ -106,11 +106,20 @@ function BetaReaderGalleryButton({ projectId }: { projectId: number }) {
 
 export default function Gallery() {
   useDocumentTitle("معرض الأعمال — قلم AI", "استكشف معرض الأعمال الأدبية على QalamAI: روايات، مقالات، سيناريوهات، قصص قصيرة، وخواطر من كتّاب عرب مبدعين.");
+  const [location] = useLocation();
+  const urlParams = useMemo(() => new URLSearchParams(location.split("?")[1] || ""), [location]);
+  const initialBeta = urlParams.get("beta") === "true";
+  const authorIdFilter = urlParams.get("authorId") || "";
   const [searchQuery, setSearchQuery] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeTag, setActiveTag] = useState("");
+  const [betaFilter, setBetaFilter] = useState(initialBeta);
+  useEffect(() => {
+    const newBeta = urlParams.get("beta") === "true";
+    setBetaFilter(newBeta);
+  }, [urlParams]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -141,10 +150,12 @@ export default function Gallery() {
   const pageLimit = 24;
 
   const { data: galleryData, isLoading } = useQuery<{ data: GalleryProject[]; total: number; page: number; limit: number }>({
-    queryKey: ["/api/gallery", page, pageLimit, activeTag],
+    queryKey: ["/api/gallery", page, pageLimit, activeTag, betaFilter, authorIdFilter],
     queryFn: () => {
       let url = `/api/gallery?page=${page}&limit=${pageLimit}`;
       if (activeTag) url += `&tag=${encodeURIComponent(activeTag)}`;
+      if (betaFilter) url += `&beta=true`;
+      if (authorIdFilter) url += `&authorId=${encodeURIComponent(authorIdFilter)}`;
       return fetch(url).then(r => r.json());
     },
   });
@@ -246,6 +257,15 @@ export default function Gallery() {
                 {opt.label}
               </Badge>
             ))}
+            <Badge
+              variant={betaFilter ? "default" : "outline"}
+              className="cursor-pointer toggle-elevate gap-1"
+              onClick={() => { setBetaFilter(!betaFilter); setPage(1); }}
+              data-testid="filter-beta-readers"
+            >
+              <BookOpenCheck className="w-3 h-3" />
+              يقبل قراء بيتا
+            </Badge>
           </div>
         </div>
 

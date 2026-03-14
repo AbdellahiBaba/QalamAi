@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle, Trophy, BookOpenCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,15 @@ interface SocialProfileLinks {
   website?: string;
 }
 
+interface AuthorChallenge {
+  challengeId: number;
+  challengeTitle: string;
+  entryDate: string;
+  startDate: string;
+  endDate: string;
+  isWinner: boolean;
+}
+
 interface AuthorData {
   id: string;
   displayName: string;
@@ -48,6 +57,8 @@ interface AuthorData {
   followerCount: number;
   socialProfiles: string | null;
   country: string | null;
+  challenges: AuthorChallenge[];
+  seekingBetaReaders: boolean;
   projects: AuthorProject[];
 }
 
@@ -412,6 +423,46 @@ export default function AuthorProfile() {
             showCount={false}
           />
         </div>
+
+        {author.seekingBetaReaders && (
+          <div className="flex items-center gap-2" data-testid="badge-beta-reader-indicator">
+            <Link href={`/gallery?beta=true&authorId=${author.id}`}>
+              <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-sm border-primary/30 text-primary hover:bg-primary/5 cursor-pointer transition-colors">
+                <BookOpenCheck className="w-4 h-4" />
+                يبحث عن قراء بيتا
+              </Badge>
+            </Link>
+          </div>
+        )}
+
+        {author.challenges && author.challenges.length > 0 && (
+          <div data-testid="section-challenges">
+            <h2 className="text-xl font-serif font-semibold mb-4 flex items-center gap-2" data-testid="text-challenges-heading">
+              <Trophy className="w-5 h-5" />
+              التحديات
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {author.challenges.map((ch, idx) => (
+                <Card key={`${ch.challengeId}-${idx}`} className="transition-shadow hover:shadow-md" data-testid={`card-challenge-${ch.challengeId}`}>
+                  <CardContent className="p-4 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-sm" data-testid={`text-challenge-title-${ch.challengeId}`}>{ch.challengeTitle}</h3>
+                      {ch.isWinner && (
+                        <Badge variant="default" className="gap-1 text-xs bg-amber-500 hover:bg-amber-600" data-testid={`badge-winner-${ch.challengeId}`}>
+                          <Trophy className="w-3 h-3" />
+                          فائز
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground" data-testid={`text-challenge-date-${ch.challengeId}`}>
+                      {new Date(ch.endDate).toLocaleDateString("ar-SA", { year: "numeric", month: "long" })}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <h2 className="text-xl font-serif font-semibold mb-4" data-testid="text-projects-heading">المشاريع المشتركة</h2>
