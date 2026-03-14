@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
-import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock, BadgeCheck, Volume2, VolumeX, Coffee, Quote } from "lucide-react";
+import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock, BadgeCheck, Volume2, VolumeX, Coffee, Quote, Tag } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ interface PublicEssay {
   createdAt: string;
   essayTone: string | null;
   targetAudience: string | null;
+  tags?: string[];
 }
 
 interface SharedProject {
@@ -490,11 +491,18 @@ export default function EssayPublic() {
       <article ref={articleRef} className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16">
         {/* Header */}
         <div className="space-y-4 mb-8">
-          {essay.subject && (
-            <Badge variant="secondary" data-testid="badge-essay-subject">
-              {SUBJECT_LABELS[essay.subject] || essay.subject}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {essay.subject && (
+              <Badge variant="secondary" data-testid="badge-essay-subject">
+                {SUBJECT_LABELS[essay.subject] || essay.subject}
+              </Badge>
+            )}
+            {essay.tags && essay.tags.length > 0 && essay.tags.map((tag: string) => (
+              <Badge key={tag} variant="outline" className="text-[10px] gap-1" data-testid={`badge-essay-tag-${tag}`}>
+                <Tag className="w-2.5 h-2.5" />{tag}
+              </Badge>
+            ))}
+          </div>
 
           <h1
             className="font-serif text-3xl sm:text-4xl font-bold leading-tight"

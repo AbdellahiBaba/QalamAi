@@ -1571,6 +1571,7 @@ export class DatabaseStorage implements IStorage {
         p.id, p.title, p.main_idea as "mainIdea", p.cover_image_url as "coverImageUrl",
         p.share_token as "shareToken", p.subject, p.user_id as "authorId", p.created_at as "createdAt",
         p.essay_tone as "essayTone", p.target_audience as "targetAudience",
+        p.tags,
         COALESCE(p.used_words, 0)::int as "totalWords",
         COALESCE(u.display_name, u.first_name, u.email, 'كاتب') as "authorName",
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
@@ -1602,6 +1603,7 @@ export class DatabaseStorage implements IStorage {
       views: r.views, clicks: r.clicks, reactions,
       totalWords: r.totalWords || 0, createdAt: r.createdAt,
       essayTone: r.essayTone, targetAudience: r.targetAudience,
+      tags: r.tags || [],
     };
   }
 
@@ -2495,6 +2497,10 @@ export class DatabaseStorage implements IStorage {
   async getRelatedProjects(projectId: number, limit = 3): Promise<any[]> {
     const project = await this.getProject(projectId);
     if (!project) return [];
+    const tagsArr = (project.tags || []).filter(Boolean);
+    const tagsSql = tagsArr.length > 0
+      ? sql.raw(`ARRAY[${tagsArr.map(t => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`)
+      : sql.raw(`ARRAY[]::text[]`);
     const rows: any[] = (await db.execute(sql`
       SELECT np.id, np.title, np.cover_image_url as "coverImageUrl", np.share_token as "shareToken",
         np.project_type as "projectType",
@@ -2505,11 +2511,10 @@ export class DatabaseStorage implements IStorage {
         AND np.published_to_gallery = true
         AND (
           np.user_id = ${project.userId}
-          OR np.tags && ${sql.raw(`ARRAY[${(project.tags || []).map(t => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`)}
-          OR np.project_type = ${project.projectType}
+          OR np.tags && ${tagsSql}
         )
       ORDER BY
-        CASE WHEN np.tags && ${sql.raw(`ARRAY[${(project.tags || []).map(t => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`)} THEN 0
+        CASE WHEN np.tags && ${tagsSql} THEN 0
              WHEN np.user_id = ${project.userId} THEN 1
              ELSE 2 END,
         np.created_at DESC

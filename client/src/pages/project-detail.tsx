@@ -94,9 +94,10 @@ function TagsEditor({ projectId, initialTags }: { projectId: string; initialTags
   });
 
   const addTag = () => {
-    const t = input.trim();
-    if (!t || tags.includes(t) || tags.length >= 5) return;
-    const next = [...tags, t];
+    const parts = input.split(/[,،]/).map(s => s.trim()).filter(Boolean);
+    const unique = parts.filter(t => !tags.includes(t));
+    if (unique.length === 0) return;
+    const next = [...tags, ...unique].slice(0, 5);
     setInput("");
     saveMutation.mutate(next);
   };
@@ -123,7 +124,7 @@ function TagsEditor({ projectId, initialTags }: { projectId: string; initialTags
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-            placeholder="أضف وسم..."
+            placeholder="أضف وسوم (افصل بفاصلة)..."
             className="h-8 text-sm flex-1"
             dir="rtl"
             data-testid="input-add-tag"
