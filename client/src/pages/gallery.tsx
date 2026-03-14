@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
@@ -24,6 +24,8 @@ interface GalleryProject {
   authorId: string | null;
   authorAverageRating: number;
   authorIsVerified?: boolean;
+  tags?: string[];
+  seekingBetaReaders?: boolean;
 }
 
 const typeLabels: Record<string, string> = {
@@ -55,6 +57,7 @@ export default function Gallery() {
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [activeTag, setActiveTag] = useState("");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -85,13 +88,24 @@ export default function Gallery() {
   const pageLimit = 24;
 
   const { data: galleryData, isLoading } = useQuery<{ data: GalleryProject[]; total: number; page: number; limit: number }>({
-    queryKey: ["/api/gallery", page, pageLimit],
-    queryFn: () => fetch(`/api/gallery?page=${page}&limit=${pageLimit}`).then(r => r.json()),
+    queryKey: ["/api/gallery", page, pageLimit, activeTag],
+    queryFn: () => {
+      let url = `/api/gallery?page=${page}&limit=${pageLimit}`;
+      if (activeTag) url += `&tag=${encodeURIComponent(activeTag)}`;
+      return fetch(url).then(r => r.json());
+    },
   });
 
   const projects = galleryData?.data;
   const totalItems = galleryData?.total || 0;
   const totalPages = Math.ceil(totalItems / pageLimit);
+
+  const allTags = useMemo(() => {
+    if (!projects) return [];
+    const tagSet = new Set<string>();
+    projects.forEach(p => (p.tags || []).forEach(t => tagSet.add(t)));
+    return Array.from(tagSet).sort();
+  }, [projects]);
 
   const filteredProjects = useMemo(() => {
     if (!projects) return [];
@@ -182,6 +196,33 @@ export default function Gallery() {
           </div>
         </div>
 
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap" data-testid="tag-filter-group">
+            <Tag className="w-4 h-4 text-muted-foreground shrink-0" />
+            {activeTag && (
+              <Badge
+                variant="default"
+                className="cursor-pointer gap-1"
+                onClick={() => { setActiveTag(""); setPage(1); }}
+                data-testid="tag-filter-clear"
+              >
+                {activeTag} ×
+              </Badge>
+            )}
+            {allTags.filter(t => t !== activeTag).map(tag => (
+              <Badge
+                key={tag}
+                variant="outline"
+                className="cursor-pointer toggle-elevate text-xs"
+                onClick={() => { setActiveTag(tag); setPage(1); }}
+                data-testid={`tag-filter-${tag}`}
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -261,6 +302,20 @@ export default function Gallery() {
                     <div data-testid={`rating-author-${project.id}`}>
                       <StarRating rating={project.authorAverageRating} size="sm" showCount={false} />
                     </div>
+                  )}
+                  {project.tags && project.tags.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap" data-testid={`tags-gallery-${project.id}`}>
+                      {project.tags.map(tag => (
+                        <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTag(tag); setPage(1); }}>
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {project.seekingBetaReaders && (
+                    <Badge variant="secondary" className="text-[10px] gap-1 w-fit" data-testid={`badge-beta-${project.id}`}>
+                      <UserCheck className="w-3 h-3" /> يقبل قراء بيتا
+                    </Badge>
                   )}
                   {project.mainIdea && (
                     <p

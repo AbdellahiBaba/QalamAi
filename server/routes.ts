@@ -5721,9 +5721,12 @@ ${glossaryParagraphs}
   app.get("/api/gallery", async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
-    const cacheKey = `gallery_p${page}_l${limit}`;
+    const tag = ((req.query.tag as string) || "").trim();
+    const cacheKey = tag ? `gallery_tag_${tag}_p${page}_l${limit}` : `gallery_p${page}_l${limit}`;
     serveCached(req, res, cacheKey, 300, async () => {
-      const result = await storage.getGalleryProjectsPaginated(page, limit);
+      const result = tag
+        ? await storage.getGalleryProjectsByTag(tag, page, limit)
+        : await storage.getGalleryProjectsPaginated(page, limit);
       return {
         data: result.rows.map(p => ({
           id: p.id,
@@ -5736,6 +5739,8 @@ ${glossaryParagraphs}
           authorId: p.authorId,
           authorAverageRating: p.authorAverageRating,
           authorIsVerified: (p as any).authorIsVerified ?? false,
+          tags: (p as any).tags || [],
+          seekingBetaReaders: (p as any).seekingBetaReaders || false,
         })),
         total: result.total,
         page,
@@ -9777,6 +9782,205 @@ ${platformInstructions}
     } catch (error: any) {
       console.error("Auto-generate-now error:", error);
       res.status(500).json({ error: "فشل في التوليد التلقائي: " + (error.message || "") });
+    }
+  });
+
+  // ── Community Features: Tags, Challenges, Beta Readers, Related Works ─────
+  app.post("/api/projects/:id/tags", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف مشروع غير صالح" });
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      const userId = req.user.claims.sub;
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      const { tags } = req.body;
+      if (!Array.isArray(tags) || tags.some((t: any) => typeof t !== "string")) {
+        return res.status(400).json({ error: "الوسوم يجب أن تكون مصفوفة نصوص" });
+      }
+      if (tags.length > 5) return res.status(400).json({ error: "الحد الأقصى 5 وسوم" });
+      const updated = await storage.updateProjectTags(projectId, tags);
+      res.json({ tags: updated.tags });
+    } catch (error: any) {
+      console.error("Update tags error:", error);
+      res.status(500).json({ error: "فشل في تحديث الوسوم" });
+    }
+  });
+
+  app.get("/api/projects/by-tag/:tag", async (req, res) => {
+    try {
+      const tag = decodeURIComponent(req.params.tag).trim();
+      if (!tag) return res.status(400).json({ error: "الوسم مطلوب" });
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, parseInt(req.query.limit as string) || 24);
+      const result = await storage.getGalleryProjectsByTag(tag, page, limit);
+      res.json({ data: result.rows, total: result.total, page, limit, tag });
+    } catch (error: any) {
+      console.error("Get projects by tag error:", error);
+      res.status(500).json({ error: "فشل في جلب المشاريع" });
+    }
+  });
+
+  app.get("/api/projects/:id/related", async (req, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف مشروع غير صالح" });
+      const project = await storage.getProject(projectId);
+      if (!project || !project.publishedToGallery) return res.json([]);
+      const related = await storage.getRelatedProjects(projectId, 6);
+      res.json(related);
+    } catch (error: any) {
+      console.error("Get related projects error:", error);
+      res.status(500).json({ error: "فشل في جلب الأعمال المشابهة" });
+    }
+  });
+
+  app.get("/api/challenges", async (_req, res) => {
+    try {
+      const challenges = await storage.getWritingChallenges();
+      res.json(challenges);
+    } catch (error: any) {
+      console.error("Get challenges error:", error);
+      res.status(500).json({ error: "فشل في جلب التحديات" });
+    }
+  });
+
+  app.get("/api/challenges/:id", async (req, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (!id) return res.status(400).json({ error: "معرف غير صالح" });
+      const challenge = await storage.getWritingChallenge(id);
+      if (!challenge) return res.status(404).json({ error: "التحدي غير موجود" });
+      const entries = await storage.getChallengeEntries(id);
+      res.json({ ...challenge, entries });
+    } catch (error: any) {
+      console.error("Get challenge error:", error);
+      res.status(500).json({ error: "فشل في جلب التحدي" });
+    }
+  });
+
+  app.post("/api/admin/challenges", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        title: z.string().min(1).max(200),
+        description: z.string().min(1).max(2000),
+        theme: z.string().max(200).optional(),
+        endDate: z.string().min(1),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      const challenge = await storage.createWritingChallenge({
+        title: parsed.data.title,
+        description: parsed.data.description,
+        theme: parsed.data.theme || null,
+        startDate: new Date(),
+        endDate: new Date(parsed.data.endDate),
+        createdBy: req.user.claims.sub,
+      });
+      res.json(challenge);
+    } catch (error: any) {
+      console.error("Create challenge error:", error);
+      res.status(500).json({ error: "فشل في إنشاء التحدي" });
+    }
+  });
+
+  app.post("/api/challenges/:id/entries", isAuthenticated, async (req, res) => {
+    try {
+      const challengeId = parseIntParam(req.params.id);
+      if (!challengeId) return res.status(400).json({ error: "معرف غير صالح" });
+      const challenge = await storage.getWritingChallenge(challengeId);
+      if (!challenge) return res.status(404).json({ error: "التحدي غير موجود" });
+      if (new Date(challenge.end_date || challenge.endDate) < new Date()) {
+        return res.status(400).json({ error: "انتهى وقت التحدي" });
+      }
+      const userId = req.user.claims.sub;
+      const existing = await storage.getUserChallengeEntry(challengeId, userId);
+      if (existing) return res.status(400).json({ error: "لقد شاركت بالفعل في هذا التحدي" });
+      const schema = z.object({ content: z.string().min(1).max(2000) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      const entry = await storage.submitChallengeEntry({ challengeId, userId, content: parsed.data.content });
+      res.json(entry);
+    } catch (error: any) {
+      console.error("Submit challenge entry error:", error);
+      res.status(500).json({ error: "فشل في تقديم المشاركة" });
+    }
+  });
+
+  app.put("/api/admin/challenges/:id/winner", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const challengeId = parseIntParam(req.params.id);
+      if (!challengeId) return res.status(400).json({ error: "معرف غير صالح" });
+      const { winnerId, winnerEntryId } = req.body;
+      if (!winnerId || !winnerEntryId) return res.status(400).json({ error: "بيانات ناقصة" });
+      const updated = await storage.setChallengWinner(challengeId, winnerId, parseInt(winnerEntryId));
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Set challenge winner error:", error);
+      res.status(500).json({ error: "فشل في تحديد الفائز" });
+    }
+  });
+
+  app.post("/api/projects/:id/beta-readers", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف مشروع غير صالح" });
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (!project.seekingBetaReaders) return res.status(400).json({ error: "هذا المشروع لا يقبل قراء بيتا حالياً" });
+      const userId = req.user.claims.sub;
+      if (userId === project.userId) return res.status(400).json({ error: "لا يمكنك التقدم لقراءة مشروعك الخاص" });
+      const schema = z.object({ message: z.string().max(500).optional() });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      const request = await storage.requestBetaReader({ projectId, userId, message: parsed.data.message || null });
+      res.json(request || { success: true });
+    } catch (error: any) {
+      console.error("Beta reader request error:", error);
+      res.status(500).json({ error: "فشل في تقديم الطلب" });
+    }
+  });
+
+  app.get("/api/projects/:id/beta-readers", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف مشروع غير صالح" });
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
+      const requests = await storage.getBetaReaderRequests(projectId);
+      res.json(requests);
+    } catch (error: any) {
+      console.error("Get beta readers error:", error);
+      res.status(500).json({ error: "فشل في جلب القراء" });
+    }
+  });
+
+  app.delete("/api/projects/:id/beta-readers", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف غير صالح" });
+      await storage.cancelBetaReaderRequest(projectId, req.user.claims.sub);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Cancel beta reader error:", error);
+      res.status(500).json({ error: "فشل في إلغاء الطلب" });
+    }
+  });
+
+  app.put("/api/projects/:id/seeking-beta-readers", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف غير صالح" });
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
+      const { seeking } = req.body;
+      const updated = await storage.updateProject(projectId, { seekingBetaReaders: !!seeking });
+      res.json({ seekingBetaReaders: updated.seekingBetaReaders });
+    } catch (error: any) {
+      console.error("Update seeking beta readers error:", error);
+      res.status(500).json({ error: "فشل في تحديث الحالة" });
     }
   });
 

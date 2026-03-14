@@ -20,7 +20,7 @@ import {
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
   Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Film, Layers,
-  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus
+  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -73,6 +73,103 @@ function SaveIndicator({ isSaving, lastSavedAt }: { isSaving: boolean; lastSaved
         <><CheckCircle className="w-3 h-3" /> محفوظ {getTimeSince(lastSavedAt)}</>
       ) : null}
     </span>
+  );
+}
+
+function TagsEditor({ projectId, initialTags }: { projectId: string; initialTags: string[] }) {
+  const [tags, setTags] = useState<string[]>(initialTags);
+  const [input, setInput] = useState("");
+  const { toast } = useToast();
+  const saveMutation = useMutation({
+    mutationFn: async (newTags: string[]) => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/tags`, { tags: newTags });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setTags(data.tags || []);
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      toast({ title: "تم حفظ الوسوم" });
+    },
+    onError: () => toast({ title: "فشل في حفظ الوسوم", variant: "destructive" }),
+  });
+
+  const addTag = () => {
+    const t = input.trim();
+    if (!t || tags.includes(t) || tags.length >= 5) return;
+    const next = [...tags, t];
+    setInput("");
+    saveMutation.mutate(next);
+  };
+
+  const removeTag = (tag: string) => {
+    const next = tags.filter(x => x !== tag);
+    saveMutation.mutate(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap" data-testid="tags-list">
+        {tags.map(tag => (
+          <Badge key={tag} variant="secondary" className="gap-1 text-xs" data-testid={`tag-item-${tag}`}>
+            {tag}
+            <button onClick={() => removeTag(tag)} className="hover:text-destructive" data-testid={`button-remove-tag-${tag}`}><X className="w-3 h-3" /></button>
+          </Badge>
+        ))}
+        {tags.length === 0 && <span className="text-xs text-muted-foreground">لا توجد وسوم</span>}
+      </div>
+      {tags.length < 5 && (
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+            placeholder="أضف وسم..."
+            className="h-8 text-sm flex-1"
+            dir="rtl"
+            data-testid="input-add-tag"
+          />
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={addTag} disabled={saveMutation.isPending || !input.trim()} data-testid="button-add-tag">
+            {saveMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+          </Button>
+        </div>
+      )}
+      <p className="text-[10px] text-muted-foreground">{tags.length}/5 وسوم (تظهر في المعرض)</p>
+    </div>
+  );
+}
+
+function RelatedWorksSection({ projectId }: { projectId: string }) {
+  const { data: related, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "related"],
+    queryFn: () => fetch(`/api/projects/${projectId}/related`).then(r => r.json()),
+  });
+
+  if (isLoading) return <Skeleton className="h-32 w-full" />;
+  if (!related || related.length === 0) return null;
+
+  return (
+    <Card>
+      <CardContent className="p-4 sm:p-6 space-y-4">
+        <h3 className="font-serif text-lg font-semibold" data-testid="text-related-title">أعمال ذات صلة</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {related.map((r: any) => (
+            <Link key={r.id} href={r.shareToken ? `/shared/${r.shareToken}` : `/gallery`}>
+              <div className="group cursor-pointer space-y-1" data-testid={`card-related-${r.id}`}>
+                {r.coverImageUrl ? (
+                  <img src={r.coverImageUrl} alt={r.title} className="w-full aspect-[2/3] rounded-md object-cover group-hover:opacity-80 transition-opacity" />
+                ) : (
+                  <div className="w-full aspect-[2/3] rounded-md bg-muted flex items-center justify-center">
+                    <BookOpen className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                )}
+                <p className="text-xs font-medium line-clamp-2">{r.title}</p>
+                {r.authorName && <p className="text-[10px] text-muted-foreground">{r.authorName}</p>}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -3190,6 +3287,37 @@ export default function ProjectDetail() {
               </Card>
             </div>
 
+            <Card>
+              <CardContent className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-muted-foreground" />
+                  <h3 className="font-serif text-lg font-semibold" data-testid="text-tags-title">الوسوم والقراء</h3>
+                </div>
+                <TagsEditor projectId={projectId!} initialTags={project.tags || []} />
+                {project.publishedToGallery && (
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-muted-foreground" />
+                      <Label className="text-sm" data-testid="label-beta-toggle">قبول طلبات قراء بيتا</Label>
+                    </div>
+                    <Switch
+                      checked={!!project.seekingBetaReaders}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          await apiRequest("PUT", `/api/projects/${projectId}/seeking-beta-readers`, { seeking: checked });
+                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                          toast({ title: checked ? "تم تفعيل قبول قراء بيتا" : "تم إيقاف قبول قراء بيتا" });
+                        } catch {
+                          toast({ title: "حدث خطأ", variant: "destructive" });
+                        }
+                      }}
+                      data-testid="switch-beta-readers"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
             <Card>
               <CardContent className="p-6 space-y-4">
@@ -4767,6 +4895,10 @@ export default function ProjectDetail() {
             </ErrorBoundary>
           </TabsContent>
         </Tabs>
+
+        {project.publishedToGallery && (
+          <RelatedWorksSection projectId={projectId!} />
+        )}
 
         <Dialog open={bookmarkChapterId !== null} onOpenChange={(open) => { if (!open) setBookmarkChapterId(null); }}>
           <DialogContent dir="rtl">

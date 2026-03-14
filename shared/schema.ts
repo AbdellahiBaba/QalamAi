@@ -196,6 +196,8 @@ export const novelProjects = pgTable("novel_projects", {
   memoireKeywords: text("memoire_keywords"),
   memoireUserData: text("memoire_user_data"),
   videoUrl: text("video_url"),
+  tags: text("tags").array(),
+  seekingBetaReaders: boolean("seeking_beta_readers").default(false),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
@@ -887,3 +889,52 @@ export const socialPostInsights = pgTable("social_post_insights", {
 export const insertSocialPostInsightSchema = createInsertSchema(socialPostInsights).omit({ id: true, loggedAt: true });
 export type InsertSocialPostInsight = z.infer<typeof insertSocialPostInsightSchema>;
 export type SocialPostInsight = typeof socialPostInsights.$inferSelect;
+
+export const writingChallenges = pgTable("writing_challenges", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  theme: text("theme"),
+  startDate: timestamp("start_date").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  endDate: timestamp("end_date").notNull(),
+  winnerId: varchar("winner_id"),
+  winnerEntryId: integer("winner_entry_id"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_challenges_end_date").on(table.endDate),
+]);
+
+export const insertWritingChallengeSchema = createInsertSchema(writingChallenges).omit({ id: true, createdAt: true, winnerId: true, winnerEntryId: true });
+export type InsertWritingChallenge = z.infer<typeof insertWritingChallengeSchema>;
+export type WritingChallenge = typeof writingChallenges.$inferSelect;
+
+export const challengeEntries = pgTable("challenge_entries", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => writingChallenges.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_challenge_entries_challenge").on(table.challengeId),
+  unique("unique_challenge_user").on(table.challengeId, table.userId),
+]);
+
+export const insertChallengeEntrySchema = createInsertSchema(challengeEntries).omit({ id: true, createdAt: true });
+export type InsertChallengeEntry = z.infer<typeof insertChallengeEntrySchema>;
+export type ChallengeEntry = typeof challengeEntries.$inferSelect;
+
+export const betaReaderRequests = pgTable("beta_reader_requests", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  message: text("message"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_beta_reader_project").on(table.projectId),
+  unique("unique_beta_reader_project_user").on(table.projectId, table.userId),
+]);
+
+export const insertBetaReaderRequestSchema = createInsertSchema(betaReaderRequests).omit({ id: true, createdAt: true });
+export type InsertBetaReaderRequest = z.infer<typeof insertBetaReaderRequestSchema>;
+export type BetaReaderRequest = typeof betaReaderRequests.$inferSelect;

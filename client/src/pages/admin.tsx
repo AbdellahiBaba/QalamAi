@@ -174,11 +174,92 @@ function AdminPagination({ page, total, limit, onPageChange, testIdPrefix }: { p
   );
 }
 
+function AdminChallengesTab() {
+  const { toast } = useToast();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [theme, setTheme] = useState("");
+  const [endDays, setEndDays] = useState("7");
+
+  const { data: challenges, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/challenges"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + parseInt(endDays));
+      const res = await apiRequest("POST", "/api/admin/challenges", {
+        title, description, theme: theme || undefined, endDate: endDate.toISOString(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم إنشاء التحدي" });
+      setTitle(""); setDescription(""); setTheme("");
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+    },
+    onError: () => toast({ title: "فشل في إنشاء التحدي", variant: "destructive" }),
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <h3 className="font-serif text-lg font-semibold flex items-center gap-2" data-testid="text-create-challenge-title">
+            <Crown className="w-5 h-5 text-amber-500" /> إنشاء تحدي جديد
+          </h3>
+          <div className="space-y-3">
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="عنوان التحدي" dir="rtl" data-testid="input-challenge-title" />
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="وصف التحدي والشروط..." dir="rtl" rows={3} data-testid="textarea-challenge-desc" />
+            <Input value={theme} onChange={e => setTheme(e.target.value)} placeholder="الموضوع (اختياري)" dir="rtl" data-testid="input-challenge-theme" />
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground shrink-0">المدة (أيام):</Label>
+              <Input type="number" value={endDays} onChange={e => setEndDays(e.target.value)} className="w-24" min="1" max="90" data-testid="input-challenge-days" />
+            </div>
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !title.trim() || !description.trim()} className="gap-1" data-testid="button-create-challenge">
+              {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              إنشاء التحدي
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <h3 className="font-serif text-lg font-semibold" data-testid="text-challenges-list-title">التحديات الحالية</h3>
+          {isLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : challenges && challenges.length > 0 ? (
+            <div className="space-y-3">
+              {challenges.map((ch: any) => {
+                const isActive = new Date(ch.end_date) > new Date();
+                return (
+                  <div key={ch.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg" data-testid={`admin-challenge-${ch.id}`}>
+                    <div className="space-y-0.5">
+                      <p className="font-medium text-sm">{ch.title}</p>
+                      <p className="text-xs text-muted-foreground">{ch.entryCount || 0} مشاركة</p>
+                    </div>
+                    <Badge variant={isActive ? "default" : "outline"}>
+                      {isActive ? "نشط" : "منتهي"}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">لا توجد تحديات</p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -1086,6 +1167,7 @@ export default function Admin() {
                   { key: "features" as const, icon: Settings, label: "المميزات" },
                   { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                   { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
+                  { key: "challenges" as const, icon: Crown, label: "التحديات" },
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -1195,6 +1277,7 @@ export default function Admin() {
                         { key: "features" as const, icon: Settings, label: "المميزات" },
                         { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                         { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
+                        { key: "challenges" as const, icon: Crown, label: "التحديات" },
                       ].map((item) => (
                         <button
                           key={item.key}
@@ -4776,6 +4859,10 @@ export default function Admin() {
           </div>
           );
         })()}
+
+        {activeTab === "challenges" && (
+          <AdminChallengesTab />
+        )}
 
       </main>
       </div>

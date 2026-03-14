@@ -199,6 +199,20 @@ export interface IStorage {
   addSeriesItem(seriesId: number, projectId: number, orderIndex?: number): Promise<void>;
   removeSeriesItem(seriesId: number, projectId: number): Promise<void>;
   deleteSeries(id: number): Promise<void>;
+  updateProjectTags(projectId: number, tags: string[]): Promise<import("@shared/schema").NovelProject>;
+  getProjectsByTag(tag: string, limit?: number, offset?: number): Promise<{ rows: import("@shared/schema").NovelProject[]; total: number }>;
+  getGalleryProjectsByTag(tag: string, page?: number, limit?: number): Promise<{ rows: (import("@shared/schema").NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }>;
+  createWritingChallenge(data: import("@shared/schema").InsertWritingChallenge): Promise<import("@shared/schema").WritingChallenge>;
+  getWritingChallenges(): Promise<import("@shared/schema").WritingChallenge[]>;
+  getWritingChallenge(id: number): Promise<import("@shared/schema").WritingChallenge | undefined>;
+  setChallengWinner(challengeId: number, winnerId: string, winnerEntryId: number): Promise<import("@shared/schema").WritingChallenge>;
+  submitChallengeEntry(data: import("@shared/schema").InsertChallengeEntry): Promise<import("@shared/schema").ChallengeEntry>;
+  getChallengeEntries(challengeId: number): Promise<(import("@shared/schema").ChallengeEntry & { authorName: string; authorProfileImage: string | null })[]>;
+  getUserChallengeEntry(challengeId: number, userId: string): Promise<import("@shared/schema").ChallengeEntry | undefined>;
+  requestBetaReader(data: import("@shared/schema").InsertBetaReaderRequest): Promise<import("@shared/schema").BetaReaderRequest>;
+  getBetaReaderRequests(projectId: number): Promise<(import("@shared/schema").BetaReaderRequest & { userName: string; userProfileImage: string | null })[]>;
+  cancelBetaReaderRequest(projectId: number, userId: string): Promise<void>;
+  getRelatedProjects(projectId: number, limit?: number): Promise<Array<{ id: number; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; projectType: string }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -707,7 +721,9 @@ export class DatabaseStorage implements IStorage {
         COALESCE(u.display_name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')), 'كاتب مجهول') as "authorName",
         COALESCE(u.id, p.user_id) as "authorId",
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
-        COALESCE(u.verified, false) as "authorIsVerified"
+        COALESCE(u.verified, false) as "authorIsVerified",
+        p.tags,
+        COALESCE(p.seeking_beta_readers, false) as "seekingBetaReaders"
       FROM novel_projects p
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
@@ -2326,6 +2342,178 @@ export class DatabaseStorage implements IStorage {
       WHERE sp.scheduled_at IS NOT NULL
       GROUP BY hour
       ORDER BY "avgEngagement" DESC
+    `)).rows;
+    return rows;
+  }
+
+  async updateProjectTags(projectId: number, tags: string[]): Promise<NovelProject> {
+    const cleanTags = tags.slice(0, 5).map(t => t.trim()).filter(Boolean);
+    const [updated] = await db.update(novelProjects).set({ tags: cleanTags, updatedAt: new Date() }).where(eq(novelProjects.id, projectId)).returning();
+    return updated;
+  }
+
+  async getProjectsByTag(tag: string, limit = 20, offset = 0): Promise<{ rows: NovelProject[]; total: number }> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM novel_projects
+      WHERE published_to_gallery = true AND ${tag} = ANY(tags)
+      ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+    const [{ count: total }]: any[] = (await db.execute(sql`
+      SELECT COUNT(*)::int as count FROM novel_projects
+      WHERE published_to_gallery = true AND ${tag} = ANY(tags)
+    `)).rows;
+    return { rows, total };
+  }
+
+  async getGalleryProjectsByTag(tag: string, page = 1, limit = 24): Promise<{ rows: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }> {
+    const offset = (page - 1) * limit;
+    const rows: any[] = (await db.execute(sql`
+      SELECT
+        np.id, np.title, np.project_type as "projectType",
+        np.cover_image_url as "coverImageUrl", np.share_token as "shareToken",
+        LEFT(np.main_idea, 300) as "mainIdea",
+        np.tags,
+        COALESCE(np.seeking_beta_readers, false) as "seekingBetaReaders",
+        COALESCE(u.display_name, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')), 'كاتب مجهول') as "authorName",
+        COALESCE(u.id, np.user_id) as "authorId",
+        COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
+        COALESCE(u.verified, false) as "authorIsVerified"
+      FROM novel_projects np
+      LEFT JOIN users u ON u.id = np.user_id
+      LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = np.user_id
+      WHERE np.published_to_gallery = true
+        AND (np.flagged = false OR np.flagged IS NULL)
+        AND ${tag} = ANY(np.tags)
+      ORDER BY COALESCE(u.verified, false) DESC, "authorAverageRating" DESC, np.updated_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+    const [{ count: total }]: any[] = (await db.execute(sql`
+      SELECT COUNT(*)::int as count FROM novel_projects
+      WHERE published_to_gallery = true AND (flagged = false OR flagged IS NULL) AND ${tag} = ANY(tags)
+    `)).rows;
+    return {
+      rows: rows.map(r => ({
+        ...r,
+        authorName: r.authorName?.trim() || 'كاتب مجهول',
+      })),
+      total,
+    };
+  }
+
+  async createWritingChallenge(data: any): Promise<any> {
+    const [row] = (await db.execute(sql`
+      INSERT INTO writing_challenges (title, description, theme, start_date, end_date, created_by)
+      VALUES (${data.title}, ${data.description}, ${data.theme || null}, ${data.startDate || new Date()}, ${data.endDate}, ${data.createdBy})
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getWritingChallenges(): Promise<any[]> {
+    return (await db.execute(sql`
+      SELECT wc.*, COUNT(ce.id)::int as "entryCount"
+      FROM writing_challenges wc
+      LEFT JOIN challenge_entries ce ON ce.challenge_id = wc.id
+      GROUP BY wc.id
+      ORDER BY wc.end_date DESC
+    `)).rows;
+  }
+
+  async getWritingChallenge(id: number): Promise<any> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT wc.*, COUNT(ce.id)::int as "entryCount"
+      FROM writing_challenges wc
+      LEFT JOIN challenge_entries ce ON ce.challenge_id = wc.id
+      WHERE wc.id = ${id}
+      GROUP BY wc.id
+    `)).rows;
+    return rows[0];
+  }
+
+  async setChallengWinner(challengeId: number, winnerId: string, winnerEntryId: number): Promise<any> {
+    const [row] = (await db.execute(sql`
+      UPDATE writing_challenges SET winner_id = ${winnerId}, winner_entry_id = ${winnerEntryId}
+      WHERE id = ${challengeId} RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async submitChallengeEntry(data: any): Promise<any> {
+    const [row] = (await db.execute(sql`
+      INSERT INTO challenge_entries (challenge_id, user_id, content)
+      VALUES (${data.challengeId}, ${data.userId}, ${data.content})
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getChallengeEntries(challengeId: number): Promise<any[]> {
+    return (await db.execute(sql`
+      SELECT ce.*,
+        COALESCE(u.first_name || ' ' || u.last_name, u.username, 'كاتب') as "authorName",
+        u.profile_image_url as "authorProfileImage"
+      FROM challenge_entries ce
+      LEFT JOIN users u ON u.id = ce.user_id
+      WHERE ce.challenge_id = ${challengeId}
+      ORDER BY ce.created_at ASC
+    `)).rows;
+  }
+
+  async getUserChallengeEntry(challengeId: number, userId: string): Promise<any> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM challenge_entries WHERE challenge_id = ${challengeId} AND user_id = ${userId} LIMIT 1
+    `)).rows;
+    return rows[0];
+  }
+
+  async requestBetaReader(data: any): Promise<any> {
+    const [row] = (await db.execute(sql`
+      INSERT INTO beta_reader_requests (project_id, user_id, message)
+      VALUES (${data.projectId}, ${data.userId}, ${data.message || null})
+      ON CONFLICT (project_id, user_id) DO NOTHING
+      RETURNING *
+    `)).rows;
+    return row;
+  }
+
+  async getBetaReaderRequests(projectId: number): Promise<any[]> {
+    return (await db.execute(sql`
+      SELECT br.*,
+        COALESCE(u.first_name || ' ' || u.last_name, u.username, 'قارئ') as "userName",
+        u.profile_image_url as "userProfileImage"
+      FROM beta_reader_requests br
+      LEFT JOIN users u ON u.id = br.user_id
+      WHERE br.project_id = ${projectId}
+      ORDER BY br.created_at ASC
+    `)).rows;
+  }
+
+  async cancelBetaReaderRequest(projectId: number, userId: string): Promise<void> {
+    await db.execute(sql`DELETE FROM beta_reader_requests WHERE project_id = ${projectId} AND user_id = ${userId}`);
+  }
+
+  async getRelatedProjects(projectId: number, limit = 3): Promise<any[]> {
+    const project = await this.getProject(projectId);
+    if (!project) return [];
+    const rows: any[] = (await db.execute(sql`
+      SELECT np.id, np.title, np.cover_image_url as "coverImageUrl", np.share_token as "shareToken",
+        np.project_type as "projectType",
+        COALESCE(u.first_name || ' ' || u.last_name, u.username, 'كاتب') as "authorName"
+      FROM novel_projects np
+      LEFT JOIN users u ON u.id = np.user_id
+      WHERE np.id != ${projectId}
+        AND np.published_to_gallery = true
+        AND (
+          np.user_id = ${project.userId}
+          OR np.tags && ${sql.raw(`ARRAY[${(project.tags || []).map(t => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`)}
+          OR np.project_type = ${project.projectType}
+        )
+      ORDER BY
+        CASE WHEN np.tags && ${sql.raw(`ARRAY[${(project.tags || []).map(t => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`)} THEN 0
+             WHEN np.user_id = ${project.userId} THEN 1
+             ELSE 2 END,
+        np.created_at DESC
+      LIMIT ${limit}
     `)).rows;
     return rows;
   }

@@ -61,6 +61,8 @@ const SocialMarketing = lazy(() => import("@/pages/social-marketing"));
 const DailyPrompt = lazy(() => import("@/pages/daily-prompt"));
 const SearchPage = lazy(() => import("@/pages/search"));
 const Analytics = lazy(() => import("@/pages/analytics"));
+const Challenges = lazy(() => import("@/pages/challenges"));
+const ChallengeDetail = lazy(() => import("@/pages/challenge-detail"));
 
 function LoadingFallback() {
   return (
@@ -123,6 +125,8 @@ function AuthenticatedRouter() {
         <Route path="/daily-prompt" component={DailyPrompt} />
         <Route path="/search" component={SearchPage} />
         <Route path="/analytics" component={Analytics} />
+        <Route path="/challenges" component={Challenges} />
+        <Route path="/challenges/:id" component={ChallengeDetail} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
@@ -162,6 +166,8 @@ function PublicRouter() {
         <Route path="/series/:id" component={SeriesDetail} />
         <Route path="/daily-prompt" component={DailyPrompt} />
         <Route path="/search" component={SearchPage} />
+        <Route path="/challenges" component={Challenges} />
+        <Route path="/challenges/:id" component={ChallengeDetail} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
