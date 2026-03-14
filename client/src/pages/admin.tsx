@@ -255,9 +255,16 @@ function AdminChallengesTab() {
                 <CalendarCheck className="w-3.5 h-3.5" />
                 <span dir="ltr">{generatedPrompt.promptDate}</span>
               </div>
-              <p className="text-sm leading-relaxed font-medium" data-testid="text-generated-prompt">{generatedPrompt.promptText}</p>
+              <Textarea
+                value={generatedPrompt.promptText}
+                onChange={(e) => setGeneratedPrompt({ ...generatedPrompt, promptText: e.target.value })}
+                rows={4}
+                dir="rtl"
+                className="text-sm leading-relaxed"
+                data-testid="textarea-generated-prompt"
+              />
               <div className="flex items-center gap-2">
-                <Button size="sm" onClick={handleSaveGeneratedPrompt} disabled={isSavingPrompt} className="gap-1" data-testid="button-save-prompt">
+                <Button size="sm" onClick={handleSaveGeneratedPrompt} disabled={isSavingPrompt || !generatedPrompt.promptText.trim()} className="gap-1" data-testid="button-save-prompt">
                   {isSavingPrompt ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   حفظ ونشر
                 </Button>
@@ -374,7 +381,8 @@ export default function Admin() {
   const [showApiUsageDialog, setShowApiUsageDialog] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedReports, setSelectedReports] = useState<Set<number>>(new Set());
-  const [impersonating, setImpersonating] = useState<{ id: string; displayName: string } | null>(null);
+  const [impersonating, setImpersonating] = useState<{ id: string; displayName: string; email?: string; plan?: string } | null>(null);
+  const [confirmBulkAction, setConfirmBulkAction] = useState<{ type: "dismiss" | "warn" | "remove"; ids: number[] } | null>(null);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [usersPage, setUsersPage] = useState(1);
   const [promosPage, setPromosPage] = useState(1);
@@ -1327,22 +1335,36 @@ export default function Admin() {
 
         <main ref={mainContentRef} className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 py-6 sm:py-10">
           {impersonating && (
-            <div className="sticky top-0 z-50 mb-4 flex items-center gap-3 p-3 bg-amber-100 dark:bg-amber-900/50 border border-amber-300 dark:border-amber-700 rounded-lg shadow-sm" data-testid="impersonation-banner">
-              <UserCheck className="w-5 h-5 text-amber-700 dark:text-amber-300 shrink-0" />
-              <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                أنت تعرض المنصة كـ: <strong>{impersonating.displayName}</strong>
-              </span>
-              <div className="flex-1" />
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-amber-400 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800"
-                onClick={() => { setImpersonating(null); toast({ title: "تم الخروج من وضع العرض" }); }}
-                data-testid="button-exit-impersonation"
-              >
-                <X className="w-3.5 h-3.5 ml-1" />
-                خروج
-              </Button>
+            <div className="sticky top-0 z-50 mb-4 space-y-2" data-testid="impersonation-banner">
+              <div className="flex items-center gap-3 p-3 bg-amber-100 dark:bg-amber-900/50 border border-amber-300 dark:border-amber-700 rounded-lg shadow-sm">
+                <UserCheck className="w-5 h-5 text-amber-700 dark:text-amber-300 shrink-0" />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  وضع العرض — <strong>{impersonating.displayName}</strong>
+                  {impersonating.email && <span className="text-xs opacity-75 mr-2">({impersonating.email})</span>}
+                  {impersonating.plan && <Badge variant="outline" className="mr-2 text-[10px]">{planLabels[impersonating.plan] || impersonating.plan}</Badge>}
+                </span>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-400 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800"
+                  onClick={() => window.open(`/author/${impersonating.id}`, "_blank")}
+                  data-testid="button-view-as-profile"
+                >
+                  <Eye className="w-3.5 h-3.5 ml-1" />
+                  عرض الملف الشخصي
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-400 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800"
+                  onClick={() => { setImpersonating(null); toast({ title: "تم الخروج من وضع العرض" }); }}
+                  data-testid="button-exit-impersonation"
+                >
+                  <X className="w-3.5 h-3.5 ml-1" />
+                  خروج
+                </Button>
+              </div>
             </div>
           )}
           <div className="flex items-center gap-3 mb-6 sm:mb-8">
@@ -1810,7 +1832,7 @@ export default function Admin() {
                                     const res = await apiRequest("GET", `/api/admin/impersonate/${u.id}`);
                                     const data = await res.json();
                                     if (data.success) {
-                                      setImpersonating({ id: data.user.id, displayName: data.user.displayName });
+                                      setImpersonating({ id: data.user.id, displayName: data.user.displayName, email: data.user.email, plan: data.user.plan });
                                       toast({ title: `وضع العرض: ${data.user.displayName}` });
                                     }
                                   } catch {
@@ -4717,15 +4739,15 @@ export default function Admin() {
               <div className="flex items-center gap-2 p-3 bg-muted/60 rounded-lg border" data-testid="bulk-moderation-toolbar">
                 <span className="text-sm font-medium"><LtrNum>{selectedReports.size}</LtrNum> محدد</span>
                 <div className="flex-1" />
-                <Button size="sm" variant="outline" onClick={() => bulkDismissMutation.mutate(Array.from(selectedReports))} disabled={bulkDismissMutation.isPending} data-testid="button-bulk-dismiss">
+                <Button size="sm" variant="outline" onClick={() => setConfirmBulkAction({ type: "dismiss", ids: Array.from(selectedReports) })} disabled={bulkDismissMutation.isPending} data-testid="button-bulk-dismiss">
                   {bulkDismissMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <XCircle className="w-3.5 h-3.5 ml-1" />}
                   رفض الكل
                 </Button>
-                <Button size="sm" variant="outline" className="text-yellow-600 border-yellow-300" onClick={() => bulkWarnMutation.mutate(Array.from(selectedReports))} disabled={bulkWarnMutation.isPending} data-testid="button-bulk-warn">
+                <Button size="sm" variant="outline" className="text-yellow-600 border-yellow-300" onClick={() => setConfirmBulkAction({ type: "warn", ids: Array.from(selectedReports) })} disabled={bulkWarnMutation.isPending} data-testid="button-bulk-warn">
                   {bulkWarnMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <ShieldAlert className="w-3.5 h-3.5 ml-1" />}
                   تحذير الكل
                 </Button>
-                <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={() => bulkRemoveMutation.mutate(Array.from(selectedReports))} disabled={bulkRemoveMutation.isPending} data-testid="button-bulk-remove">
+                <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={() => setConfirmBulkAction({ type: "remove", ids: Array.from(selectedReports) })} disabled={bulkRemoveMutation.isPending} data-testid="button-bulk-remove">
                   {bulkRemoveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <FlagOff className="w-3.5 h-3.5 ml-1" />}
                   إزالة المحتوى
                 </Button>
@@ -5039,6 +5061,38 @@ export default function Admin() {
             {reportsResponse && (
               <AdminPagination page={reportsResponse.page} total={reportsResponse.total} limit={reportsResponse.limit} onPageChange={setReportsPage} testIdPrefix="reports" />
             )}
+
+            <Dialog open={confirmBulkAction !== null} onOpenChange={(open) => { if (!open) setConfirmBulkAction(null); }}>
+              <DialogContent dir="rtl" className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2" data-testid="text-bulk-confirm-title">
+                    {confirmBulkAction?.type === "dismiss" ? <XCircle className="w-5 h-5" /> : confirmBulkAction?.type === "warn" ? <ShieldAlert className="w-5 h-5 text-yellow-600" /> : <FlagOff className="w-5 h-5 text-red-600" />}
+                    {confirmBulkAction?.type === "dismiss" ? "تأكيد رفض البلاغات" : confirmBulkAction?.type === "warn" ? "تأكيد تحذير المؤلفين" : "تأكيد إزالة المحتوى"}
+                  </DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  {confirmBulkAction?.type === "dismiss" ? `سيتم رفض ${confirmBulkAction.ids.length} بلاغ. هل أنت متأكد؟` :
+                   confirmBulkAction?.type === "warn" ? `سيتم تحذير مؤلفي ${confirmBulkAction?.ids.length || 0} بلاغ وإرسال إشعارات لهم. هل أنت متأكد؟` :
+                   `سيتم إلغاء نشر محتوى ${confirmBulkAction?.ids.length || 0} بلاغ. هذا الإجراء لا يمكن التراجع عنه. هل أنت متأكد؟`}
+                </p>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setConfirmBulkAction(null)} data-testid="button-bulk-confirm-cancel">إلغاء</Button>
+                  <Button
+                    variant={confirmBulkAction?.type === "remove" ? "destructive" : "default"}
+                    onClick={() => {
+                      if (!confirmBulkAction) return;
+                      if (confirmBulkAction.type === "dismiss") bulkDismissMutation.mutate(confirmBulkAction.ids);
+                      else if (confirmBulkAction.type === "warn") bulkWarnMutation.mutate(confirmBulkAction.ids);
+                      else bulkRemoveMutation.mutate(confirmBulkAction.ids);
+                      setConfirmBulkAction(null);
+                    }}
+                    data-testid="button-bulk-confirm-proceed"
+                  >
+                    {confirmBulkAction?.type === "dismiss" ? "رفض" : confirmBulkAction?.type === "warn" ? "تحذير" : "إزالة"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <Dialog open={confirmBanReportId !== null} onOpenChange={(open) => { if (!open) setConfirmBanReportId(null); }}>
               <DialogContent dir="rtl" className="max-w-sm">
