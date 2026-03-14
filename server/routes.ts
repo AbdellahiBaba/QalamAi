@@ -8447,6 +8447,194 @@ ${ch.content}
     }
   });
 
+  app.post("/api/admin/reports/bulk-dismiss", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "لا توجد بلاغات محددة" });
+      const adminId = req.user.claims.sub;
+      let dismissed = 0;
+      for (const id of ids) {
+        try {
+          await storage.updateContentReport(Number(id), { status: "dismissed", reviewedBy: adminId, reviewedAt: new Date(), resolvedAt: new Date() });
+          dismissed++;
+        } catch {}
+      }
+      res.json({ success: true, dismissed });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في رفض البلاغات" });
+    }
+  });
+
+  app.post("/api/admin/reports/bulk-warn", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "لا توجد بلاغات محددة" });
+      const adminId = req.user.claims.sub;
+      let warned = 0;
+      for (const id of ids) {
+        try {
+          const report = await storage.getContentReport(Number(id));
+          if (report) {
+            await storage.updateContentReport(Number(id), { status: "action_taken", actionTaken: "warned", reviewedBy: adminId, reviewedAt: new Date(), resolvedAt: new Date() });
+            const project = await storage.getProject(report.projectId);
+            if (project) {
+              notifyUser(project.userId, "content_warning", "تحذير بشأن المحتوى", "تم تلقي بلاغ عن أحد أعمالك. يرجى مراجعة المحتوى والتأكد من التزامه بسياسة المنصة.", "/profile");
+            }
+            warned++;
+          }
+        } catch {}
+      }
+      res.json({ success: true, warned });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إرسال التحذيرات" });
+    }
+  });
+
+  app.post("/api/admin/reports/bulk-remove", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "لا توجد بلاغات محددة" });
+      const adminId = req.user.claims.sub;
+      let removed = 0;
+      for (const id of ids) {
+        try {
+          const report = await storage.getContentReport(Number(id));
+          if (report) {
+            await storage.updateProject(report.projectId, { publishedToGallery: false, publishedToNews: false });
+            await storage.updateContentReport(Number(id), { status: "action_taken", actionTaken: "unpublished", reviewedBy: adminId, reviewedAt: new Date(), resolvedAt: new Date() });
+            removed++;
+          }
+        } catch {}
+      }
+      res.json({ success: true, removed });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إزالة المحتوى" });
+    }
+  });
+
+  app.get("/api/admin/revenue-summary", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const pool = (await import("./db")).pool;
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+      const planCountsResult = await pool.query(`SELECT plan, COUNT(*) as count FROM users WHERE plan IS NOT NULL AND plan != 'free' GROUP BY plan`);
+      const planCounts: Record<string, number> = {};
+      let totalSubscribers = 0;
+      for (const row of planCountsResult.rows) {
+        planCounts[row.plan] = parseInt(row.count);
+        totalSubscribers += parseInt(row.count);
+      }
+
+      let mrr = 0;
+      for (const [plan, count] of Object.entries(planCounts)) {
+        const price = PLAN_PRICES[plan] || 0;
+        mrr += (price / 100) * count;
+      }
+
+      const totalRevenueResult = await pool.query(`SELECT COALESCE(SUM(price), 0) as total FROM novel_projects WHERE paid = true`);
+      const totalRevenue = parseInt(totalRevenueResult.rows[0]?.total || "0") / 100;
+
+      const newSubsResult = await pool.query(`SELECT COUNT(*) as count FROM users WHERE plan IS NOT NULL AND plan != 'free' AND created_at > $1`, [thirtyDaysAgo]);
+      const newSubscribers = parseInt(newSubsResult.rows[0]?.count || "0");
+
+      const lastMonthSubsResult = await pool.query(`SELECT COUNT(*) as count FROM users WHERE plan IS NOT NULL AND plan != 'free' AND created_at > $1 AND created_at <= $2`, [sixtyDaysAgo, thirtyDaysAgo]);
+      const lastMonthSubs = parseInt(lastMonthSubsResult.rows[0]?.count || "0");
+
+      const cancelledResult = await pool.query(`SELECT COUNT(*) as count FROM users WHERE plan = 'free' AND updated_at > $1 AND created_at < $1`, [thirtyDaysAgo]);
+      const churned = parseInt(cancelledResult.rows[0]?.count || "0");
+      const churnRate = totalSubscribers > 0 ? Math.round((churned / (totalSubscribers + churned)) * 100) : 0;
+
+      const planDistribution = Object.entries(planCounts).map(([plan, count]) => ({
+        plan,
+        label: plan === "all_in_one" ? "الشاملة" : plan === "essay" ? "المقالات" : plan === "scenario" ? "السيناريو" : plan === "trial" ? "تجريبي" : plan,
+        count,
+        revenue: ((PLAN_PRICES[plan] || 0) / 100) * count,
+      }));
+
+      res.json({
+        mrr: Math.round(mrr * 100) / 100,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        totalSubscribers,
+        newSubscribers,
+        churnRate,
+        churned,
+        planDistribution,
+      });
+    } catch (error) {
+      console.error("Revenue summary error:", error);
+      res.status(500).json({ error: "فشل في جلب بيانات الإيرادات" });
+    }
+  });
+
+  app.get("/api/admin/impersonate/:userId", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const targetUserId = req.params.userId;
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) return res.status(404).json({ error: "المستخدم غير موجود" });
+      res.json({
+        success: true,
+        user: {
+          id: targetUser.id,
+          displayName: (targetUser as any).displayName || targetUser.firstName || targetUser.email || "مستخدم",
+          email: targetUser.email,
+          plan: targetUser.plan,
+          profileImageUrl: targetUser.profileImageUrl,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحميل بيانات المستخدم" });
+    }
+  });
+
+  app.post("/api/admin/daily-prompts/generate", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dateStr = tomorrow.toISOString().split("T")[0];
+      const month = tomorrow.toLocaleDateString("ar-EG", { month: "long" });
+      const dayOfWeek = tomorrow.toLocaleDateString("ar-EG", { weekday: "long" });
+      const season = (() => {
+        const m = tomorrow.getMonth();
+        if (m >= 2 && m <= 4) return "الربيع";
+        if (m >= 5 && m <= 7) return "الصيف";
+        if (m >= 8 && m <= 10) return "الخريف";
+        return "الشتاء";
+      })();
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        max_completion_tokens: 300,
+        messages: [
+          {
+            role: "system",
+            content: "أنت مساعد أدبي عربي متخصص في توليد تحديات كتابية يومية. أنشئ بروبت كتابي واحد باللغة العربية الفصحى يناسب كتّاب من مستويات مختلفة.",
+          },
+          {
+            role: "user",
+            content: `أنشئ بروبت كتابي ليوم ${dayOfWeek} ${dateStr} (شهر ${month}، فصل ${season}).
+يجب أن يكون:
+- مُلهماً ومفتوحاً للتأويل
+- بين 20 و 80 كلمة
+- مناسباً لجميع أنواع الكتابة (نثر، شعر، خواطر، قصة)
+- مرتبطاً بالموسم أو الوقت من السنة إن أمكن
+
+أعد فقط نص البروبت بدون أي شرح إضافي.`,
+          },
+        ],
+      });
+
+      const promptText = response.choices?.[0]?.message?.content?.trim();
+      if (!promptText) return res.status(500).json({ error: "فشل في توليد البروبت" });
+
+      res.json({ promptText, promptDate: dateStr });
+    } catch (error) {
+      console.error("AI prompt generation error:", error);
+      res.status(500).json({ error: "فشل في توليد البروبت بالذكاء الاصطناعي" });
+    }
+  });
+
   app.get("/api/user/free-usage", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
