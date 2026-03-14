@@ -5,7 +5,7 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2 } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag } from "lucide-react";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -32,15 +32,6 @@ interface SharedProject {
   tags?: string[];
 }
 
-interface RelatedEssay {
-  id: number;
-  title: string;
-  shareToken: string;
-  coverImageUrl: string | null;
-  authorName: string;
-  totalWords: number;
-}
-
 interface ReactionCounts {
   like: number;
   love: number;
@@ -58,6 +49,38 @@ const REACTION_CONFIG = [
   { type: "insightful", icon: Lightbulb, label: "ملهم" },
   { type: "thoughtful", icon: Brain, label: "مثير للتفكير" },
 ] as const;
+
+function SharedRelatedWorks({ projectId }: { projectId: number }) {
+  const { data: related, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", String(projectId), "related"],
+    queryFn: () => fetch(`/api/projects/${projectId}/related`).then(r => r.json()),
+  });
+
+  if (isLoading || !related || related.length === 0) return null;
+
+  return (
+    <div className="max-w-2xl mx-auto my-6 space-y-3" data-testid="shared-related-works">
+      <h3 className="font-serif text-lg font-semibold" data-testid="text-shared-related-title">قد يعجبك أيضاً</h3>
+      <div className="grid grid-cols-3 gap-3">
+        {related.map((r: any) => (
+          <Link key={r.id} href={r.shareToken ? `/shared/${r.shareToken}` : `/gallery`}>
+            <div className="group cursor-pointer space-y-1" data-testid={`shared-related-${r.id}`}>
+              {r.coverImageUrl ? (
+                <img src={r.coverImageUrl} alt={r.title} className="w-full aspect-[2/3] rounded-md object-cover group-hover:opacity-80 transition-opacity" />
+              ) : (
+                <div className="w-full aspect-[2/3] rounded-md bg-muted flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-muted-foreground" />
+                </div>
+              )}
+              <p className="text-xs font-medium line-clamp-2">{r.title}</p>
+              {r.authorName && <p className="text-[10px] text-muted-foreground">{r.authorName}</p>}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function BetaReaderOptIn({ projectId }: { projectId: number }) {
   const { toast } = useToast();
@@ -146,16 +169,6 @@ export default function SharedProject() {
   const dynamicDescription = project?.mainIdea || undefined;
   const dynamicOgImage = project?.coverImageUrl || undefined;
   useDocumentTitle(dynamicTitle, dynamicDescription, "article", dynamicOgImage);
-
-  const { data: relatedEssays } = useQuery<RelatedEssay[]>({
-    queryKey: ["/api/public/essays", project?.id, "related"],
-    queryFn: async () => {
-      const res = await fetch(`/api/public/essays/${project!.id}/related`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: !!project?.id && project?.projectType === "essay",
-  });
 
   useEffect(() => {
     if (token) {
@@ -369,6 +382,15 @@ export default function SharedProject() {
               </Badge>
             )}
           </div>
+          {project.tags && project.tags.length > 0 && (
+            <div className="flex items-center justify-center gap-1.5 flex-wrap mt-2" data-testid="shared-tags">
+              {project.tags.map((tag: string) => (
+                <Badge key={tag} variant="outline" className="text-[10px] gap-1">
+                  <Tag className="w-2.5 h-2.5" />{tag}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-8">
@@ -423,51 +445,6 @@ export default function SharedProject() {
                       <LtrNum>{count}</LtrNum>
                     </span>
                   </Button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {relatedEssays && relatedEssays.length > 0 && (
-          <div className="mt-10 pt-6 border-t" data-testid="related-essays-section">
-            <h3 className="font-serif text-lg font-semibold mb-4">مقالات ذات صلة</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {relatedEssays.map((essay) => {
-                const essayReadingTime = calcReadingTime(essay.totalWords);
-                return (
-                  <Link key={essay.id} href={`/shared/${essay.shareToken}`} data-testid={`link-related-essay-${essay.id}`}>
-                    <Card className="hover-elevate cursor-pointer h-full" data-testid={`card-related-essay-${essay.id}`}>
-                      <div className="relative aspect-[16/9] bg-muted flex items-center justify-center rounded-t-md overflow-hidden">
-                        {essay.coverImageUrl ? (
-                          <img
-                            src={essay.coverImageUrl}
-                            alt={essay.title}
-                            width={640}
-                            height={360}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                        )}
-                      </div>
-                      <CardContent className="p-3 space-y-1">
-                        <h4 className="font-serif font-semibold text-sm line-clamp-2" data-testid={`text-related-title-${essay.id}`}>
-                          {essay.title}
-                        </h4>
-                        <p className="text-xs text-muted-foreground" data-testid={`text-related-author-${essay.id}`}>
-                          {essay.authorName}
-                        </p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          <span data-testid={`text-related-reading-time-${essay.id}`}>
-                            <LtrNum>{essayReadingTime}</LtrNum> {essayReadingTime === 1 ? "دقيقة" : "دقائق"}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
                 );
               })}
             </div>
@@ -565,6 +542,8 @@ export default function SharedProject() {
       {project?.seekingBetaReaders && (
         <BetaReaderOptIn projectId={project.id} />
       )}
+
+      {project && <SharedRelatedWorks projectId={project.id} />}
 
       {project && (
         <ReportDialog projectId={project.id} projectTitle={project.title} open={reportOpen} onOpenChange={setReportOpen} />

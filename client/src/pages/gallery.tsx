@@ -1,15 +1,18 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
 import { ttqTrack } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useToast } from "@/hooks/use-toast";
 import { SharedFooter } from "@/components/shared-footer";
 import { ReportDialog } from "@/components/report-dialog";
 
@@ -50,6 +53,54 @@ const filterOptions = [
   { value: "poetry", label: "قصيدة" },
   { value: "memoire", label: "مذكرة تخرج" },
 ];
+
+function BetaReaderGalleryButton({ projectId }: { projectId: number }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [submitted, setSubmitted] = useState(false);
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/beta-readers`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم تقديم طلبك كقارئ بيتا" });
+      setSubmitted(true);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل في تقديم الطلب", variant: "destructive" });
+    },
+  });
+
+  if (submitted) {
+    return (
+      <Badge variant="secondary" className="text-[10px] gap-1 w-fit text-green-600 dark:text-green-400" data-testid={`badge-beta-submitted-${projectId}`}>
+        <UserCheck className="w-3 h-3" /> تم التقديم
+      </Badge>
+    );
+  }
+
+  return (
+    <button
+      className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border bg-primary/5 hover:bg-primary/10 text-primary transition-colors w-fit"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!user) {
+          toast({ title: "يجب تسجيل الدخول أولاً", variant: "destructive" });
+          return;
+        }
+        submitMutation.mutate();
+      }}
+      disabled={submitMutation.isPending}
+      data-testid={`button-beta-optin-${projectId}`}
+    >
+      {submitMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+      أريد المشاركة كقارئ بيتا
+    </button>
+  );
+}
 
 export default function Gallery() {
   useDocumentTitle("معرض الأعمال — قلم AI", "استكشف معرض الأعمال الأدبية على QalamAI: روايات، مقالات، سيناريوهات، قصص قصيرة، وخواطر من كتّاب عرب مبدعين.");
@@ -313,17 +364,7 @@ export default function Gallery() {
                     </div>
                   )}
                   {project.seekingBetaReaders && (
-                    <Badge variant="secondary" className="text-[10px] gap-1 w-fit" data-testid={`badge-beta-${project.id}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (project.shareToken) {
-                          window.location.href = `/shared/${project.shareToken}`;
-                        }
-                      }}
-                    >
-                      <UserCheck className="w-3 h-3" /> يقبل قراء بيتا
-                    </Badge>
+                    <BetaReaderGalleryButton projectId={project.id} />
                   )}
                   {project.mainIdea && (
                     <p
