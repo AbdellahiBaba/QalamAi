@@ -1150,6 +1150,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/suggest-full", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const { projectType, hint } = req.body;
       const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"];
       const safeType = validTypes.includes(projectType) ? projectType : "novel";
@@ -1197,6 +1198,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/suggest-titles", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const parsed = suggestTitlesSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: formatZodErrors(parsed.error) });
@@ -1259,6 +1261,7 @@ ${allPages.map(p => `  <url>
     try {
       const userId = req.user.claims.sub;
       if (await checkApiSuspension(userId, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const projectId = parseIntParam(req.params.id);
       if (projectId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       if (isNaN(projectId)) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
@@ -1331,6 +1334,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/suggest-format", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const { title, mainIdea, timeSetting, placeSetting } = req.body;
       if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
         return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
@@ -1384,6 +1388,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/suggest-technique", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const { mainIdea, timeSetting, placeSetting, characters } = req.body;
       if (!mainIdea || typeof mainIdea !== "string" || mainIdea.length < 10) {
         return res.status(400).json({ error: "الفكرة الرئيسية مطلوبة (10 أحرف على الأقل)" });
@@ -2041,6 +2046,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/outline/refine", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
@@ -2418,6 +2424,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/chat", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
 
       const parsed = chatMessageSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -2467,6 +2474,7 @@ ${allPages.map(p => `  <url>
 
   app.post("/api/me/social-marketing-chat", isAuthenticated, async (req: any, res) => {
     try {
+      if (!(await checkAiRateLimit(req, res))) return;
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
       if (!currentUser) return res.status(401).json({ error: "غير مصادق" });
@@ -2599,6 +2607,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/suggest-characters", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
@@ -2644,6 +2653,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/generate-cover", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
@@ -2685,6 +2695,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/generate-video", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
@@ -4209,6 +4220,7 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/chapters/:chapterId/summarize", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       const chapterId = parseIntParam(req.params.chapterId);
       if (id === null || chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
@@ -5032,6 +5044,7 @@ ${glossaryParagraphs}
   app.post("/api/chapters/:id/rewrite", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const chapterId = parseIntParam(req.params.id);
       if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -6563,6 +6576,7 @@ ${glossaryParagraphs}
   app.post("/api/profile/generate-avatar", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
@@ -6722,6 +6736,7 @@ ${glossaryParagraphs}
   app.post("/api/chapters/:id/originality-check", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const chapterId = parseIntParam(req.params.id);
       if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -6763,6 +6778,7 @@ ${glossaryParagraphs}
   app.post("/api/chapters/:id/enhance-from-originality", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const chapterId = parseIntParam(req.params.id);
       if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -6818,6 +6834,7 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/generate-glossary", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -6869,6 +6886,7 @@ ${glossaryParagraphs}
   app.post("/api/projects/:id/continuity-check", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -7043,6 +7061,7 @@ ${allContent}
   app.post("/api/chapters/:id/fix-continuity", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const chapterId = parseIntParam(req.params.id);
       if (chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -7157,6 +7176,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   app.post("/api/projects/:id/style-analysis", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -7238,6 +7258,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   app.post("/api/projects/:id/fix-style-improvement", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -7454,6 +7475,7 @@ ${ch.content}
   app.post("/api/projects/:id/fix-all-continuity", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -7580,6 +7602,7 @@ ${contextChapters ? `سياق من الفصول الأخرى:\n${contextChapters
   app.post("/api/projects/:id/fix-all-style-improvements", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
@@ -9348,6 +9371,7 @@ ${ch.content}
   // ── Plagiarism Check ──────────────────────────────────────────────────────────
   app.post("/api/plagiarism-check", isAuthenticated, async (req: any, res) => {
     try {
+      if (!(await checkAiRateLimit(req, res))) return;
       const { projectId } = req.body;
       const userId = req.user.claims.sub;
       if (!projectId) return res.status(400).json({ error: "معرّف المشروع مطلوب" });
@@ -9399,6 +9423,7 @@ ${ch.content}
 
   app.post("/api/series/suggest-description", isAuthenticated, async (req: any, res) => {
     try {
+      if (!(await checkAiRateLimit(req, res))) return;
       const { title } = req.body;
       if (!title?.trim()) return res.status(400).json({ error: "العنوان مطلوب" });
       const openai = await getOpenAIClient();

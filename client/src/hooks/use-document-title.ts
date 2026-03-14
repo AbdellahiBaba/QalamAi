@@ -28,7 +28,9 @@ export function useDocumentTitle(title: string, description?: string, ogType?: s
       ogImageMeta.setAttribute("content", ogImage);
     }
 
-    const canonicalUrl = window.location.origin + window.location.pathname;
+    const pathname = window.location.pathname;
+    const normalizedPath = pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
+    const canonicalUrl = window.location.origin + normalizedPath;
     let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonicalLink) {
       canonicalLink = document.createElement("link");

@@ -634,10 +634,17 @@ export default function ProjectDetail() {
     enabled: !!projectId && !!authUser,
   });
 
+  const { data: aiUsageStatus } = useQuery<{ used: number; limit: number; remaining: number }>({
+    queryKey: ["/api/ai-usage-status"],
+    enabled: !!authUser,
+  });
+
   const planCoversProject = userPlanCoversType(planData?.plan, project?.projectType || "novel");
   const hasAccess = hasFreeAccess || planCoversProject || !!project?.paid;
 
   const labels = getTypeLabels(project?.projectType, project?.genre);
+
+  const invalidateAiUsage = () => queryClient.invalidateQueries({ queryKey: ["/api/ai-usage-status"] });
 
   const generateOutlineMutation = useMutation({
     mutationFn: async () => {
@@ -646,6 +653,7 @@ export default function ProjectDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      invalidateAiUsage();
       toast({ title: `تم إنشاء ${labels.outlineLabel} بنجاح` });
     },
     onError: (err: any) => {
@@ -660,6 +668,7 @@ export default function ProjectDetail() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      invalidateAiUsage();
       toast({ title: `تم إعادة إنشاء ${labels.outlineLabel} — جارٍ اعتماده وبدء الكتابة...` });
       try {
         await apiRequest("POST", `/api/projects/${projectId}/outline/approve`);
@@ -857,6 +866,7 @@ export default function ProjectDetail() {
     },
     onSuccess: (data: any) => {
       setSuggestedChars(data);
+      invalidateAiUsage();
     },
     onError: () => {
       toast({ title: "فشل في اقتراح الشخصيات", variant: "destructive" });
@@ -884,6 +894,7 @@ export default function ProjectDetail() {
     },
     onSuccess: (data: any) => {
       setRewrittenResult(data.rewrittenContent);
+      invalidateAiUsage();
     },
     onError: (err: any) => {
       toast({ title: err?.message || "فشل في إعادة كتابة النص", variant: "destructive" });
@@ -933,6 +944,7 @@ export default function ProjectDetail() {
     },
     onSuccess: (data: any) => {
       setOriginalityResult(data);
+      invalidateAiUsage();
     },
     onError: (err: any) => {
       toast({ title: err?.message || "فشل في فحص الأصالة", variant: "destructive" });
@@ -949,6 +961,7 @@ export default function ProjectDetail() {
     onSuccess: (data: any) => {
       setPlagiarismResult(data);
       setPlagiarismOpen(true);
+      invalidateAiUsage();
     },
     onError: (err: any) => {
       toast({ title: err?.message || "فشل فحص الانتحال", variant: "destructive" });
@@ -985,6 +998,7 @@ export default function ProjectDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      invalidateAiUsage();
       setOriginalityChapterId(null);
       setOriginalityResult(null);
       toast({ title: "تم تحسين النص بنجاح بناءً على ملاحظات الأصالة" });
@@ -1221,6 +1235,7 @@ export default function ProjectDetail() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      invalidateAiUsage();
       setShowRefineInput(false);
       setRefineInstruction("");
       toast({ title: "تم تحسين المخطط بنجاح" });
@@ -2221,6 +2236,14 @@ export default function ProjectDetail() {
                 الأسلوب
               </TabsTrigger>
             </TabsList>
+            {aiUsageStatus && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-auto whitespace-nowrap" data-testid="ai-usage-indicator">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>
+                  <span className={aiUsageStatus.remaining <= 3 ? "text-red-500 font-medium" : ""}>{aiUsageStatus.remaining}</span>/{aiUsageStatus.limit} استخدام AI متبقي
+                </span>
+              </div>
+            )}
           </div>
 
           <TabsContent value="overview" className="space-y-6">
