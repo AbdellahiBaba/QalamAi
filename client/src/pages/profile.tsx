@@ -312,24 +312,66 @@ export default function Profile() {
     },
   });
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File, maxSizeKB: number = 800): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        const maxDim = 1024;
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas not supported")); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        let quality = 0.8;
+        let dataUrl = canvas.toDataURL("image/jpeg", quality);
+        while (dataUrl.length > maxSizeKB * 1024 * 1.37 && quality > 0.3) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
+      img.src = url;
+    });
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "حجم الصورة يتجاوز 2 ميغابايت", variant: "destructive" });
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "حجم الصورة يتجاوز 5 ميغابايت", variant: "destructive" });
       return;
     }
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       toast({ title: "صيغة الصورة غير مدعومة. استخدم PNG أو JPEG أو WebP", variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result && typeof reader.result === "string") {
-        avatarUploadMutation.mutate(reader.result);
+    try {
+      let dataUrl: string;
+      if (file.size > 1 * 1024 * 1024) {
+        toast({ title: "جارٍ ضغط الصورة تلقائياً لتحسين الأداء..." });
+        dataUrl = await compressImage(file);
+      } else {
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
       }
-    };
-    reader.readAsDataURL(file);
+      avatarUploadMutation.mutate(dataUrl);
+    } catch {
+      toast({ title: "فشل في معالجة الصورة", variant: "destructive" });
+    }
     e.target.value = "";
   };
 

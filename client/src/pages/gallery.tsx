@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
@@ -55,6 +55,44 @@ const filterOptions = [
   { value: "poetry", label: "قصيدة" },
   { value: "memoire", label: "مذكرة تخرج" },
 ];
+
+function LazyCard({ children, className, ...props }: { children: React.ReactNode; className?: string; [key: string]: any }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  if (!isVisible) {
+    return (
+      <div ref={ref} className={className} {...props}>
+        <Card className="overflow-hidden">
+          <Skeleton className="aspect-[2/3] w-full" />
+          <CardContent className="p-4 space-y-2">
+            <Skeleton className="h-5 w-1/3" />
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-3.5 w-1/2" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return <div ref={ref} className={className} {...props}>{children}</div>;
+}
 
 function BetaReaderGalleryButton({ projectId }: { projectId: number }) {
   const { user } = useAuth();
@@ -321,7 +359,8 @@ export default function Gallery() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5" data-testid="grid-gallery">
             {filteredProjects.map((project) => (
-              <Card key={project.id} className="transition-shadow hover:shadow-lg overflow-hidden" data-testid={`card-gallery-${project.id}`}>
+              <LazyCard key={project.id} data-testid={`lazy-card-gallery-${project.id}`}>
+              <Card className="transition-shadow hover:shadow-lg overflow-hidden" data-testid={`card-gallery-${project.id}`}>
                 <Link
                   href={project.shareToken ? `/shared/${project.shareToken}` : "#"}
                   data-testid={`link-gallery-project-${project.id}`}
@@ -416,6 +455,7 @@ export default function Gallery() {
                   </button>
                 </CardContent>
               </Card>
+              </LazyCard>
             ))}
           </div>
         )}

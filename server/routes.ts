@@ -471,10 +471,16 @@ export async function registerRoutes(
     }
   }
 
+  async function isUserSuperAdmin(userId: string): Promise<boolean> {
+    if (FREE_ACCESS_USER_IDS.includes(userId)) return true;
+    const user = await storage.getUser(userId);
+    return user?.role === "admin";
+  }
+
   async function checkAiRateLimit(req: any, res: any): Promise<boolean> {
     const userId = req.user?.claims?.sub;
     if (!userId) return false;
-    if (FREE_ACCESS_USER_IDS.includes(userId)) return true;
+    if (await isUserSuperAdmin(userId)) return true;
     const result = await storage.checkAndIncrementAiUsage(userId);
     if (!result.allowed) {
       res.status(429).json({
@@ -490,7 +496,7 @@ export async function registerRoutes(
   app.get("/api/ai-usage-status", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      if (FREE_ACCESS_USER_IDS.includes(userId)) {
+      if (await isUserSuperAdmin(userId)) {
         return res.json({ used: 0, limit: 999, remaining: 999, resetTime: "", exempt: true });
       }
       const status = await storage.getAiUsageStatus(userId);

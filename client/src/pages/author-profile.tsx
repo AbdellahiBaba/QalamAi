@@ -484,6 +484,7 @@ export default function AuthorProfile() {
                           alt={project.title}
                           className="w-full h-full object-cover"
                           loading="lazy"
+                          decoding="async"
                           data-testid={`img-project-cover-${project.id}`}
                         />
                       ) : (
