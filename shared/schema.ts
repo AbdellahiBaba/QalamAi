@@ -1007,3 +1007,18 @@ export const POINTS_PER_CHAPTER_READ = 10;
 export const POINTS_PER_REFERRAL = 50;
 export const POINTS_REDEMPTION_THRESHOLD = 500;
 export const POINTS_DISCOUNT_PERCENT = 10;
+
+export const newsletterSends = pgTable("newsletter_sends", {
+  id: serial("id").primaryKey(),
+  authorId: varchar("author_id").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  recipientCount: integer("recipient_count").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_newsletter_sends_author").on(table.authorId),
+]);
+
+export const insertNewsletterSendSchema = createInsertSchema(newsletterSends).omit({ id: true, createdAt: true });
+export type InsertNewsletterSend = z.infer<typeof insertNewsletterSendSchema>;
+export type NewsletterSend = typeof newsletterSends.$inferSelect;

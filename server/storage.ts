@@ -28,6 +28,7 @@ import {
   giftSubscriptions, type GiftSubscription,
   userPoints, type UserPoints,
   pointTransactions, type PointTransaction,
+  newsletterSends, type NewsletterSend,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -228,6 +229,9 @@ export interface IStorage {
   addPoints(userId: string, points: number, reason: string, metadata?: string): Promise<number>;
   getPointHistory(userId: string, limit?: number): Promise<import("@shared/schema").PointTransaction[]>;
   redeemPoints(userId: string, points: number, reason: string): Promise<{ newBalance: number }>;
+  createNewsletterSend(data: { authorId: string; subject: string; body: string; recipientCount: number }): Promise<NewsletterSend>;
+  getNewsletterSendsByAuthor(authorId: string, limit?: number): Promise<NewsletterSend[]>;
+  getRecentPublicationsByFollowedAuthors(userId: string, daysBack?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2645,6 +2649,34 @@ export class DatabaseStorage implements IStorage {
     `);
     const newBalance = await this.getPointsBalance(userId);
     return { newBalance };
+  }
+
+  async createNewsletterSend(data: { authorId: string; subject: string; body: string; recipientCount: number }): Promise<NewsletterSend> {
+    const [created] = await db.insert(newsletterSends).values(data).returning();
+    return created;
+  }
+
+  async getNewsletterSendsByAuthor(authorId: string, limit = 20): Promise<NewsletterSend[]> {
+    return db.select().from(newsletterSends).where(eq(newsletterSends.authorId, authorId)).orderBy(desc(newsletterSends.createdAt)).limit(limit);
+  }
+
+  async getRecentPublicationsByFollowedAuthors(userId: string, daysBack = 7): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>> {
+    const cutoff = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const rows: any[] = (await db.execute(sql`
+      SELECT p.id, p.title, p.share_token as "shareToken",
+        COALESCE(u.display_name, u.first_name, 'كاتب') as "authorName",
+        p.project_type as "projectType"
+      FROM novel_projects p
+      JOIN author_follows af ON af.following_id = p.user_id AND af.follower_id = ${userId}
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE (p.published_to_news = true OR p.published_to_gallery = true)
+        AND p.created_at > ${cutoff}
+        AND p.share_token IS NOT NULL
+        AND (p.flagged = false OR p.flagged IS NULL)
+      ORDER BY p.created_at DESC
+      LIMIT 10
+    `)).rows;
+    return rows;
   }
 }
 

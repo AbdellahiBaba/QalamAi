@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -19,6 +21,15 @@ import {
   BadgeCheck,
   Lightbulb,
   ListOrdered,
+  Bell,
+  CheckCheck,
+  UserPlus,
+  MessageCircle,
+  Coffee,
+  Star,
+  Gift,
+  Trophy,
+  Mail,
 } from "lucide-react";
 
 export const navLinks = [
@@ -255,6 +266,147 @@ function NavbarSearch() {
   );
 }
 
+const notifIcons: Record<string, typeof Bell> = {
+  follow: UserPlus,
+  comment: MessageCircle,
+  tip: Coffee,
+  rating: Star,
+  gift_received: Gift,
+  challenge_winner: Trophy,
+  email_subscriber: Mail,
+  project_completed: CheckCheck,
+  ticket_reply: MessageCircle,
+  beta_reader: BookOpen,
+  verified_approved: BadgeCheck,
+  verified_rejected: BadgeCheck,
+};
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+
+  const { data: countData } = useQuery<{ count: number }>({
+    queryKey: ["/api/notifications/unread-count"],
+    refetchInterval: 30000,
+  });
+
+  const { data: notifications } = useQuery<any[]>({
+    queryKey: ["/api/notifications"],
+    enabled: open,
+  });
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleOpen = () => {
+    setOpen(!open);
+    if (!open) {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await apiRequest("PATCH", "/api/notifications/read-all");
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    } catch {}
+  };
+
+  const handleNotifClick = (notif: any) => {
+    if (!notif.read) {
+      apiRequest("PATCH", `/api/notifications/${notif.id}/read`).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      }).catch(() => {});
+    }
+    if (notif.link) {
+      setLocation(notif.link);
+      setOpen(false);
+    }
+  };
+
+  const unreadCount = countData?.count || 0;
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "الآن";
+    if (mins < 60) return `${mins} د`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} س`;
+    const days = Math.floor(hours / 24);
+    return `${days} ي`;
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <Button variant="ghost" size="icon" onClick={handleOpen} className="relative" data-testid="button-notifications">
+        <Bell className="w-4 h-4" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1" data-testid="badge-unread-count">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </Button>
+
+      {open && (
+        <div className="absolute top-full mt-1 left-0 sm:left-auto sm:right-0 w-80 sm:w-96 bg-popover border rounded-lg shadow-lg z-[60] max-h-[400px] overflow-hidden flex flex-col" data-testid="dropdown-notifications">
+          <div className="flex items-center justify-between p-3 border-b">
+            <h3 className="font-semibold text-sm">الإشعارات</h3>
+            {unreadCount > 0 && (
+              <button onClick={markAllRead} className="text-xs text-primary hover:underline flex items-center gap-1" data-testid="button-mark-all-read">
+                <CheckCheck className="w-3 h-3" />
+                قراءة الكل
+              </button>
+            )}
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {!notifications || notifications.length === 0 ? (
+              <div className="p-6 text-center text-sm text-muted-foreground" data-testid="text-no-notifications">
+                لا توجد إشعارات
+              </div>
+            ) : (
+              notifications.slice(0, 30).map((notif: any) => {
+                const Icon = notifIcons[notif.type] || Bell;
+                return (
+                  <button
+                    key={notif.id}
+                    onClick={() => handleNotifClick(notif)}
+                    className={`w-full text-right px-3 py-2.5 flex items-start gap-2.5 hover:bg-accent/50 transition-colors border-b last:border-b-0 ${!notif.read ? "bg-primary/5" : ""}`}
+                    data-testid={`notification-item-${notif.id}`}
+                  >
+                    <div className={`mt-0.5 p-1.5 rounded-full flex-shrink-0 ${!notif.read ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-xs font-medium truncate ${!notif.read ? "text-foreground" : "text-muted-foreground"}`}>{notif.title}</span>
+                        {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{notif.message}</p>
+                      <span className="text-[10px] text-muted-foreground/60 mt-0.5 block">{timeAgo(notif.createdAt)}</span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SharedNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
@@ -302,6 +454,7 @@ export function SharedNavbar() {
 
           {isAuthenticated ? (
             <>
+              <NotificationBell />
               <Link href="/">
                 <Button variant="ghost" size="sm" data-testid="link-dashboard">
                   <LayoutDashboard className="w-4 h-4 ml-1" />

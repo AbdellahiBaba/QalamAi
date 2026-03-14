@@ -12,7 +12,7 @@ import { createServer } from "http";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
-import { checkSmtpStatus, sendWeeklyDigest, sendMonthlyAuthorReport } from "./email";
+import { checkSmtpStatus, sendWeeklyDigest, sendMonthlyAuthorReport, sendPersonalizedFollowDigest } from "./email";
 import { processAllExpiredTrials } from "./trial-processor";
 import { runLearningSession } from "./learning-engine";
 import { processRetryQueue } from "./webhook-dispatcher";
@@ -644,6 +644,18 @@ app.use((req, res, next) => {
     await pool.query(`ALTER TABLE point_transactions ADD COLUMN IF NOT EXISTS metadata TEXT`).catch(() => {});
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_point_tx_user ON point_transactions (user_id)`);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS newsletter_sends (
+        id SERIAL PRIMARY KEY,
+        author_id VARCHAR NOT NULL,
+        subject TEXT NOT NULL,
+        body TEXT NOT NULL,
+        recipient_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_newsletter_sends_author ON newsletter_sends (author_id)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);
@@ -843,13 +855,24 @@ app.use((req, res, next) => {
       const WEEKLY_DIGEST_INTERVAL = 7 * 24 * 60 * 60 * 1000;
       setInterval(async () => {
         try {
-          const [users, topEssays] = await Promise.all([
+          const [allUsers, topEssays] = await Promise.all([
             storage.getUsersWithEmails(),
             storage.getTopEssaysForWeek(5),
           ]);
-          if (topEssays.length === 0) return;
-          await sendWeeklyDigest(users, topEssays);
-          log("Weekly digest sent", "email");
+          if (topEssays.length > 0) {
+            await sendWeeklyDigest(allUsers, topEssays);
+          }
+          let followDigestSent = 0;
+          for (const u of allUsers) {
+            try {
+              const pubs = await storage.getRecentPublicationsByFollowedAuthors(u.id, 7);
+              if (pubs.length > 0) {
+                await sendPersonalizedFollowDigest(u.email, u.displayName, pubs);
+                followDigestSent++;
+              }
+            } catch {}
+          }
+          log(`Weekly digest sent (general + ${followDigestSent} personalized follow digests)`, "email");
         } catch (err: any) {
           console.error("[WeeklyDigest] Error:", err.message);
         }

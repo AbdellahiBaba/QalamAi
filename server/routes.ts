@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -5761,6 +5761,13 @@ ${glossaryParagraphs}
       const hashedIp = crypto.createHash("sha256").update(ip + authorId).digest("hex");
       await storage.rateAuthor(authorId, hashedIp, rating);
       const ratingData = await storage.getAuthorAverageRating(authorId);
+      storage.createNotification({
+        userId: authorId,
+        type: "rating",
+        title: "تقييم جديد",
+        message: `حصلت على تقييم جديد (${rating} نجوم)`,
+        link: `/author/${authorId}`,
+      }).catch(() => {});
       res.json(ratingData);
     } catch (error) {
       res.status(500).json({ error: "فشل في حفظ التقييم" });
@@ -8501,6 +8508,16 @@ ${ch.content}
       const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.ip || "unknown";
       const ipHash = crypto.createHash("sha256").update(ip + String(essayId)).digest("hex");
       const comment = await storage.createEssayComment({ essayId, authorName: authorName.trim(), content: content.trim(), ipHash });
+      const essay = await storage.getProject(essayId);
+      if (essay && essay.userId) {
+        storage.createNotification({
+          userId: essay.userId,
+          type: "comment",
+          title: "تعليق جديد",
+          message: `علّق ${authorName.trim()} على مقالك "${essay.title}"`,
+          link: `/essay/${(essay as any).shareToken || ""}`,
+        }).catch(() => {});
+      }
       res.json({ success: true, comment, message: "تم نشر تعليقك" });
     } catch (error) {
       res.status(500).json({ error: "فشل في إرسال التعليق" });
@@ -10443,6 +10460,47 @@ ${platformInstructions}
     } catch (error: any) {
       console.error("Redeem points error:", error);
       res.status(500).json({ error: "فشل في استبدال النقاط" });
+    }
+  });
+
+  app.post("/api/me/newsletter/send", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { subject, body } = req.body;
+      if (!subject?.trim() || !body?.trim()) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
+      if (subject.length > 200) return res.status(400).json({ error: "العنوان طويل جداً" });
+      if (body.length > 5000) return res.status(400).json({ error: "المحتوى طويل جداً" });
+
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
+      const authorName = (user as any).displayName || user.firstName || "كاتب";
+
+      const subscribers = await storage.getEmailSubscribersForAuthor(userId);
+      if (subscribers.length === 0) return res.status(400).json({ error: "لا يوجد مشتركون في نشرتك البريدية" });
+
+      const recent = await storage.getNewsletterSendsByAuthor(userId, 1);
+      if (recent.length > 0) {
+        const lastSent = new Date(recent[0].createdAt);
+        const hoursSince = (Date.now() - lastSent.getTime()) / (1000 * 60 * 60);
+        if (hoursSince < 24) return res.status(429).json({ error: "يمكنك إرسال نشرة واحدة كل 24 ساعة" });
+      }
+
+      const sent = await sendAuthorNewsletter(subscribers, authorName, userId, subject.trim(), body.trim());
+      await storage.createNewsletterSend({ authorId: userId, subject: subject.trim(), body: body.trim(), recipientCount: sent });
+      res.json({ success: true, sentCount: sent, message: `تم إرسال النشرة إلى ${sent} مشترك` });
+    } catch (error) {
+      console.error("Newsletter send error:", error);
+      res.status(500).json({ error: "فشل في إرسال النشرة البريدية" });
+    }
+  });
+
+  app.get("/api/me/newsletter/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sends = await storage.getNewsletterSendsByAuthor(userId);
+      res.json(sends);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب سجل النشرات" });
     }
   });
 

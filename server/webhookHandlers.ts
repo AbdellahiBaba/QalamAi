@@ -80,6 +80,8 @@ export class WebhookHandlers {
       await WebhookHandlers.activatePlan(userId, planType);
     } else if (type === 'project_payment' && userId && projectId) {
       await WebhookHandlers.activateProject(userId, parseInt(projectId));
+    } else if (type === 'author_tip') {
+      await WebhookHandlers.handleTipCompleted(session);
     } else {
       console.warn(`[Webhook] Unknown checkout type or missing fields: type=${type}`);
     }
@@ -149,6 +151,32 @@ export class WebhookHandlers {
       }).catch((err) => console.error('[Webhook] Failed to create notification:', err.message));
     } catch (err) {
       console.error('[Webhook] Error activating plan:', err);
+    }
+  }
+
+  static async handleTipCompleted(session: any): Promise<void> {
+    try {
+      const { fromUserId, toAuthorId, projectId } = session.metadata || {};
+      if (!toAuthorId) return;
+
+      await storage.completeAuthorTip(session.id);
+
+      const tipper = fromUserId ? await storage.getUser(fromUserId) : null;
+      const tipperName = tipper?.displayName || tipper?.firstName || "أحد القرّاء";
+      const amountCents = session.amount_total || 0;
+      const tipAmount = (amountCents / 100).toFixed(2);
+
+      await storage.createNotification({
+        userId: toAuthorId,
+        type: "tip",
+        title: "دعم مالي جديد",
+        message: `أرسل لك ${tipperName} دعماً بقيمة $${tipAmount}`,
+        link: "/profile",
+      });
+
+      console.log(`[Webhook] Tip completed: $${tipAmount} to author ${toAuthorId}`);
+    } catch (err) {
+      console.error('[Webhook] Error handling tip completion:', err);
     }
   }
 

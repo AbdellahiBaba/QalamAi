@@ -841,3 +841,98 @@ export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
     console.error("[Email] Failed to send trial charge failed email:", err);
   }
 }
+
+export async function sendAuthorNewsletter(
+  recipients: Array<{ email: string }>,
+  authorName: string,
+  authorId: string,
+  subject: string,
+  bodyText: string,
+): Promise<number> {
+  const t = getTransporter();
+  if (!t || recipients.length === 0) return 0;
+
+  const baseUrl = getBaseUrl();
+  const authorUrl = `${baseUrl}/author/${authorId}`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">${bodyText.replace(/\n/g, "<br>")}</p>
+<div style="margin:24px 0;padding:16px;background:#f9f7f3;border-radius:8px;border-right:3px solid ${BRAND_GOLD};">
+  <p style="margin:0;color:#555;font-size:13px;">هذه الرسالة من الكاتب <strong style="color:${BRAND_BLUE};">${authorName}</strong> على منصّة QalamAI</p>
+</div>
+<div style="text-align:center;margin:24px 0;">
+<a href="${authorUrl}"
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+زيارة صفحة الكاتب
+</a>
+</div>`;
+
+  let sent = 0;
+  for (const recipient of recipients) {
+    try {
+      await t.sendMail({
+        from: `"${authorName} عبر QalamAI" <${process.env.SMTP_USER}>`,
+        to: recipient.email,
+        subject,
+        html: wrapInTemplate(`رسالة من ${authorName}`, body),
+      });
+      sent++;
+    } catch (err) {
+      console.error(`[Email] Failed to send newsletter to ${recipient.email}:`, err);
+    }
+  }
+  console.log(`[Email] Author newsletter sent to ${sent}/${recipients.length} recipients`);
+  return sent;
+}
+
+export async function sendPersonalizedFollowDigest(
+  email: string,
+  displayName: string | null,
+  publications: Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>,
+): Promise<void> {
+  const t = getTransporter();
+  if (!t || publications.length === 0) return;
+
+  const baseUrl = getBaseUrl();
+  const typeLabels: Record<string, string> = {
+    essay: "مقال", novel: "رواية", scenario: "سيناريو", short_story: "قصة قصيرة",
+    khawater: "خاطرة", poetry: "قصيدة", social_media: "منشور", memoire: "مذكرة",
+  };
+
+  const rows = publications.map(pub => {
+    const link = pub.shareToken ? `${baseUrl}/${pub.projectType === "essay" ? "essay" : "shared"}/${pub.shareToken}` : `${baseUrl}/gallery`;
+    const typeLabel = typeLabels[pub.projectType] || "عمل";
+    return `
+<tr>
+  <td style="padding:10px 0;border-bottom:1px solid #f0ece4;">
+    <a href="${link}" style="color:${BRAND_BLUE};font-weight:bold;text-decoration:none;font-size:14px;">${pub.title}</a>
+    <br><span style="color:#888;font-size:12px;">بقلم ${pub.authorName} · ${typeLabel}</span>
+  </td>
+</tr>`;
+  }).join("\n");
+
+  const greeting = displayName ? `مرحباً ${displayName}` : "مرحباً";
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">${greeting}، إليك جديد الكتّاب الذين تتابعهم هذا الأسبوع:</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+${rows}
+</table>
+<div style="text-align:center;margin:24px 0;">
+<a href="${baseUrl}/gallery"
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+استعرض المزيد
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "جديد الكتّاب الذين تتابعهم — QalamAI",
+      html: wrapInTemplate("جديد من كتّابك المفضلين", body),
+    });
+  } catch (err) {
+    console.error(`[Email] Failed to send follow digest to ${email}:`, err);
+  }
+}

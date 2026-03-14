@@ -48,6 +48,12 @@ The platform's UI/UX emphasizes elegance and trustworthiness through a color pal
   - **Gift Subscriptions:** `gift_subscriptions` table with `paid` field for Stripe payment verification. Plans: essay ($19.99), scenario ($79.99), all_in_one ($149.99). Gift purchase creates Stripe session, verify marks as paid, redeem checks payment before activating. UI on pricing page with plan selector, email input, and redeem section. Routes: `POST /api/gifts/purchase`, `POST /api/gifts/verify`, `GET/POST /api/gifts/redeem/:token`, `GET /api/me/gifts`.
   - **Reading Rewards (Points):** `user_points` and `point_transactions` tables. Earn points: 10 (chapter_read), 5 (daily_login), 15 (share_project), 25 (gift_received). 500 points redeemable for 10% discount. Points balance/history on profile page; redemption card on pricing page. Routes: `GET /api/me/points`, `POST /api/me/earn-points`, `POST /api/me/redeem-points`.
 
+- **Notifications & Author Newsletter:**
+  - **NotificationBell UI:** Notification bell icon in shared navbar with unread count badge (polling every 30s), dropdown with notification list showing type-specific icons, mark-all-read button, click-to-navigate, and time-ago display.
+  - **Event-driven notifications:** Automatic in-app notifications on: follow, comment on essay, author tip, author rating, ticket reply, project completion, verified application status, email subscriber, challenge winner, beta reader request.
+  - **Author Newsletter:** `newsletter_sends` table. Authors can compose and send newsletters to their email subscribers from the profile page (subject + body, max 5000 chars, once per 24h). Routes: `POST /api/me/newsletter/send`, `GET /api/me/newsletter/history`.
+  - **Enhanced Weekly Digest:** Weekly digest includes personalized "new from followed authors" emails alongside the general top-essays digest.
+
 ## External Dependencies
 - **OpenAI GPT-5.2**: Powers all AI content generation, analysis, and assistance.
 - **PostgreSQL**: Primary database for all application data.

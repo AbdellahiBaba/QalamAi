@@ -48,6 +48,8 @@ import {
   Eye,
   BarChart3,
   Star,
+  Send,
+  Newspaper,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
@@ -211,6 +213,33 @@ export default function Profile() {
 
   const { data: pointsData } = useQuery<{ balance: number; history: any[] }>({
     queryKey: ["/api/me/points"],
+  });
+
+  const [showNewsletterComposer, setShowNewsletterComposer] = useState(false);
+  const [newsletterSubject, setNewsletterSubject] = useState("");
+  const [newsletterBody, setNewsletterBody] = useState("");
+
+  const { data: newsletterHistory } = useQuery<any[]>({
+    queryKey: ["/api/me/newsletter/history"],
+  });
+
+  const sendNewsletterMutation = useMutation({
+    mutationFn: async (data: { subject: string; body: string }) => {
+      const res = await apiRequest("POST", "/api/me/newsletter/send", data);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: data.message || "تم إرسال النشرة بنجاح" });
+      setShowNewsletterComposer(false);
+      setNewsletterSubject("");
+      setNewsletterBody("");
+      queryClient.invalidateQueries({ queryKey: ["/api/me/newsletter/history"] });
+    },
+    onError: (err: any) => {
+      let msg = "فشل في إرسال النشرة";
+      try { const p = JSON.parse(err?.message?.replace(/^\d+:\s*/, "") || "{}"); if (p.error) msg = p.error; } catch {}
+      toast({ title: msg, variant: "destructive" });
+    },
   });
 
   const updateProfileMutation = useMutation({
@@ -613,6 +642,81 @@ export default function Profile() {
                         <span className="text-muted-foreground">{h.reason === "chapter_read" ? "قراءة فصل" : h.reason === "daily_login" ? "تسجيل دخول" : h.reason === "share_project" ? "مشاركة عمل" : h.reason === "gift_received" ? "هدية" : h.reason === "redeem" ? "استبدال نقاط" : h.reason}</span>
                         <span className={`font-medium ${h.points > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                           {h.points > 0 ? "+" : ""}<LtrNum>{h.points}</LtrNum>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-newsletter-composer">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Newspaper className="w-5 h-5 text-primary" />
+                    <span className="font-semibold text-sm">النشرة البريدية</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={() => setShowNewsletterComposer(!showNewsletterComposer)}
+                    data-testid="button-toggle-newsletter"
+                  >
+                    <Send className="w-3 h-3" />
+                    {showNewsletterComposer ? "إلغاء" : "إرسال نشرة"}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">أرسل رسالة إلى مشتركي نشرتك البريدية (مرة كل ٢٤ ساعة)</p>
+
+                {showNewsletterComposer && (
+                  <div className="space-y-3 border-t pt-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">عنوان الرسالة</label>
+                      <Input
+                        value={newsletterSubject}
+                        onChange={(e) => setNewsletterSubject(e.target.value)}
+                        placeholder="عنوان النشرة..."
+                        maxLength={200}
+                        data-testid="input-newsletter-subject"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">محتوى الرسالة</label>
+                      <Textarea
+                        value={newsletterBody}
+                        onChange={(e) => setNewsletterBody(e.target.value)}
+                        placeholder="اكتب رسالتك لمشتركيك..."
+                        rows={5}
+                        maxLength={5000}
+                        data-testid="input-newsletter-body"
+                      />
+                      <p className="text-[10px] text-muted-foreground text-left" dir="ltr">{newsletterBody.length}/5000</p>
+                    </div>
+                    <Button
+                      className="w-full gap-1.5"
+                      onClick={() => sendNewsletterMutation.mutate({ subject: newsletterSubject, body: newsletterBody })}
+                      disabled={sendNewsletterMutation.isPending || !newsletterSubject.trim() || !newsletterBody.trim()}
+                      data-testid="button-send-newsletter"
+                    >
+                      {sendNewsletterMutation.isPending ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> جاري الإرسال...</>
+                      ) : (
+                        <><Send className="w-4 h-4" /> إرسال النشرة</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {newsletterHistory && newsletterHistory.length > 0 && (
+                  <div className="border-t pt-2 space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground font-medium">آخر النشرات المُرسلة</p>
+                    {newsletterHistory.slice(0, 3).map((ns: any) => (
+                      <div key={ns.id} className="flex justify-between items-center text-[11px]" data-testid={`text-newsletter-history-${ns.id}`}>
+                        <span className="text-muted-foreground truncate max-w-[60%]">{ns.subject}</span>
+                        <span className="text-muted-foreground/60 flex-shrink-0">
+                          {ns.recipientCount} مستلم · {new Date(ns.createdAt).toLocaleDateString("ar")}
                         </span>
                       </div>
                     ))}
