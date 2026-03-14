@@ -564,6 +564,8 @@ export default function EssayPublic() {
               src={essay.coverImageUrl}
               alt={essay.title}
               className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
               data-testid="img-essay-cover"
             />
           </div>
