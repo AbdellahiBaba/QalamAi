@@ -782,6 +782,36 @@ export async function sendMonthlyAuthorReport(
   }
 }
 
+export async function sendGiftReceivedEmail(recipientEmail: string, gifterName: string, planLabel: string, redeemToken: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const redeemUrl = `${getBaseUrl()}/pricing?redeem=${redeemToken}`;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">تم إهداؤك اشتراك <strong style="color:${BRAND_GOLD};">${planLabel}</strong> على <strong style="color:${BRAND_GOLD};">قلم AI</strong> من <strong>${gifterName}</strong>!</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">لتفعيل الهدية، اضغط على الزر أدناه:</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${redeemUrl}" 
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+فعّل هديتك الآن
+</a>
+</div>
+<p style="color:#999;font-size:12px;text-align:center;">أو انسخ هذا الرابط: ${redeemUrl}</p>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: recipientEmail,
+      subject: `🎁 لديك هدية على QalamAI من ${gifterName}`,
+      html: wrapInTemplate("لديك هدية!", body),
+    });
+    console.log(`[Email] Sent gift received email to ${recipientEmail}`);
+  } catch (err) {
+    console.error("[Email] Failed to send gift received email:", err);
+  }
+}
+
 export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
   const t = getTransporter();
   if (!t) return;

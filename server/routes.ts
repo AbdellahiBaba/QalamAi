@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -10120,6 +10120,12 @@ ${platformInstructions}
         }],
         success_url: `${origin}/shared/${project.shareToken}?chapter_unlocked=${chapterId}&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/shared/${project.shareToken}`,
+        metadata: {
+          type: "chapter_unlock",
+          chapterId: String(chapterId),
+          userId: req.user.claims.sub,
+          priceCents: String(chapter.priceCents),
+        },
       });
       res.json({ checkoutUrl: session.url });
     } catch (error: any) {
@@ -10137,8 +10143,11 @@ ${platformInstructions}
       const stripe = await getUncachableStripeClient();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       if (session.payment_status !== "paid") return res.status(400).json({ error: "لم يتم الدفع" });
+      if (session.metadata?.type !== "chapter_unlock") return res.status(400).json({ error: "جلسة دفع غير صالحة" });
+      if (session.metadata?.chapterId !== String(chapterId)) return res.status(400).json({ error: "الفصل لا يتطابق مع جلسة الدفع" });
+      if (session.metadata?.userId !== req.user.claims.sub) return res.status(400).json({ error: "المستخدم لا يتطابق مع جلسة الدفع" });
       await storage.createChapterUnlock(req.user.claims.sub, chapterId, sessionId);
-      await storage.addPoints(req.user.claims.sub, 5, "فتح فصل مدفوع");
+      await storage.addPoints(req.user.claims.sub, 5, "chapter_read");
       res.json({ success: true });
     } catch (error: any) {
       console.error("Chapter unlock verify error:", error);
@@ -10200,6 +10209,13 @@ ${platformInstructions}
       if (session.payment_status !== "paid") return res.status(400).json({ error: "لم يتم الدفع" });
       if (session.metadata?.giftToken !== token) return res.status(400).json({ error: "رمز الهدية غير متطابق" });
       await db.update(giftSubscriptions).set({ paid: true, stripeSessionId: sessionId }).where(eq(giftSubscriptions.token, token));
+      const gift = await storage.getGiftByToken(token);
+      if (gift) {
+        const planLabels: Record<string, string> = { essay: "خطة المقالات", scenario: "خطة السيناريوهات", all_in_one: "الخطة الشاملة" };
+        const gifterUser = await storage.getUser(req.user.claims.sub);
+        const gifterName = gifterUser?.firstName || gifterUser?.email || "صديق";
+        sendGiftReceivedEmail(gift.recipientEmail, gifterName, planLabels[gift.plan] || gift.plan, token).catch(() => {});
+      }
       res.json({ success: true, token });
     } catch (error: any) {
       console.error("Gift verify error:", error);
