@@ -44,6 +44,38 @@ interface ProjectData extends NovelProject {
   relationships: CharacterRelationship[];
 }
 
+function SaveIndicator({ isSaving, lastSavedAt }: { isSaving: boolean; lastSavedAt: Date | null }) {
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const t = setInterval(() => forceUpdate(v => v + 1), 10000);
+    return () => clearInterval(t);
+  }, [lastSavedAt]);
+
+  if (!isSaving && !lastSavedAt) return null;
+
+  const getTimeSince = (date: Date) => {
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (seconds < 5) return "الآن";
+    if (seconds < 60) return `قبل ${seconds} ثانية`;
+    const minutes = Math.floor(seconds / 60);
+    return `قبل ${minutes} دقيقة`;
+  };
+
+  return (
+    <span
+      className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 ${isSaving ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30 dark:text-yellow-400" : "bg-green-500/10 text-green-600 border-green-500/30 dark:text-green-400"}`}
+      data-testid="badge-save-indicator"
+    >
+      {isSaving ? (
+        <><Loader2 className="w-3 h-3 animate-spin" /> جاري الحفظ...</>
+      ) : lastSavedAt ? (
+        <><CheckCircle className="w-3 h-3" /> محفوظ {getTimeSince(lastSavedAt)}</>
+      ) : null}
+    </span>
+  );
+}
+
 function getTypeLabels(projectType?: string, genre?: string) {
   if (projectType === "essay") {
     return {
@@ -270,11 +302,10 @@ export default function ProjectDetail() {
   const [focusModeActive, setFocusModeActive] = useState(false);
   const [sessionStartWordCount, setSessionStartWordCount] = useState<number | null>(null);
   const [ambientSound, setAmbientSound] = useState<"off" | "rain" | "cafe" | "keyboard">("off");
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioNodesRef = useRef<{ source?: AudioBufferSourceNode | OscillatorNode; gain?: GainNode; filter?: BiquadFilterNode; noiseSource?: AudioBufferSourceNode }[]>([]);
+  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const keyboardIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fullscreenTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [activeParagraphIndex, setActiveParagraphIndex] = useState(0);
 
   const handleExportDownload = async (format: "pdf" | "epub" | "docx") => {
     if (downloadingFormat) return;
@@ -621,94 +652,27 @@ export default function ProjectDetail() {
     return () => document.removeEventListener("keydown", handleEscFullscreen);
   }, [isFullscreen]);
 
+  const AMBIENT_FILES: Record<string, string> = {
+    rain: "/audio/rain.wav",
+    cafe: "/audio/cafe.wav",
+    keyboard: "/audio/keyboard.wav",
+  };
+
   const stopAmbientSound = useCallback(() => {
-    audioNodesRef.current.forEach(nodes => {
-      try { nodes.source?.stop(); } catch {}
-      try { nodes.noiseSource?.stop(); } catch {}
-      try { nodes.gain?.disconnect(); } catch {}
-      try { nodes.filter?.disconnect(); } catch {}
-    });
-    audioNodesRef.current = [];
-    if (keyboardIntervalRef.current) {
-      clearInterval(keyboardIntervalRef.current);
-      keyboardIntervalRef.current = null;
+    if (ambientAudioRef.current) {
+      ambientAudioRef.current.pause();
+      ambientAudioRef.current.currentTime = 0;
+      ambientAudioRef.current = null;
     }
   }, []);
 
   const startAmbientSound = useCallback((type: "rain" | "cafe" | "keyboard") => {
     stopAmbientSound();
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    const ctx = audioContextRef.current;
-    if (ctx.state === "suspended") ctx.resume();
-
-    if (type === "rain") {
-      const bufferSize = ctx.sampleRate * 4;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const filter = ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 800;
-      const gain = ctx.createGain();
-      gain.gain.value = 0.15;
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      source.start();
-      audioNodesRef.current.push({ source, gain, filter });
-    } else if (type === "cafe") {
-      const bufferSize = ctx.sampleRate * 4;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const filter = ctx.createBiquadFilter();
-      filter.type = "bandpass";
-      filter.frequency.value = 400;
-      filter.Q.value = 0.5;
-      const gain = ctx.createGain();
-      gain.gain.value = 0.08;
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      source.start();
-      const hum = ctx.createOscillator();
-      hum.type = "sine";
-      hum.frequency.value = 120;
-      const humGain = ctx.createGain();
-      humGain.gain.value = 0.02;
-      hum.connect(humGain);
-      humGain.connect(ctx.destination);
-      hum.start();
-      audioNodesRef.current.push({ source, gain, filter }, { source: hum, gain: humGain });
-    } else if (type === "keyboard") {
-      const clickBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
-      const clickData = clickBuffer.getChannelData(0);
-      for (let i = 0; i < clickData.length; i++) {
-        clickData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.005));
-      }
-      const gain = ctx.createGain();
-      gain.gain.value = 0.3;
-      gain.connect(ctx.destination);
-      const playClick = () => {
-        const s = ctx.createBufferSource();
-        s.buffer = clickBuffer;
-        s.connect(gain);
-        s.start();
-      };
-      const interval = setInterval(() => {
-        if (Math.random() > 0.3) playClick();
-      }, 120 + Math.random() * 80);
-      audioNodesRef.current.push({ gain } as any);
-      keyboardIntervalRef.current = interval;
-    }
+    const audio = new Audio(AMBIENT_FILES[type]);
+    audio.loop = true;
+    audio.volume = type === "rain" ? 0.4 : type === "cafe" ? 0.3 : 0.5;
+    audio.play().catch(() => {});
+    ambientAudioRef.current = audio;
   }, [stopAmbientSound]);
 
   const cycleAmbientSound = useCallback(() => {
@@ -724,29 +688,19 @@ export default function ProjectDetail() {
   }, [ambientSound, startAmbientSound, stopAmbientSound]);
 
   useEffect(() => {
-    return () => {
-      stopAmbientSound();
-    };
+    return () => { stopAmbientSound(); };
   }, []);
-
-  const getTimeSince = useCallback((date: Date | null) => {
-    if (!date) return null;
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (seconds < 5) return "الآن";
-    if (seconds < 60) return `قبل ${seconds} ثانية`;
-    const minutes = Math.floor(seconds / 60);
-    return `قبل ${minutes} دقيقة`;
-  }, []);
-
-  const [, forceUpdateTimer] = useState(0);
-  useEffect(() => {
-    if (!lastSavedAt) return;
-    const t = setInterval(() => forceUpdateTimer(v => v + 1), 10000);
-    return () => clearInterval(t);
-  }, [lastSavedAt]);
 
   const ambientLabel = ambientSound === "off" ? "صوت محيط" : ambientSound === "rain" ? "مطر" : ambientSound === "cafe" ? "مقهى" : "لوحة مفاتيح";
   const AmbientIcon = ambientSound === "rain" ? CloudRain : ambientSound === "cafe" ? Coffee : ambientSound === "keyboard" ? Type : Music;
+
+  const editParagraphs = useMemo(() => editContent.split("\n\n"), [editContent]);
+
+  const updateParagraph = useCallback((paraIdx: number, newText: string) => {
+    const paras = editContent.split("\n\n");
+    paras[paraIdx] = newText;
+    setEditContent(paras.join("\n\n"));
+  }, [editContent]);
 
   const suggestCharsMutation = useMutation({
     mutationFn: async () => {
@@ -3782,15 +3736,7 @@ export default function ProjectDetail() {
                                       {sessionWordDelta > 0 ? "+" : ""}{sessionWordDelta} كلمة في الجلسة
                                     </span>
                                   )}
-                                  {(saveChapterMutation.isPending || lastSavedAt) && (
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 ${saveChapterMutation.isPending ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30 dark:text-yellow-400" : "bg-green-500/10 text-green-600 border-green-500/30 dark:text-green-400"}`} data-testid="badge-save-indicator">
-                                      {saveChapterMutation.isPending ? (
-                                        <><Loader2 className="w-3 h-3 animate-spin" /> جاري الحفظ...</>
-                                      ) : (
-                                        <><CheckCircle className="w-3 h-3" /> محفوظ {getTimeSince(lastSavedAt)}</>
-                                      )}
-                                    </span>
-                                  )}
+                                  <SaveIndicator isSaving={saveChapterMutation.isPending} lastSavedAt={lastSavedAt} />
                                 </div>
                               </div>
                               <Textarea
@@ -5613,46 +5559,51 @@ export default function ProjectDetail() {
                     {sessionWordDelta > 0 ? "+" : ""}{sessionWordDelta} كلمة
                   </span>
                 )}
-                {(saveChapterMutation.isPending || lastSavedAt) && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 ${saveChapterMutation.isPending ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" : "bg-green-500/20 text-green-400 border-green-500/30"}`}>
-                    {saveChapterMutation.isPending ? (
-                      <><Loader2 className="w-3 h-3 animate-spin" /> جاري الحفظ...</>
-                    ) : (
-                      <><CheckCircle className="w-3 h-3" /> محفوظ {getTimeSince(lastSavedAt)}</>
-                    )}
-                  </span>
-                )}
+                <SaveIndicator isSaving={saveChapterMutation.isPending} lastSavedAt={lastSavedAt} />
                 <Button size="sm" className="gap-1 text-xs" onClick={() => { saveChapterMutation.mutate({ chapterId: editingChapter, content: editContent }); setIsFullscreen(false); }} disabled={saveChapterMutation.isPending} data-testid="button-save-fullscreen">
                   <Save className="w-4 h-4" /> حفظ وخروج
                 </Button>
               </div>
             </div>
-            <div className="w-full max-w-3xl px-6 flex-1 flex flex-col pt-16 pb-8">
-              <textarea
-                ref={fullscreenTextareaRef}
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                dir="rtl"
-                className={`flex-1 w-full bg-transparent text-white/90 font-serif text-lg leading-[2.5] resize-none outline-none placeholder:text-white/30 ${focusModeActive ? "focus-mode-textarea" : ""}`}
-                placeholder="ابدأ الكتابة..."
-                data-testid="textarea-fullscreen-editor"
-                onSelect={(e) => {
-                  if (!focusModeActive || !fullscreenTextareaRef.current) return;
-                  const ta = fullscreenTextareaRef.current;
-                  const cursorPos = ta.selectionStart;
-                  const text = ta.value;
-                  const beforeCursor = text.substring(0, cursorPos);
-                  const paragraphIndex = beforeCursor.split("\n\n").length - 1;
-                  const paragraphs = text.split("\n\n");
-                  let offset = 0;
-                  const ranges: Array<{ start: number; end: number; active: boolean }> = [];
-                  paragraphs.forEach((p, i) => {
-                    ranges.push({ start: offset, end: offset + p.length, active: i === paragraphIndex });
-                    offset += p.length + 2;
-                  });
-                  ta.style.setProperty("--active-para-index", String(paragraphIndex));
-                }}
-              />
+            <div className="w-full max-w-3xl px-6 flex-1 flex flex-col pt-16 pb-8 overflow-y-auto">
+              {focusModeActive ? (
+                <div className="flex-1 space-y-1" dir="rtl" data-testid="focus-mode-paragraphs">
+                  {editParagraphs.map((para, idx) => (
+                    <div
+                      key={idx}
+                      className={`transition-opacity duration-300 ${idx === activeParagraphIndex ? "opacity-100" : "opacity-20"}`}
+                      onClick={() => setActiveParagraphIndex(idx)}
+                      data-testid={`focus-paragraph-${idx}`}
+                    >
+                      {idx === activeParagraphIndex ? (
+                        <textarea
+                          autoFocus
+                          value={para}
+                          onChange={(e) => updateParagraph(idx, e.target.value)}
+                          dir="rtl"
+                          className="w-full bg-transparent text-white/90 font-serif text-lg leading-[2.5] resize-none outline-none min-h-[4em]"
+                          rows={Math.max(2, para.split("\n").length + 1)}
+                          data-testid={`focus-textarea-${idx}`}
+                        />
+                      ) : (
+                        <p className="font-serif text-lg leading-[2.5] text-white/90 cursor-pointer whitespace-pre-wrap min-h-[2em]">
+                          {para || "\u00A0"}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  ref={fullscreenTextareaRef}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  dir="rtl"
+                  className="flex-1 w-full bg-transparent text-white/90 font-serif text-lg leading-[2.5] resize-none outline-none placeholder:text-white/30"
+                  placeholder="ابدأ الكتابة..."
+                  data-testid="textarea-fullscreen-editor"
+                />
+              )}
               <div className="text-center text-white/40 text-xs mt-2">
                 <LtrNum>{countWords(editContent).toLocaleString()}</LtrNum> كلمة — اضغط Escape للخروج
               </div>
