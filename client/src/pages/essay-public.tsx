@@ -63,15 +63,6 @@ interface EssayComment {
   created_at: string;
 }
 
-interface RelatedEssay {
-  id: number;
-  title: string;
-  coverImageUrl: string | null;
-  shareToken: string | null;
-  authorName: string;
-  views: number;
-}
-
 function countWords(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
@@ -295,13 +286,11 @@ export default function EssayPublic() {
     enabled: !!essay?.id,
   });
 
-  const { data: relatedEssays } = useQuery<RelatedEssay[]>({
-    queryKey: ["/api/public/essays/related", essay?.id],
+  const { data: relatedWorks } = useQuery<any[]>({
+    queryKey: ["/api/projects", String(essay?.id), "related"],
     queryFn: async () => {
-      const url = essay?.subject
-        ? `/api/public/essays/${essay!.id}/related?subject=${essay.subject}`
-        : `/api/public/essays/${essay!.id}/related`;
-      const res = await fetch(url);
+      const res = await fetch(`/api/projects/${essay!.id}/related`);
+      if (!res.ok) return [];
       return res.json();
     },
     enabled: !!essay?.id,
@@ -807,13 +796,12 @@ export default function EssayPublic() {
           </div>
         )}
 
-        {/* Related essays */}
-        {relatedEssays && relatedEssays.length > 0 && (
-          <div className="mt-12" data-testid="section-related-essays">
-            <h2 className="font-serif text-xl font-bold mb-5">قرأ القرّاء أيضاً</h2>
+        {relatedWorks && relatedWorks.length > 0 && (
+          <div className="mt-12" data-testid="section-related-works">
+            <h2 className="font-serif text-xl font-bold mb-5">قد يعجبك أيضاً</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {relatedEssays.map((rel) => (
-                <Link key={rel.id} href={rel.shareToken ? `/essay/${rel.shareToken}` : "#"}>
+              {relatedWorks.map((rel: any) => (
+                <Link key={rel.id} href={rel.shareToken ? `/shared/${rel.shareToken}` : `/gallery`}>
                   <div className="border rounded-xl overflow-hidden hover:shadow-sm transition-shadow cursor-pointer" data-testid={`card-related-${rel.id}`}>
                     {rel.coverImageUrl ? (
                       <div className="aspect-[16/9] overflow-hidden">
@@ -826,7 +814,7 @@ export default function EssayPublic() {
                     )}
                     <div className="p-3 space-y-1">
                       <h3 className="font-serif font-semibold text-sm line-clamp-2">{rel.title}</h3>
-                      <p className="text-xs text-muted-foreground">{rel.authorName}</p>
+                      {rel.authorName && <p className="text-xs text-muted-foreground">{rel.authorName}</p>}
                     </div>
                   </div>
                 </Link>
