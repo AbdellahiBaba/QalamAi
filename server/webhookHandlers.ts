@@ -2,7 +2,7 @@ import { getStripeSync } from './stripeClient';
 import { getUncachableStripeClient } from './stripeClient';
 import { storage } from './storage';
 import { userPlanCoversType, PLAN_PRICES } from '@shared/schema';
-import { sendPlanActivationEmail, sendProjectPaymentEmail, sendSubscriptionPaymentFailedEmail, sendSubscriptionCancelledEmail } from './email';
+import { sendPlanActivationEmail, sendProjectPaymentEmail, sendSubscriptionPaymentFailedEmail, sendSubscriptionCancelledEmail, sendNotificationEmail } from './email';
 
 const BASE_URL = process.env.APP_URL || process.env.REPLIT_DOMAINS?.split(',')[0]?.trim()
   ? `https://${process.env.REPLIT_DOMAINS?.split(',')[0]?.trim()}`
@@ -166,13 +166,20 @@ export class WebhookHandlers {
       const amountCents = session.amount_total || 0;
       const tipAmount = (amountCents / 100).toFixed(2);
 
+      const tipTitle = "دعم مالي جديد";
+      const tipMessage = `أرسل لك ${tipperName} دعماً بقيمة $${tipAmount}`;
       await storage.createNotification({
         userId: toAuthorId,
         type: "tip",
-        title: "دعم مالي جديد",
-        message: `أرسل لك ${tipperName} دعماً بقيمة $${tipAmount}`,
+        title: tipTitle,
+        message: tipMessage,
         link: "/profile",
       });
+
+      const author = await storage.getUser(toAuthorId);
+      if (author?.email) {
+        sendNotificationEmail(author.email, tipTitle, tipMessage, "/profile").catch(() => {});
+      }
 
       console.log(`[Webhook] Tip completed: $${tipAmount} to author ${toAuthorId}`);
     } catch (err) {

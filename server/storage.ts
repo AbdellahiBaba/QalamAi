@@ -154,6 +154,9 @@ export interface IStorage {
   getAuthorFollowerCount(authorId: string): Promise<number>;
   setUserVerified(userId: string, verified: boolean): Promise<User>;
   getUsersWithEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
+  getUsersWithEmailsForDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
+  setDigestOptOut(userId: string, optOut: boolean): Promise<void>;
+  getDigestOptOut(userId: string): Promise<boolean>;
   getTopEssaysForWeek(limit?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>>;
   getLeaderboard(limit?: number): Promise<Array<{ userId: string; displayName: string; profileImageUrl: string | null; verified: boolean; totalViews: number; followerCount: number; projectCount: number; averageRating: number }>>;
   createEssayComment(data: { essayId: number; authorName: string; content: string; ipHash?: string }): Promise<import("@shared/schema").EssayComment>;
@@ -1667,6 +1670,22 @@ export class DatabaseStorage implements IStorage {
     return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
   }
 
+  async getUsersWithEmailsForDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>> {
+    const rows: any[] = (await pool.query(
+      `SELECT id, email, display_name as "displayName" FROM users WHERE email IS NOT NULL AND (digest_opt_out IS NULL OR digest_opt_out = false)`
+    )).rows;
+    return rows.filter((r: any) => r.email);
+  }
+
+  async setDigestOptOut(userId: string, optOut: boolean): Promise<void> {
+    await pool.query(`UPDATE users SET digest_opt_out = $1 WHERE id = $2`, [optOut, userId]);
+  }
+
+  async getDigestOptOut(userId: string): Promise<boolean> {
+    const result = await pool.query(`SELECT digest_opt_out FROM users WHERE id = $1`, [userId]);
+    return result.rows[0]?.digest_opt_out === true;
+  }
+
   async getTopEssaysForWeek(limit: number = 5): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>> {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const rows: any[] = (await db.execute(sql`
@@ -2662,20 +2681,34 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentPublicationsByFollowedAuthors(userId: string, daysBack = 7): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>> {
     const cutoff = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
-    const rows: any[] = (await db.execute(sql`
-      SELECT p.id, p.title, p.share_token as "shareToken",
+    const rows: any[] = (await pool.query(`
+      (SELECT p.id, p.title, p.share_token as "shareToken",
         COALESCE(u.display_name, u.first_name, 'كاتب') as "authorName",
-        p.project_type as "projectType"
+        p.project_type as "projectType",
+        p.created_at
       FROM novel_projects p
-      JOIN author_follows af ON af.following_id = p.user_id AND af.follower_id = ${userId}
+      JOIN author_follows af ON af.following_id = p.user_id AND af.follower_id = $1
       LEFT JOIN users u ON u.id = p.user_id
       WHERE (p.published_to_news = true OR p.published_to_gallery = true)
-        AND p.created_at > ${cutoff}
+        AND p.created_at > $2
         AND p.share_token IS NOT NULL
-        AND (p.flagged = false OR p.flagged IS NULL)
-      ORDER BY p.created_at DESC
-      LIMIT 10
-    `)).rows;
+        AND (p.flagged = false OR p.flagged IS NULL))
+      UNION ALL
+      (SELECT c.id, c.title, p.share_token as "shareToken",
+        COALESCE(u.display_name, u.first_name, 'كاتب') as "authorName",
+        'chapter' as "projectType",
+        c.created_at
+      FROM chapters c
+      JOIN novel_projects p ON p.id = c.project_id
+      JOIN author_follows af ON af.following_id = p.user_id AND af.follower_id = $1
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE c.created_at > $2
+        AND p.share_token IS NOT NULL
+        AND (p.published_to_news = true OR p.published_to_gallery = true)
+        AND (p.flagged = false OR p.flagged IS NULL))
+      ORDER BY created_at DESC
+      LIMIT 15
+    `, [userId, cutoff])).rows;
     return rows;
   }
 }

@@ -273,12 +273,17 @@ const notifIcons: Record<string, typeof Bell> = {
   rating: Star,
   gift_received: Gift,
   challenge_winner: Trophy,
+  prompt_winner: Trophy,
   email_subscriber: Mail,
   project_completed: CheckCheck,
   ticket_reply: MessageCircle,
   beta_reader: BookOpen,
   verified_approved: BadgeCheck,
   verified_rejected: BadgeCheck,
+  verified_restored: BadgeCheck,
+  plan_activated: Star,
+  story_featured: BookOpen,
+  payment_failed: Bell,
 };
 
 function NotificationBell() {
@@ -308,9 +313,16 @@ function NotificationBell() {
   }, []);
 
   const handleOpen = () => {
+    const wasOpen = open;
     setOpen(!open);
-    if (!open) {
+    if (!wasOpen) {
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      if (unreadCount > 0) {
+        apiRequest("PATCH", "/api/notifications/read-all").then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+        }).catch(() => {});
+      }
     }
   };
 

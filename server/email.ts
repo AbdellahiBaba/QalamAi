@@ -842,6 +842,39 @@ export async function sendTrialChargeFailedEmail(email: string): Promise<void> {
   }
 }
 
+export async function sendNotificationEmail(
+  email: string,
+  title: string,
+  message: string,
+  link?: string,
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const baseUrl = getBaseUrl();
+  const fullLink = link ? `${baseUrl}${link}` : baseUrl;
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">${message}</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${fullLink}"
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+عرض التفاصيل
+</a>
+</div>`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: `${title} — QalamAI`,
+      html: wrapInTemplate(title, body),
+    });
+  } catch (err) {
+    console.error(`[Email] Failed to send notification email to ${email}:`, err);
+  }
+}
+
 export async function sendAuthorNewsletter(
   recipients: Array<{ email: string }>,
   authorName: string,

@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Feather,
   LogOut,
@@ -218,6 +219,20 @@ export default function Profile() {
   const [showNewsletterComposer, setShowNewsletterComposer] = useState(false);
   const [newsletterSubject, setNewsletterSubject] = useState("");
   const [newsletterBody, setNewsletterBody] = useState("");
+
+  const { data: digestPref } = useQuery<{ digestOptOut: boolean }>({
+    queryKey: ["/api/me/digest-preference"],
+  });
+
+  const toggleDigestMutation = useMutation({
+    mutationFn: async (optOut: boolean) => {
+      const res = await apiRequest("PATCH", "/api/me/digest-preference", { digestOptOut: optOut });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me/digest-preference"] });
+    },
+  });
 
   const { data: newsletterHistory } = useQuery<any[]>({
     queryKey: ["/api/me/newsletter/history"],
@@ -657,57 +672,79 @@ export default function Profile() {
                     <Newspaper className="w-5 h-5 text-primary" />
                     <span className="font-semibold text-sm">النشرة البريدية</span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1 text-xs"
-                    onClick={() => setShowNewsletterComposer(!showNewsletterComposer)}
-                    data-testid="button-toggle-newsletter"
-                  >
-                    <Send className="w-3 h-3" />
-                    {showNewsletterComposer ? "إلغاء" : "إرسال نشرة"}
-                  </Button>
+                  <Dialog open={showNewsletterComposer} onOpenChange={setShowNewsletterComposer}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 text-xs"
+                        data-testid="button-toggle-newsletter"
+                      >
+                        <Send className="w-3 h-3" />
+                        إرسال نشرة
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg" dir="rtl">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-base">
+                          <Newspaper className="w-5 h-5 text-primary" />
+                          إرسال نشرة بريدية
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-2">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium">عنوان الرسالة</label>
+                          <Input
+                            value={newsletterSubject}
+                            onChange={(e) => setNewsletterSubject(e.target.value)}
+                            placeholder="عنوان النشرة..."
+                            maxLength={200}
+                            data-testid="input-newsletter-subject"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium">محتوى الرسالة</label>
+                          <Textarea
+                            value={newsletterBody}
+                            onChange={(e) => setNewsletterBody(e.target.value)}
+                            placeholder="اكتب رسالتك لمشتركيك..."
+                            rows={8}
+                            maxLength={5000}
+                            className="min-h-[160px]"
+                            data-testid="input-newsletter-body"
+                          />
+                          <p className="text-[10px] text-muted-foreground text-left" dir="ltr">{newsletterBody.length}/5000</p>
+                        </div>
+                        <Button
+                          className="w-full gap-1.5"
+                          onClick={() => sendNewsletterMutation.mutate({ subject: newsletterSubject, body: newsletterBody })}
+                          disabled={sendNewsletterMutation.isPending || !newsletterSubject.trim() || !newsletterBody.trim()}
+                          data-testid="button-send-newsletter"
+                        >
+                          {sendNewsletterMutation.isPending ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> جاري الإرسال...</>
+                          ) : (
+                            <><Send className="w-4 h-4" /> إرسال النشرة</>
+                          )}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <p className="text-[11px] text-muted-foreground">أرسل رسالة إلى مشتركي نشرتك البريدية (مرة كل ٢٤ ساعة)</p>
 
-                {showNewsletterComposer && (
-                  <div className="space-y-3 border-t pt-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">عنوان الرسالة</label>
-                      <Input
-                        value={newsletterSubject}
-                        onChange={(e) => setNewsletterSubject(e.target.value)}
-                        placeholder="عنوان النشرة..."
-                        maxLength={200}
-                        data-testid="input-newsletter-subject"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium">محتوى الرسالة</label>
-                      <Textarea
-                        value={newsletterBody}
-                        onChange={(e) => setNewsletterBody(e.target.value)}
-                        placeholder="اكتب رسالتك لمشتركيك..."
-                        rows={5}
-                        maxLength={5000}
-                        data-testid="input-newsletter-body"
-                      />
-                      <p className="text-[10px] text-muted-foreground text-left" dir="ltr">{newsletterBody.length}/5000</p>
-                    </div>
-                    <Button
-                      className="w-full gap-1.5"
-                      onClick={() => sendNewsletterMutation.mutate({ subject: newsletterSubject, body: newsletterBody })}
-                      disabled={sendNewsletterMutation.isPending || !newsletterSubject.trim() || !newsletterBody.trim()}
-                      data-testid="button-send-newsletter"
-                    >
-                      {sendNewsletterMutation.isPending ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> جاري الإرسال...</>
-                      ) : (
-                        <><Send className="w-4 h-4" /> إرسال النشرة</>
-                      )}
-                    </Button>
+                <div className="flex items-center justify-between border-t pt-3">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-medium">النشرة الأسبوعية</span>
+                    <p className="text-[10px] text-muted-foreground">استلام ملخص أسبوعي لأبرز المقالات</p>
                   </div>
-                )}
+                  <Switch
+                    checked={!digestPref?.digestOptOut}
+                    onCheckedChange={(checked) => toggleDigestMutation.mutate(!checked)}
+                    disabled={toggleDigestMutation.isPending}
+                    data-testid="switch-digest-opt-out"
+                  />
+                </div>
 
                 {newsletterHistory && newsletterHistory.length > 0 && (
                   <div className="border-t pt-2 space-y-1.5">

@@ -537,6 +537,8 @@ app.use((req, res, next) => {
     ) STORED`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_search_tsv ON novel_projects USING gin (search_tsv)`);
 
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS digest_opt_out BOOLEAN DEFAULT false`);
+
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS search_tsv tsvector GENERATED ALWAYS AS (
       to_tsvector('simple', COALESCE(display_name, ''))
     ) STORED`);
@@ -856,7 +858,7 @@ app.use((req, res, next) => {
       setInterval(async () => {
         try {
           const [allUsers, topEssays] = await Promise.all([
-            storage.getUsersWithEmails(),
+            storage.getUsersWithEmailsForDigest(),
             storage.getTopEssaysForWeek(5),
           ]);
           if (topEssays.length > 0) {

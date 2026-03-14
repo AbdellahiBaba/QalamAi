@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -454,6 +454,18 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
   await storage.seedDefaultFeatures();
+
+  async function notifyUser(userId: string, type: string, title: string, message: string, link?: string) {
+    try {
+      await storage.createNotification({ userId, type, title, message, link });
+      const user = await storage.getUser(userId);
+      if (user?.email) {
+        sendNotificationEmail(user.email, title, message, link).catch(() => {});
+      }
+    } catch (err) {
+      console.error(`[Notify] Failed to notify user ${userId}:`, err);
+    }
+  }
 
   app.get("/sitemap.xml", async (req, res) => {
     try {
@@ -5761,13 +5773,7 @@ ${glossaryParagraphs}
       const hashedIp = crypto.createHash("sha256").update(ip + authorId).digest("hex");
       await storage.rateAuthor(authorId, hashedIp, rating);
       const ratingData = await storage.getAuthorAverageRating(authorId);
-      storage.createNotification({
-        userId: authorId,
-        type: "rating",
-        title: "تقييم جديد",
-        message: `حصلت على تقييم جديد (${rating} نجوم)`,
-        link: `/author/${authorId}`,
-      }).catch(() => {});
+      notifyUser(authorId, "rating", "تقييم جديد", `حصلت على تقييم جديد (${rating} نجوم)`, `/author/${authorId}`);
       res.json(ratingData);
     } catch (error) {
       res.status(500).json({ error: "فشل في حفظ التقييم" });
@@ -6402,16 +6408,9 @@ ${glossaryParagraphs}
       await storage.followAuthor(followerId, authorId);
       const count = await storage.getAuthorFollowerCount(authorId);
       res.json({ success: true, followers: count });
-      // Notify the followed author
       const followerUser = await storage.getUser(followerId);
       const followerName = followerUser?.displayName || followerUser?.firstName || "أحد المستخدمين";
-      storage.createNotification({
-        userId: authorId,
-        type: "follow",
-        title: "متابع جديد",
-        message: `${followerName} بدأ بمتابعتك`,
-        link: `/author/${followerId}`,
-      }).catch(() => {});
+      notifyUser(authorId, "follow", "متابع جديد", `${followerName} بدأ بمتابعتك`, `/author/${followerId}`);
     } catch (error) {
       res.status(500).json({ error: "فشل في متابعة الكاتب" });
     }
@@ -8510,13 +8509,7 @@ ${ch.content}
       const comment = await storage.createEssayComment({ essayId, authorName: authorName.trim(), content: content.trim(), ipHash });
       const essay = await storage.getProject(essayId);
       if (essay && essay.userId) {
-        storage.createNotification({
-          userId: essay.userId,
-          type: "comment",
-          title: "تعليق جديد",
-          message: `علّق ${authorName.trim()} على مقالك "${essay.title}"`,
-          link: `/essay/${(essay as any).shareToken || ""}`,
-        }).catch(() => {});
+        notifyUser(essay.userId, "comment", "تعليق جديد", `علّق ${authorName.trim()} على مقالك "${essay.title}"`, `/essay/${(essay as any).shareToken || ""}`);
       }
       res.json({ success: true, comment, message: "تم نشر تعليقك" });
     } catch (error) {
@@ -9017,6 +9010,7 @@ ${ch.content}
       const { winnerId, winnerEntryId } = req.body;
       if (!winnerId || !winnerEntryId) return res.status(400).json({ error: "بيانات ناقصة" });
       await storage.setPromptWinner(promptId, winnerId, Number(winnerEntryId));
+      notifyUser(winnerId, "prompt_winner", "تهانينا! فزت بتحدي الكتابة", "تم اختيارك فائزاً في تحدي الكتابة اليومي. مبارك!", "/daily-prompt");
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "فشل في تحديد الفائز" });
@@ -10460,6 +10454,28 @@ ${platformInstructions}
     } catch (error: any) {
       console.error("Redeem points error:", error);
       res.status(500).json({ error: "فشل في استبدال النقاط" });
+    }
+  });
+
+  app.get("/api/me/digest-preference", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const optOut = await storage.getDigestOptOut(userId);
+      res.json({ digestOptOut: optOut });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التفضيلات" });
+    }
+  });
+
+  app.patch("/api/me/digest-preference", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { digestOptOut } = req.body;
+      if (typeof digestOptOut !== "boolean") return res.status(400).json({ error: "قيمة غير صالحة" });
+      await storage.setDigestOptOut(userId, digestOptOut);
+      res.json({ success: true, digestOptOut });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث التفضيلات" });
     }
   });
 
