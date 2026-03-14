@@ -5446,6 +5446,8 @@ ${glossaryParagraphs}
         mainIdea: details.mainIdea,
         projectType: details.projectType,
         coverImageUrl: details.coverImageUrl,
+        seekingBetaReaders: !!details.seekingBetaReaders,
+        tags: details.tags || [],
         chapters: details.chapters
           .filter((ch: any) => ch.content)
           .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
@@ -9827,7 +9829,7 @@ ${platformInstructions}
       if (!projectId) return res.status(400).json({ error: "معرف مشروع غير صالح" });
       const project = await storage.getProject(projectId);
       if (!project || !project.publishedToGallery) return res.json([]);
-      const related = await storage.getRelatedProjects(projectId, 6);
+      const related = await storage.getRelatedProjects(projectId, 3);
       res.json(related);
     } catch (error: any) {
       console.error("Get related projects error:", error);
@@ -9918,6 +9920,20 @@ ${platformInstructions}
     } catch (error: any) {
       console.error("Set challenge winner error:", error);
       res.status(500).json({ error: "فشل في تحديد الفائز" });
+    }
+  });
+
+  app.put("/api/admin/challenges/:id/close", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const challengeId = parseIntParam(req.params.id);
+      if (!challengeId) return res.status(400).json({ error: "معرف غير صالح" });
+      const challenge = await storage.getWritingChallenge(challengeId);
+      if (!challenge) return res.status(404).json({ error: "التحدي غير موجود" });
+      await db.execute(dsql`UPDATE writing_challenges SET end_date = NOW() WHERE id = ${challengeId}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Close challenge error:", error);
+      res.status(500).json({ error: "فشل في إغلاق التحدي" });
     }
   });
 

@@ -313,7 +313,15 @@ export default function Gallery() {
                     </div>
                   )}
                   {project.seekingBetaReaders && (
-                    <Badge variant="secondary" className="text-[10px] gap-1 w-fit" data-testid={`badge-beta-${project.id}`}>
+                    <Badge variant="secondary" className="text-[10px] gap-1 w-fit" data-testid={`badge-beta-${project.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (project.shareToken) {
+                          window.location.href = `/shared/${project.shareToken}`;
+                        }
+                      }}
+                    >
                       <UserCheck className="w-3 h-3" /> يقبل قراء بيتا
                     </Badge>
                   )}

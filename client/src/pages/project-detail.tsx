@@ -138,6 +138,42 @@ function TagsEditor({ projectId, initialTags }: { projectId: string; initialTags
   );
 }
 
+function BetaReaderRequestsList({ projectId }: { projectId: string }) {
+  const { data: requests, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "beta-readers"],
+    queryFn: () => fetch(`/api/projects/${projectId}/beta-readers`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  if (isLoading) return <Skeleton className="h-16 w-full" />;
+  if (!requests || requests.length === 0) return null;
+
+  return (
+    <Card>
+      <CardContent className="p-4 sm:p-6 space-y-3">
+        <h3 className="font-serif text-lg font-semibold flex items-center gap-2" data-testid="text-beta-requests-title">
+          <UserCheck className="w-5 h-5 text-muted-foreground" />
+          طلبات قراء بيتا (<LtrNum>{requests.length}</LtrNum>)
+        </h3>
+        <div className="space-y-2">
+          {requests.map((r: any) => (
+            <div key={r.id} className="flex items-start justify-between gap-2 p-2 border rounded text-sm" data-testid={`beta-request-${r.id}`}>
+              <div className="space-y-0.5">
+                <Link href={`/author/${r.user_id}`}>
+                  <span className="font-medium hover:underline cursor-pointer">{r.userName || "قارئ"}</span>
+                </Link>
+                {r.message && <p className="text-xs text-muted-foreground">{r.message}</p>}
+              </div>
+              <span className="text-[10px] text-muted-foreground shrink-0">
+                {new Date(r.created_at).toLocaleDateString("ar-SA")}
+              </span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function RelatedWorksSection({ projectId }: { projectId: string }) {
   const { data: related, isLoading } = useQuery<any[]>({
     queryKey: ["/api/projects", projectId, "related"],
@@ -3317,6 +3353,10 @@ export default function ProjectDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {project.seekingBetaReaders && (
+              <BetaReaderRequestsList projectId={projectId!} />
+            )}
 
             {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
             <Card>

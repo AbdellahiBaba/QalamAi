@@ -239,9 +239,30 @@ function AdminChallengesTab() {
                       <p className="font-medium text-sm">{ch.title}</p>
                       <p className="text-xs text-muted-foreground">{ch.entryCount || 0} مشاركة</p>
                     </div>
-                    <Badge variant={isActive ? "default" : "outline"}>
-                      {isActive ? "نشط" : "منتهي"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {isActive && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 gap-1"
+                          onClick={async () => {
+                            try {
+                              await apiRequest("PUT", `/api/admin/challenges/${ch.id}/close`);
+                              toast({ title: "تم إغلاق التحدي" });
+                              queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+                            } catch {
+                              toast({ title: "فشل في إغلاق التحدي", variant: "destructive" });
+                            }
+                          }}
+                          data-testid={`button-close-challenge-${ch.id}`}
+                        >
+                          <X className="w-3 h-3" /> إغلاق
+                        </Button>
+                      )}
+                      <Badge variant={isActive ? "default" : "outline"}>
+                        {isActive ? "نشط" : "منتهي"}
+                      </Badge>
+                    </div>
                   </div>
                 );
               })}

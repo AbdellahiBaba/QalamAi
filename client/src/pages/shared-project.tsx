@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2 } from "lucide-react";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +28,8 @@ interface SharedProject {
   projectType: string;
   coverImageUrl: string | null;
   chapters: SharedChapter[];
+  seekingBetaReaders?: boolean;
+  tags?: string[];
 }
 
 interface RelatedEssay {
@@ -55,6 +58,67 @@ const REACTION_CONFIG = [
   { type: "insightful", icon: Lightbulb, label: "ملهم" },
   { type: "thoughtful", icon: Brain, label: "مثير للتفكير" },
 ] as const;
+
+function BetaReaderOptIn({ projectId }: { projectId: number }) {
+  const { toast } = useToast();
+  const [message, setMessage] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/beta-readers`, { message: message.trim() || undefined });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم تقديم طلبك كقارئ بيتا" });
+      setSubmitted(true);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل في تقديم الطلب", variant: "destructive" });
+    },
+  });
+
+  if (submitted) {
+    return (
+      <Card className="max-w-2xl mx-auto my-6">
+        <CardContent className="p-5 text-center space-y-2">
+          <UserCheck className="w-8 h-8 text-green-500 mx-auto" />
+          <p className="text-sm text-green-600 dark:text-green-400" data-testid="text-beta-submitted">تم تقديم طلبك بنجاح</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="max-w-2xl mx-auto my-6" data-testid="card-beta-optin">
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <UserCheck className="w-5 h-5 text-primary" />
+          <h3 className="font-serif font-semibold" data-testid="text-beta-title">هذا العمل يقبل قراء بيتا</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">أرسل طلبك للمشاركة كقارئ بيتا وتقديم ملاحظاتك للكاتب.</p>
+        <input
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="رسالة اختيارية للكاتب..."
+          dir="rtl"
+          maxLength={500}
+          className="w-full px-3 py-2 text-sm bg-background border rounded-md"
+          data-testid="input-beta-message"
+        />
+        <Button
+          onClick={() => submitMutation.mutate()}
+          disabled={submitMutation.isPending}
+          className="gap-1"
+          data-testid="button-beta-submit"
+        >
+          {submitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+          أريد المشاركة كقارئ بيتا
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SharedProject() {
   const { token } = useParams<{ token: string }>();
@@ -497,6 +561,10 @@ export default function SharedProject() {
           </Button>
         </div>
       </div>
+
+      {project?.seekingBetaReaders && (
+        <BetaReaderOptIn projectId={project.id} />
+      )}
 
       {project && (
         <ReportDialog projectId={project.id} projectTitle={project.title} open={reportOpen} onOpenChange={setReportOpen} />
