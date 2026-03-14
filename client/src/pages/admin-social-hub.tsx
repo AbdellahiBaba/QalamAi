@@ -1789,7 +1789,13 @@ function SettingsTab() {
                   X (Twitter) — OAuth 1.0a
                   {xFullyConfigured && <Badge variant="outline" className="text-[10px] py-0 text-green-600">جاهز للنشر</Badge>}
                 </p>
-                <p className="text-[10px] text-muted-foreground">النشر يتطلب الحقول الأربعة الأولى المطلوبة</p>
+                <p className="text-[10px] text-muted-foreground">
+                  النشر يتطلب الحقول الأربعة الأولى المطلوبة — تجدها في{" "}
+                  <a href="https://developer.x.com/en/portal/dashboard" target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">
+                    لوحة تحكم X Developer
+                  </a>
+                  {" "}ضمن قسم Keys and Tokens
+                </p>
               </div>
             </div>
             {X_FIELDS.map(({ key, label, required }) => (
