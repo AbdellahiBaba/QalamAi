@@ -328,6 +328,38 @@ function isMemoireAcademicHeader(text: string): { type: string; text: string } |
   return null;
 }
 
+async function buildXOAuth1Header(
+  method: string,
+  url: string,
+  apiKey: string,
+  apiSecret: string,
+  accessToken: string,
+  accessTokenSecret: string
+): Promise<string> {
+  const crypto = await import("crypto");
+  const oauthParams: Record<string, string> = {
+    oauth_consumer_key: apiKey,
+    oauth_nonce: crypto.randomBytes(16).toString("hex"),
+    oauth_signature_method: "HMAC-SHA1",
+    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+    oauth_token: accessToken,
+    oauth_version: "1.0",
+  };
+  const sortedKeys = Object.keys(oauthParams).sort();
+  const paramString = sortedKeys
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(oauthParams[k])}`)
+    .join("&");
+  const sigBase = [method.toUpperCase(), encodeURIComponent(url), encodeURIComponent(paramString)].join("&");
+  const signingKey = `${encodeURIComponent(apiSecret)}&${encodeURIComponent(accessTokenSecret)}`;
+  const signature = crypto.createHmac("sha1", signingKey).update(sigBase).digest("base64");
+  oauthParams.oauth_signature = signature;
+  const authHeader = "OAuth " + Object.keys(oauthParams)
+    .sort()
+    .map((k) => `${encodeURIComponent(k)}="${encodeURIComponent(oauthParams[k])}"`)
+    .join(", ");
+  return authHeader;
+}
+
 export async function publishSocialPostToAPIs(
   post: any,
   credentials: Record<string, string>
@@ -336,41 +368,73 @@ export async function publishSocialPostToAPIs(
   let anyPublished = false;
 
   for (const platform of (post.platforms || [])) {
-    const token = credentials[platform];
-    if (!token || token.trim() === "") {
-      publishResults[platform] = { success: false, error: "لا توجد بيانات اعتماد" };
-      continue;
-    }
-
     try {
-      if (platform === "facebook" && token.includes("|")) {
-        const [pageId, pageToken] = token.split("|");
-        const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: post.content, access_token: pageToken }),
-        });
-        if (!fbRes.ok) {
-          const fbErr = await fbRes.json().catch(() => ({}));
-          throw new Error((fbErr as any)?.error?.message || "فشل النشر على فيسبوك");
+      if (platform === "facebook") {
+        const token = credentials["facebook"] || "";
+        if (!token.trim()) {
+          publishResults[platform] = { success: false, error: "لا توجد بيانات اعتماد" };
+          continue;
+        }
+        if (token.includes("|")) {
+          const [pageId, pageToken] = token.split("|");
+          const fbRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: post.content, access_token: pageToken }),
+          });
+          if (!fbRes.ok) {
+            const fbErr = await fbRes.json().catch(() => ({}));
+            throw new Error((fbErr as any)?.error?.message || "فشل النشر على فيسبوك");
+          }
+        } else {
+          throw new Error("صيغة بيانات فيسبوك غير صحيحة — يجب أن تكون pageId|pageToken");
         }
         publishResults[platform] = { success: true };
         anyPublished = true;
       } else if (platform === "x") {
-        const xRes = await fetch("https://api.twitter.com/2/tweets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-          body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
-        });
-        if (!xRes.ok) {
-          const xErr = await xRes.json().catch(() => ({}));
-          throw new Error((xErr as any)?.detail || "فشل النشر على X");
+        const apiKey = credentials["x_api_key"] || "";
+        const apiSecret = credentials["x_api_secret"] || "";
+        const accessToken = credentials["x_access_token"] || "";
+        const accessTokenSecret = credentials["x_access_token_secret"] || "";
+        const bearerToken = credentials["x_bearer_token"] || credentials["x"] || "";
+
+        if (apiKey && apiSecret && accessToken && accessTokenSecret) {
+          const tweetUrl = "https://api.twitter.com/2/tweets";
+          const authHeader = await buildXOAuth1Header("POST", tweetUrl, apiKey, apiSecret, accessToken, accessTokenSecret);
+          const xRes = await fetch(tweetUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
+            body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
+          });
+          if (!xRes.ok) {
+            const xErr = await xRes.json().catch(() => ({}));
+            throw new Error((xErr as any)?.detail || (xErr as any)?.title || "فشل النشر على X");
+          }
+          publishResults[platform] = { success: true };
+          anyPublished = true;
+        } else if (bearerToken) {
+          const xRes = await fetch("https://api.twitter.com/2/tweets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${bearerToken}` },
+            body: JSON.stringify({ text: (post.content || "").substring(0, 280) }),
+          });
+          if (!xRes.ok) {
+            const xErr = await xRes.json().catch(() => ({}));
+            throw new Error((xErr as any)?.detail || (xErr as any)?.title || "فشل النشر على X — Bearer Token لا يدعم النشر، يلزم Access Token");
+          }
+          publishResults[platform] = { success: true };
+          anyPublished = true;
+        } else {
+          publishResults[platform] = { success: false, error: "يلزم توفير API Key + Secret + Access Token + Secret لنشر على X" };
         }
-        publishResults[platform] = { success: true };
-        anyPublished = true;
       } else if (platform === "linkedin") {
         publishResults[platform] = { success: false, error: "النشر المباشر على LinkedIn يتطلب OAuth2 — يرجى النسخ يدوياً" };
       } else {
+        const token = credentials[platform] || "";
+        if (!token.trim()) {
+          publishResults[platform] = { success: false, error: "لا توجد بيانات اعتماد" };
+          continue;
+        }
         publishResults[platform] = { success: false, error: "النشر المباشر غير مدعوم بعد لهذه المنصة — يرجى النسخ يدوياً" };
       }
     } catch (pubErr: any) {
@@ -9535,7 +9599,12 @@ ${platformInstructions}
       const existing = existingRows[0]?.value ? JSON.parse(existingRows[0].value) : {};
 
       const merged: Record<string, string> = { ...existing };
-      for (const key of ["facebook", "instagram", "x", "tiktok", "linkedin"]) {
+      const allowedKeys = [
+        "facebook", "instagram", "x", "tiktok", "linkedin",
+        "x_api_key", "x_api_secret", "x_access_token", "x_access_token_secret",
+        "x_bearer_token", "x_client_id", "x_client_secret",
+      ];
+      for (const key of allowedKeys) {
         if (typeof credentials[key] === "string") {
           merged[key] = credentials[key];
         }

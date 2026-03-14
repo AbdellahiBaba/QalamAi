@@ -1308,16 +1308,21 @@ function CalendarTab() {
   );
 }
 
+const X_FIELDS = [
+  { key: "x_api_key", label: "API Key (Consumer Key)", required: true },
+  { key: "x_api_secret", label: "API Secret (Consumer Secret)", required: true },
+  { key: "x_access_token", label: "Access Token", required: true },
+  { key: "x_access_token_secret", label: "Access Token Secret", required: true },
+  { key: "x_bearer_token", label: "Bearer Token", required: false },
+  { key: "x_client_id", label: "Client ID", required: false },
+  { key: "x_client_secret", label: "Client Secret", required: false },
+];
+
+
 function SettingsTab() {
   const { toast } = useToast();
   const { data: settings } = useQuery<any>({ queryKey: ["/api/admin/social/settings"] });
-  const [credentials, setCredentials] = useState<Record<string, string>>({
-    facebook: "",
-    instagram: "",
-    x: "",
-    tiktok: "",
-    linkedin: "",
-  });
+  const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [hasCredentials, setHasCredentials] = useState<Record<string, boolean>>({});
 
@@ -1349,12 +1354,15 @@ function SettingsTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/social/settings"] });
+      setChangedFields(new Set());
       toast({ title: "تم حفظ الإعدادات" });
     },
-    onError: () => {
-      toast({ title: "فشل في حفظ الإعدادات", variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: err?.message || "فشل في حفظ الإعدادات", variant: "destructive" });
     },
   });
+
+  const xFullyConfigured = ["x_api_key", "x_api_secret", "x_access_token", "x_access_token_secret"].every(k => hasCredentials[k] && !changedFields.has(k));
 
   return (
     <div className="space-y-4">
@@ -1365,36 +1373,74 @@ function SettingsTab() {
             بيانات اعتماد المنصات
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="p-4 space-y-6">
           <p className="text-xs text-muted-foreground">
-            أدخل Access Token أو API Key لكل منصة لتفعيل النشر المباشر. بدون بيانات الاعتماد، يمكنك نسخ المحتوى ونشره يدوياً.
+            أدخل بيانات الاعتماد لكل منصة لتفعيل النشر المباشر. بدونها يمكنك نسخ المحتوى ونشره يدوياً.
           </p>
-          {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
-            const Icon = cfg.icon;
-            return (
-              <div key={key} className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-md bg-muted flex items-center justify-center ${cfg.color}`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs font-medium flex items-center gap-2">
-                    {cfg.label}
-                    {hasCredentials[key] && !changedFields.has(key) && (
-                      <Badge variant="outline" className="text-[10px] py-0 text-green-600">مُعدّ</Badge>
-                    )}
-                  </label>
-                  <Input
-                    type="password"
-                    placeholder={hasCredentials[key] ? "اترك فارغاً للإبقاء على القيمة الحالية" : "Access Token / API Key"}
-                    value={credentials[key] || ""}
-                    onChange={(e) => updateCredential(key, e.target.value)}
-                    className="text-sm mt-1"
-                    data-testid={`input-credential-${key}`}
-                  />
-                </div>
+
+          {[
+            { key: "facebook", label: "Facebook", icon: Facebook, color: "text-blue-600", placeholder: "pageId|pageToken" },
+            { key: "instagram", label: "Instagram", icon: Instagram, color: "text-pink-500", placeholder: "Access Token" },
+            { key: "tiktok", label: "TikTok", icon: SiTiktok, color: "text-red-500", placeholder: "Access Token" },
+            { key: "linkedin", label: "LinkedIn", icon: Linkedin, color: "text-blue-500", placeholder: "Access Token" },
+          ].map(({ key, label, icon: Icon, color, placeholder }) => (
+            <div key={key} className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-md bg-muted flex items-center justify-center ${color} shrink-0`}>
+                <Icon className="w-4 h-4" />
               </div>
-            );
-          })}
+              <div className="flex-1">
+                <label className="text-xs font-medium flex items-center gap-2">
+                  {label}
+                  {hasCredentials[key] && !changedFields.has(key) && (
+                    <Badge variant="outline" className="text-[10px] py-0 text-green-600">مُعدّ</Badge>
+                  )}
+                </label>
+                <Input
+                  type="password"
+                  placeholder={hasCredentials[key] ? "اترك فارغاً للإبقاء على القيمة الحالية" : placeholder}
+                  value={credentials[key] || ""}
+                  onChange={(e) => updateCredential(key, e.target.value)}
+                  className="text-sm mt-1"
+                  data-testid={`input-credential-${key}`}
+                />
+              </div>
+            </div>
+          ))}
+
+          <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-foreground shrink-0">
+                <SiX className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold flex items-center gap-2">
+                  X (Twitter) — OAuth 1.0a
+                  {xFullyConfigured && <Badge variant="outline" className="text-[10px] py-0 text-green-600">جاهز للنشر</Badge>}
+                </p>
+                <p className="text-[10px] text-muted-foreground">النشر يتطلب الحقول الأربعة الأولى المطلوبة</p>
+              </div>
+            </div>
+            {X_FIELDS.map(({ key, label, required }) => (
+              <div key={key}>
+                <label className="text-[11px] font-medium flex items-center gap-1.5">
+                  {label}
+                  {required && <span className="text-destructive">*</span>}
+                  {hasCredentials[key] && !changedFields.has(key) && (
+                    <Badge variant="outline" className="text-[10px] py-0 text-green-600">مُعدّ</Badge>
+                  )}
+                </label>
+                <Input
+                  type="password"
+                  placeholder={hasCredentials[key] ? "اترك فارغاً للإبقاء على القيمة الحالية" : label}
+                  value={credentials[key] || ""}
+                  onChange={(e) => updateCredential(key, e.target.value)}
+                  className="text-sm mt-0.5"
+                  data-testid={`input-credential-${key}`}
+                />
+              </div>
+            ))}
+          </div>
+
           <Button
             className="w-full gap-2"
             onClick={() => saveMutation.mutate()}
