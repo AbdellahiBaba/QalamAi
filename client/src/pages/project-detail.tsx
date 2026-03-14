@@ -479,7 +479,39 @@ export default function ProjectDetail() {
     }
   };
 
-  const handlePdfCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressCoverImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        const maxDim = 1200;
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas not supported")); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        let quality = 0.8;
+        let dataUrl = canvas.toDataURL("image/jpeg", quality);
+        while (dataUrl.length > 800 * 1024 * 1.37 && quality > 0.3) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+        }
+        resolve(dataUrl);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
+      img.src = url;
+    });
+  };
+
+  const handlePdfCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -490,13 +522,23 @@ export default function ProjectDetail() {
       toast({ title: "حجم الصورة يجب أن لا يتجاوز 5 ميغابايت", variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setPdfCoverUrl(reader.result);
+    try {
+      let dataUrl: string;
+      if (file.size > 1 * 1024 * 1024) {
+        toast({ title: "جارٍ ضغط الصورة تلقائياً لتحسين الأداء..." });
+        dataUrl = await compressCoverImage(file);
+      } else {
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
       }
-    };
-    reader.readAsDataURL(file);
+      setPdfCoverUrl(dataUrl);
+    } catch {
+      toast({ title: "فشل في معالجة الصورة", variant: "destructive" });
+    }
   };
 
   const handlePdfWithCoverDownload = async () => {
