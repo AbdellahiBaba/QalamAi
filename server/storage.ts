@@ -239,6 +239,8 @@ export interface IStorage {
   createNewsletterSend(data: { authorId: string; subject: string; body: string; recipientCount: number }): Promise<NewsletterSend>;
   getNewsletterSendsByAuthor(authorId: string, limit?: number): Promise<NewsletterSend[]>;
   getRecentPublicationsByFollowedAuthors(userId: string, daysBack?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>>;
+  checkAndIncrementAiUsage(userId: string): Promise<{ allowed: boolean; remaining: number; resetTime: string }>;
+  getAiUsageStatus(userId: string): Promise<{ used: number; limit: number; remaining: number; resetTime: string }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2741,25 +2743,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async checkAndIncrementAiUsage(userId: string): Promise<{ allowed: boolean; remaining: number; resetTime: string }> {
-    const user = await this.getUser(userId);
-    if (!user) return { allowed: false, remaining: 0, resetTime: "" };
-    const today = new Date().toISOString().split("T")[0];
     const MAX_DAILY = 20;
-    let currentUses = user.dailyAiUses || 0;
-    if (user.lastAiUseDate !== today) {
-      currentUses = 0;
+    const today = new Date().toISOString().split("T")[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const resetTime = tomorrow.toISOString();
+
+    const { pool } = await import("./db");
+
+    const result = await pool.query(
+      `UPDATE users
+       SET daily_ai_uses = CASE
+         WHEN last_ai_use_date = $2 THEN daily_ai_uses + 1
+         ELSE 1
+       END,
+       last_ai_use_date = $2
+       WHERE id = $1
+         AND (
+           last_ai_use_date != $2
+           OR COALESCE(daily_ai_uses, 0) < $3
+         )
+       RETURNING daily_ai_uses`,
+      [userId, today, MAX_DAILY]
+    );
+
+    if (result.rowCount === 0) {
+      return { allowed: false, remaining: 0, resetTime };
     }
-    if (currentUses >= MAX_DAILY) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      return { allowed: false, remaining: 0, resetTime: tomorrow.toISOString() };
-    }
-    await db.update(users).set({
-      dailyAiUses: currentUses + 1,
-      lastAiUseDate: today,
-    }).where(eq(users.id, userId));
-    return { allowed: true, remaining: MAX_DAILY - currentUses - 1, resetTime: "" };
+
+    const newCount = result.rows[0].daily_ai_uses;
+    return { allowed: true, remaining: MAX_DAILY - newCount, resetTime: "" };
   }
 
   async getAiUsageStatus(userId: string): Promise<{ used: number; limit: number; remaining: number; resetTime: string }> {
