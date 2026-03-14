@@ -462,6 +462,8 @@ function DashboardTab() {
 
 function PostQueueTab() {
   const { data: posts = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/social/posts"] });
+  const { data: activePlatformsData } = useQuery<any>({ queryKey: ["/api/admin/social/active-platforms"] });
+  const activePlatformKeys: string[] = activePlatformsData?.activePlatforms || ["facebook", "instagram", "x", "tiktok", "linkedin"];
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
   const [duplicatedPostId, setDuplicatedPostId] = useState<number | null>(null);
@@ -474,6 +476,15 @@ function PostQueueTab() {
     postType: "marketing",
     status: "scheduled",
   });
+
+  useEffect(() => {
+    if (activePlatformsData?.activePlatforms) {
+      setNewPost((prev) => ({
+        ...prev,
+        platforms: activePlatformsData.activePlatforms.slice(0, 3),
+      }));
+    }
+  }, [activePlatformsData]);
 
   const createPostMutation = useMutation({
     mutationFn: async () => {
@@ -500,6 +511,7 @@ function PostQueueTab() {
   });
 
   const toggleNewPostPlatform = (p: string) => {
+    if (!activePlatformKeys.includes(p)) return;
     setNewPost((prev) => ({
       ...prev,
       platforms: prev.platforms.includes(p) ? prev.platforms.filter((x) => x !== p) : [...prev.platforms, p],
@@ -672,21 +684,27 @@ function PostQueueTab() {
               <p className="text-[10px] text-muted-foreground mt-1">{newPost.content.length} حرف</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">المنصات</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">المنصات (المفعّلة فقط)</label>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
                   const Icon = cfg.icon;
-                  const selected = newPost.platforms.includes(key);
+                  const isActive = activePlatformKeys.includes(key);
+                  const selected = newPost.platforms.includes(key) && isActive;
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => toggleNewPostPlatform(key)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${selected ? "border-primary bg-primary/10" : "border-border"}`}
+                      disabled={!isActive}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${
+                        !isActive ? "border-border opacity-40 cursor-not-allowed" :
+                        selected ? "border-primary bg-primary/10" : "border-border"
+                      }`}
                       data-testid={`new-post-platform-${key}`}
                     >
                       <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
                       {cfg.label}
+                      {!isActive && <span className="text-[10px] opacity-70 ml-1">معطّل</span>}
                     </button>
                   );
                 })}
@@ -767,8 +785,17 @@ function GeneratorTab() {
   const [generatedPosts, setGeneratedPosts] = useState<any[]>([]);
   const [confirmed, setConfirmed] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["facebook", "instagram", "x", "tiktok", "linkedin"]);
+  const { data: activePlatformsData } = useQuery<any>({ queryKey: ["/api/admin/social/active-platforms"] });
+  const activePlatformKeys: string[] = activePlatformsData?.activePlatforms || ["facebook", "instagram", "x", "tiktok", "linkedin"];
+
+  useEffect(() => {
+    if (activePlatformsData?.activePlatforms) {
+      setSelectedPlatforms(activePlatformsData.activePlatforms);
+    }
+  }, [activePlatformsData]);
 
   const togglePlatform = (p: string) => {
+    if (!activePlatformKeys.includes(p)) return;
     setSelectedPlatforms((prev) =>
       prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
     );
@@ -860,29 +887,36 @@ function GeneratorTab() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">المنصات المستهدفة:</p>
+            <p className="text-xs font-medium text-muted-foreground">المنصات المستهدفة (المفعّلة فقط):</p>
             <div className="flex items-center gap-3 flex-wrap">
               {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
                 const Icon = cfg.icon;
-                const selected = selectedPlatforms.includes(key);
+                const isActive = activePlatformKeys.includes(key);
+                const selected = selectedPlatforms.includes(key) && isActive;
                 return (
                   <label
                     key={key}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
-                      selected ? "border-primary bg-primary/5" : "border-border"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                      !isActive ? "border-border opacity-40 cursor-not-allowed" :
+                      selected ? "border-primary bg-primary/5 cursor-pointer" : "border-border cursor-pointer"
                     }`}
                     data-testid={`platform-toggle-${key}`}
                   >
                     <Checkbox
                       checked={selected}
                       onCheckedChange={() => togglePlatform(key)}
+                      disabled={!isActive}
                     />
                     <Icon className={`w-4 h-4 ${cfg.color}`} />
                     <span className="text-sm">{cfg.label}</span>
+                    {!isActive && <span className="text-[10px] text-muted-foreground border rounded px-1">معطّل</span>}
                   </label>
                 );
               })}
             </div>
+            {activePlatformKeys.length === 0 && (
+              <p className="text-xs text-destructive">لا توجد منصات مفعّلة — اذهب إلى الإعدادات لتفعيل منصة</p>
+            )}
           </div>
 
           <Button
@@ -1453,10 +1487,12 @@ function SettingsTab() {
   const { toast } = useToast();
   const { data: settings } = useQuery<any>({ queryKey: ["/api/admin/social/settings"] });
   const { data: autoGenSettings } = useQuery<any>({ queryKey: ["/api/admin/social/auto-generate-settings"] });
+  const { data: activePlatformsData } = useQuery<any>({ queryKey: ["/api/admin/social/active-platforms"] });
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [hasCredentials, setHasCredentials] = useState<Record<string, boolean>>({});
   const [autoGen, setAutoGen] = useState({ enabled: false, platforms: ["facebook", "instagram", "x", "tiktok", "linkedin"], postsPerDay: 5 });
+  const [activePlatforms, setActivePlatforms] = useState<string[]>(["facebook", "instagram", "x", "tiktok", "linkedin"]);
 
   useEffect(() => {
     if (settings?.hasCredentials) {
@@ -1473,6 +1509,32 @@ function SettingsTab() {
       });
     }
   }, [autoGenSettings]);
+
+  useEffect(() => {
+    if (activePlatformsData?.activePlatforms) {
+      setActivePlatforms(activePlatformsData.activePlatforms);
+    }
+  }, [activePlatformsData]);
+
+  const saveActivePlatformsMutation = useMutation({
+    mutationFn: async (platforms: string[]) => {
+      const res = await apiRequest("PUT", "/api/admin/social/active-platforms", { activePlatforms: platforms });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/social/active-platforms"] });
+      toast({ title: `تم حفظ المنصات المفعّلة: ${data.activePlatforms?.join("، ") || ""}` });
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || "فشل في حفظ المنصات", variant: "destructive" });
+    },
+  });
+
+  const toggleActivePlatform = (key: string) => {
+    setActivePlatforms((prev) =>
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
+    );
+  };
 
   const saveAutoGenMutation = useMutation({
     mutationFn: async (cfg: typeof autoGen) => {
@@ -1543,6 +1605,63 @@ function SettingsTab() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Megaphone className="w-4 h-4" />
+            المنصات المفعّلة
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            حدّد المنصات التي تريد النشر عليها. أبو هاشم لن يولّد محتوى للمنصات غير المفعّلة، والنشر التلقائي يستهدف المفعّلة فقط.
+          </p>
+          <div className="grid grid-cols-1 gap-2">
+            {Object.entries(PLATFORM_CONFIG).map(([key, cfg]) => {
+              const Icon = cfg.icon;
+              const isActive = activePlatforms.includes(key);
+              return (
+                <div
+                  key={key}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isActive ? "border-primary/40 bg-primary/5" : "border-border opacity-60"}`}
+                  data-testid={`platform-row-${key}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-md bg-muted flex items-center justify-center ${cfg.color}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{cfg.label}</p>
+                      <p className="text-[11px] text-muted-foreground">{isActive ? "مفعّل — سيُستخدم في التوليد والنشر" : "معطّل — لن يُولّد محتوى لهذه المنصة"}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleActivePlatform(key)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isActive ? "bg-primary" : "bg-muted-foreground/30"}`}
+                    data-testid={`toggle-platform-${key}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? "translate-x-6" : "translate-x-1"}`} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <Button
+            className="w-full gap-2"
+            onClick={() => saveActivePlatformsMutation.mutate(activePlatforms)}
+            disabled={saveActivePlatformsMutation.isPending || activePlatforms.length === 0}
+            data-testid="button-save-active-platforms"
+          >
+            {saveActivePlatformsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            حفظ المنصات المفعّلة
+          </Button>
+          {activePlatforms.length === 0 && (
+            <p className="text-xs text-destructive text-center">يجب تفعيل منصة واحدة على الأقل</p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">

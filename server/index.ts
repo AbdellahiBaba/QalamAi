@@ -654,7 +654,17 @@ app.use((req, res, next) => {
           }
 
           log("[AutoGenerate] Starting daily content generation...");
-          const platforms: string[] = cfg.platforms || ["facebook", "instagram", "x", "tiktok", "linkedin"];
+          const activeRows = await pool.query(`SELECT value FROM social_hub_settings WHERE key = 'active_platforms'`);
+          const rawActive = activeRows.rows[0]?.value;
+          const activePlatforms: string[] = rawActive
+            ? (typeof rawActive === "string" ? JSON.parse(rawActive) : rawActive)
+            : ["facebook", "instagram", "x", "tiktok", "linkedin"];
+          const cfgPlatforms: string[] = cfg.platforms || ["facebook", "instagram", "x", "tiktok", "linkedin"];
+          const platforms: string[] = cfgPlatforms.filter((p: string) => activePlatforms.includes(p));
+          if (platforms.length === 0) {
+            log("[AutoGenerate] No active platforms — skipping generation");
+            return;
+          }
           const bestTimes = await storage.getBestPostingTimes();
           const scheduleHours = bestTimes.length >= 2
             ? [bestTimes[0].hour, bestTimes[0].hour + 1, bestTimes[1].hour, bestTimes[1].hour + 1, Math.min(bestTimes[0].hour, bestTimes[1].hour) + 2]

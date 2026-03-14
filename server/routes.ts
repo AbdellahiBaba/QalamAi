@@ -9305,11 +9305,17 @@ ${platformInstructions}
       const postType = isLiterary ? "literary" : "marketing";
 
       const validPlatformKeys = ["facebook", "instagram", "x", "tiktok", "linkedin"];
-      const platforms = Array.isArray(requestedPlatforms)
+      const activePlatforms = await getActivePlatforms();
+      const platforms = (Array.isArray(requestedPlatforms)
         ? requestedPlatforms.filter((p: string) => validPlatformKeys.includes(p))
         : isLiterary
           ? ["facebook", "instagram", "x"]
-          : validPlatformKeys;
+          : validPlatformKeys
+      ).filter((p: string) => activePlatforms.includes(p));
+
+      if (platforms.length === 0) {
+        return res.status(400).json({ error: "لا توجد منصات مفعّلة — فعّل منصة واحدة على الأقل من الإعدادات" });
+      }
 
       const platformFormatGuide: Record<string, string> = {
         facebook: "فيسبوك: منشور طويل نسبياً (3-5 فقرات)، مع CTA واضح ورابط مباشر.",
@@ -9624,6 +9630,47 @@ ${platformInstructions}
     }
   });
 
+  async function getActivePlatforms(): Promise<string[]> {
+    try {
+      const rows: any[] = (await db.execute(dsql`
+        SELECT value FROM social_hub_settings WHERE key = 'active_platforms'
+      `)).rows;
+      if (!rows[0]?.value) return ["facebook", "instagram", "x", "tiktok", "linkedin"];
+      const val = typeof rows[0].value === "string" ? JSON.parse(rows[0].value) : rows[0].value;
+      return Array.isArray(val) ? val : ["facebook", "instagram", "x", "tiktok", "linkedin"];
+    } catch {
+      return ["facebook", "instagram", "x", "tiktok", "linkedin"];
+    }
+  }
+
+  app.get("/api/admin/social/active-platforms", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
+    try {
+      const active = await getActivePlatforms();
+      res.json({ activePlatforms: active });
+    } catch {
+      res.json({ activePlatforms: ["facebook", "instagram", "x", "tiktok", "linkedin"] });
+    }
+  });
+
+  app.put("/api/admin/social/active-platforms", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const { activePlatforms } = req.body;
+      const valid = ["facebook", "instagram", "x", "tiktok", "linkedin"];
+      const filtered = Array.isArray(activePlatforms) ? activePlatforms.filter((p: string) => valid.includes(p)) : valid;
+      if (filtered.length === 0) return res.status(400).json({ error: "يجب تفعيل منصة واحدة على الأقل" });
+      const val = JSON.stringify(filtered);
+      await db.execute(dsql`
+        INSERT INTO social_hub_settings (key, value)
+        VALUES ('active_platforms', ${val})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+      `);
+      res.json({ success: true, activePlatforms: filtered });
+    } catch (error) {
+      console.error("Save active platforms error:", error);
+      res.status(500).json({ error: "فشل في حفظ إعدادات المنصات" });
+    }
+  });
+
   app.get("/api/admin/social/auto-generate-settings", isAuthenticated, isSuperAdmin, async (_req: any, res) => {
     try {
       const rows: any[] = (await db.execute(dsql`
@@ -9664,7 +9711,12 @@ ${platformInstructions}
     try {
       const { platforms: reqPlatforms } = req.body;
       const validPlatformKeys = ["facebook", "instagram", "x", "tiktok", "linkedin"];
-      const platforms = Array.isArray(reqPlatforms) ? reqPlatforms.filter((p: string) => validPlatformKeys.includes(p)) : validPlatformKeys;
+      const activePlatforms = await getActivePlatforms();
+      const requested = Array.isArray(reqPlatforms) ? reqPlatforms.filter((p: string) => validPlatformKeys.includes(p)) : activePlatforms;
+      const platforms = requested.filter((p: string) => activePlatforms.includes(p));
+      if (platforms.length === 0) {
+        return res.status(400).json({ error: "لا توجد منصات مفعّلة — فعّل منصة واحدة على الأقل من الإعدادات" });
+      }
 
       const bestTimes = await storage.getBestPostingTimes();
       const scheduleHours = bestTimes.length >= 2
