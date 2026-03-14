@@ -157,6 +157,8 @@ export interface IStorage {
   getUsersWithEmailsForDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
   setDigestOptOut(userId: string, optOut: boolean): Promise<void>;
   getDigestOptOut(userId: string): Promise<boolean>;
+  getEmailNotificationsEnabled(userId: string): Promise<boolean>;
+  setEmailNotificationsEnabled(userId: string, enabled: boolean): Promise<void>;
   getTopEssaysForWeek(limit?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>>;
   getLeaderboard(limit?: number): Promise<Array<{ userId: string; displayName: string; profileImageUrl: string | null; verified: boolean; totalViews: number; followerCount: number; projectCount: number; averageRating: number }>>;
   createEssayComment(data: { essayId: number; authorName: string; content: string; ipHash?: string }): Promise<import("@shared/schema").EssayComment>;
@@ -1684,6 +1686,15 @@ export class DatabaseStorage implements IStorage {
   async getDigestOptOut(userId: string): Promise<boolean> {
     const result = await pool.query(`SELECT digest_opt_out FROM users WHERE id = $1`, [userId]);
     return result.rows[0]?.digest_opt_out === true;
+  }
+
+  async getEmailNotificationsEnabled(userId: string): Promise<boolean> {
+    const result = await pool.query(`SELECT email_notifications FROM users WHERE id = $1`, [userId]);
+    return result.rows[0]?.email_notifications !== false;
+  }
+
+  async setEmailNotificationsEnabled(userId: string, enabled: boolean): Promise<void> {
+    await pool.query(`UPDATE users SET email_notifications = $1 WHERE id = $2`, [enabled, userId]);
   }
 
   async getTopEssaysForWeek(limit: number = 5): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>> {

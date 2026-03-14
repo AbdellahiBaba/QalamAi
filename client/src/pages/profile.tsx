@@ -51,6 +51,11 @@ import {
   Star,
   Send,
   Newspaper,
+  Bold,
+  Italic,
+  Heading2,
+  Link2,
+  List,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
@@ -231,6 +236,20 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/me/digest-preference"] });
+    },
+  });
+
+  const { data: emailNotifPref } = useQuery<{ emailNotifications: boolean }>({
+    queryKey: ["/api/me/email-notifications"],
+  });
+
+  const toggleEmailNotifMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("PATCH", "/api/me/email-notifications", { emailNotifications: enabled });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me/email-notifications"] });
     },
   });
 
@@ -704,16 +723,24 @@ export default function Profile() {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium">محتوى الرسالة</label>
-                          <Textarea
-                            value={newsletterBody}
-                            onChange={(e) => setNewsletterBody(e.target.value)}
-                            placeholder="اكتب رسالتك لمشتركيك..."
-                            rows={8}
-                            maxLength={5000}
-                            className="min-h-[160px]"
-                            data-testid="input-newsletter-body"
-                          />
-                          <p className="text-[10px] text-muted-foreground text-left" dir="ltr">{newsletterBody.length}/5000</p>
+                          <div className="border rounded-md overflow-hidden">
+                            <div className="flex items-center gap-0.5 p-1.5 border-b bg-muted/30">
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => document.execCommand("bold")} data-testid="button-editor-bold"><Bold className="w-3.5 h-3.5" /></Button>
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => document.execCommand("italic")} data-testid="button-editor-italic"><Italic className="w-3.5 h-3.5" /></Button>
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => document.execCommand("formatBlock", false, "h2")} data-testid="button-editor-heading"><Heading2 className="w-3.5 h-3.5" /></Button>
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => document.execCommand("insertUnorderedList")} data-testid="button-editor-list"><List className="w-3.5 h-3.5" /></Button>
+                              <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { const url = prompt("رابط URL:"); if (url) document.execCommand("createLink", false, url); }} data-testid="button-editor-link"><Link2 className="w-3.5 h-3.5" /></Button>
+                            </div>
+                            <div
+                              contentEditable
+                              dir="rtl"
+                              className="min-h-[160px] p-3 text-sm focus:outline-none prose prose-sm max-w-none"
+                              onInput={(e) => setNewsletterBody((e.target as HTMLDivElement).innerHTML)}
+                              data-testid="input-newsletter-body"
+                              style={{ direction: "rtl" }}
+                              data-placeholder="اكتب رسالتك لمشتركيك..."
+                            />
+                          </div>
                         </div>
                         <Button
                           className="w-full gap-1.5"
@@ -734,6 +761,19 @@ export default function Profile() {
                 <p className="text-[11px] text-muted-foreground">أرسل رسالة إلى مشتركي نشرتك البريدية (مرة كل ٢٤ ساعة)</p>
 
                 <div className="flex items-center justify-between border-t pt-3">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-medium">إشعارات البريد الإلكتروني</span>
+                    <p className="text-[10px] text-muted-foreground">استلام إشعارات عبر البريد (تعليقات، متابعات، تقييمات)</p>
+                  </div>
+                  <Switch
+                    checked={emailNotifPref?.emailNotifications !== false}
+                    onCheckedChange={(checked) => toggleEmailNotifMutation.mutate(checked)}
+                    disabled={toggleEmailNotifMutation.isPending}
+                    data-testid="switch-email-notifications"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <span className="text-xs font-medium">النشرة الأسبوعية</span>
                     <p className="text-[10px] text-muted-foreground">استلام ملخص أسبوعي لأبرز المقالات</p>

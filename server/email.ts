@@ -889,7 +889,7 @@ export async function sendAuthorNewsletter(
   const authorUrl = `${baseUrl}/author/${authorId}`;
 
   const body = `
-<p style="color:#333;line-height:1.8;font-size:15px;">${bodyText.replace(/\n/g, "<br>")}</p>
+<div style="color:#333;line-height:1.8;font-size:15px;">${bodyText}</div>
 <div style="margin:24px 0;padding:16px;background:#f9f7f3;border-radius:8px;border-right:3px solid ${BRAND_GOLD};">
   <p style="margin:0;color:#555;font-size:13px;">هذه الرسالة من الكاتب <strong style="color:${BRAND_BLUE};">${authorName}</strong> على منصّة QalamAI</p>
 </div>

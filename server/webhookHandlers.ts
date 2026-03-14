@@ -176,9 +176,12 @@ export class WebhookHandlers {
         link: "/profile",
       });
 
-      const author = await storage.getUser(toAuthorId);
-      if (author?.email) {
-        sendNotificationEmail(author.email, tipTitle, tipMessage, "/profile").catch(() => {});
+      const emailEnabled = await storage.getEmailNotificationsEnabled(toAuthorId);
+      if (emailEnabled) {
+        const author = await storage.getUser(toAuthorId);
+        if (author?.email) {
+          sendNotificationEmail(author.email, tipTitle, tipMessage, "/profile").catch(() => {});
+        }
       }
 
       console.log(`[Webhook] Tip completed: $${tipAmount} to author ${toAuthorId}`);

@@ -18,7 +18,7 @@ import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import { apiCache } from "./cache";
 import { runLearningSession } from "./learning-engine";
 import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
-import { sanitizeText } from "./sanitize";
+import { sanitizeText, sanitizeRichText } from "./sanitize";
 import { generateReelVideo, isVideoGenerating, clearVideoLock } from "./video-generator";
 import archiver from "archiver";
 import { createCanvas, loadImage, registerFont } from "canvas";
@@ -458,9 +458,12 @@ export async function registerRoutes(
   async function notifyUser(userId: string, type: string, title: string, message: string, link?: string) {
     try {
       await storage.createNotification({ userId, type, title, message, link });
-      const user = await storage.getUser(userId);
-      if (user?.email) {
-        sendNotificationEmail(user.email, title, message, link).catch(() => {});
+      const emailEnabled = await storage.getEmailNotificationsEnabled(userId);
+      if (emailEnabled) {
+        const user = await storage.getUser(userId);
+        if (user?.email) {
+          sendNotificationEmail(user.email, title, message, link).catch(() => {});
+        }
       }
     } catch (err) {
       console.error(`[Notify] Failed to notify user ${userId}:`, err);
@@ -10457,6 +10460,28 @@ ${platformInstructions}
     }
   });
 
+  app.get("/api/me/email-notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const enabled = await storage.getEmailNotificationsEnabled(userId);
+      res.json({ emailNotifications: enabled });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التفضيلات" });
+    }
+  });
+
+  app.patch("/api/me/email-notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { emailNotifications } = req.body;
+      if (typeof emailNotifications !== "boolean") return res.status(400).json({ error: "قيمة غير صالحة" });
+      await storage.setEmailNotificationsEnabled(userId, emailNotifications);
+      res.json({ success: true, emailNotifications });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث التفضيلات" });
+    }
+  });
+
   app.get("/api/me/digest-preference", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -10485,7 +10510,10 @@ ${platformInstructions}
       const { subject, body } = req.body;
       if (!subject?.trim() || !body?.trim()) return res.status(400).json({ error: "العنوان والمحتوى مطلوبان" });
       if (subject.length > 200) return res.status(400).json({ error: "العنوان طويل جداً" });
-      if (body.length > 5000) return res.status(400).json({ error: "المحتوى طويل جداً" });
+      if (body.length > 10000) return res.status(400).json({ error: "المحتوى طويل جداً" });
+
+      const sanitizedBody = sanitizeRichText(body);
+      if (!sanitizedBody.trim()) return res.status(400).json({ error: "المحتوى فارغ بعد التنقيح" });
 
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ error: "المستخدم غير موجود" });
@@ -10501,8 +10529,8 @@ ${platformInstructions}
         if (hoursSince < 24) return res.status(429).json({ error: "يمكنك إرسال نشرة واحدة كل 24 ساعة" });
       }
 
-      const sent = await sendAuthorNewsletter(subscribers, authorName, userId, subject.trim(), body.trim());
-      await storage.createNewsletterSend({ authorId: userId, subject: subject.trim(), body: body.trim(), recipientCount: sent });
+      const sent = await sendAuthorNewsletter(subscribers, authorName, userId, subject.trim(), sanitizedBody);
+      await storage.createNewsletterSend({ authorId: userId, subject: subject.trim(), body: sanitizedBody, recipientCount: sent });
       res.json({ success: true, sentCount: sent, message: `تم إرسال النشرة إلى ${sent} مشترك` });
     } catch (error) {
       console.error("Newsletter send error:", error);

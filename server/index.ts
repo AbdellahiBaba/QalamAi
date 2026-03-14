@@ -538,6 +538,7 @@ app.use((req, res, next) => {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_projects_search_tsv ON novel_projects USING gin (search_tsv)`);
 
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS digest_opt_out BOOLEAN DEFAULT false`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN DEFAULT true`);
 
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS search_tsv tsvector GENERATED ALWAYS AS (
       to_tsvector('simple', COALESCE(display_name, ''))
