@@ -471,6 +471,35 @@ export async function registerRoutes(
     }
   }
 
+  async function checkAiRateLimit(req: any, res: any): Promise<boolean> {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return false;
+    if (FREE_ACCESS_USER_IDS.includes(userId)) return true;
+    const result = await storage.checkAndIncrementAiUsage(userId);
+    if (!result.allowed) {
+      res.status(429).json({
+        error: "لقد استنفدت حصتك اليومية من التوليد بالذكاء الاصطناعي (20 طلب/يوم). يرجى المحاولة غداً.",
+        resetTime: result.resetTime,
+        remaining: 0,
+      });
+      return false;
+    }
+    return true;
+  }
+
+  app.get("/api/ai-usage-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (FREE_ACCESS_USER_IDS.includes(userId)) {
+        return res.json({ used: 0, limit: 999, remaining: 999, resetTime: "", exempt: true });
+      }
+      const status = await storage.getAiUsageStatus(userId);
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
   app.get("/sitemap.xml", async (req, res) => {
     try {
       const cacheKey = "sitemap";
@@ -1712,6 +1741,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/outline", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProject(id);
@@ -2123,6 +2153,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:projectId/chapters/:chapterId/generate", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const projectId = parseIntParam(req.params.projectId);
       const chapterId = parseIntParam(req.params.chapterId);
       if (projectId === null || chapterId === null) return res.status(400).json({ error: "معرّف غير صالح" });
@@ -2515,6 +2546,7 @@ ${allPages.map(p => `  <url>
   app.post("/api/projects/:id/chat", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProjectWithDetails(id);

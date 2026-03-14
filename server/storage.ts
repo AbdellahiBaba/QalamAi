@@ -2739,6 +2739,39 @@ export class DatabaseStorage implements IStorage {
     `, [userId, cutoff])).rows;
     return rows;
   }
+
+  async checkAndIncrementAiUsage(userId: string): Promise<{ allowed: boolean; remaining: number; resetTime: string }> {
+    const user = await this.getUser(userId);
+    if (!user) return { allowed: false, remaining: 0, resetTime: "" };
+    const today = new Date().toISOString().split("T")[0];
+    const MAX_DAILY = 20;
+    let currentUses = user.dailyAiUses || 0;
+    if (user.lastAiUseDate !== today) {
+      currentUses = 0;
+    }
+    if (currentUses >= MAX_DAILY) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      return { allowed: false, remaining: 0, resetTime: tomorrow.toISOString() };
+    }
+    await db.update(users).set({
+      dailyAiUses: currentUses + 1,
+      lastAiUseDate: today,
+    }).where(eq(users.id, userId));
+    return { allowed: true, remaining: MAX_DAILY - currentUses - 1, resetTime: "" };
+  }
+
+  async getAiUsageStatus(userId: string): Promise<{ used: number; limit: number; remaining: number; resetTime: string }> {
+    const user = await this.getUser(userId);
+    if (!user) return { used: 0, limit: 20, remaining: 20, resetTime: "" };
+    const today = new Date().toISOString().split("T")[0];
+    const used = (user.lastAiUseDate === today) ? (user.dailyAiUses || 0) : 0;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    return { used, limit: 20, remaining: 20 - used, resetTime: tomorrow.toISOString() };
+  }
 }
 
 export const storage = new DatabaseStorage();

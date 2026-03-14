@@ -57,6 +57,8 @@ export const users = pgTable("users", {
   bonusGenerations: integer("bonus_generations").default(0),
   socialProfiles: text("social_profiles"),
   country: varchar("country", { length: 2 }),
+  dailyAiUses: integer("daily_ai_uses").default(0),
+  lastAiUseDate: varchar("last_ai_use_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [

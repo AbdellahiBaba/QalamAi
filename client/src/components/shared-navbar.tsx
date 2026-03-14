@@ -166,7 +166,7 @@ function NavbarSearch() {
                     data-testid={`search-result-project-${p.id}`}
                   >
                     {p.cover_image_url ? (
-                      <img src={p.cover_image_url} className="w-8 h-10 object-cover rounded flex-shrink-0" alt="" />
+                      <img src={p.cover_image_url} className="w-8 h-10 object-cover rounded flex-shrink-0" alt="" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-8 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
                         <BookOpen className="w-3 h-3 text-muted-foreground" />

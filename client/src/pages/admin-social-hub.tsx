@@ -150,7 +150,7 @@ function PostCard({ post, onDelete, onStatusChange, onReschedule, onPublish, onD
         </div>
 
         {post.cover_image_url && (
-          <img src={post.cover_image_url} alt="غلاف" className="w-full h-40 object-cover rounded-md" data-testid={`img-cover-${post.id}`} />
+          <img src={post.cover_image_url} alt="غلاف" className="w-full h-40 object-cover rounded-md" loading="lazy" decoding="async" data-testid={`img-cover-${post.id}`} />
         )}
 
         {editing ? (
@@ -1021,7 +1021,7 @@ function GeneratorTab() {
                       </div>
                       {post.cover_image_url && (
                         <div className="relative">
-                          <img src={post.cover_image_url} alt="غلاف" className="w-full h-32 object-cover rounded-md" />
+                          <img src={post.cover_image_url} alt="غلاف" className="w-full h-32 object-cover rounded-md" loading="lazy" decoding="async" />
                           <Button
                             size="sm"
                             variant="secondary"

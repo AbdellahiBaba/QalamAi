@@ -70,7 +70,7 @@ function SharedRelatedWorks({ projectId }: { projectId: number }) {
           <Link key={r.id} href={r.shareToken ? `/shared/${r.shareToken}` : `/gallery`}>
             <div className="group cursor-pointer space-y-1" data-testid={`shared-related-${r.id}`}>
               {r.coverImageUrl ? (
-                <img src={r.coverImageUrl} alt={r.title} className="w-full aspect-[2/3] rounded-md object-cover group-hover:opacity-80 transition-opacity" />
+                <img src={r.coverImageUrl} alt={r.title} className="w-full aspect-[2/3] rounded-md object-cover group-hover:opacity-80 transition-opacity" loading="lazy" decoding="async" />
               ) : (
                 <div className="w-full aspect-[2/3] rounded-md bg-muted flex items-center justify-center">
                   <BookOpen className="w-6 h-6 text-muted-foreground" />

@@ -207,7 +207,7 @@ export default function SeriesDetail() {
                     </div>
                     {item.project.coverImageUrl && (
                       <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden">
-                        <img src={item.project.coverImageUrl} alt={item.project.title} className="w-full h-full object-cover" />
+                        <img src={item.project.coverImageUrl} alt={item.project.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       </div>
                     )}
                   </div>

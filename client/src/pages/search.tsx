@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, BookOpen, Users, ListOrdered, ChevronLeft, ChevronRight, BadgeCheck, FileText, Clapperboard, PenLine, MessageCircle, Feather as FeatherIcon, GraduationCap, Lightbulb, Trophy } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/use-document-title";
 
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   novel: "رواية",
@@ -58,6 +59,7 @@ function useSearchParams() {
 }
 
 export default function SearchPage() {
+  useDocumentTitle("بحث | QalamAI", "ابحث في الأعمال والكتّاب والسلاسل على منصة قلم AI");
   const params = useSearchParams();
   const initialQuery = params.get("q") || "";
   const initialType = params.get("type") || "all";
@@ -225,7 +227,7 @@ export default function SearchPage() {
                     <div className="border rounded-lg p-4 hover:border-primary/50 transition-colors cursor-pointer bg-card" data-testid={`card-project-${p.id}`}>
                       <div className="flex gap-3">
                         {p.cover_image_url ? (
-                          <img src={p.cover_image_url} alt={p.title} className="w-16 h-20 object-cover rounded" />
+                          <img src={p.cover_image_url} alt={p.title} className="w-16 h-20 object-cover rounded" loading="lazy" decoding="async" />
                         ) : (
                           <div className="w-16 h-20 rounded bg-muted flex items-center justify-center">
                             <TypeIcon className="w-6 h-6 text-muted-foreground" />

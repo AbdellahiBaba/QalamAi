@@ -1,0 +1,23 @@
+{
+  "name": "QalamAI — منصة الكتابة العربية",
+  "short_name": "QalamAI",
+  "description": "منصّة الكتابة الروائية العربية بالذكاء الاصطناعي. اكتب روايتك بمساعدة أبو هاشم.",
+  "start_url": "/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#0f172a",
+  "theme_color": "#d4af37",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
