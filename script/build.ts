@@ -2,34 +2,22 @@ import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
-const allowlist = [
-  "@google/generative-ai",
-  "axios",
-  "connect-pg-simple",
-  "cors",
-  "date-fns",
-  "drizzle-orm",
-  "drizzle-zod",
-  "express",
-  "express-rate-limit",
-  "express-session",
-  "jsonwebtoken",
-  "memorystore",
-  "multer",
-  "nanoid",
-  "nodemailer",
-  "openai",
-  "passport",
-  "passport-local",
-  "pg",
-  "stripe",
-  "uuid",
-  "ws",
-  "xlsx",
-  "zod",
-  "zod-validation-error",
+// Packages that CANNOT be bundled into a single file:
+//
+// - canvas:     native C++ addon (.node binary) — must remain in node_modules
+// - geoip-lite: reads 150 MB of binary .dat data files at runtime via
+//               __dirname-relative paths that break inside a bundle
+// - pdfkit:     reads .afm font files from __dirname/data/ at runtime;
+//               bundling replaces __dirname with the build-time path
+//
+// Everything else is inlined into dist/index.cjs so the deployment image
+// doesn't need to carry a large node_modules directory.
+// Node.js built-ins (fs, path, crypto, …) are automatically externalised
+// when esbuild's platform is set to "node".
+const MUST_KEEP_EXTERNAL = [
+  "canvas",
+  "geoip-lite",
+  "pdfkit",
 ];
 
 async function buildAll() {
@@ -39,12 +27,6 @@ async function buildAll() {
   await viteBuild();
 
   console.log("building server...");
-  const pkg = JSON.parse(await readFile("package.json", "utf-8"));
-  const allDeps = [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.devDependencies || {}),
-  ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
 
   await esbuild({
     entryPoints: ["server/index.ts"],
@@ -56,7 +38,7 @@ async function buildAll() {
       "process.env.NODE_ENV": '"production"',
     },
     minify: true,
-    external: externals,
+    external: MUST_KEEP_EXTERNAL,
     logLevel: "info",
   });
 }
