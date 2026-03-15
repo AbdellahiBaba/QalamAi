@@ -568,7 +568,7 @@ app.use((req, res, next) => {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_challenges_status ON writing_challenges (status)`);
+    // Note: writing_challenges.status column removed; index no longer needed
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS challenge_entries (

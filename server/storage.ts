@@ -2518,11 +2518,11 @@ export class DatabaseStorage implements IStorage {
   async getWritingChallenges(): Promise<any[]> {
     return (await db.execute(sql`
       SELECT wc.*, COUNT(ce.id)::int as "entryCount",
-        COALESCE(wu.first_name || ' ' || wu.last_name, wu.username, NULL) as "winnerName"
+        COALESCE(wu.display_name, wu.first_name || ' ' || wu.last_name, NULL) as "winnerName"
       FROM writing_challenges wc
       LEFT JOIN challenge_entries ce ON ce.challenge_id = wc.id
       LEFT JOIN users wu ON wu.id = wc.winner_id
-      GROUP BY wc.id, wu.first_name, wu.last_name, wu.username
+      GROUP BY wc.id, wu.display_name, wu.first_name, wu.last_name
       ORDER BY wc.end_date DESC
     `)).rows;
   }
@@ -2558,7 +2558,7 @@ export class DatabaseStorage implements IStorage {
   async getChallengeEntries(challengeId: number): Promise<any[]> {
     return (await db.execute(sql`
       SELECT ce.*,
-        COALESCE(u.first_name || ' ' || u.last_name, u.username, 'كاتب') as "authorName",
+        COALESCE(u.display_name, u.first_name || ' ' || u.last_name, 'كاتب') as "authorName",
         u.profile_image_url as "authorProfileImage"
       FROM challenge_entries ce
       LEFT JOIN users u ON u.id = ce.user_id
@@ -2587,7 +2587,7 @@ export class DatabaseStorage implements IStorage {
   async getBetaReaderRequests(projectId: number): Promise<any[]> {
     return (await db.execute(sql`
       SELECT br.*,
-        COALESCE(u.first_name || ' ' || u.last_name, u.username, 'قارئ') as "userName",
+        COALESCE(u.display_name, u.first_name || ' ' || u.last_name, 'قارئ') as "userName",
         u.profile_image_url as "userProfileImage"
       FROM beta_reader_requests br
       LEFT JOIN users u ON u.id = br.user_id
@@ -2610,7 +2610,7 @@ export class DatabaseStorage implements IStorage {
     const rows: any[] = (await db.execute(sql`
       SELECT np.id, np.title, np.cover_image_url as "coverImageUrl", np.share_token as "shareToken",
         np.project_type as "projectType",
-        COALESCE(u.first_name || ' ' || u.last_name, u.username, 'كاتب') as "authorName"
+        COALESCE(u.display_name, u.first_name || ' ' || u.last_name, 'كاتب') as "authorName"
       FROM novel_projects np
       LEFT JOIN users u ON u.id = np.user_id
       WHERE np.id != ${projectId}
