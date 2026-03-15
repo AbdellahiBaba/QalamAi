@@ -1010,6 +1010,22 @@ ${allPages.map(p => `  <url>
     }
   });
 
+  app.get("/api/public/projects/:id/share-redirect", async (req, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if ((project.publishedToGallery || project.publishedToNews) && project.shareToken) {
+        return res.json({ shareToken: project.shareToken });
+      }
+      return res.status(404).json({ error: "المشروع غير متاح للعرض العام" });
+    } catch (error: unknown) {
+      console.error("Public project share redirect error:", error);
+      res.status(500).json({ error: "فشل في جلب المشروع" });
+    }
+  });
+
   app.get("/api/projects/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseIntParam(req.params.id);
