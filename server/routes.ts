@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail, sendNewChallengeEmail, verifyDigestUnsubscribeToken } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail, sendNewChallengeEmail, sendChallengeWinnerEmail, verifyDigestUnsubscribeToken } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -10596,6 +10596,12 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       } catch (notifErr) {
         console.error("Failed to create challenge winner notification:", notifErr);
       }
+      storage.getUser(winnerId).then((winner) => {
+        if (winner?.email) {
+          sendChallengeWinnerEmail(winner.email, winner.displayName ?? winner.username, challenge.title, challengeId)
+            .catch((err) => console.error("Failed to send challenge winner email:", err));
+        }
+      }).catch((err) => console.error("Failed to fetch winner for email:", err));
       res.json(updated);
     } catch (error: any) {
       console.error("Set challenge winner error:", error);

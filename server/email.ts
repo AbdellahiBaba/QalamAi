@@ -1039,3 +1039,42 @@ export async function sendNewChallengeEmail(
   }
   console.log(`[Email] New challenge email sent to ${sent}/${recipients.length} recipients`);
 }
+
+export async function sendChallengeWinnerEmail(
+  winnerEmail: string,
+  displayName: string | null,
+  challengeTitle: string,
+  challengeId: number,
+): Promise<void> {
+  const t = getTransporter();
+  if (!t) return;
+
+  const baseUrl = getBaseUrl();
+  const challengeUrl = `${baseUrl}/challenges/${challengeId}`;
+  const name = displayName || "كاتب";
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">مرحبًا <strong style="color:${BRAND_GOLD};">${name}</strong>،</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">🎉 تهانينا الحارة! لقد فزت في تحدي <strong style="color:${BRAND_BLUE};">"${challengeTitle}"</strong> على منصة QalamAI!</p>
+<p style="color:#333;line-height:1.8;font-size:15px;">نفخر بإنجازك ونتمنى لك المزيد من التألق والإبداع.</p>
+<div style="text-align:center;margin:24px 0;">
+<a href="${challengeUrl}"
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+عرض التحدي
+</a>
+</div>`;
+
+  const subject = `🏆 تهانينا! فزت في تحدي "${challengeTitle}" — QalamAI`;
+
+  try {
+    await t.sendMail({
+      from: `"QalamAI" <${process.env.SMTP_USER}>`,
+      to: winnerEmail,
+      subject,
+      html: wrapInTemplate("تهانينا! 🏆", body),
+    });
+    console.log(`[Email] Challenge winner email sent to ${winnerEmail}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send challenge winner email to ${winnerEmail}:`, err);
+  }
+}
