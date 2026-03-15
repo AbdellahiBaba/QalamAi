@@ -1,15 +1,10 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, cp, mkdir, access, readdir } from "fs/promises";
+import { rm, cp, mkdir, writeFile, readFile } from "fs/promises";
 import path from "path";
 
 const MUST_KEEP_EXTERNAL = [
   "@napi-rs/canvas",
-];
-
-const NAPI_CANVAS_PACKAGES = [
-  "@napi-rs/canvas",
-  "@napi-rs/canvas-linux-x64-gnu",
 ];
 
 async function buildAll() {
@@ -37,25 +32,20 @@ async function buildAll() {
     }),
   ]);
 
-  console.log("copying @napi-rs/canvas native binaries to dist/node_modules/...");
-  for (const pkg of NAPI_CANVAS_PACKAGES) {
-    const src = `node_modules/${pkg}`;
-    const dest = `dist/node_modules/${pkg}`;
-    try {
-      await access(src);
-      await mkdir(dest, { recursive: true });
-      await cp(`${src}/package.json`, `${dest}/package.json`);
-      const entries = await readdir(src);
-      for (const entry of entries) {
-        if (entry.endsWith(".node") || entry.endsWith(".js")) {
-          await cp(`${src}/${entry}`, `${dest}/${entry}`);
-        }
-      }
-      console.log(`  copied ${pkg} (package.json + .node/.js files only)`);
-    } catch {
-      console.log(`  skipped ${pkg} (not installed on this platform)`);
-    }
-  }
+  // Write a minimal package.json so the deployment run command can do
+  // `npm install --prefix dist` to install only the native addon at startup.
+  // This keeps dist/node_modules/ out of the deployment snapshot entirely.
+  const rootPkg = JSON.parse(await readFile("package.json", "utf8"));
+  const canvasVersion = rootPkg.dependencies["@napi-rs/canvas"] ?? "^0.1.96";
+  await writeFile("dist/package.json", JSON.stringify({
+    name: "qalamai-server",
+    version: "1.0.0",
+    private: true,
+    dependencies: {
+      "@napi-rs/canvas": canvasVersion,
+    },
+  }, null, 2));
+  console.log("wrote dist/package.json with @napi-rs/canvas", canvasVersion);
 
   console.log("copying stripe-replit-sync migrations to dist/migrations/...");
   await mkdir("dist/migrations", { recursive: true });
