@@ -30,6 +30,7 @@ import {
   pointTransactions, type PointTransaction,
   newsletterSends, type NewsletterSend,
   collections, type Collection,
+  payoutSettings, type PayoutSettings, type InsertPayoutSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -244,8 +245,8 @@ export interface IStorage {
   getRecentPublicationsByFollowedAuthors(userId: string, daysBack?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>>;
   checkAndIncrementAiUsage(userId: string): Promise<{ allowed: boolean; remaining: number; resetTime: string }>;
   getAiUsageStatus(userId: string): Promise<{ used: number; limit: number; remaining: number; resetTime: string }>;
-  getPayoutSettings(userId: string): Promise<import("@shared/schema").PayoutSettings | undefined>;
-  upsertPayoutSettings(data: import("@shared/schema").InsertPayoutSettings): Promise<import("@shared/schema").PayoutSettings>;
+  getPayoutSettings(userId: string): Promise<PayoutSettings | undefined>;
+  upsertPayoutSettings(data: InsertPayoutSettings): Promise<PayoutSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2818,14 +2819,12 @@ export class DatabaseStorage implements IStorage {
     return { used, limit: 20, remaining: 20 - used, resetTime: tomorrow.toISOString() };
   }
 
-  async getPayoutSettings(userId: string): Promise<import("@shared/schema").PayoutSettings | undefined> {
-    const { payoutSettings } = await import("@shared/schema");
+  async getPayoutSettings(userId: string): Promise<PayoutSettings | undefined> {
     const [row] = await db.select().from(payoutSettings).where(eq(payoutSettings.userId, userId));
     return row;
   }
 
-  async upsertPayoutSettings(data: import("@shared/schema").InsertPayoutSettings): Promise<import("@shared/schema").PayoutSettings> {
-    const { payoutSettings } = await import("@shared/schema");
+  async upsertPayoutSettings(data: InsertPayoutSettings): Promise<PayoutSettings> {
     const [row] = await db
       .insert(payoutSettings)
       .values({ ...data, updatedAt: new Date() })
