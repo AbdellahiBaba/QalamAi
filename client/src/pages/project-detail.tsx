@@ -655,21 +655,22 @@ export default function ProjectDetail() {
   const [targetWordCountInput, setTargetWordCountInput] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const { data: project, isLoading, isError } = useQuery<ProjectData>({
+  const { data: project, isLoading, error: projectError } = useQuery<ProjectData>({
     queryKey: ["/api/projects", projectId],
     enabled: !!projectId,
-    retry: false,
   });
 
   useEffect(() => {
-    if (!isError || !projectId) return;
+    if (!projectError || !projectId) return;
+    const msg = projectError.message || "";
+    if (!msg.startsWith("401:") && !msg.startsWith("403:")) return;
     fetch(`/api/public/projects/${projectId}/share-redirect`)
       .then(r => { if (r.ok) return r.json(); throw new Error("no share"); })
       .then((data: { shareToken: string }) => {
         setLocation(`/shared/${data.shareToken}`, { replace: true });
       })
       .catch(() => {});
-  }, [isError, projectId, setLocation]);
+  }, [projectError, projectId, setLocation]);
 
   const { data: planData } = useQuery<{ plan: string; planPurchasedAt: string | null }>({
     queryKey: ["/api/user/plan"],
