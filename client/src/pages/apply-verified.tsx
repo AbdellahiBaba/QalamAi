@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, CheckCircle, ArrowRight } from "lucide-react";
 
 export default function ApplyVerified() {
-  useDocumentTitle("طلب الشارة الموثقة — QalamAI");
+  useDocumentTitle("طلب الشارة الموثقة — QalamAI", "تقدّم بطلب للحصول على شارة الكاتب الموثّق على منصة QalamAI.");
   const { toast } = useToast();
   const [bio, setBio] = useState("");
   const [writingSamples, setWritingSamples] = useState("");

@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function ResetPassword() {
-  useDocumentTitle("إعادة تعيين كلمة المرور — قلم AI");
+  useDocumentTitle("إعادة تعيين كلمة المرور — قلم AI", "أعد تعيين كلمة مرورك لحسابك على منصة QalamAI.");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [, params] = useRoute("/reset-password/:token");

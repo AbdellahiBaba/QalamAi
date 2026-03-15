@@ -50,7 +50,7 @@ const STREAK_MILESTONES = [
 ];
 
 export default function Home() {
-  useDocumentTitle("مشاريعي — قلم AI");
+  useDocumentTitle("مشاريعي — قلم AI", "أدر مشاريعك الأدبية على منصة QalamAI: روايات ومقالات وسيناريوهات وخواطر.");
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { isEnabled, getDisabledMessage } = useFeatures();

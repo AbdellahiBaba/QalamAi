@@ -39,7 +39,7 @@ const typeLabels: Record<string, string> = {
 
 export default function CollectionPublic() {
   const { slug } = useParams<{ slug: string }>();
-  useDocumentTitle("قائمة قراءة — QalamAI");
+  useDocumentTitle("قائمة قراءة — QalamAI", "استعرض قائمة قراءة عامة على منصة QalamAI تضم مجموعة مختارة من الأعمال الأدبية.");
 
   const { data: collection, isLoading, error } = useQuery<CollectionPublic>({
     queryKey: ["/api/public/collections", slug],

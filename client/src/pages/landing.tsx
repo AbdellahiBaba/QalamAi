@@ -79,7 +79,7 @@ interface EssayOfWeek {
 }
 
 export default function Landing() {
-  useDocumentTitle("QalamAI — حيث تتحوّل الفكرة إلى رواية");
+  useDocumentTitle("QalamAI — حيث تتحوّل الفكرة إلى رواية", "QalamAI هي المنصة العربية الأولى للكتابة الأدبية بالذكاء الاصطناعي. اكتب رواياتك ومقالاتك وسيناريوهاتك مع الوكيل الأدبي أبو هاشم.");
   const { data: realReviews } = useQuery<LandingReview[]>({
     queryKey: ["/api/reviews"],
   });

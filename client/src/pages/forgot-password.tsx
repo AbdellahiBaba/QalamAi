@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 
 export default function ForgotPassword() {
-  useDocumentTitle("استعادة كلمة المرور — قلم AI");
+  useDocumentTitle("استعادة كلمة المرور — قلم AI", "استعد كلمة مرورك على منصة QalamAI عبر البريد الإلكتروني.");
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

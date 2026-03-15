@@ -31,7 +31,7 @@ function formatNum(n: number): string {
 }
 
 export default function Leaderboard() {
-  useDocumentTitle("لوحة الكتّاب المتصدرين — QalamAI");
+  useDocumentTitle("لوحة الكتّاب المتصدرين — QalamAI", "تعرّف على أبرز الكتّاب والأعمال الأدبية الأكثر قراءة ومتابعة على QalamAI.");
   const { user } = useAuth();
   const { toast } = useToast();
 

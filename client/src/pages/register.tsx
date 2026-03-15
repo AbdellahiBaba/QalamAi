@@ -48,7 +48,7 @@ function getPasswordStrength(pw: string): { level: "weak" | "medium" | "strong";
 }
 
 export default function Register() {
-  useDocumentTitle("إنشاء حساب — قلم AI");
+  useDocumentTitle("إنشاء حساب — قلم AI", "أنشئ حسابك المجاني على QalamAI وابدأ رحلتك في كتابة الرواية العربية بالذكاء الاصطناعي.");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [firstName, setFirstName] = useState("");

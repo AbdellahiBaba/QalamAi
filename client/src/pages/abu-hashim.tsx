@@ -44,7 +44,7 @@ const rules = [
 ];
 
 export default function AbuHashim() {
-  useDocumentTitle("أبو هاشم — وكيلك الأدبي الذكي");
+  useDocumentTitle("أبو هاشم — وكيلك الأدبي الذكي", "تحدّث مع أبو هاشم، الوكيل الأدبي الذكي على QalamAI، واحصل على نصائح كتابية متخصصة.");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />

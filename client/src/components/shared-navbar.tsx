@@ -196,7 +196,7 @@ function NavbarSearch() {
                   data-testid={`search-result-author-${a.id}`}
                 >
                   <Avatar className="w-6 h-6 flex-shrink-0">
-                    <AvatarImage src={a.profileImageUrl || undefined} />
+                    <AvatarImage src={a.profileImageUrl || undefined} alt={a.displayName || "كاتب"} />
                     <AvatarFallback className="text-[10px]">{(a.displayName || "?")[0]}</AvatarFallback>
                   </Avatar>
                   <span className="truncate text-xs">{a.displayName}</span>
@@ -496,7 +496,7 @@ export function SharedNavbar() {
               <Link href="/profile">
                 <div className="flex items-center gap-2 cursor-pointer" data-testid="link-profile">
                   <Avatar className="w-8 h-8">
-                    <AvatarImage src={user?.profileImageUrl || undefined} />
+                    <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "المستخدم"} />
                     <AvatarFallback className="text-xs">
                       {user?.firstName?.[0] || user?.email?.[0] || "م"}
                     </AvatarFallback>

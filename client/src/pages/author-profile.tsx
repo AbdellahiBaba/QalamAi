@@ -77,7 +77,7 @@ const typeLabels: Record<string, string> = {
 
 export default function AuthorProfile() {
   const { id } = useParams<{ id: string }>();
-  useDocumentTitle("ملف الكاتب — قلم AI");
+  useDocumentTitle("ملف الكاتب — قلم AI", "استعرض ملف الكاتب وأعماله الأدبية المنشورة على منصة QalamAI.");
   const { toast } = useToast();
   const { user } = useAuth();
   const [visitorRating, setVisitorRating] = useState(0);

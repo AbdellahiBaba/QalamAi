@@ -76,7 +76,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Profile() {
-  useDocumentTitle("الملف الشخصي — QalamAI");
+  useDocumentTitle("الملف الشخصي — QalamAI", "أدر ملفك الشخصي وإعداداتك على منصة QalamAI للكتابة الأدبية.");
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();

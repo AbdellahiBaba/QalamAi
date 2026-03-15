@@ -103,7 +103,7 @@ function AnimatedCard({ children, stagger, className = "", slideDirection = "up"
 }
 
 export default function Reviews() {
-  useDocumentTitle("آراء المستخدمين — قلم AI");
+  useDocumentTitle("آراء المستخدمين — قلم AI", "اطّلع على آراء وتجارب الكتّاب العرب الذين يستخدمون منصة QalamAI للكتابة الأدبية.");
   const { user } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);

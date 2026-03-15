@@ -62,7 +62,7 @@ function getTimeRemaining(endDate: string) {
 export default function ChallengeDetailPage() {
   const [, params] = useRoute("/challenges/:id");
   const challengeId = params?.id;
-  useDocumentTitle("تفاصيل التحدي — قلم AI");
+  useDocumentTitle("تفاصيل التحدي — قلم AI", "شارك في تحدي الكتابة على QalamAI وتنافس مع كتّاب عرب آخرين.");
   const { toast } = useToast();
   const { user } = useAuth();
   const [entryContent, setEntryContent] = useState("");

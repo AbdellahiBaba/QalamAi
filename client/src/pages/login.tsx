@@ -23,7 +23,7 @@ const loginSchema = z.object({
 });
 
 export default function Login() {
-  useDocumentTitle("تسجيل الدخول — قلم AI");
+  useDocumentTitle("تسجيل الدخول — قلم AI", "سجّل دخولك إلى منصة QalamAI للكتابة الأدبية بالذكاء الاصطناعي.");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [email, setEmail] = useState("");

@@ -148,7 +148,7 @@ function CollectionItemsList({ collectionId }: { collectionId: number }) {
 }
 
 export default function MyLists() {
-  useDocumentTitle("قوائم القراءة — QalamAI");
+  useDocumentTitle("قوائم القراءة — QalamAI", "أنشئ وأدر قوائم القراءة الخاصة بك على منصة QalamAI.");
   const { toast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");

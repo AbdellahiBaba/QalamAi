@@ -74,7 +74,7 @@ const countryCodeToName: Record<string, string> = {
 };
 
 export default function Analytics() {
-  useDocumentTitle("إحصائياتي — QalamAI");
+  useDocumentTitle("إحصائياتي — QalamAI", "تابع إحصائيات أعمالك الأدبية: المشاهدات والمتابعين والإكراميات على QalamAI.");
   const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   const [viewMode, setViewMode] = useState<"aggregate" | "per-story">("aggregate");

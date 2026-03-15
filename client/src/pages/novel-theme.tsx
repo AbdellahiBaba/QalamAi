@@ -6,7 +6,7 @@ import { useDocumentTitle } from "@/hooks/use-document-title";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function NovelTheme() {
-  useDocumentTitle("سمات الرواية — قلم AI");
+  useDocumentTitle("سمات الرواية — قلم AI", "اختر سمة وأسلوب روايتك العربية على منصة QalamAI.");
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <nav className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-background/80 border-b">
