@@ -1432,7 +1432,7 @@ export default function Admin() {
                   { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                   { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
                   { key: "challenges" as const, icon: Crown, label: "التحديات" },
-                  { key: "tts" as const, icon: PlayCircle, label: "صوت المنصة" },
+                  ...(user && SUPER_ADMIN_IDS.includes(String(user.id)) ? [{ key: "tts" as const, icon: PlayCircle, label: "صوت المنصة" }] : []),
                 ].map((item) => (
                   <button
                     key={item.key}
