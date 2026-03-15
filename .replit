@@ -18,6 +18,8 @@ deploymentTarget = "vm"
 run = ["node", "./dist/index.cjs"]
 build = ["npm", "run", "build"]
 
+ignorePaths = [".pythonlibs/", "node_modules/", "client/", "script/", "scripts/", ".local/", ".git/", ".cache/", ".config/", ".upm/", "attached_assets/", "generated_videos/", "voice_samples/", "tts_server/", "server/", "shared/", "*.md", "*.log", ".gitignore", ".prettierrc", "tsconfig.json", "drizzle.config.ts", "vite.config.ts", "tailwind.config.ts", "postcss.config.js", "components.json", "theme.json", "get_diff.sh", "uv.lock", "pyproject.toml", "main.py"]
+
 [workflows]
 runButton = "Project"
 
