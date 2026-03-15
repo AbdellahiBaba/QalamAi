@@ -1,10 +1,20 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, cp, mkdir, writeFile, readFile } from "fs/promises";
+import { rm, cp, mkdir, access } from "fs/promises";
 import path from "path";
 
+// @napi-rs/canvas JS code is bundled directly into the output.
+// The platform-specific packages are kept external because:
+//  - only one platform binary is used at runtime (selected via NAPI_RS_NATIVE_LIBRARY_PATH)
+//  - we copy the correct .node binary directly into dist/ so no node_modules are needed
 const MUST_KEEP_EXTERNAL = [
-  "@napi-rs/canvas",
+  "@napi-rs/canvas-*",
+];
+
+// Platform binary candidates, in priority order for this Linux x64 env
+const NAPI_BINARY_CANDIDATES = [
+  { pkg: "@napi-rs/canvas-linux-x64-gnu", file: "skia.linux-x64-gnu.node" },
+  { pkg: "@napi-rs/canvas-linux-x64-musl", file: "skia.linux-x64-musl.node" },
 ];
 
 async function buildAll() {
@@ -32,20 +42,25 @@ async function buildAll() {
     }),
   ]);
 
-  // Write a minimal package.json so the deployment run command can do
-  // `npm install --prefix dist` to install only the native addon at startup.
-  // This keeps dist/node_modules/ out of the deployment snapshot entirely.
-  const rootPkg = JSON.parse(await readFile("package.json", "utf8"));
-  const canvasVersion = rootPkg.dependencies["@napi-rs/canvas"] ?? "^0.1.96";
-  await writeFile("dist/package.json", JSON.stringify({
-    name: "qalamai-server",
-    version: "1.0.0",
-    private: true,
-    dependencies: {
-      "@napi-rs/canvas": canvasVersion,
-    },
-  }, null, 2));
-  console.log("wrote dist/package.json with @napi-rs/canvas", canvasVersion);
+  // Copy the native .node binary directly into dist/ so the server can load it
+  // via NAPI_RS_NATIVE_LIBRARY_PATH without needing any node_modules directory.
+  console.log("copying @napi-rs/canvas native binary to dist/...");
+  let copied = false;
+  for (const { pkg, file } of NAPI_BINARY_CANDIDATES) {
+    const src = `node_modules/${pkg}/${file}`;
+    try {
+      await access(src);
+      await cp(src, `dist/${file}`);
+      console.log(`  copied ${file} (from ${pkg})`);
+      copied = true;
+      break;
+    } catch {
+      console.log(`  skipped ${pkg} (not installed on this platform)`);
+    }
+  }
+  if (!copied) {
+    console.warn("  WARNING: no @napi-rs/canvas binary found — canvas features will be unavailable");
+  }
 
   console.log("copying stripe-replit-sync migrations to dist/migrations/...");
   await mkdir("dist/migrations", { recursive: true });
