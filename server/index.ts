@@ -54,7 +54,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
       imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
       connectSrc: ["'self'", "https://api.stripe.com", "https://analytics.tiktok.com", "https://www.facebook.com", "wss:", "ws:"],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+      frameSrc: ["'self'", "blob:", "https://js.stripe.com", "https://hooks.stripe.com"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
