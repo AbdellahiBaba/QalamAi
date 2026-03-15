@@ -115,7 +115,7 @@ export default function AuthorProfile() {
     enabled: !!id,
   });
 
-  const isOwnProfile = !!(user && (user.id === id || (author && user.id === author.id)));
+  const isOwnProfile = !!(user && (author ? user.id === author.id : user.id === id));
 
   const { data: payoutSettings } = useQuery<{
     method: string;

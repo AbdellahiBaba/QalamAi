@@ -5195,11 +5195,11 @@ export default function ProjectDetail() {
               <div className="space-y-4">
                 <div className={`flex items-center gap-3 p-4 rounded-lg border ${plagiarismResult.isOriginal ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"}`} data-testid="text-plagiarism-result">
                   <div className={`text-3xl font-bold ${plagiarismResult.isOriginal ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                    {Math.round(100 - plagiarismResult.similarityScore)}%
+                    {Math.round(plagiarismResult.similarityScore)}%
                   </div>
                   <div>
                     <p className="font-semibold text-sm">{plagiarismResult.isOriginal ? "المحتوى أصيل" : "تم اكتشاف تشابه"}</p>
-                    <p className="text-xs text-muted-foreground">نسبة الأصالة المقدّرة</p>
+                    <p className="text-xs text-muted-foreground">نسبة التشابه المقدّرة</p>
                   </div>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-plagiarism-report">

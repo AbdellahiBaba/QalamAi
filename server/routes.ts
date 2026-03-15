@@ -9493,7 +9493,7 @@ ${ch.content}
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       const chapters = await storage.getChaptersByProject(Number(projectId));
       const text = chapters.map((c: any) => c.content || "").join("\n\n").substring(0, 3000);
-      if (!text.trim()) return res.json({ score: 100, verdict: "original", message: "المقال فارغ" });
+      if (!text.trim()) return res.json({ score: 100, verdict: "original", notes: "المقال فارغ", reasons: [] });
       const openai = new OpenAI({ apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL });
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
