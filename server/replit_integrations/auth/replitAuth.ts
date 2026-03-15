@@ -79,13 +79,21 @@ async function upsertUser(claims: any) {
   });
 }
 
+function getAuthDomain(reqHostname: string): string {
+  const domains = process.env.REPLIT_DOMAINS?.split(",");
+  if (domains?.length) return domains[0];
+  return reqHostname;
+}
+
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
 
+  const authDomain = getAuthDomain("localhost");
   console.log("[Auth] REPL_ID:", process.env.REPL_ID ? "set" : "MISSING");
+  console.log("[Auth] Canonical auth domain:", authDomain);
 
   getOidcConfig().catch((err) =>
     console.warn("[Auth] Background OIDC pre-discovery failed (will retry on login):", err)
@@ -131,8 +139,9 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/login", async (req, res, next) => {
     try {
-      await ensureStrategy(req.hostname);
-      passport.authenticate(`replitauth:${req.hostname}`, {
+      const domain = getAuthDomain(req.hostname);
+      await ensureStrategy(domain);
+      passport.authenticate(`replitauth:${domain}`, {
         prompt: "login consent",
         scope: ["openid", "email", "profile", "offline_access"],
       })(req, res, next);
@@ -144,29 +153,32 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/callback", async (req, res, next) => {
     try {
-      await ensureStrategy(req.hostname);
-      console.log("[Auth] Callback hit, query params:", JSON.stringify({ state: req.query.state ? "present" : "missing", code: req.query.code ? "present" : "missing", error: req.query.error || "none" }));
+      const domain = getAuthDomain(req.hostname);
+      await ensureStrategy(domain);
+      console.log("[Auth] Callback hit, domain:", domain, "query:", JSON.stringify({ state: req.query.state ? "present" : "missing", code: req.query.code ? "present" : "missing", error: req.query.error || "none" }));
       console.log("[Auth] Session ID at callback:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "NO SESSION");
-      passport.authenticate(`replitauth:${req.hostname}`, (err: any, user: any, info: any) => {
+      passport.authenticate(`replitauth:${domain}`, (err: Error | null, user: Express.User | false, info: object) => {
         if (err) {
-          console.error("[Auth] Callback authentication error:", err.message || err, "cause:", err.cause || "none");
+          console.error("[Auth] Callback authentication error:", err.message, "cause:", (err as any).cause || "none");
           return res.redirect("/login?error=auth_failed");
         }
         if (!user) {
           console.error("[Auth] Callback: no user returned. info:", JSON.stringify(info));
           return res.redirect("/login?error=auth_failed");
         }
-        req.login(user, (loginErr: any) => {
+        req.login(user, (loginErr) => {
           if (loginErr) {
             console.error("[Auth] Login after OIDC callback error:", loginErr);
             return res.redirect("/login?error=auth_failed");
           }
-          console.log("[Auth] OIDC login successful for user:", (user as any)?.claims?.sub);
+          console.log("[Auth] OIDC login successful for user:", (user as Record<string, any>)?.claims?.sub);
           res.redirect("/");
         });
       })(req, res, next);
-    } catch (err: any) {
-      console.error("[Auth] OAuth callback error:", err.message || err, "cause:", err.cause || "none");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const cause = err instanceof Error ? (err as any).cause : undefined;
+      console.error("[Auth] OAuth callback error:", message, "cause:", cause || "none");
       res.redirect("/login?error=auth_failed");
     }
   });
@@ -174,11 +186,12 @@ export async function setupAuth(app: Express) {
   app.get("/api/logout", async (req, res) => {
     try {
       const config = await getOidcConfig();
+      const domain = getAuthDomain(req.hostname);
       req.logout(() => {
         res.redirect(
           client.buildEndSessionUrl(config, {
             client_id: process.env.REPL_ID!,
-            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+            post_logout_redirect_uri: `https://${domain}`,
           }).href
         );
       });
