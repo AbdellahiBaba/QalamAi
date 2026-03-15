@@ -4,3 +4,6 @@ script/
 .local/
 .git/
 attached_assets/
+.cache/
+generated_videos/
+voice_samples/

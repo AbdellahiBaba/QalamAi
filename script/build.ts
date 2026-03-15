@@ -51,13 +51,15 @@ async function buildAll() {
   );
   const entries = await readdir("node_modules/@napi-rs");
   for (const entry of entries) {
-    if (entry.startsWith("canvas-")) {
+    if (entry === "canvas-linux-x64-gnu") {
       await cp(
         `node_modules/@napi-rs/${entry}`,
         `dist/node_modules/@napi-rs/${entry}`,
         { recursive: true }
       );
       console.log(`  copied @napi-rs/${entry}`);
+    } else if (entry.startsWith("canvas-")) {
+      console.log(`  skipped @napi-rs/${entry}`);
     }
   }
 }
