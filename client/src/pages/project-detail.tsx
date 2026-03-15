@@ -2224,8 +2224,8 @@ export default function ProjectDetail() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="overflow-x-auto -mx-1 px-1 pb-1">
-            <TabsList className="inline-flex w-auto min-w-full sm:w-full gap-1">
+          <div className="overflow-x-auto -mx-1 px-1 pb-2 scrollbar-thin" style={{ WebkitOverflowScrolling: "touch" }}>
+            <TabsList className="inline-flex w-max sm:w-full gap-1">
               <TabsTrigger value="overview" data-testid="tab-overview" className="flex-shrink-0">
                 <BookOpen className="w-4 h-4 ml-1.5" />
                 <span className="hidden sm:inline">نظرة عامة</span>

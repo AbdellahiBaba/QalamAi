@@ -49,7 +49,7 @@ function PlatformStatsSection() {
   return (
     <section className="py-10 px-4 sm:px-6 bg-primary/5 border-y" data-testid="section-platform-stats">
       <div className="max-w-4xl mx-auto">
-        <div className="grid grid-cols-3 gap-6 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
           <div className="space-y-1" data-testid="stat-users">
             <p className="font-serif text-3xl sm:text-4xl font-bold text-primary" dir="ltr">{formatNum(stats.userCount)}+</p>
             <p className="text-sm text-muted-foreground">كاتب عربي</p>
