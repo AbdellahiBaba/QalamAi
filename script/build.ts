@@ -1,20 +1,20 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, cp, mkdir, readdir } from "fs/promises";
 
 // Packages that CANNOT be bundled into a single file:
 //
-// - canvas:     native C++ addon (.node binary) — must remain in node_modules
-// - pdfkit:     reads .afm font files from __dirname/data/ at runtime;
-//               bundling replaces __dirname with the build-time path
+// - @napi-rs/canvas: native pre-built binary (.node) — must remain in node_modules
+//
+// pdfkit is now bundled (no longer external). Its AFM data files are copied
+// to dist/data/ so that __dirname-based resolution works at runtime.
 //
 // Everything else is inlined into dist/index.cjs so the deployment image
 // doesn't need to carry a large node_modules directory.
 // Node.js built-ins (fs, path, crypto, …) are automatically externalised
 // when esbuild's platform is set to "node".
 const MUST_KEEP_EXTERNAL = [
-  "canvas",
-  "pdfkit",
+  "@napi-rs/canvas",
 ];
 
 async function buildAll() {
@@ -38,6 +38,28 @@ async function buildAll() {
       logLevel: "info",
     }),
   ]);
+
+  console.log("copying pdfkit AFM data files to dist/data/...");
+  await mkdir("dist/data", { recursive: true });
+  await cp("node_modules/pdfkit/js/data", "dist/data", { recursive: true });
+
+  console.log("copying @napi-rs/canvas binaries to dist/node_modules/...");
+  await cp(
+    "node_modules/@napi-rs/canvas",
+    "dist/node_modules/@napi-rs/canvas",
+    { recursive: true }
+  );
+  const entries = await readdir("node_modules/@napi-rs");
+  for (const entry of entries) {
+    if (entry.startsWith("canvas-")) {
+      await cp(
+        `node_modules/@napi-rs/${entry}`,
+        `dist/node_modules/@napi-rs/${entry}`,
+        { recursive: true }
+      );
+      console.log(`  copied @napi-rs/${entry}`);
+    }
+  }
 }
 
 buildAll().catch((err) => {

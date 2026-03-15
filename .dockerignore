@@ -1,0 +1,6 @@
+node_modules/
+client/
+script/
+.local/
+.git/
+attached_assets/

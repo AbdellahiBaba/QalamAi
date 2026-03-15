@@ -21,7 +21,7 @@ import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueu
 import { sanitizeText, sanitizeRichText } from "./sanitize";
 import { generateReelVideo, isVideoGenerating, clearVideoLock } from "./video-generator";
 import archiver from "archiver";
-import { createCanvas, loadImage, registerFont } from "canvas";
+import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import path from "path";
 import crypto from "crypto";
 
@@ -181,8 +181,8 @@ async function updateWritingStreak(userId: string) {
 }
 
 try {
-  registerFont(path.join(process.cwd(), "server/fonts/Amiri-Bold.ttf"), { family: "Amiri", weight: "bold" });
-  registerFont(path.join(process.cwd(), "server/fonts/Amiri-Regular.ttf"), { family: "Amiri", weight: "normal" });
+  GlobalFonts.registerFromPath(path.join(process.cwd(), "server/fonts/Amiri-Bold.ttf"), "Amiri");
+  GlobalFonts.registerFromPath(path.join(process.cwd(), "server/fonts/Amiri-Regular.ttf"), "Amiri");
 } catch (e) {
   console.warn("Could not register Amiri fonts for cover generation:", e);
 }

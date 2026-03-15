@@ -5,7 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { generateImageBuffer } from "./replit_integrations/image/client";
 import { textToSpeech } from "./replit_integrations/audio/client";
-import { createCanvas, loadImage } from "canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
