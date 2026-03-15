@@ -1,6 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, cp, mkdir, access, readdir } from "fs/promises";
+import path from "path";
 
 const MUST_KEEP_EXTERNAL = [
   "@napi-rs/canvas",
@@ -29,6 +30,9 @@ async function buildAll() {
       },
       minify: true,
       external: MUST_KEEP_EXTERNAL,
+      alias: {
+        "stripe-replit-sync": path.resolve("node_modules/stripe-replit-sync/dist/index.cjs"),
+      },
       logLevel: "info",
     }),
   ]);
@@ -52,6 +56,10 @@ async function buildAll() {
       console.log(`  skipped ${pkg} (not installed on this platform)`);
     }
   }
+
+  console.log("copying stripe-replit-sync migrations to dist/migrations/...");
+  await mkdir("dist/migrations", { recursive: true });
+  await cp("node_modules/stripe-replit-sync/dist/migrations", "dist/migrations", { recursive: true });
 
   console.log("copying pdfkit AFM data files to dist/data/...");
   await mkdir("dist/data", { recursive: true });
