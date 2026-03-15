@@ -16,7 +16,6 @@ import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
 import { apiCache } from "./cache";
-import geoip from "geoip-lite";
 import { runLearningSession } from "./learning-engine";
 import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
 import { sanitizeText, sanitizeRichText } from "./sanitize";
@@ -6200,12 +6199,8 @@ ${glossaryParagraphs}
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const visitorIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
       const referrer = req.headers.referer || null;
-      let rawCountry = ((req.headers["cf-ipcountry"] as string) || "").toUpperCase().slice(0, 2);
-      if (!rawCountry || rawCountry === "XX" || rawCountry === "T1") {
-        const geo = geoip.lookup(visitorIp);
-        rawCountry = geo?.country || "";
-      }
-      const country = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : null;
+      const rawCountry = ((req.headers["cf-ipcountry"] as string) || "").toUpperCase().slice(0, 2);
+      const country = /^[A-Z]{2}$/.test(rawCountry) && rawCountry !== "XX" && rawCountry !== "T1" ? rawCountry : null;
       await storage.recordEssayView(id, visitorIp, referrer as string | undefined, country);
       res.json({ success: true });
       // Fire milestone notification asynchronously (non-blocking)

@@ -5,8 +5,6 @@ import { rm, readFile } from "fs/promises";
 // Packages that CANNOT be bundled into a single file:
 //
 // - canvas:     native C++ addon (.node binary) — must remain in node_modules
-// - geoip-lite: reads 150 MB of binary .dat data files at runtime via
-//               __dirname-relative paths that break inside a bundle
 // - pdfkit:     reads .afm font files from __dirname/data/ at runtime;
 //               bundling replaces __dirname with the build-time path
 //
@@ -16,7 +14,6 @@ import { rm, readFile } from "fs/promises";
 // when esbuild's platform is set to "node".
 const MUST_KEEP_EXTERNAL = [
   "canvas",
-  "geoip-lite",
   "pdfkit",
 ];
 
