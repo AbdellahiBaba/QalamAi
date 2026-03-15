@@ -5,10 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle, Trophy, BookOpenCheck, Wallet, CreditCard, Building2, Loader2 } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle, Trophy, BookOpenCheck, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { SharedNavbar } from "@/components/shared-navbar";
@@ -95,16 +93,6 @@ export default function AuthorProfile() {
     }
   }, [id]);
 
-  const [payoutMethod, setPayoutMethod] = useState("paypal");
-  const [payoutPaypalEmail, setPayoutPaypalEmail] = useState("");
-  const [payoutKastWalletId, setPayoutKastWalletId] = useState("");
-  const [payoutBankName, setPayoutBankName] = useState("");
-  const [payoutBankIban, setPayoutBankIban] = useState("");
-  const [payoutBankSwift, setPayoutBankSwift] = useState("");
-  const [payoutBankCountry, setPayoutBankCountry] = useState("");
-  const [payoutStripeAccountId, setPayoutStripeAccountId] = useState("");
-  const [payoutFormDirty, setPayoutFormDirty] = useState(false);
-
   const { data: author, isLoading, error } = useQuery<AuthorData>({
     queryKey: ["/api/authors", id],
     queryFn: async () => {
@@ -113,58 +101,6 @@ export default function AuthorProfile() {
       return res.json();
     },
     enabled: !!id,
-  });
-
-  const isOwnProfile = !!(user && author && user.id === author.id);
-
-  const { data: payoutSettings } = useQuery<{
-    method: string;
-    paypalEmail: string | null;
-    kastWalletId: string | null;
-    bankAccountName: string | null;
-    bankIban: string | null;
-    bankSwift: string | null;
-    bankCountry: string | null;
-    stripeAccountId: string | null;
-  } | null>({
-    queryKey: ["/api/payout-settings"],
-    enabled: isOwnProfile,
-  });
-
-  useEffect(() => {
-    if (payoutSettings && !payoutFormDirty) {
-      setPayoutMethod(payoutSettings.method || "paypal");
-      setPayoutPaypalEmail(payoutSettings.paypalEmail || "");
-      setPayoutKastWalletId(payoutSettings.kastWalletId || "");
-      setPayoutBankName(payoutSettings.bankAccountName || "");
-      setPayoutBankIban(payoutSettings.bankIban || "");
-      setPayoutBankSwift(payoutSettings.bankSwift || "");
-      setPayoutBankCountry(payoutSettings.bankCountry || "");
-      setPayoutStripeAccountId(payoutSettings.stripeAccountId || "");
-    }
-  }, [payoutSettings, payoutFormDirty]);
-
-  const payoutMutation = useMutation({
-    mutationFn: async () => {
-      const body: Record<string, string | null> = {
-        method: payoutMethod,
-        paypalEmail: payoutMethod === "paypal" ? payoutPaypalEmail : null,
-        kastWalletId: payoutMethod === "kast" ? payoutKastWalletId : null,
-        bankAccountName: payoutMethod === "bank" ? payoutBankName : null,
-        bankIban: payoutMethod === "bank" ? payoutBankIban : null,
-        bankSwift: payoutMethod === "bank" ? payoutBankSwift : null,
-        bankCountry: payoutMethod === "bank" ? payoutBankCountry : null,
-        stripeAccountId: null,
-      };
-      const res = await apiRequest("POST", "/api/payout-settings", body);
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "تم حفظ إعدادات الدفع بنجاح" });
-      setPayoutFormDirty(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/payout-settings"] });
-    },
-    onError: () => toast({ title: "فشل في حفظ إعدادات الدفع", variant: "destructive" }),
   });
 
   const rateMutation = useMutation({
@@ -569,127 +505,6 @@ export default function AuthorProfile() {
             </div>
           )}
         </div>
-        {isOwnProfile && (
-          <Card data-testid="card-payout-settings">
-            <CardContent className="p-6 space-y-5">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                <h2 className="text-xl font-serif font-semibold" data-testid="text-payout-heading">إعدادات الدفع والمكافآت</h2>
-              </div>
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-lg">
-                <p className="text-sm text-amber-800 dark:text-amber-300">
-                  الحد الأدنى للدفع هو <strong>$300</strong>. يتم معالجة الطلبات شهريًا عند بلوغ الرصيد الحد المطلوب.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1.5" dir="rtl">
-                  <Label className="text-sm font-medium">طريقة الدفع</Label>
-                  <Select value={payoutMethod} onValueChange={(v) => { setPayoutMethod(v); setPayoutFormDirty(true); }} dir="rtl" data-testid="select-payout-method">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paypal">
-                        <span className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> PayPal</span>
-                      </SelectItem>
-                      <SelectItem value="kast">
-                        <span className="flex items-center gap-2"><Wallet className="w-4 h-4" /> Kast App Wallet</span>
-                      </SelectItem>
-                      <SelectItem value="bank">
-                        <span className="flex items-center gap-2"><Building2 className="w-4 h-4" /> تحويل بنكي</span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {payoutMethod === "paypal" && (
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">بريد PayPal</Label>
-                    <Input
-                      type="email"
-                      dir="ltr"
-                      placeholder="your@email.com"
-                      value={payoutPaypalEmail}
-                      onChange={e => { setPayoutPaypalEmail(e.target.value); setPayoutFormDirty(true); }}
-                      data-testid="input-payout-paypal-email"
-                    />
-                  </div>
-                )}
-
-                {payoutMethod === "kast" && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">معرّف محفظة Kast App</Label>
-                    <Input
-                      dir="ltr"
-                      placeholder="tag / email / phone number"
-                      value={payoutKastWalletId}
-                      onChange={e => { setPayoutKastWalletId(e.target.value); setPayoutFormDirty(true); }}
-                      data-testid="input-payout-kast-wallet"
-                    />
-                    <p className="text-xs text-muted-foreground">أدخل معرّف محفظتك على تطبيق Kast (يمكن أن يكون Tag أو بريد إلكتروني أو رقم هاتف)</p>
-                  </div>
-                )}
-
-                {payoutMethod === "bank" && (
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">اسم صاحب الحساب</Label>
-                      <Input
-                        dir="rtl"
-                        placeholder="الاسم الكامل"
-                        value={payoutBankName}
-                        onChange={e => { setPayoutBankName(e.target.value); setPayoutFormDirty(true); }}
-                        data-testid="input-payout-bank-name"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">IBAN</Label>
-                      <Input
-                        dir="ltr"
-                        placeholder="SA0000000000000000000000"
-                        value={payoutBankIban}
-                        onChange={e => { setPayoutBankIban(e.target.value); setPayoutFormDirty(true); }}
-                        data-testid="input-payout-bank-iban"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">SWIFT / BIC</Label>
-                        <Input
-                          dir="ltr"
-                          placeholder="XXXXSAXX"
-                          value={payoutBankSwift}
-                          onChange={e => { setPayoutBankSwift(e.target.value); setPayoutFormDirty(true); }}
-                          data-testid="input-payout-bank-swift"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm font-medium">الدولة</Label>
-                        <Input
-                          dir="rtl"
-                          placeholder="المملكة العربية السعودية"
-                          value={payoutBankCountry}
-                          onChange={e => { setPayoutBankCountry(e.target.value); setPayoutFormDirty(true); }}
-                          data-testid="input-payout-bank-country"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <Button
-                  onClick={() => payoutMutation.mutate()}
-                  disabled={payoutMutation.isPending}
-                  className="gap-2"
-                  data-testid="button-save-payout"
-                >
-                  {payoutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  حفظ إعدادات الدفع
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
       <SharedFooter />
     </div>
