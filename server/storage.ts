@@ -2,6 +2,9 @@ import {
   novelProjects, characters, characterRelationships, chapters, chapterVersions,
   users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites, apiUsageLogs,
   authorRatings, platformReviews, trackingPixels, essayViews, essayClicks, passwordResetTokens, authorFollows,
+  conversations, messages,
+  type Conversation, type InsertConversation,
+  type Message, type InsertMessage,
   type NovelProject, type InsertNovelProject,
   type Character, type InsertCharacter,
   type CharacterRelationship,
@@ -248,6 +251,13 @@ export interface IStorage {
   getAiUsageStatus(userId: string): Promise<{ used: number; limit: number; remaining: number; resetTime: string }>;
   getPayoutSettings(userId: string): Promise<PayoutSettings | undefined>;
   upsertPayoutSettings(data: InsertPayoutSettings): Promise<PayoutSettings>;
+  getConversationsByUser(userId: string, mode?: string, projectId?: number): Promise<Conversation[]>;
+  getConversation(id: number, userId: string): Promise<Conversation | undefined>;
+  createConversation(data: InsertConversation): Promise<Conversation>;
+  deleteConversation(id: number, userId: string): Promise<void>;
+  getMessagesByConversation(conversationId: number): Promise<Message[]>;
+  addMessage(data: InsertMessage): Promise<Message>;
+  updateConversationTitle(id: number, userId: string, title: string): Promise<Conversation>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2857,6 +2867,54 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return row;
+  }
+
+  async getConversationsByUser(userId: string, mode?: string, projectId?: number): Promise<Conversation[]> {
+    const conditions = [eq(conversations.userId, userId)];
+    if (mode) conditions.push(eq(conversations.mode, mode));
+    if (projectId !== undefined) conditions.push(eq(conversations.projectId, projectId));
+    return db.select().from(conversations)
+      .where(and(...conditions))
+      .orderBy(desc(conversations.updatedAt))
+      .limit(50);
+  }
+
+  async getConversation(id: number, userId: string): Promise<Conversation | undefined> {
+    const [conv] = await db.select().from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
+    return conv;
+  }
+
+  async createConversation(data: InsertConversation): Promise<Conversation> {
+    const [conv] = await db.insert(conversations).values(data).returning();
+    return conv;
+  }
+
+  async deleteConversation(id: number, userId: string): Promise<void> {
+    await db.delete(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
+  }
+
+  async getMessagesByConversation(conversationId: number): Promise<Message[]> {
+    return db.select().from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(asc(messages.createdAt));
+  }
+
+  async addMessage(data: InsertMessage): Promise<Message> {
+    const [msg] = await db.insert(messages).values(data).returning();
+    await db.update(conversations)
+      .set({ updatedAt: new Date() })
+      .where(eq(conversations.id, data.conversationId));
+    return msg;
+  }
+
+  async updateConversationTitle(id: number, userId: string, title: string): Promise<Conversation> {
+    const [conv] = await db.update(conversations)
+      .set({ title, updatedAt: new Date() })
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .returning();
+    return conv;
   }
 }
 

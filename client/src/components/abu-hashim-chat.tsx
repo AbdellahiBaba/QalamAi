@@ -1,9 +1,24 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, X, Loader2, ArrowRight, MessageCircle } from "lucide-react";
+import { Sparkles, X, Loader2, ArrowRight, MessageCircle, Plus, Trash2, History } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface Conversation {
+  id: number;
+  title: string;
+  mode: string;
+  projectId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface AbuHashimChatProps {
   mode: "general" | "project";
@@ -13,10 +28,13 @@ interface AbuHashimChatProps {
 
 export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChatProps) {
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const [visible, setVisible] = useState(() => {
     try {
@@ -35,6 +53,55 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
     }
   }, [visible]);
 
+  const convQueryKey = mode === "project" && projectId
+    ? ["/api/conversations", { mode: "project", projectId: String(projectId) }]
+    : ["/api/conversations", { mode: "general" }];
+
+  const { data: conversations = [] } = useQuery<Conversation[]>({
+    queryKey: convQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams({ mode });
+      if (mode === "project" && projectId) params.set("projectId", String(projectId));
+      const res = await fetch(`/api/conversations?${params.toString()}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: chatOpen,
+    staleTime: 30000,
+  });
+
+  const loadConversation = useCallback(async (convId: number) => {
+    try {
+      const res = await fetch(`/api/conversations/${convId}/messages`, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setChatMessages(data.messages.map((m: any) => ({ role: m.role, content: m.content })));
+      setActiveConversationId(convId);
+      setShowHistory(false);
+    } catch {
+      console.error("Failed to load conversation");
+    }
+  }, []);
+
+  const startNewConversation = useCallback(() => {
+    setChatMessages([]);
+    setActiveConversationId(null);
+    setShowHistory(false);
+  }, []);
+
+  const deleteConversation = useCallback(async (convId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await apiRequest("DELETE", `/api/conversations/${convId}`);
+      queryClient.invalidateQueries({ queryKey: convQueryKey });
+      if (activeConversationId === convId) {
+        startNewConversation();
+      }
+    } catch {
+      console.error("Failed to delete conversation");
+    }
+  }, [activeConversationId, queryClient, convQueryKey, startNewConversation]);
+
   const handleSendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const userMsg = chatInput.trim();
@@ -45,12 +112,23 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
     try {
       let res: Response;
       if (mode === "project" && projectId) {
-        res = await apiRequest("POST", `/api/projects/${projectId}/chat`, { message: userMsg });
+        res = await apiRequest("POST", `/api/projects/${projectId}/chat`, {
+          message: userMsg,
+          conversationId: activeConversationId,
+        });
       } else {
-        res = await apiRequest("POST", "/api/chat", { message: userMsg, history: chatMessages });
+        res = await apiRequest("POST", "/api/chat", {
+          message: userMsg,
+          history: chatMessages,
+          conversationId: activeConversationId,
+        });
       }
       const data = await res.json();
       setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+      if (data.conversationId && !activeConversationId) {
+        setActiveConversationId(data.conversationId);
+        queryClient.invalidateQueries({ queryKey: convQueryKey });
+      }
     } catch {
       setChatMessages(prev => [...prev, { role: "assistant", content: "عذراً، حدث خطأ. حاول مرة أخرى." }]);
     }
@@ -141,57 +219,124 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
           <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h3 className="font-bold text-sm">{title}</h3>
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
+            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
           </div>
-          <Button variant="ghost" size="icon" className="mr-auto" onClick={() => setChatOpen(false)} data-testid="button-close-chat" aria-label="إغلاق الدردشة">
-            <X className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowHistory(!showHistory)}
+              data-testid="button-chat-history"
+              aria-label="سجل المحادثات"
+              title="سجل المحادثات"
+            >
+              <History className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={startNewConversation}
+              data-testid="button-new-conversation"
+              aria-label="محادثة جديدة"
+              title="محادثة جديدة"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setChatOpen(false)} data-testid="button-close-chat" aria-label="إغلاق الدردشة">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
-        <ScrollArea className="flex-1 p-4">
-          {chatMessages.length === 0 && !chatLoading && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground text-center mb-4">{emptyText}</p>
-              <div className="space-y-2">
-                {quickQuestions.map((q, i) => (
+        {showHistory ? (
+          <ScrollArea className="flex-1">
+            <div className="p-3 space-y-1">
+              <div className="flex items-center justify-between px-2 pb-2">
+                <span className="text-sm font-semibold text-foreground" data-testid="text-conversation-history-title">المحادثات السابقة</span>
+                <span className="text-xs text-muted-foreground">{conversations.length}</span>
+              </div>
+              {conversations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8" data-testid="text-no-conversations">لا توجد محادثات سابقة</p>
+              ) : (
+                conversations.map((conv) => (
                   <button
-                    key={i}
-                    className="w-full text-right text-sm px-3 py-2 rounded-lg border border-border hover:border-amber-300 dark:hover:border-amber-600 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors"
-                    onClick={() => { setChatInput(q); }}
-                    data-testid={`button-quick-question-${i}`}
+                    key={conv.id}
+                    className={`w-full text-right flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors group ${
+                      activeConversationId === conv.id
+                        ? "bg-amber-100 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700"
+                        : "hover:bg-muted/50 border border-transparent"
+                    }`}
+                    onClick={() => loadConversation(conv.id)}
+                    data-testid={`button-conversation-${conv.id}`}
                   >
-                    {q}
+                    <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="block text-sm truncate">{conv.title}</span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        {new Date(conv.updatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <button
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                      onClick={(e) => deleteConversation(conv.id, e)}
+                      data-testid={`button-delete-conversation-${conv.id}`}
+                      aria-label="حذف المحادثة"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </button>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-          )}
-          {chatMessages.map((msg, i) => (
-            <div key={i} className={`mb-3 flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
-              <div
-                className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-none"
-                    : "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-foreground rounded-tl-none"
-                }`}
-                dir="rtl"
-                data-testid={`chat-message-${msg.role}-${i}`}
-              >
-                {msg.content}
+          </ScrollArea>
+        ) : (
+          <ScrollArea className="flex-1 p-4">
+            {chatMessages.length === 0 && !chatLoading && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground text-center mb-4">{emptyText}</p>
+                <div className="space-y-2">
+                  {quickQuestions.map((q, i) => (
+                    <button
+                      key={i}
+                      className="w-full text-right text-sm px-3 py-2 rounded-lg border border-border hover:border-amber-300 dark:hover:border-amber-600 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors"
+                      onClick={() => { setChatInput(q); }}
+                      data-testid={`button-quick-question-${i}`}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-          {chatLoading && (
-            <div className="flex justify-end mb-3">
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl rounded-tl-none px-4 py-3">
-                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+            )}
+            {chatMessages.map((msg, i) => (
+              <div key={i} className={`mb-3 flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
+                <div
+                  className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-tr-none"
+                      : "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-foreground rounded-tl-none"
+                  }`}
+                  dir="rtl"
+                  data-testid={`chat-message-${msg.role}-${i}`}
+                >
+                  {msg.content}
+                </div>
               </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </ScrollArea>
+            ))}
+            {chatLoading && (
+              <div className="flex justify-end mb-3">
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl rounded-tl-none px-4 py-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </ScrollArea>
+        )}
 
         <div className="p-3 border-t bg-background">
           <div className="flex gap-2">

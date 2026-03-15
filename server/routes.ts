@@ -2425,40 +2425,122 @@ ${allPages.map(p => `  <url>
     }
   });
 
+  app.get("/api/conversations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const mode = typeof req.query.mode === "string" ? req.query.mode : undefined;
+      const rawProjectId = req.query.projectId ? parseInt(req.query.projectId as string, 10) : undefined;
+      const projectId = rawProjectId !== undefined && isNaN(rawProjectId) ? undefined : rawProjectId;
+      const convos = await storage.getConversationsByUser(userId, mode, projectId);
+      res.json(convos);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
+  app.get("/api/conversations/:id/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const conv = await storage.getConversation(id, userId);
+      if (!conv) return res.status(404).json({ error: "المحادثة غير موجودة" });
+      const msgs = await storage.getMessagesByConversation(id);
+      res.json({ conversation: conv, messages: msgs });
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/conversations/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const conv = await storage.getConversation(id, userId);
+      if (!conv) return res.status(404).json({ error: "المحادثة غير موجودة" });
+      await storage.deleteConversation(id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
+  app.patch("/api/conversations/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { title } = req.body;
+      if (!title || typeof title !== "string") return res.status(400).json({ error: "العنوان مطلوب" });
+      const existing = await storage.getConversation(id, userId);
+      if (!existing) return res.status(404).json({ error: "المحادثة غير موجودة" });
+      const conv = await storage.updateConversationTitle(id, userId, title.substring(0, 200));
+      res.json(conv);
+    } catch (error) {
+      console.error("Error updating conversation:", error);
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
   app.post("/api/chat", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       if (!(await checkAiRateLimit(req, res))) return;
+      const userId = req.user.claims.sub;
 
       const parsed = chatMessageSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: formatZodErrors(parsed.error) });
       }
       const { message, history } = parsed.data;
+      const conversationId = typeof req.body.conversationId === "number" ? req.body.conversationId : null;
+
+      let convId = conversationId;
+      if (!convId) {
+        const conv = await storage.createConversation({
+          userId,
+          title: message.substring(0, 100),
+          mode: "general",
+        });
+        convId = conv.id;
+      } else {
+        const conv = await storage.getConversation(convId, userId);
+        if (!conv) return res.status(404).json({ error: "المحادثة غير موجودة" });
+        if (conv.mode !== "general") return res.status(400).json({ error: "هذه المحادثة لا تنتمي لهذا السياق" });
+      }
+
+      await storage.addMessage({ conversationId: convId, role: "user", content: message });
 
       const generalChat = await enhanceWithKnowledge(buildGeneralChatPrompt(message), "general");
 
-      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      const aiMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: generalChat.system },
       ];
 
       if (history) {
         for (const msg of history.slice(-10)) {
-          messages.push({ role: msg.role, content: msg.content.substring(0, 2000) });
+          aiMessages.push({ role: msg.role, content: msg.content.substring(0, 2000) });
         }
       }
 
-      messages.push({ role: "user", content: generalChat.user });
+      aiMessages.push({ role: "user", content: generalChat.user });
 
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
-        messages,
+        messages: aiMessages,
         max_completion_tokens: 2000,
         temperature: 0.7,
       });
 
       const reply = response.choices[0]?.message?.content || "عذراً، لم أتمكن من الرد.";
-      res.json({ reply });
+
+      await storage.addMessage({ conversationId: convId, role: "assistant", content: reply });
+
+      res.json({ reply, conversationId: convId });
 
       dispatchWebhook({
         input: message,
@@ -2466,7 +2548,7 @@ ${allPages.map(p => `  <url>
         category: "general",
         correction: null,
         timestamp: new Date().toISOString(),
-        metadata: { session_id: `chat-${req.user.claims.sub}`, language: "ar", word_count: countWords(reply) },
+        metadata: { session_id: `chat-${userId}`, language: "ar", word_count: countWords(reply) },
       });
     } catch (error) {
       console.error("Error in general chat:", error);
@@ -2559,14 +2641,35 @@ ${allPages.map(p => `  <url>
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       if (!(await checkAiRateLimit(req, res))) return;
+      const userId = req.user.claims.sub;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
+      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
 
       const { message } = req.body;
       if (!message || typeof message !== "string") return res.status(400).json({ error: "الرسالة مطلوبة" });
+      const incomingConvId = typeof req.body.conversationId === "number" ? req.body.conversationId : null;
+
+      let convId = incomingConvId;
+      if (!convId) {
+        const conv = await storage.createConversation({
+          userId,
+          title: message.substring(0, 100),
+          mode: "project",
+          projectId: id,
+        });
+        convId = conv.id;
+      } else {
+        const conv = await storage.getConversation(convId, userId);
+        if (!conv) return res.status(404).json({ error: "المحادثة غير موجودة" });
+        if (conv.mode !== "project" || conv.projectId !== id) return res.status(400).json({ error: "هذه المحادثة لا تنتمي لهذا المشروع" });
+      }
+
+      await storage.addMessage({ conversationId: convId, role: "user", content: message });
+
+      const chatHistory = await storage.getMessagesByConversation(convId);
 
       const characters = await storage.getCharactersByProject(id);
       const projectChatEnhanced = await enhanceWithKnowledge(buildProjectChatPrompt({
@@ -2581,18 +2684,29 @@ ${allPages.map(p => `  <url>
         userMessage: message,
       }), project.projectType || "general");
 
+      const aiMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: projectChatEnhanced.system },
+      ];
+
+      const prevMsgs = chatHistory.slice(-10, -1);
+      for (const msg of prevMsgs) {
+        aiMessages.push({ role: msg.role as "user" | "assistant", content: msg.content.substring(0, 2000) });
+      }
+
+      aiMessages.push({ role: "user", content: projectChatEnhanced.user });
+
       const response = await openai.chat.completions.create({
         model: "gpt-5.2",
-        messages: [
-          { role: "system", content: projectChatEnhanced.system },
-          { role: "user", content: projectChatEnhanced.user },
-        ],
+        messages: aiMessages,
         max_completion_tokens: 2000,
         temperature: 0.7,
       });
 
       const reply = response.choices[0]?.message?.content || "عذراً، لم أتمكن من الرد.";
-      res.json({ reply });
+
+      await storage.addMessage({ conversationId: convId, role: "assistant", content: reply });
+
+      res.json({ reply, conversationId: convId });
 
       dispatchWebhook({
         input: message,
