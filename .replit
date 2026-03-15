@@ -23,8 +23,8 @@ PORT = "5000"
 
 [deployment]
 deploymentTarget = "vm"
-run = ["bash", "-c", "npm install --prefix dist --omit=dev 2>&1 | tail -5 && node dist/index.cjs"]
-build = ["npm", "run", "build"]
+run = ["bash", "-c", "NAPI_RS_NATIVE_LIBRARY_PATH=./skia.linux-x64-gnu.node node dist/index.cjs"]
+build = ["bash", "-c", "npm ci && npm run build && rm -rf node_modules/ .pythonlibs/ .npm/"]
 
 ignorePaths = [".pythonlibs/", "node_modules/", "client/", "script/", "scripts/", ".local/", ".git/", ".cache/", ".config/", ".upm/", "attached_assets/", "generated_videos/", "voice_samples/", "tts_server/", "server/", "shared/", "*.md", "*.log", ".gitignore", ".prettierrc", "tsconfig.json", "drizzle.config.ts", "vite.config.ts", "tailwind.config.ts", "postcss.config.js", "components.json", "theme.json", "get_diff.sh", "uv.lock", "pyproject.toml", "main.py"]
 

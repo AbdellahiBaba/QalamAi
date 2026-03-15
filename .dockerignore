@@ -1,23 +1,38 @@
+# Development dependencies - rebuilt via npm ci during build
 node_modules/
 dist/node_modules/
 dist/package.json
+
+# Python TTS server and virtual environment (8+ GB) - not needed in production
 .pythonlibs/
+**/.pythonlibs/
+tts_server/
+main.py
+pyproject.toml
+uv.lock
+
+# Source files (production bundle is in dist/)
 client/
+server/
+shared/
 script/
 scripts/
-.local/
+
+# Large media/assets directories
+generated_videos/
+voice_samples/
+attached_assets/
+
+# Development & config files
 .git/
+.gitignore
+.local/
 .cache/
 .config/
 .upm/
-attached_assets/
-generated_videos/
-voice_samples/
-tts_server/
+.npm/
 *.md
 *.log
-.gitignore
-.prettierrc
 tsconfig.json
 drizzle.config.ts
 vite.config.ts
@@ -26,8 +41,4 @@ postcss.config.js
 components.json
 theme.json
 get_diff.sh
-uv.lock
-pyproject.toml
-main.py
-server/
-shared/
+.prettierrc
