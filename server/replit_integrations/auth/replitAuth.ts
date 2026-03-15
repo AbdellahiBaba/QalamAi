@@ -67,7 +67,12 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const config = await getOidcConfig();
+  // Kick off OIDC discovery in the background — do NOT await here so server
+  // startup is never blocked by a network call to replit.com/oidc.
+  // The memoized promise will be ready by the time the first login arrives.
+  getOidcConfig().catch((err) =>
+    console.warn("[Auth] Background OIDC pre-discovery failed (will retry on login):", err)
+  );
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
@@ -79,13 +84,14 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  // Keep track of registered strategies
   const registeredStrategies = new Set<string>();
 
-  // Helper function to ensure strategy exists for a domain
-  const ensureStrategy = (domain: string) => {
+  // Async: resolves the OIDC config (already in-flight) and registers the
+  // per-domain Passport strategy the first time a login is initiated.
+  const ensureStrategy = async (domain: string) => {
     const strategyName = `replitauth:${domain}`;
     if (!registeredStrategies.has(strategyName)) {
+      const config = await getOidcConfig();
       const strategy = new Strategy(
         {
           name: strategyName,
@@ -103,31 +109,44 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
-  app.get("/api/login", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+  app.get("/api/login", async (req, res, next) => {
+    try {
+      await ensureStrategy(req.hostname);
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  app.get("/api/callback", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
+  app.get("/api/callback", async (req, res, next) => {
+    try {
+      await ensureStrategy(req.hostname);
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        successReturnToOrRedirect: "/",
+        failureRedirect: "/api/login",
+      })(req, res, next);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
-    });
+  app.get("/api/logout", async (req, res) => {
+    try {
+      const config = await getOidcConfig();
+      req.logout(() => {
+        res.redirect(
+          client.buildEndSessionUrl(config, {
+            client_id: process.env.REPL_ID!,
+            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+          }).href
+        );
+      });
+    } catch (err) {
+      req.logout(() => res.redirect("/"));
+    }
   });
 }
 
