@@ -57,3 +57,4 @@ QalamAI is a React-based Single Page Application (SPA) utilizing Tailwind CSS an
 -   **docx (npm package)**: DOCX document generation.
 -   **FFmpeg**: Video composition for Reels.
 -   **Training Webhook System**: Sends AI interaction data to an external training server.
+-   **XTTS v2 (Coqui TTS)**: Arabic voice cloning TTS via Python/FastAPI microservice on port 8000. Admin uploads WAV voice sample; authenticated users can listen to essays/chapters with cloned voice. Express proxy routes forward requests to the Python server.

@@ -14,6 +14,7 @@ import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useXTTS } from "@/hooks/use-xtts";
 
 interface PublicEssay {
   id: number;
@@ -92,6 +93,18 @@ export default function EssayPublic() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const xtts = useXTTS();
+
+  const getEssayText = useCallback(() => {
+    const titleEl = document.querySelector("[data-testid='text-essay-title']");
+    const contentEl = document.querySelector("[data-testid='essay-content']");
+    const title = titleEl?.textContent?.trim() || "";
+    const paragraphs: string[] = contentEl
+      ? Array.from(contentEl.querySelectorAll("p")).map(p => p.textContent?.trim() || "").filter(t => t.length > 5)
+      : [];
+    return `${title}. ${paragraphs.join(". ")}`.substring(0, 5000);
   }, []);
 
   // TTS — documentary-style Arabic narration (Al Jazeera pace)
@@ -670,6 +683,25 @@ export default function EssayPublic() {
               )}
               {audioLoading ? "جارٍ التحضير…" : audioPlaying ? (ttsStatus || "إيقاف") : "استمع للمقال"}
             </Button>
+            {user && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => xtts.speak(getEssayText())}
+                disabled={xtts.loading}
+                data-testid="button-xtts"
+                className={`gap-1.5 transition-all ${xtts.playing ? "border-violet-500 text-violet-600" : ""}`}
+              >
+                {xtts.loading ? (
+                  <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+                ) : xtts.playing ? (
+                  <VolumeX className="w-3.5 h-3.5" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5 text-violet-500" />
+                )}
+                {xtts.loading ? "جارٍ التوليد…" : xtts.playing ? "إيقاف XTTS" : "استمع (XTTS)"}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

@@ -9589,6 +9589,65 @@ ${ch.content}
     next();
   };
 
+  // ── XTTS v2 Voice Cloning TTS ───────────────────────────────────────────────
+  const TTS_SERVER_URL = "http://localhost:8000";
+
+  app.get("/api/tts/health", async (_req, res) => {
+    try {
+      const health = await fetch(`${TTS_SERVER_URL}/health`);
+      if (!health.ok) throw new Error("TTS server unavailable");
+      res.json(await health.json());
+    } catch {
+      res.json({ status: "offline", model_loaded: false, voice_configured: false });
+    }
+  });
+
+  app.post("/api/admin/tts/upload-voice", isAuthenticated, isSuperAdmin, async (req: any, res) => {
+    try {
+      const contentType = req.headers["content-type"] || "";
+      if (!contentType.includes("multipart/form-data")) {
+        return res.status(400).json({ error: "يجب إرسال ملف بصيغة multipart/form-data" });
+      }
+      const proxyRes = await fetch(`${TTS_SERVER_URL}/admin/upload-voice`, {
+        method: "POST",
+        headers: { "content-type": contentType },
+        body: req,
+        duplex: "half",
+      } as any);
+      const data = await proxyRes.json();
+      if (!proxyRes.ok) return res.status(proxyRes.status).json(data);
+      res.json(data);
+    } catch (error: any) {
+      console.error("[TTS Upload] Proxy error:", error?.message);
+      res.status(503).json({ error: "خدمة الصوت غير متاحة حالياً — تأكد من تشغيل TTS Server" });
+    }
+  });
+
+  app.post("/api/tts/generate", isAuthenticated, async (req: any, res) => {
+    try {
+      const { text } = req.body;
+      if (!text || typeof text !== "string" || !text.trim()) {
+        return res.status(400).json({ error: "النص مطلوب" });
+      }
+      const ttsRes = await fetch(`${TTS_SERVER_URL}/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.substring(0, 5000) }),
+      });
+      if (!ttsRes.ok) {
+        const err = await ttsRes.json().catch(() => ({}));
+        return res.status(ttsRes.status).json({ error: (err as any)?.detail || "فشل في توليد الصوت" });
+      }
+      res.set("Content-Type", "audio/wav");
+      res.set("Cache-Control", "private, max-age=3600");
+      const arrayBuf = await ttsRes.arrayBuffer();
+      res.send(Buffer.from(arrayBuf));
+    } catch (error: any) {
+      console.error("[TTS Generate] Proxy error:", error?.message);
+      res.status(503).json({ error: "خدمة الصوت غير متاحة حالياً" });
+    }
+  });
+
   const impersonationSessions = new Map<string, { adminId: string; targetUserId: string; expiresAt: number }>();
 
   app.post("/api/admin/impersonate/:userId/start", isAuthenticated, isSuperAdmin, async (req: any, res) => {

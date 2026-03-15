@@ -5,6 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { useXTTS } from "@/hooks/use-xtts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +21,7 @@ import {
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
   Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Film, Layers,
-  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck
+  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck, Volume2, VolumeX
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -375,6 +376,7 @@ export default function ProjectDetail() {
   const { user: authUser } = useAuth();
   const FREE_ACCESS_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
   const hasFreeAccess = !!(authUser && FREE_ACCESS_IDS.includes(authUser.id));
+  const xtts = useXTTS();
   const [activeTab, setActiveTab] = useState("overview");
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
   const [generatingChapter, setGeneratingChapter] = useState<number | null>(null);
@@ -4062,6 +4064,26 @@ export default function ProjectDetail() {
                               </ScrollArea>
                               {chapter.status === "completed" && !isGenerating && (
                                 <div className="border-t p-3 flex items-center justify-end gap-2 flex-wrap">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      xtts.speak(displayContent || "");
+                                    }}
+                                    disabled={xtts.loading}
+                                    data-testid={`button-xtts-chapter-${chapter.id}`}
+                                    className={`gap-1 ${xtts.playing ? "border-violet-500 text-violet-600" : ""}`}
+                                  >
+                                    {xtts.loading ? (
+                                      <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+                                    ) : xtts.playing ? (
+                                      <VolumeX className="w-3.5 h-3.5 ml-1" />
+                                    ) : (
+                                      <Volume2 className="w-3.5 h-3.5 ml-1 text-violet-500" />
+                                    )}
+                                    {xtts.loading ? "جارٍ التوليد…" : xtts.playing ? "إيقاف" : "استمع"}
+                                  </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"

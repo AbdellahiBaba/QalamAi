@@ -1,10 +1,10 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web", "postgresql-16", "python-3.11"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["pkg-config", "cairo", "pango", "libjpeg", "giflib", "librsvg", "pixman", "util-linux", "ffmpeg"]
+packages = ["cairo", "ffmpeg", "giflib", "libjpeg", "librsvg", "libsndfile", "pango", "pixman", "pkg-config", "util-linux"]
 
 [[ports]]
 localPort = 5000
@@ -31,6 +31,10 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "TTS Server"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -39,6 +43,18 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "TTS Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+waitForPort = 8000
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 integrations = ["javascript_database:1.0.0", "javascript_openai_ai_integrations:2.0.0", "javascript_log_in_with_replit:2.0.0", "stripe:2.0.0"]
