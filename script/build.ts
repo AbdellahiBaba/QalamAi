@@ -20,24 +20,24 @@ const MUST_KEEP_EXTERNAL = [
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
-  console.log("building client...");
-  await viteBuild();
+  console.log("building client + server in parallel...");
 
-  console.log("building server...");
-
-  await esbuild({
-    entryPoints: ["server/index.ts"],
-    platform: "node",
-    bundle: true,
-    format: "cjs",
-    outfile: "dist/index.cjs",
-    define: {
-      "process.env.NODE_ENV": '"production"',
-    },
-    minify: true,
-    external: MUST_KEEP_EXTERNAL,
-    logLevel: "info",
-  });
+  await Promise.all([
+    viteBuild(),
+    esbuild({
+      entryPoints: ["server/index.ts"],
+      platform: "node",
+      bundle: true,
+      format: "cjs",
+      outfile: "dist/index.cjs",
+      define: {
+        "process.env.NODE_ENV": '"production"',
+      },
+      minify: true,
+      external: MUST_KEEP_EXTERNAL,
+      logLevel: "info",
+    }),
+  ]);
 }
 
 buildAll().catch((err) => {

@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
@@ -12,7 +12,10 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "favicon.png"],
       manifest: false,
+      showMaximumFileSizeToCacheInBytesWarning: true,
       workbox: {
+        maximumFileSizeToCacheInBytes: 250_000,
+        globPatterns: ["**/*.html", "**/*.css", "**/vendor-*.js"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -67,6 +70,7 @@ export default defineConfig({
           "vendor-ui": ["class-variance-authority", "tailwind-merge", "lucide-react", "clsx"],
           "vendor-query": ["@tanstack/react-query"],
           "vendor-form": ["react-hook-form", "@hookform/resolvers", "zod"],
+          "vendor-charts": ["recharts"],
         },
       },
     },
