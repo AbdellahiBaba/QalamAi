@@ -148,11 +148,35 @@ async function initStripe() {
 
     console.log("Setting up managed webhook...");
     const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(",")[0]}`;
+    const webhookUrl = `${webhookBaseUrl}/api/stripe/webhook`;
+
+    // Remove any older duplicate records for this URL — keep only the newest
     try {
-      const result = await stripeSync.findOrCreateManagedWebhook(
-        `${webhookBaseUrl}/api/stripe/webhook`
-      );
-      console.log("Webhook configured:", JSON.stringify(result)?.substring(0, 200));
+      const { Pool } = await import("pg");
+      const cleanupPool = new Pool({ connectionString: databaseUrl });
+      try {
+        await cleanupPool.query(`
+          DELETE FROM "stripe"."_managed_webhooks"
+          WHERE url = $1
+            AND id NOT IN (
+              SELECT id FROM "stripe"."_managed_webhooks"
+              WHERE url = $1
+              ORDER BY created DESC
+              LIMIT 1
+            )
+        `, [webhookUrl]);
+      } finally {
+        await cleanupPool.end();
+      }
+    } catch (_) {}
+
+    try {
+      const result = await stripeSync.findOrCreateManagedWebhook(webhookUrl);
+      if (result?.id) {
+        console.log("[stripe] Webhook configured:", result.id, result.url ?? "");
+      } else {
+        console.warn("[stripe] Webhook setup returned no ID — will retry on next startup");
+      }
 
       // Ensure subscription lifecycle events are included in the webhook
       if (result?.id) {

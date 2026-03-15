@@ -75,12 +75,22 @@ export async function getStripeSync() {
     const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
 
+    const syncLogger = {
+      info:  (obj: any, msg?: string) => console.log("[stripe-sync]", msg ?? obj),
+      warn:  (obj: any, msg?: string) => console.warn("[stripe-sync]", msg ?? obj, ...(msg && obj?.webhookId ? [`(${obj.webhookId})`] : [])),
+      error: (obj: any, msg?: string) => console.error("[stripe-sync]", msg ?? obj),
+      debug: () => {},
+      trace: () => {},
+      child: () => syncLogger,
+    };
+
     stripeSync = new StripeSync({
       poolConfig: {
         connectionString: process.env.DATABASE_URL!,
         max: 2,
       },
       stripeSecretKey: secretKey,
+      logger: syncLogger,
     });
   }
   return stripeSync;
