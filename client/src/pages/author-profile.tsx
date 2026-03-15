@@ -154,7 +154,7 @@ export default function AuthorProfile() {
         bankIban: payoutMethod === "bank" ? payoutBankIban : null,
         bankSwift: payoutMethod === "bank" ? payoutBankSwift : null,
         bankCountry: payoutMethod === "bank" ? payoutBankCountry : null,
-        stripeAccountId: payoutMethod === "stripe" ? payoutStripeAccountId : null,
+        stripeAccountId: null,
       };
       const res = await apiRequest("POST", "/api/payout-settings", body);
       return res.json();
@@ -674,20 +674,6 @@ export default function AuthorProfile() {
                         />
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {payoutMethod === "stripe" && (
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">معرّف حساب Stripe Connect</Label>
-                    <Input
-                      dir="ltr"
-                      placeholder="acct_1234567890"
-                      value={payoutStripeAccountId}
-                      onChange={e => { setPayoutStripeAccountId(e.target.value); setPayoutFormDirty(true); }}
-                      data-testid="input-payout-stripe-account-id"
-                    />
-                    <p className="text-xs text-muted-foreground">أدخل معرّف حساب Stripe Connect الخاص بك (يبدأ بـ acct_)</p>
                   </div>
                 )}
 

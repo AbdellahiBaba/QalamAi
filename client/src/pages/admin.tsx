@@ -179,12 +179,200 @@ function AdminPagination({ page, total, limit, onPageChange, testIdPrefix }: { p
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   essay: "مقال",
   novel: "رواية",
-  poem: "قصيدة",
+  poetry: "قصيدة",
   short_story: "قصة قصيرة",
-  screenplay: "سيناريو",
+  scenario: "سيناريو",
   khawater: "خاطرة",
   memoire: "مذكرة",
 };
+
+function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(star)}
+          className="p-0.5 focus:outline-none"
+          data-testid={`star-${star}`}
+        >
+          <Star
+            className={`w-4 h-4 transition-colors ${(hovered || value) >= star ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ChallengeEntriesPanel({ challengeId, winnerId, onClose }: { challengeId: number; winnerId: string | null; onClose: () => void }) {
+  const { toast } = useToast();
+  const [entryRatings, setEntryRatings] = useState<Record<number, number>>({});
+  const [entryNotes, setEntryNotes] = useState<Record<number, string>>({});
+  const [expandedEntry, setExpandedEntry] = useState<number | null>(null);
+
+  const { data: challenge, isLoading, refetch } = useQuery<any>({
+    queryKey: ["/api/challenges", challengeId],
+    queryFn: async () => {
+      const res = await fetch(`/api/challenges/${challengeId}`);
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (challenge?.entries) {
+      const ratings: Record<number, number> = {};
+      const notes: Record<number, string> = {};
+      challenge.entries.forEach((e: any) => {
+        if (e.admin_rating) ratings[e.id] = e.admin_rating;
+        if (e.admin_notes) notes[e.id] = e.admin_notes;
+      });
+      setEntryRatings(ratings);
+      setEntryNotes(notes);
+    }
+  }, [challenge]);
+
+  const rateMutation = useMutation({
+    mutationFn: async ({ entryId, rating, notes }: { entryId: number; rating: number; notes: string }) => {
+      await apiRequest("PUT", `/api/admin/challenges/${challengeId}/entries/${entryId}/rate`, {
+        adminRating: rating,
+        adminNotes: notes || null,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "تم حفظ التقييم" });
+      refetch();
+    },
+    onError: () => toast({ title: "فشل في حفظ التقييم", variant: "destructive" }),
+  });
+
+  const winnerMutation = useMutation({
+    mutationFn: async ({ entryId, userId }: { entryId: number; userId: string }) => {
+      await apiRequest("PUT", `/api/admin/challenges/${challengeId}/winner`, { winnerId: userId, winnerEntryId: entryId });
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديد الفائز" });
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+      refetch();
+    },
+    onError: () => toast({ title: "فشل في تحديد الفائز", variant: "destructive" }),
+  });
+
+  if (isLoading) return <div className="p-6"><Skeleton className="h-32 w-full" /></div>;
+  const entries: any[] = challenge?.entries || [];
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      <div className="flex items-center justify-between">
+        <h4 className="font-semibold text-base">{challenge?.title} — المشاركات ({entries.length})</h4>
+        <Button size="sm" variant="ghost" onClick={onClose} data-testid="button-close-entries-panel"><X className="w-4 h-4" /></Button>
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">لا توجد مشاركات حتى الآن</p>
+      ) : (
+        <div className="space-y-3">
+          {entries.map((entry: any) => {
+            const isExpanded = expandedEntry === entry.id;
+            const currentRating = entryRatings[entry.id] || entry.admin_rating || 0;
+            const currentNotes = entryNotes[entry.id] ?? (entry.admin_notes || "");
+            const isWinner = winnerId === entry.user_id;
+            return (
+              <div
+                key={entry.id}
+                className={`border rounded-lg overflow-hidden ${isWinner ? "border-amber-400 bg-amber-50/30 dark:bg-amber-900/10" : ""}`}
+                data-testid={`admin-entry-${entry.id}`}
+              >
+                <div className="p-3 flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Avatar className="w-7 h-7 flex-shrink-0">
+                      <AvatarImage src={entry.authorProfileImage || undefined} alt={entry.authorName} />
+                      <AvatarFallback className="text-xs">{(entry.authorName || "?")[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-medium">{entry.authorName}</span>
+                        {isWinner && <Badge className="text-xs py-0 h-4 bg-amber-500">🏆 الفائز</Badge>}
+                        {currentRating > 0 && (
+                          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{currentRating}/5</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{entry.content?.slice(0, 80)}...</p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 flex-shrink-0"
+                    onClick={() => setExpandedEntry(isExpanded ? null : entry.id)}
+                    data-testid={`button-expand-entry-${entry.id}`}
+                  >
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </Button>
+                </div>
+                {isExpanded && (
+                  <div className="border-t p-3 space-y-3 bg-muted/20">
+                    <ScrollArea className="h-40">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.content}</p>
+                    </ScrollArea>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground shrink-0">التقييم:</Label>
+                        <StarRating
+                          value={currentRating}
+                          onChange={(v) => setEntryRatings(prev => ({ ...prev, [entry.id]: v }))}
+                        />
+                      </div>
+                      <Textarea
+                        placeholder="ملاحظات الأدمن (اختياري)"
+                        value={currentNotes}
+                        onChange={e => setEntryNotes(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                        rows={2}
+                        className="text-xs"
+                        dir="rtl"
+                        data-testid={`textarea-entry-notes-${entry.id}`}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 gap-1"
+                          disabled={rateMutation.isPending || currentRating === 0}
+                          onClick={() => rateMutation.mutate({ entryId: entry.id, rating: currentRating, notes: currentNotes })}
+                          data-testid={`button-save-rating-${entry.id}`}
+                        >
+                          <Check className="w-3 h-3" /> حفظ التقييم
+                        </Button>
+                        {!isWinner && (
+                          <Button
+                            size="sm"
+                            className="text-xs h-7 gap-1 bg-amber-500 hover:bg-amber-600 text-white"
+                            disabled={winnerMutation.isPending}
+                            onClick={() => {
+                              if (confirm(`تحديد "${entry.authorName}" كفائز لهذا التحدي؟`)) {
+                                winnerMutation.mutate({ entryId: entry.id, userId: entry.user_id });
+                              }
+                            }}
+                            data-testid={`button-set-winner-${entry.id}`}
+                          >
+                            <Crown className="w-3 h-3" /> تحديد كفائز
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function AdminChallengesTab() {
   const { toast } = useToast();
@@ -197,6 +385,7 @@ function AdminChallengesTab() {
   const [generatedPrompt, setGeneratedPrompt] = useState<{ promptText: string; promptDate: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingPrompt, setIsSavingPrompt] = useState(false);
+  const [selectedChallengeId, setSelectedChallengeId] = useState<number | null>(null);
 
   const { data: challenges, isLoading } = useQuery<any[]>({
     queryKey: ["/api/challenges"],
@@ -228,8 +417,9 @@ function AdminChallengesTab() {
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/admin/challenges/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data: unknown, deletedId: number) => {
       toast({ title: "تم حذف التحدي" });
+      if (selectedChallengeId === deletedId) setSelectedChallengeId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
     },
     onError: () => toast({ title: "فشل في حذف التحدي", variant: "destructive" }),
@@ -262,6 +452,8 @@ function AdminChallengesTab() {
       setIsSavingPrompt(false);
     }
   };
+
+  const selectedChallenge = challenges?.find((c: any) => c.id === selectedChallengeId);
 
   return (
     <div className="space-y-6">
@@ -343,6 +535,7 @@ function AdminChallengesTab() {
           </div>
         </CardContent>
       </Card>
+
       <Card>
         <CardContent className="p-6 space-y-4">
           <h3 className="font-serif text-lg font-semibold" data-testid="text-challenges-list-title">التحديات الحالية</h3>
@@ -352,60 +545,79 @@ function AdminChallengesTab() {
             <div className="space-y-3">
               {challenges.map((ch: any) => {
                 const isActive = new Date(ch.end_date) > new Date();
+                const isSelected = selectedChallengeId === ch.id;
                 return (
-                  <div key={ch.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg" data-testid={`admin-challenge-${ch.id}`}>
-                    <div className="space-y-0.5 flex-1 min-w-0">
-                      <p className="font-medium text-sm">{ch.title}</p>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {ch.project_type && (
-                          <Badge variant="outline" className="text-xs py-0 h-4 border-amber-400/40 text-amber-700 dark:text-amber-400">
-                            {PROJECT_TYPE_LABELS[ch.project_type] || ch.project_type}
-                          </Badge>
+                  <div key={ch.id} className={`border rounded-lg overflow-hidden transition-colors ${isSelected ? "border-primary/40 bg-primary/5" : ""}`} data-testid={`admin-challenge-${ch.id}`}>
+                    <div
+                      className="flex items-center justify-between gap-3 p-3 cursor-pointer hover:bg-muted/40 transition-colors"
+                      onClick={() => setSelectedChallengeId(isSelected ? null : ch.id)}
+                      data-testid={`button-manage-challenge-${ch.id}`}
+                    >
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{ch.title}</p>
+                          {isSelected ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {ch.project_type && (
+                            <Badge variant="outline" className="text-xs py-0 h-4 border-amber-400/40 text-amber-700 dark:text-amber-400">
+                              {PROJECT_TYPE_LABELS[ch.project_type] || ch.project_type}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">{ch.entryCount || 0} مشاركة</span>
+                        </div>
+                        {ch.prize_description && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 truncate">🏆 {ch.prize_description}</p>
                         )}
-                        <span className="text-xs text-muted-foreground">{ch.entryCount || 0} مشاركة</span>
                       </div>
-                      {ch.prize_description && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 truncate">🏆 {ch.prize_description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {isActive && (
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        {isActive && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7 gap-1"
+                            onClick={async () => {
+                              try {
+                                await apiRequest("PUT", `/api/admin/challenges/${ch.id}/close`);
+                                toast({ title: "تم إغلاق التحدي" });
+                                queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+                              } catch {
+                                toast({ title: "فشل في إغلاق التحدي", variant: "destructive" });
+                              }
+                            }}
+                            data-testid={`button-close-challenge-${ch.id}`}
+                          >
+                            <X className="w-3 h-3" /> إغلاق
+                          </Button>
+                        )}
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="text-xs h-7 gap-1"
-                          onClick={async () => {
-                            try {
-                              await apiRequest("PUT", `/api/admin/challenges/${ch.id}/close`);
-                              toast({ title: "تم إغلاق التحدي" });
-                              queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
-                            } catch {
-                              toast({ title: "فشل في إغلاق التحدي", variant: "destructive" });
+                          variant="ghost"
+                          className="text-xs h-7 gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => {
+                            if (confirm(`هل أنت متأكد من حذف التحدي "${ch.title}"؟ سيتم حذف جميع المشاركات.`)) {
+                              deleteMutation.mutate(ch.id);
                             }
                           }}
-                          data-testid={`button-close-challenge-${ch.id}`}
+                          data-testid={`button-delete-challenge-${ch.id}`}
                         >
-                          <X className="w-3 h-3" /> إغلاق
+                          <Trash2 className="w-3 h-3" /> حذف
                         </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-xs h-7 gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
-                        disabled={deleteMutation.isPending}
-                        onClick={() => {
-                          if (confirm(`هل أنت متأكد من حذف التحدي "${ch.title}"؟ سيتم حذف جميع المشاركات.`)) {
-                            deleteMutation.mutate(ch.id);
-                          }
-                        }}
-                        data-testid={`button-delete-challenge-${ch.id}`}
-                      >
-                        <Trash2 className="w-3 h-3" /> حذف
-                      </Button>
-                      <Badge variant={isActive ? "default" : "outline"}>
-                        {isActive ? "نشط" : "منتهي"}
-                      </Badge>
+                        <Badge variant={isActive ? "default" : "outline"}>
+                          {isActive ? "نشط" : "منتهي"}
+                        </Badge>
+                      </div>
                     </div>
+                    {isSelected && (
+                      <div className="border-t p-4 bg-background">
+                        <ChallengeEntriesPanel
+                          challengeId={ch.id}
+                          winnerId={ch.winner_id || null}
+                          onClose={() => setSelectedChallengeId(null)}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}

@@ -42,8 +42,10 @@ interface ChallengeDetail {
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   essay: "مقال",
   novel: "رواية",
+  poetry: "قصيدة",
   poem: "قصيدة",
   short_story: "قصة قصيرة",
+  scenario: "سيناريو",
   screenplay: "سيناريو",
   khawater: "خاطرة",
   memoire: "مذكرة",
