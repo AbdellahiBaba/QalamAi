@@ -268,6 +268,7 @@ export default function Profile() {
       queryClient.invalidateQueries({ queryKey: ["/api/me/email-preferences"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me/digest-preference"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me/email-notifications"] });
+      toast({ title: "تم حفظ تفضيلات البريد بنجاح" });
     },
   });
 

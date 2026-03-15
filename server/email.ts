@@ -14,6 +14,7 @@ function getDigestUnsubscribeUrl(userId: string, category: "digest" | "follow"):
 export function verifyDigestUnsubscribeToken(userId: string, category: string, token: string): boolean {
   const secret = process.env.SESSION_SECRET || "qalamai-unsubscribe-secret";
   const expected = crypto.createHmac("sha256", secret).update(`${userId}:${category}`).digest("hex");
+  if (token.length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
 }
 
