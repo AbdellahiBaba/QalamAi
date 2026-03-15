@@ -224,7 +224,7 @@ export default function ChallengeDetailPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     {winnerEntry.authorProfileImage ? (
-                      <img src={winnerEntry.authorProfileImage} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-400" loading="lazy" decoding="async" />
+                      <img src={winnerEntry.authorProfileImage} alt={winnerEntry.authorName || "كاتب"} className="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-400" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center text-sm font-bold text-yellow-700 dark:text-yellow-300 ring-2 ring-yellow-400">
                         {(winnerEntry.authorName || "?")[0]}
@@ -258,7 +258,7 @@ export default function ChallengeDetailPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       {entry.authorProfileImage ? (
-                        <img src={entry.authorProfileImage} alt="" className="w-8 h-8 rounded-full object-cover" loading="lazy" decoding="async" />
+                        <img src={entry.authorProfileImage} alt={entry.authorName || "كاتب"} className="w-8 h-8 rounded-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
                           {(entry.authorName || "?")[0]}
