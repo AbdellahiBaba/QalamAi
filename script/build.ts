@@ -1,7 +1,10 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, cp, mkdir, readdir } from "fs/promises";
+import { rm, cp, mkdir } from "fs/promises";
 
+// @napi-rs/canvas uses a native pre-built binary (.node file) and cannot be
+// bundled by esbuild. It remains in node_modules at runtime.
+// Everything else is inlined into dist/index.cjs.
 const MUST_KEEP_EXTERNAL = [
   "@napi-rs/canvas",
 ];
@@ -32,27 +35,7 @@ async function buildAll() {
   await mkdir("dist/data", { recursive: true });
   await cp("node_modules/pdfkit/js/data", "dist/data", { recursive: true });
 
-  console.log("copying @napi-rs/canvas binaries to dist/node_modules/...");
-  await cp(
-    "node_modules/@napi-rs/canvas",
-    "dist/node_modules/@napi-rs/canvas",
-    { recursive: true }
-  );
-  const entries = await readdir("node_modules/@napi-rs");
-  for (const entry of entries) {
-    if (entry === "canvas-linux-x64-gnu") {
-      await cp(
-        `node_modules/@napi-rs/${entry}`,
-        `dist/node_modules/@napi-rs/${entry}`,
-        { recursive: true }
-      );
-      console.log(`  copied @napi-rs/${entry}`);
-    } else if (entry.startsWith("canvas-")) {
-      console.log(`  skipped @napi-rs/${entry}`);
-    }
-  }
-
-  console.log("build complete — dist/ is self-contained");
+  console.log("build complete");
 }
 
 buildAll().catch((err) => {
