@@ -132,13 +132,6 @@ export async function setupAuth(app: Express) {
   app.get("/api/login", async (req, res, next) => {
     try {
       await ensureStrategy(req.hostname);
-      const origRedirect = res.redirect.bind(res);
-      (res as any).redirect = function (...args: any[]) {
-        req.session.save((saveErr) => {
-          if (saveErr) console.error("[Auth] Session save before OIDC redirect error:", saveErr);
-          origRedirect(...args);
-        });
-      };
       passport.authenticate(`replitauth:${req.hostname}`, {
         prompt: "login consent",
         scope: ["openid", "email", "profile", "offline_access"],
