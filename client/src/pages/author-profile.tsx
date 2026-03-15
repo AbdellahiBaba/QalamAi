@@ -103,6 +103,7 @@ export default function AuthorProfile() {
   const [payoutBankIban, setPayoutBankIban] = useState("");
   const [payoutBankSwift, setPayoutBankSwift] = useState("");
   const [payoutBankCountry, setPayoutBankCountry] = useState("");
+  const [payoutStripeConnectId, setPayoutStripeConnectId] = useState("");
   const [payoutFormDirty, setPayoutFormDirty] = useState(false);
 
   const { data: author, isLoading, error } = useQuery<AuthorData>({
@@ -122,6 +123,7 @@ export default function AuthorProfile() {
     bankIban: string | null;
     bankSwift: string | null;
     bankCountry: string | null;
+    stripeConnectId: string | null;
   } | null>({
     queryKey: ["/api/payout-settings"],
     enabled: isOwnProfile,
@@ -135,6 +137,7 @@ export default function AuthorProfile() {
       setPayoutBankIban(payoutSettings.bankIban || "");
       setPayoutBankSwift(payoutSettings.bankSwift || "");
       setPayoutBankCountry(payoutSettings.bankCountry || "");
+      setPayoutStripeConnectId(payoutSettings.stripeConnectId || "");
     }
   }, [payoutSettings, payoutFormDirty]);
 
@@ -147,6 +150,7 @@ export default function AuthorProfile() {
         bankIban: payoutMethod === "bank" ? payoutBankIban : null,
         bankSwift: payoutMethod === "bank" ? payoutBankSwift : null,
         bankCountry: payoutMethod === "bank" ? payoutBankCountry : null,
+        stripeConnectId: payoutMethod === "stripe" ? payoutStripeConnectId : null,
       };
       const res = await apiRequest("POST", "/api/payout-settings", body);
       return res.json();
@@ -587,6 +591,9 @@ export default function AuthorProfile() {
                       <SelectItem value="bank">
                         <span className="flex items-center gap-2"><Building2 className="w-4 h-4" /> تحويل بنكي</span>
                       </SelectItem>
+                      <SelectItem value="stripe">
+                        <span className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Stripe Connect</span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -649,6 +656,20 @@ export default function AuthorProfile() {
                         />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {payoutMethod === "stripe" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-medium">معرّف حساب Stripe Connect</Label>
+                    <Input
+                      dir="ltr"
+                      placeholder="acct_1234567890"
+                      value={payoutStripeConnectId}
+                      onChange={e => { setPayoutStripeConnectId(e.target.value); setPayoutFormDirty(true); }}
+                      data-testid="input-payout-stripe-connect-id"
+                    />
+                    <p className="text-xs text-muted-foreground">أدخل معرّف حساب Stripe Connect الخاص بك (يبدأ بـ acct_)</p>
                   </div>
                 )}
 
