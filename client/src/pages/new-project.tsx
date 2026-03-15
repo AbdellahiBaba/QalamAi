@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp, LayoutTemplate, Search, Heart, Crosshair, Landmark, Wand2, FileText, PenLine, Crown, Film } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Feather, Users, MapPin, BookOpen, Loader2, Sparkles, X, ChevronDown, ChevronUp, LayoutTemplate, Search, Heart, Crosshair, Landmark, Wand2, FileText, PenLine, Crown } from "lucide-react";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -684,28 +684,6 @@ export default function NewProject() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              <Link href="/project/new/reels">
-                <Card
-                  className="cursor-pointer transition-colors hover-elevate h-full border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
-                  data-testid="template-card-reels"
-                >
-                  <CardContent className="p-5">
-                    <div className="w-full text-right">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10 text-primary shrink-0">
-                          <Film className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-serif font-bold text-base">ريلز (فيديو قصير)</h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">٧.٩٩ دولار</p>
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">فيديو ريلز احترافي بالذكاء الاصطناعي مع صور وتعليق صوتي لإنستغرام وتيك توك ويوتيوب شورتس</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-
               <Card
                 className={`cursor-pointer transition-colors hover-elevate h-full ${selectedTemplate === "poetry" ? "border-primary ring-1 ring-primary" : ""}`}
                 data-testid="template-card-poetry"

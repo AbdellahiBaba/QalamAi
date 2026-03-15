@@ -314,7 +314,6 @@ app.use("/api/projects/:id/generate-outline", aiLimiter);
 app.use("/api/projects/:projectId/chapters/:chapterId/generate", aiLimiter);
 app.use("/api/projects/:id/chat", aiLimiter);
 app.use("/api/projects/:id/generate-cover", aiLimiter);
-app.use("/api/projects/:id/generate-video", aiLimiter);
 app.use("/api/chat", aiLimiter);
 app.use("/api/projects/suggest-titles", aiLimiter);
 app.use("/api/projects/suggest-full", aiLimiter);
@@ -365,12 +364,6 @@ const generalApiLimiter = rateLimit({
 });
 app.use(generalApiLimiter);
 
-app.use("/generated_videos", express.static(path.join(process.cwd(), "generated_videos"), {
-  maxAge: "1d",
-  setHeaders: (res) => {
-    res.setHeader("Content-Type", "video/mp4");
-  },
-}));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

@@ -19,7 +19,6 @@ import { apiCache } from "./cache";
 import { runLearningSession } from "./learning-engine";
 import { dispatchWebhook, mapProjectTypeToCategory, countWords, processRetryQueue, type WebhookPayload } from "./webhook-dispatcher";
 import { sanitizeText, sanitizeRichText } from "./sanitize";
-import { generateReelVideo, isVideoGenerating, clearVideoLock } from "./video-generator";
 import archiver from "archiver";
 import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import path from "path";
@@ -891,7 +890,6 @@ ${allPages.map(p => `  <url>
         shareToken: p.shareToken,
         publishedToGallery: p.publishedToGallery,
         publishedToNews: p.publishedToNews,
-        videoUrl: p.videoUrl,
         flagged: p.flagged,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
@@ -2693,74 +2691,6 @@ ${allPages.map(p => `  <url>
     }
   });
 
-  app.post("/api/projects/:id/generate-video", isAuthenticated, async (req: any, res) => {
-    try {
-      if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      if (!(await checkAiRateLimit(req, res))) return;
-      const id = parseIntParam(req.params.id);
-      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
-      const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
-      if (!project.paid) return res.status(403).json({ error: "يجب إتمام الدفع أولاً" });
-      if (project.projectType !== "social_media") {
-        return res.status(400).json({ error: "توليد الفيديو متاح فقط لمشاريع المحتوى" });
-      }
-      if (isVideoGenerating(id)) {
-        if (req.body?.force) {
-          clearVideoLock(id);
-        } else {
-          return res.status(409).json({ error: "جارٍ إنشاء الفيديو بالفعل، يرجى الانتظار" });
-        }
-      }
-
-      const projectChapters = await storage.getChaptersByProject(id);
-      const contentChapter = projectChapters.find((ch: any) => ch.content && ch.content.trim().length > 0);
-      if (!contentChapter) {
-        return res.status(400).json({ error: "يجب إنشاء سكريبت الريلز أولاً قبل توليد الفيديو" });
-      }
-
-      await storage.updateProject(id, { videoUrl: null });
-
-      res.json({ status: "generating", message: "جارٍ إنشاء فيديو الريلز... قد يستغرق ذلك دقيقتين" });
-
-      generateReelVideo(
-        { id: project.id, title: project.title },
-        contentChapter.content!,
-      ).then(async (result) => {
-        const filename = result.filePath.split("/").pop() || "";
-        await storage.updateProject(id, { videoUrl: `/generated_videos/${filename}` });
-        console.log(`[VideoGen] Video ready for project ${id}: ${result.filePath}`);
-      }).catch((err) => {
-        clearVideoLock(id);
-        console.error(`[VideoGen] Failed for project ${id}:`, err?.message || err);
-      });
-    } catch (error) {
-      console.error("Error generating video:", error);
-      res.status(500).json({ error: "فشل في بدء توليد الفيديو" });
-    }
-  });
-
-  app.get("/api/projects/:id/video-status", isAuthenticated, async (req: any, res) => {
-    try {
-      const id = parseIntParam(req.params.id);
-      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
-      const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
-
-      if (isVideoGenerating(id)) {
-        res.json({ status: "generating" });
-      } else if (project.videoUrl) {
-        res.json({ status: "ready", videoUrl: project.videoUrl });
-      } else {
-        res.json({ status: "idle" });
-      }
-    } catch (error) {
-      console.error("Error checking video status:", error);
-      res.status(500).json({ error: "خطأ في التحقق من حالة الفيديو" });
-    }
-  });
 
   app.get("/api/projects/:id/export/pdf", isAuthenticated, async (req: any, res) => {
     try {
@@ -9417,31 +9347,6 @@ ${ch.content}
     }
   });
 
-  // ── TTS (Audio Narration) ─────────────────────────────────────────────────────
-  app.post("/api/tts/essay/:shareToken", async (req, res) => {
-    try {
-      const { shareToken } = req.params;
-      const essay = await storage.getPublicEssayByShareToken(shareToken);
-      if (!essay) return res.status(404).json({ error: "المقال غير موجود" });
-      const chapters = await storage.getChaptersByProject(essay.id);
-      const fullText = chapters.map((c: any) => c.content || "").join("\n\n").substring(0, 4000);
-      if (!fullText.trim()) return res.status(400).json({ error: "المقال فارغ" });
-      const openai = new OpenAI({ apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL });
-      const mp3 = await openai.audio.speech.create({
-        model: "tts-1",
-        voice: "onyx",
-        input: `${essay.title}. ${fullText}`,
-      });
-      const buffer = Buffer.from(await mp3.arrayBuffer());
-      res.set("Content-Type", "audio/mpeg");
-      res.set("Content-Length", String(buffer.length));
-      res.set("Cache-Control", "public, max-age=86400");
-      res.send(buffer);
-    } catch (error: any) {
-      console.error("[TTS] Error:", error?.message);
-      res.status(500).json({ error: "فشل في إنشاء التسجيل الصوتي" });
-    }
-  });
 
   // ── Plagiarism Check ──────────────────────────────────────────────────────────
   app.post("/api/plagiarism-check", isAuthenticated, async (req: any, res) => {
@@ -9638,77 +9543,6 @@ ${ch.content}
     }
     next();
   };
-
-  // ── XTTS v2 Voice Cloning TTS ───────────────────────────────────────────────
-  const TTS_SERVER_URL = process.env.TTS_SERVER_URL || "http://localhost:8000";
-
-  app.get("/api/tts/health", async (_req, res) => {
-    try {
-      const health = await fetch(`${TTS_SERVER_URL}/health`);
-      if (!health.ok) throw new Error("TTS server unavailable");
-      res.json(await health.json());
-    } catch {
-      res.json({ status: "offline", model_loaded: false, voice_configured: false });
-    }
-  });
-
-  app.post("/api/admin/tts/upload-voice", isAuthenticated, isSuperAdmin, async (req: any, res) => {
-    try {
-      const contentType = req.headers["content-type"] || "";
-      if (!contentType.includes("multipart/form-data")) {
-        return res.status(400).json({ error: "يجب إرسال ملف بصيغة multipart/form-data" });
-      }
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      }
-      const bodyBuffer = Buffer.concat(chunks);
-      const proxyRes = await fetch(`${TTS_SERVER_URL}/admin/upload-voice`, {
-        method: "POST",
-        headers: { "content-type": contentType },
-        body: bodyBuffer,
-      });
-      const data = await proxyRes.json();
-      if (!proxyRes.ok) return res.status(proxyRes.status).json(data);
-      res.json(data);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
-      console.error("[TTS Upload] Proxy error:", msg);
-      res.status(503).json({ error: "خدمة الصوت غير متاحة حالياً — تأكد من تشغيل TTS Server" });
-    }
-  });
-
-  app.post("/api/tts/generate", isAuthenticated, async (req: any, res) => {
-    try {
-      const { text } = req.body;
-      if (!text || typeof text !== "string" || !text.trim()) {
-        return res.status(400).json({ error: "النص مطلوب" });
-      }
-      const ttsRes = await fetch(`${TTS_SERVER_URL}/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.substring(0, 5000) }),
-      });
-      if (!ttsRes.ok) {
-        const err = await ttsRes.json().catch(() => ({ detail: "فشل في توليد الصوت" }));
-        return res.status(ttsRes.status).json({ error: (err as Record<string, string>)?.detail || "فشل في توليد الصوت" });
-      }
-      res.set("Content-Type", "audio/wav");
-      res.set("Cache-Control", "private, max-age=3600");
-      if (ttsRes.body) {
-        const { Readable } = await import("stream");
-        const nodeStream = Readable.fromWeb(ttsRes.body as import("stream/web").ReadableStream);
-        nodeStream.pipe(res);
-      } else {
-        const arrayBuf = await ttsRes.arrayBuffer();
-        res.send(Buffer.from(arrayBuf));
-      }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
-      console.error("[TTS Generate] Proxy error:", msg);
-      res.status(503).json({ error: "خدمة الصوت غير متاحة حالياً" });
-    }
-  });
 
   const impersonationSessions = new Map<string, { adminId: string; targetUserId: string; expiresAt: number }>();
 

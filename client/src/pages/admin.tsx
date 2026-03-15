@@ -176,120 +176,6 @@ function AdminPagination({ page, total, limit, onPageChange, testIdPrefix }: { p
   );
 }
 
-function AdminTTSTab() {
-  const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const { data: ttsHealth } = useQuery<{ status: string; model_loaded: boolean; voice_configured: boolean }>({
-    queryKey: ["/api/tts/health"],
-    refetchInterval: 15000,
-  });
-
-  const handleUploadVoice = async () => {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) {
-      toast({ title: "يرجى اختيار ملف WAV", variant: "destructive" });
-      return;
-    }
-    if (!file.name.toLowerCase().endsWith(".wav")) {
-      toast({ title: "يجب أن يكون الملف بصيغة WAV", variant: "destructive" });
-      return;
-    }
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
-      const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
-      const res = await fetch("/api/admin/tts/upload-voice", {
-        method: "POST",
-        headers: { "X-CSRF-Token": csrfToken },
-        body: formData,
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "فشل الرفع");
-      toast({ title: data.message || "تم رفع العينة الصوتية بنجاح" });
-      queryClient.invalidateQueries({ queryKey: ["/api/tts/health"] });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err: any) {
-      toast({ title: err.message || "فشل في رفع الملف", variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const isOnline = ttsHealth?.status === "ok";
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <h3 className="font-serif text-lg font-semibold flex items-center gap-2" data-testid="text-tts-title">
-            <PlayCircle className="w-5 h-5 text-violet-500" />
-            صوت المنصة (XTTS v2)
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            ارفع عينة صوتية بصيغة WAV (لا تقل عن 6 ثوانٍ من الكلام الواضح) لتصبح الصوت الرسمي للمنصة.
-            سيستخدم هذا الصوت في ميزة "استمع" في القراءة.
-          </p>
-
-          <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-lg">
-            <div className={`w-3 h-3 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"} animate-pulse`} />
-            <div>
-              <p className="text-sm font-medium">{isOnline ? "خدمة الصوت متصلة" : "خدمة الصوت غير متصلة"}</p>
-              <p className="text-[11px] text-muted-foreground">
-                {isOnline
-                  ? `النموذج: ${ttsHealth?.model_loaded ? "محمّل" : "قيد التحميل"} — العينة: ${ttsHealth?.voice_configured ? "مرفوعة" : "غير مرفوعة"}`
-                  : "تأكد من تشغيل workflow \"TTS Server\""}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <Label className="text-sm font-medium">عينة صوتية (WAV)</Label>
-              <p className="text-[11px] text-muted-foreground mb-2">ملف صوتي WAV لا يقل عن 6 ثوانٍ من كلام واضح بدون ضوضاء</p>
-              <Input
-                ref={fileInputRef}
-                type="file"
-                accept=".wav,audio/wav"
-                className="text-sm"
-                data-testid="input-voice-file"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleUploadVoice}
-                disabled={uploading || !isOnline}
-                className="gap-1.5"
-                data-testid="button-upload-voice"
-              >
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                {uploading ? "جارٍ الرفع..." : "رفع العينة الصوتية"}
-              </Button>
-              {ttsHealth?.voice_configured && (
-                <Badge variant="outline" className="text-green-600 border-green-300" data-testid="badge-voice-configured">
-                  <CheckCircle className="w-3 h-3 ml-1" />
-                  عينة صوتية مُعدّة
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {!isOnline && (
-            <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2 rounded-md">
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>خدمة TTS Server غير متصلة. شغّل الـ workflow المخصص لها من إعدادات المشروع. أول تشغيل قد يستغرق 2-4 دقائق لتحميل النموذج.</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   essay: "مقال",
   novel: "رواية",
@@ -537,7 +423,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "tts">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -1498,7 +1384,6 @@ export default function Admin() {
                   { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                   { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
                   { key: "challenges" as const, icon: Crown, label: "التحديات" },
-                  ...(user && SUPER_ADMIN_IDS.includes(String(user.id)) ? [{ key: "tts" as const, icon: PlayCircle, label: "صوت المنصة" }] : []),
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -5504,10 +5389,6 @@ export default function Admin() {
 
         {activeTab === "challenges" && (
           <AdminChallengesTab />
-        )}
-
-        {activeTab === "tts" && (
-          <AdminTTSTab />
         )}
 
       </main>

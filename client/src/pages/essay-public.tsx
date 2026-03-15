@@ -9,12 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
-import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock, BadgeCheck, Volume2, VolumeX, Coffee, Quote, Tag } from "lucide-react";
+import { Eye, Clock, ArrowRight, BookOpen, Share2, Heart, MessageCircle, Send, Code2, Lock, BadgeCheck, Coffee, Quote, Tag } from "lucide-react";
 import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { useXTTS } from "@/hooks/use-xtts";
 
 interface PublicEssay {
   id: number;
@@ -94,141 +93,6 @@ export default function EssayPublic() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const xtts = useXTTS();
-
-  const getEssayText = useCallback(() => {
-    const titleEl = document.querySelector("[data-testid='text-essay-title']");
-    const contentEl = document.querySelector("[data-testid='essay-content']");
-    const title = titleEl?.textContent?.trim() || "";
-    const paragraphs: string[] = contentEl
-      ? Array.from(contentEl.querySelectorAll("p")).map(p => p.textContent?.trim() || "").filter(t => t.length > 5)
-      : [];
-    return `${title}. ${paragraphs.join(". ")}`.substring(0, 5000);
-  }, []);
-
-  // TTS — documentary-style Arabic narration (Al Jazeera pace)
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [audioPlaying, setAudioPlaying] = useState(false);
-  const [ttsStatus, setTtsStatus] = useState<string>("");
-  const ttsActiveRef = useRef(false);
-  const ttsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const stopTTS = useCallback(() => {
-    ttsActiveRef.current = false;
-    if (ttsTimerRef.current) { clearTimeout(ttsTimerRef.current); ttsTimerRef.current = null; }
-    window.speechSynthesis?.cancel();
-    setAudioPlaying(false);
-    setTtsStatus("");
-  }, []);
-
-  const handleTTS = useCallback(() => {
-    if (!window.speechSynthesis) {
-      toast({ title: "متصفّحك لا يدعم التشغيل الصوتي", variant: "destructive" });
-      return;
-    }
-    if (audioPlaying) { stopTTS(); return; }
-
-    // Read title from DOM, then each visible <p> inside essay-content
-    const titleEl = document.querySelector("[data-testid='text-essay-title']");
-    const contentEl = document.querySelector("[data-testid='essay-content']");
-    const title = titleEl?.textContent?.trim() || "";
-    const paragraphs: string[] = contentEl
-      ? Array.from(contentEl.querySelectorAll("p"))
-          .map(p => p.textContent?.trim() || "")
-          .filter(t => t.length > 5)
-      : [];
-    if (!title && paragraphs.length === 0) {
-      toast({ title: "لا يوجد نص للقراءة", variant: "destructive" });
-      return;
-    }
-
-    // Resolve best Arabic voice — wait for voiceschanged if needed
-    const resolveVoice = (): Promise<SpeechSynthesisVoice | null> =>
-      new Promise(resolve => {
-        const pick = (list: SpeechSynthesisVoice[]) => {
-          // Priority: Google > Natural Neural > Microsoft named > ar-SA > ar-AE > any ar
-          const tests: Array<(v: SpeechSynthesisVoice) => boolean> = [
-            v => /google/i.test(v.name) && v.lang.startsWith("ar"),
-            v => /natural|neural/i.test(v.name) && v.lang.startsWith("ar"),
-            v => /naayf|hala|salma|majed/i.test(v.name),
-            v => v.lang === "ar-SA",
-            v => v.lang === "ar-AE",
-            v => v.lang === "ar-EG",
-            v => v.lang.startsWith("ar"),
-          ];
-          for (const t of tests) { const f = list.find(t); if (f) return f; }
-          return null;
-        };
-        const initial = window.speechSynthesis.getVoices();
-        if (initial.length > 0) return resolve(pick(initial));
-        const handler = () => {
-          resolve(pick(window.speechSynthesis.getVoices()));
-          window.speechSynthesis.removeEventListener("voiceschanged", handler);
-        };
-        window.speechSynthesis.addEventListener("voiceschanged", handler);
-        setTimeout(() => { window.speechSynthesis.removeEventListener("voiceschanged", handler); resolve(pick(window.speechSynthesis.getVoices())); }, 1000);
-      });
-
-    setAudioLoading(true);
-    resolveVoice().then(voice => {
-      setAudioLoading(false);
-      ttsActiveRef.current = true;
-      setAudioPlaying(true);
-
-      const speak = (text: string, rate: number, pitch: number): Promise<void> =>
-        new Promise(resolve => {
-          if (!ttsActiveRef.current) return resolve();
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = "ar-SA";
-          if (voice) u.voice = voice;
-          u.rate = rate;
-          u.pitch = pitch;
-          u.volume = 1;
-          u.onend = () => resolve();
-          u.onerror = (e) => { if (e.error !== "interrupted") console.warn("[TTS]", e.error); resolve(); };
-          window.speechSynthesis.speak(u);
-        });
-
-      const pause = (ms: number): Promise<void> =>
-        new Promise(resolve => {
-          if (!ttsActiveRef.current) return resolve();
-          ttsTimerRef.current = setTimeout(resolve, ms);
-        });
-
-      (async () => {
-        // ── 1. Read the title — slow, gravitas, Al Jazeera opener tone
-        if (title && ttsActiveRef.current) {
-          setTtsStatus("يقرأ العنوان…");
-          await speak(title, 0.72, 0.82);
-          await pause(1400);
-        }
-
-        // ── 2. Read paragraphs — measured documentary pace
-        for (let i = 0; i < paragraphs.length; i++) {
-          if (!ttsActiveRef.current) break;
-          setTtsStatus(`الفقرة ${i + 1} من ${paragraphs.length}`);
-          // Every sentence inside the paragraph separated by period / pause
-          const sentences = paragraphs[i].split(/[.،؛!?]+/).map(s => s.trim()).filter(s => s.length > 3);
-          if (sentences.length === 0) continue;
-          for (const sentence of sentences) {
-            if (!ttsActiveRef.current) break;
-            await speak(sentence, 0.80, 0.85);
-            await pause(220); // brief inter-sentence breath
-          }
-          await pause(i === 0 ? 900 : 550); // longer pause after first paragraph
-        }
-
-        if (ttsActiveRef.current) {
-          ttsActiveRef.current = false;
-          setAudioPlaying(false);
-          setTtsStatus("");
-        }
-      })();
-    });
-  }, [audioPlaying, toast, stopTTS]);
-
-  useEffect(() => () => { stopTTS(); }, [stopTTS]);
 
   // Quote highlighting — state only, callback defined AFTER essay query to avoid TDZ
   const [quotePopup, setQuotePopup] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -666,47 +530,6 @@ export default function EssayPublic() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTTS}
-              disabled={audioLoading}
-              data-testid="button-tts"
-              className={`gap-1.5 transition-all ${audioPlaying ? "border-primary text-primary" : ""}`}
-            >
-              {audioLoading ? (
-                <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
-              ) : audioPlaying ? (
-                <VolumeX className="w-3.5 h-3.5" />
-              ) : (
-                <Volume2 className="w-3.5 h-3.5" />
-              )}
-              {audioLoading ? "جارٍ التحضير…" : audioPlaying ? (ttsStatus || "إيقاف") : "استمع للمقال"}
-            </Button>
-            {user && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => xtts.audioUrl ? xtts.clearAudio() : xtts.generate(getEssayText())}
-                  disabled={xtts.loading}
-                  data-testid="button-xtts"
-                  className={`gap-1.5 transition-all ${xtts.audioUrl ? "border-violet-500 text-violet-600" : ""}`}
-                >
-                  {xtts.loading ? (
-                    <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
-                  ) : xtts.audioUrl ? (
-                    <VolumeX className="w-3.5 h-3.5" />
-                  ) : (
-                    <Volume2 className="w-3.5 h-3.5 text-violet-500" />
-                  )}
-                  {xtts.loading ? "جارٍ التوليد…" : xtts.audioUrl ? "إغلاق المشغّل" : "استمع (XTTS)"}
-                </Button>
-                {xtts.audioUrl && (
-                  <audio controls autoPlay src={xtts.audioUrl} data-testid="audio-xtts-player" className="h-8" />
-                )}
-              </>
-            )}
             <Button
               variant="outline"
               size="sm"
