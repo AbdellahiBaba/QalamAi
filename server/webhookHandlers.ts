@@ -176,8 +176,8 @@ export class WebhookHandlers {
         link: "/profile",
       });
 
-      const emailEnabled = await storage.getEmailNotificationsEnabled(toAuthorId);
-      if (emailEnabled) {
+      const prefs = await storage.getUserEmailPreferences(toAuthorId);
+      if (prefs.emailNotifications && prefs.emailTipsComments) {
         const author = await storage.getUser(toAuthorId);
         if (author?.email) {
           sendNotificationEmail(author.email, tipTitle, tipMessage, "/profile").catch(() => {});

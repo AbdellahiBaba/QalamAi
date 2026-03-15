@@ -59,6 +59,11 @@ export const users = pgTable("users", {
   country: varchar("country", { length: 2 }),
   dailyAiUses: integer("daily_ai_uses").default(0),
   lastAiUseDate: varchar("last_ai_use_date"),
+  digestOptOut: boolean("digest_opt_out").default(false),
+  emailNotifications: boolean("email_notifications").default(true),
+  emailFollowPublications: boolean("email_follow_publications").default(true),
+  emailTipsComments: boolean("email_tips_comments").default(true),
+  emailChallenges: boolean("email_challenges").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -67,3 +72,11 @@ export const users = pgTable("users", {
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+export const systemSettings = pgTable("system_settings", {
+  key: varchar("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type SystemSetting = typeof systemSettings.$inferSelect;

@@ -909,19 +909,25 @@ async function runStartupMigrations() {
       }, LEARNING_INTERVAL);
       log("Auto-learning background job registered (every 24 hours)");
 
-      // Weekly digest — every Monday at ~9 AM server time (approx)
-      const WEEKLY_DIGEST_INTERVAL = 7 * 24 * 60 * 60 * 1000;
+      // Weekly digest — checked every 6 hours, runs once per 7 days (persistent)
+      const WEEKLY_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+      const WEEKLY_THRESHOLD = 7 * 24 * 60 * 60 * 1000;
       setInterval(async () => {
         try {
-          const [allUsers, topEssays] = await Promise.all([
+          const lastRun = await storage.getSystemSetting("last_weekly_digest");
+          const lastRunMs = lastRun ? Number(lastRun) : 0;
+          if (Date.now() - lastRunMs < WEEKLY_THRESHOLD) return;
+
+          const [digestUsers, followUsers, topEssays] = await Promise.all([
             storage.getUsersWithEmailsForDigest(),
+            storage.getUsersForFollowDigest(),
             storage.getTopEssaysForWeek(5),
           ]);
           if (topEssays.length > 0) {
-            await sendWeeklyDigest(allUsers, topEssays);
+            await sendWeeklyDigest(digestUsers, topEssays);
           }
           let followDigestSent = 0;
-          for (const u of allUsers) {
+          for (const u of followUsers) {
             try {
               const pubs = await storage.getRecentPublicationsByFollowedAuthors(u.id, 7);
               if (pubs.length > 0) {
@@ -930,38 +936,40 @@ async function runStartupMigrations() {
               }
             } catch {}
           }
+          await storage.setSystemSetting("last_weekly_digest", String(Date.now()));
           log(`Weekly digest sent (general + ${followDigestSent} personalized follow digests)`, "email");
         } catch (err: any) {
           console.error("[WeeklyDigest] Error:", err.message);
         }
-      }, WEEKLY_DIGEST_INTERVAL);
-      log("Weekly digest job registered (every 7 days)");
+      }, WEEKLY_CHECK_INTERVAL);
+      log("Weekly digest job registered (checked every 6h, runs once per 7 days)");
 
-      // Monthly author performance report — checked every 24 hours, runs once per 30 days
-      let lastMonthlyReport = 0;
-      const MONTHLY_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24h — safe for 32-bit setInterval
-      const MONTHLY_THRESHOLD = 30 * 24 * 60 * 60 * 1000; // 30 days in ms (only for comparison, not setInterval)
+      // Monthly author performance report — checked every 24 hours, runs once per 30 days (persistent)
+      const MONTHLY_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+      const MONTHLY_THRESHOLD = 30 * 24 * 60 * 60 * 1000;
       setInterval(async () => {
-        const now = Date.now();
-        if (now - lastMonthlyReport < MONTHLY_THRESHOLD) return;
-        lastMonthlyReport = now;
         try {
-          const allUsers = await storage.getUsersWithEmails();
+          const lastRun = await storage.getSystemSetting("last_monthly_report");
+          const lastRunMs = lastRun ? Number(lastRun) : 0;
+          if (Date.now() - lastRunMs < MONTHLY_THRESHOLD) return;
+
+          const allUsers = await storage.getUsersForMonthlyReport();
           let sent = 0;
           for (const u of allUsers) {
             try {
               const stats = await storage.getMonthlyAuthorStats(u.id);
-              if (stats.totalEssays === 0) continue; // Only send to active authors
+              if (stats.totalEssays === 0) continue;
               await sendMonthlyAuthorReport(u.email, u.displayName || "الكاتب", stats);
               sent++;
             } catch {}
           }
+          await storage.setSystemSetting("last_monthly_report", String(Date.now()));
           log(`Monthly author reports sent to ${sent} authors`, "email");
         } catch (err: any) {
           console.error("[MonthlyReport] Error:", err.message);
         }
       }, MONTHLY_CHECK_INTERVAL);
-      log("Monthly author report job registered (every 30 days)");
+      log("Monthly author report job registered (checked every 24h, runs once per 30 days)");
     },
   );
 })();

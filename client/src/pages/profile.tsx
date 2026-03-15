@@ -236,6 +236,7 @@ export default function Profile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/me/digest-preference"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/email-preferences"] });
     },
   });
 
@@ -249,6 +250,23 @@ export default function Profile() {
       return res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me/email-notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/email-preferences"] });
+    },
+  });
+
+  const { data: emailPrefs } = useQuery<{ digestOptOut: boolean; emailNotifications: boolean; emailFollowPublications: boolean; emailTipsComments: boolean; emailChallenges: boolean }>({
+    queryKey: ["/api/me/email-preferences"],
+  });
+
+  const updateEmailPrefMutation = useMutation({
+    mutationFn: async (prefs: Record<string, boolean>) => {
+      const res = await apiRequest("PATCH", "/api/me/email-preferences", prefs);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me/email-preferences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/digest-preference"] });
       queryClient.invalidateQueries({ queryKey: ["/api/me/email-notifications"] });
     },
   });
@@ -802,30 +820,76 @@ export default function Profile() {
                 </div>
                 <p className="text-[11px] text-muted-foreground">أرسل رسالة إلى مشتركي نشرتك البريدية (مرة كل ٢٤ ساعة)</p>
 
-                <div className="flex items-center justify-between border-t pt-3">
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-medium">إشعارات البريد الإلكتروني</span>
-                    <p className="text-[10px] text-muted-foreground">استلام إشعارات عبر البريد (تعليقات، متابعات، تقييمات)</p>
-                  </div>
-                  <Switch
-                    checked={emailNotifPref?.emailNotifications !== false}
-                    onCheckedChange={(checked) => toggleEmailNotifMutation.mutate(checked)}
-                    disabled={toggleEmailNotifMutation.isPending}
-                    data-testid="switch-email-notifications"
-                  />
-                </div>
+                <div className="space-y-3 border-t pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" />
+                    تفضيلات البريد الإلكتروني
+                  </p>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-medium">النشرة الأسبوعية</span>
-                    <p className="text-[10px] text-muted-foreground">استلام ملخص أسبوعي لأبرز المقالات</p>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-medium">إشعارات البريد الإلكتروني</span>
+                      <p className="text-[10px] text-muted-foreground">التحكم الرئيسي في جميع رسائل البريد</p>
+                    </div>
+                    <Switch
+                      checked={emailPrefs?.emailNotifications !== false}
+                      onCheckedChange={(checked) => updateEmailPrefMutation.mutate({ emailNotifications: checked })}
+                      disabled={updateEmailPrefMutation.isPending}
+                      data-testid="switch-email-notifications"
+                    />
                   </div>
-                  <Switch
-                    checked={!digestPref?.digestOptOut}
-                    onCheckedChange={(checked) => toggleDigestMutation.mutate(!checked)}
-                    disabled={toggleDigestMutation.isPending}
-                    data-testid="switch-digest-opt-out"
-                  />
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-medium">النشرة الأسبوعية</span>
+                      <p className="text-[10px] text-muted-foreground">ملخص أسبوعي لأبرز المقالات</p>
+                    </div>
+                    <Switch
+                      checked={!emailPrefs?.digestOptOut}
+                      onCheckedChange={(checked) => updateEmailPrefMutation.mutate({ digestOptOut: !checked })}
+                      disabled={updateEmailPrefMutation.isPending || emailPrefs?.emailNotifications === false}
+                      data-testid="switch-digest-opt-out"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-medium">منشورات المتابَعين</span>
+                      <p className="text-[10px] text-muted-foreground">إشعار عند نشر كتّاب تتابعهم</p>
+                    </div>
+                    <Switch
+                      checked={emailPrefs?.emailFollowPublications !== false}
+                      onCheckedChange={(checked) => updateEmailPrefMutation.mutate({ emailFollowPublications: checked })}
+                      disabled={updateEmailPrefMutation.isPending || emailPrefs?.emailNotifications === false}
+                      data-testid="switch-email-follow-publications"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-medium">إكراميات وتعليقات</span>
+                      <p className="text-[10px] text-muted-foreground">إشعار عند تلقي إكرامية أو تعليق</p>
+                    </div>
+                    <Switch
+                      checked={emailPrefs?.emailTipsComments !== false}
+                      onCheckedChange={(checked) => updateEmailPrefMutation.mutate({ emailTipsComments: checked })}
+                      disabled={updateEmailPrefMutation.isPending || emailPrefs?.emailNotifications === false}
+                      data-testid="switch-email-tips-comments"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-medium">تحديات الكتابة</span>
+                      <p className="text-[10px] text-muted-foreground">إشعار بالتحديات الجديدة والنتائج</p>
+                    </div>
+                    <Switch
+                      checked={emailPrefs?.emailChallenges !== false}
+                      onCheckedChange={(checked) => updateEmailPrefMutation.mutate({ emailChallenges: checked })}
+                      disabled={updateEmailPrefMutation.isPending || emailPrefs?.emailNotifications === false}
+                      data-testid="switch-email-challenges"
+                    />
+                  </div>
                 </div>
 
                 {newsletterHistory && newsletterHistory.length > 0 && (

@@ -35,6 +35,8 @@ QalamAI is a React-based Single Page Application (SPA) utilizing Tailwind CSS an
     -   **Gift Subscriptions:** Allows purchasing gift subscriptions for various plans (essay, scenario, all_in_one).
     -   **Reading Rewards (Points):** Users earn points for activities (reading, login, sharing), redeemable for discounts.
 -   **Notifications & Author Newsletter:** Features an in-app notification system (NotificationBell UI) and allows authors to send newsletters to their email subscribers. Includes an enhanced weekly digest with personalized content.
+    -   **Persistent Digest Scheduling:** Weekly digest and monthly author reports use `system_settings` table to persist last-run timestamps, surviving server restarts. Weekly checks every 6h, monthly checks every 24h.
+    -   **Granular Email Preferences:** Users can control 5 email preference toggles: main notifications switch, weekly digest, follow publications, tips/comments, and writing challenges. Stored in `users` table columns. Master toggle disables all sub-preferences. Profile UI shows all toggles in a dedicated section.
 -   **Community Features:**
     -   **Project Tags:** Supports tag-based filtering for projects with up to 5 tags per project.
     -   **Writing Challenges:** Admin-created challenges with user entry and winner selection.
