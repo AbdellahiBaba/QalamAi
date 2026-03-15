@@ -152,18 +152,27 @@ function WinnerShowcase({ challenges }: { challenges: Challenge[] }) {
           </div>
         </Link>
 
-        {winners.length > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-5">
-            {winners.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveIdx(i)}
-                className={`rounded-full transition-all duration-300 ${i === activeIdx ? "w-6 h-2 bg-yellow-500" : "w-2 h-2 bg-yellow-500/30 hover:bg-yellow-500/60"}`}
-                data-testid={`winner-dot-${i}`}
-              />
-            ))}
-          </div>
-        )}
+        <div className="flex items-center justify-between mt-5">
+          {winners.length > 1 ? (
+            <div className="flex items-center gap-2">
+              {winners.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveIdx(i)}
+                  className={`rounded-full transition-all duration-300 ${i === activeIdx ? "w-6 h-2 bg-yellow-500" : "w-2 h-2 bg-yellow-500/30 hover:bg-yellow-500/60"}`}
+                  data-testid={`winner-dot-${i}`}
+                />
+              ))}
+            </div>
+          ) : <div />}
+          <Link href="/hall-of-glory">
+            <button className="flex items-center gap-1.5 text-xs text-yellow-600 dark:text-yellow-400 hover:text-yellow-500 dark:hover:text-yellow-300 transition-colors font-medium" data-testid="link-hall-of-glory-showcase">
+              <Trophy className="w-3.5 h-3.5" />
+              قاعة المجد كاملة
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -255,18 +264,28 @@ export default function Challenges() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto text-sm">
               {[
-                { icon: Feather, title: "اكتب ببراعة", desc: "موضوع جديد كل أسبوع يُلهم قلمك ويوقظ روح الإبداع بداخلك" },
-                { icon: Trophy, title: "تنافس وانتصر", desc: "يُقيّم خبراؤنا أعمالك ويُكرّم أصحاب القلوب الشاعرة" },
-                { icon: Star, title: "خلّد اسمك", desc: "يُنشر عمل الفائز في قاعة المجد ويبقى شاهداً على موهبتك" },
-              ].map((item, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-muted/40 border border-border/50 hover:border-primary/30 transition-colors">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                    <item.icon className="w-4.5 h-4.5 text-primary" />
+                { icon: Feather, title: "اكتب ببراعة", desc: "موضوع جديد كل أسبوع يُلهم قلمك ويوقظ روح الإبداع بداخلك", href: null },
+                { icon: Trophy, title: "تنافس وانتصر", desc: "يُقيّم خبراؤنا أعمالك ويُكرّم أصحاب القلوب الشاعرة", href: null },
+                { icon: Star, title: "خلّد اسمك", desc: "يُنشر عمل الفائز في قاعة المجد ويبقى شاهداً على موهبتك", href: "/hall-of-glory" },
+              ].map((item, i) => {
+                const inner = (
+                  <div className={`flex flex-col items-center gap-2 p-4 rounded-xl bg-muted/40 border transition-colors ${item.href ? "border-yellow-400/40 hover:border-yellow-400/70 hover:bg-yellow-500/5 cursor-pointer" : "border-border/50 hover:border-primary/30"}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${item.href ? "bg-yellow-500/15" : "bg-primary/10"}`}>
+                      <item.icon className={`w-4.5 h-4.5 ${item.href ? "text-yellow-500" : "text-primary"}`} />
+                    </div>
+                    <h3 className="font-semibold text-sm text-foreground">{item.title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed text-center">{item.desc}</p>
+                    {item.href && (
+                      <span className="text-[10px] text-yellow-600 dark:text-yellow-400 font-medium flex items-center gap-1 mt-0.5">
+                        <Trophy className="w-3 h-3" /> استعرض قاعة المجد
+                      </span>
+                    )}
                   </div>
-                  <h3 className="font-semibold text-sm text-foreground">{item.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed text-center">{item.desc}</p>
-                </div>
-              ))}
+                );
+                return item.href
+                  ? <Link key={i} href={item.href} data-testid="link-khalled-ismak">{inner}</Link>
+                  : <div key={i}>{inner}</div>;
+              })}
             </div>
 
             <div className="relative max-w-2xl mx-auto space-y-2 py-4">

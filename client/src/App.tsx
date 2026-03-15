@@ -63,6 +63,7 @@ const SearchPage = lazy(() => import("@/pages/search"));
 const Analytics = lazy(() => import("@/pages/analytics"));
 const Challenges = lazy(() => import("@/pages/challenges"));
 const ChallengeDetail = lazy(() => import("@/pages/challenge-detail"));
+const HallOfGlory = lazy(() => import("@/pages/hall-of-glory"));
 
 function LoadingFallback() {
   return (
@@ -126,6 +127,7 @@ function AuthenticatedRouter() {
         <Route path="/analytics" component={Analytics} />
         <Route path="/challenges" component={Challenges} />
         <Route path="/challenges/:id" component={ChallengeDetail} />
+        <Route path="/hall-of-glory" component={HallOfGlory} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />
@@ -171,6 +173,7 @@ function PublicRouter() {
         <Route path="/search" component={SearchPage} />
         <Route path="/challenges" component={Challenges} />
         <Route path="/challenges/:id" component={ChallengeDetail} />
+        <Route path="/hall-of-glory" component={HallOfGlory} />
         <Route path="/project/:id" component={ProjectDetail} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />

@@ -4,19 +4,34 @@ import { Strategy, type VerifyFunction } from "openid-client/passport";
 import passport from "passport";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
-import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { authStorage } from "./storage";
 
-const getOidcConfig = memoize(
-  async () => {
-    return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
-    );
-  },
-  { maxAge: 3600 * 1000 }
-);
+// Manual cache that only stores successful OIDC discoveries.
+// memoizee was replaced because it caches rejected promises, which would
+// permanently break auth for an hour after a transient network failure.
+let _oidcCache: { config: Awaited<ReturnType<typeof client.discovery>>; expiry: number } | null = null;
+const _oidcCacheMaxAge = 3600 * 1000;
+
+// Module-level strategy registry so getOidcConfig can clear it on refresh.
+const registeredStrategies = new Set<string>();
+
+async function getOidcConfig() {
+  const now = Date.now();
+  if (_oidcCache && now < _oidcCache.expiry) {
+    return _oidcCache.config;
+  }
+  const config = await client.discovery(
+    new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
+    process.env.REPL_ID!
+  );
+  // Clear registered strategies so they are re-registered with the fresh config
+  if (_oidcCache) {
+    registeredStrategies.clear();
+  }
+  _oidcCache = { config, expiry: now + _oidcCacheMaxAge };
+  return config;
+}
 
 export function getSession() {
   const sessionTtl = 24 * 60 * 60 * 1000; // 24 hours
@@ -67,9 +82,8 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Kick off OIDC discovery in the background — do NOT await here so server
-  // startup is never blocked by a network call to replit.com/oidc.
-  // The memoized promise will be ready by the time the first login arrives.
+  // Kick off OIDC discovery in the background so the first login is fast.
+  // Failures are intentionally NOT cached — the next login attempt will retry.
   getOidcConfig().catch((err) =>
     console.warn("[Auth] Background OIDC pre-discovery failed (will retry on login):", err)
   );
@@ -84,10 +98,8 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  const registeredStrategies = new Set<string>();
-
-  // Async: resolves the OIDC config (already in-flight) and registers the
-  // per-domain Passport strategy the first time a login is initiated.
+  // Resolves the OIDC config and registers the per-domain strategy the first
+  // time a login or callback is initiated for that domain.
   const ensureStrategy = async (domain: string) => {
     const strategyName = `replitauth:${domain}`;
     if (!registeredStrategies.has(strategyName)) {
