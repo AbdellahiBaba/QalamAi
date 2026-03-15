@@ -33,6 +33,7 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
   const [chatLoading, setChatLoading] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [autoRestored, setAutoRestored] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -53,22 +54,31 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
     }
   }, [visible]);
 
-  const convQueryKey = mode === "project" && projectId
-    ? ["/api/conversations", { mode: "project", projectId: String(projectId) }]
-    : ["/api/conversations", { mode: "general" }];
+  const isGeneral = mode === "general";
+
+  const convQueryKey = isGeneral
+    ? ["/api/conversations", { mode: "general" }]
+    : null;
 
   const { data: conversations = [] } = useQuery<Conversation[]>({
-    queryKey: convQueryKey,
+    queryKey: convQueryKey!,
     queryFn: async () => {
-      const params = new URLSearchParams({ mode });
-      if (mode === "project" && projectId) params.set("projectId", String(projectId));
-      const res = await fetch(`/api/conversations?${params.toString()}`, { credentials: "include" });
+      const res = await fetch("/api/conversations?mode=general", { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: chatOpen,
+    enabled: isGeneral && chatOpen,
     staleTime: 30000,
   });
+
+  useEffect(() => {
+    if (!isGeneral || !chatOpen || autoRestored || conversations.length === 0) return;
+    const mostRecent = conversations[0];
+    if (mostRecent) {
+      loadConversation(mostRecent.id);
+      setAutoRestored(true);
+    }
+  }, [isGeneral, chatOpen, conversations, autoRestored]);
 
   const loadConversation = useCallback(async (convId: number) => {
     try {
@@ -93,7 +103,7 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
     e.stopPropagation();
     try {
       await apiRequest("DELETE", `/api/conversations/${convId}`);
-      queryClient.invalidateQueries({ queryKey: convQueryKey });
+      if (convQueryKey) queryClient.invalidateQueries({ queryKey: convQueryKey });
       if (activeConversationId === convId) {
         startNewConversation();
       }
@@ -114,20 +124,22 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
       if (mode === "project" && projectId) {
         res = await apiRequest("POST", `/api/projects/${projectId}/chat`, {
           message: userMsg,
-          conversationId: activeConversationId,
+          history: chatMessages,
         });
+        const data = await res.json();
+        setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
       } else {
         res = await apiRequest("POST", "/api/chat", {
           message: userMsg,
           history: chatMessages,
           conversationId: activeConversationId,
         });
-      }
-      const data = await res.json();
-      setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
-      if (data.conversationId && !activeConversationId) {
-        setActiveConversationId(data.conversationId);
-        queryClient.invalidateQueries({ queryKey: convQueryKey });
+        const data = await res.json();
+        setChatMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+        if (data.conversationId && !activeConversationId) {
+          setActiveConversationId(data.conversationId);
+          if (convQueryKey) queryClient.invalidateQueries({ queryKey: convQueryKey });
+        }
       }
     } catch {
       setChatMessages(prev => [...prev, { role: "assistant", content: "عذراً، حدث خطأ. حاول مرة أخرى." }]);
@@ -224,35 +236,39 @@ export function AbuHashimChat({ mode, projectId, quickQuestions }: AbuHashimChat
             <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setShowHistory(!showHistory)}
-              data-testid="button-chat-history"
-              aria-label="سجل المحادثات"
-              title="سجل المحادثات"
-            >
-              <History className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={startNewConversation}
-              data-testid="button-new-conversation"
-              aria-label="محادثة جديدة"
-              title="محادثة جديدة"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
+            {isGeneral && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowHistory(!showHistory)}
+                  data-testid="button-chat-history"
+                  aria-label="سجل المحادثات"
+                  title="سجل المحادثات"
+                >
+                  <History className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={startNewConversation}
+                  data-testid="button-new-conversation"
+                  aria-label="محادثة جديدة"
+                  title="محادثة جديدة"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setChatOpen(false)} data-testid="button-close-chat" aria-label="إغلاق الدردشة">
               <X className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        {showHistory ? (
+        {isGeneral && showHistory ? (
           <ScrollArea className="flex-1">
             <div className="p-3 space-y-1">
               <div className="flex items-center justify-between px-2 pb-2">

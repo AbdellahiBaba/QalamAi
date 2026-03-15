@@ -2641,35 +2641,14 @@ ${allPages.map(p => `  <url>
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
       if (!(await checkAiRateLimit(req, res))) return;
-      const userId = req.user.claims.sub;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const project = await storage.getProjectWithDetails(id);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
-      if (project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرح" });
 
-      const { message } = req.body;
+      const { message, history } = req.body;
       if (!message || typeof message !== "string") return res.status(400).json({ error: "الرسالة مطلوبة" });
-      const incomingConvId = typeof req.body.conversationId === "number" ? req.body.conversationId : null;
-
-      let convId = incomingConvId;
-      if (!convId) {
-        const conv = await storage.createConversation({
-          userId,
-          title: message.substring(0, 100),
-          mode: "project",
-          projectId: id,
-        });
-        convId = conv.id;
-      } else {
-        const conv = await storage.getConversation(convId, userId);
-        if (!conv) return res.status(404).json({ error: "المحادثة غير موجودة" });
-        if (conv.mode !== "project" || conv.projectId !== id) return res.status(400).json({ error: "هذه المحادثة لا تنتمي لهذا المشروع" });
-      }
-
-      await storage.addMessage({ conversationId: convId, role: "user", content: message });
-
-      const chatHistory = await storage.getMessagesByConversation(convId);
 
       const characters = await storage.getCharactersByProject(id);
       const projectChatEnhanced = await enhanceWithKnowledge(buildProjectChatPrompt({
@@ -2688,9 +2667,10 @@ ${allPages.map(p => `  <url>
         { role: "system", content: projectChatEnhanced.system },
       ];
 
-      const prevMsgs = chatHistory.slice(-10, -1);
-      for (const msg of prevMsgs) {
-        aiMessages.push({ role: msg.role as "user" | "assistant", content: msg.content.substring(0, 2000) });
+      if (Array.isArray(history)) {
+        for (const msg of history.slice(-10)) {
+          aiMessages.push({ role: msg.role, content: (msg.content || "").substring(0, 2000) });
+        }
       }
 
       aiMessages.push({ role: "user", content: projectChatEnhanced.user });
@@ -2703,10 +2683,7 @@ ${allPages.map(p => `  <url>
       });
 
       const reply = response.choices[0]?.message?.content || "عذراً، لم أتمكن من الرد.";
-
-      await storage.addMessage({ conversationId: convId, role: "assistant", content: reply });
-
-      res.json({ reply, conversationId: convId });
+      res.json({ reply });
 
       dispatchWebhook({
         input: message,
