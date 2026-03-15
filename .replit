@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cairo", "ffmpeg", "giflib", "libjpeg", "librsvg", "libsndfile", "pango", "pixman", "pkg-config", "util-linux"]
+packages = ["cairo", "ffmpeg", "giflib", "libjpeg", "librsvg", "libsndfile", "pango", "pixman", "pkg-config", "util-linux", "python312", "python312Packages.pip"]
 
 [[ports]]
 localPort = 5000

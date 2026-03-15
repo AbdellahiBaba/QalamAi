@@ -3,7 +3,8 @@ import io
 import tempfile
 import torch
 import numpy as np
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import soundfile as sf
@@ -65,8 +66,15 @@ async def upload_voice(file: UploadFile = File(...)):
     return {"status": "success", "message": "تم رفع العينة الصوتية بنجاح"}
 
 
+def _cleanup_temp_file(path: str):
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
 @app.post("/tts")
-async def generate_tts(request: TTSRequest):
+async def generate_tts(request: TTSRequest, background_tasks: BackgroundTasks):
     text = request.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="النص مطلوب")
@@ -88,6 +96,8 @@ async def generate_tts(request: TTSRequest):
         wav_array = np.array(wav_data, dtype=np.float32)
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         sf.write(tmp.name, wav_array, samplerate=22050, format="WAV")
+
+        background_tasks.add_task(_cleanup_temp_file, tmp.name)
 
         return FileResponse(
             path=tmp.name,

@@ -9640,13 +9640,19 @@ ${ch.content}
         body: JSON.stringify({ text: text.substring(0, 5000) }),
       });
       if (!ttsRes.ok) {
-        const err = await ttsRes.json().catch(() => ({}));
-        return res.status(ttsRes.status).json({ error: (err as any)?.detail || "فشل في توليد الصوت" });
+        const err = await ttsRes.json().catch(() => ({ detail: "فشل في توليد الصوت" }));
+        return res.status(ttsRes.status).json({ error: (err as Record<string, string>)?.detail || "فشل في توليد الصوت" });
       }
       res.set("Content-Type", "audio/wav");
       res.set("Cache-Control", "private, max-age=3600");
-      const arrayBuf = await ttsRes.arrayBuffer();
-      res.send(Buffer.from(arrayBuf));
+      if (ttsRes.body) {
+        const { Readable } = await import("stream");
+        const nodeStream = Readable.fromWeb(ttsRes.body as import("stream/web").ReadableStream);
+        nodeStream.pipe(res);
+      } else {
+        const arrayBuf = await ttsRes.arrayBuffer();
+        res.send(Buffer.from(arrayBuf));
+      }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       console.error("[TTS Generate] Proxy error:", msg);
