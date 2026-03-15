@@ -138,7 +138,7 @@ function WinnerShowcase({ challenges }: { challenges: Challenge[] }) {
               </div>
             </div>
 
-            {winner.winnerEntryContent && (
+            {winner.winnerEntryContent?.trim() ? (
               <div className="relative bg-yellow-50/50 dark:bg-yellow-950/30 border border-yellow-200/50 dark:border-yellow-800/30 rounded-xl p-4 sm:p-5">
                 <Feather className="absolute top-3 right-3 w-5 h-5 text-yellow-400/40" />
                 <p className="font-serif text-sm sm:text-base leading-loose text-foreground/80 line-clamp-4 whitespace-pre-wrap pr-7" data-testid="text-winner-entry-preview">
@@ -147,6 +147,12 @@ function WinnerShowcase({ challenges }: { challenges: Challenge[] }) {
                 <div className="mt-3 flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400 group-hover:underline">
                   اقرأ العمل الفائز كاملاً <ArrowLeft className="w-3.5 h-3.5" />
                 </div>
+              </div>
+            ) : (
+              <div className="relative bg-yellow-50/50 dark:bg-yellow-950/30 border border-yellow-200/50 dark:border-yellow-800/30 rounded-xl p-4 sm:p-5" data-testid="text-winner-entry-placeholder">
+                <p className="font-serif text-sm italic text-muted-foreground text-center">
+                  يمكنك الاطلاع على العمل الفائز من صفحة التحدي
+                </p>
               </div>
             )}
           </div>

@@ -44,7 +44,7 @@ function formatDate(date: string) {
 
 function GloryCard({ challenge }: { challenge: Challenge }) {
   const [expanded, setExpanded] = useState(false);
-  const content = challenge.winnerEntryContent || "";
+  const content = (challenge.winnerEntryContent || "").trim();
   const isLong = content.length > 400;
   const displayContent = isLong && !expanded ? content.slice(0, 400) + "…" : content;
 
@@ -104,7 +104,7 @@ function GloryCard({ challenge }: { challenge: Challenge }) {
           </div>
         </div>
 
-        {content && (
+        {content ? (
           <div className="space-y-3">
             <div className="h-px bg-gradient-to-r from-yellow-500/30 via-amber-400/20 to-transparent" />
             <div className="relative">
@@ -129,6 +129,13 @@ function GloryCard({ challenge }: { challenge: Challenge }) {
                 )}
               </button>
             )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="h-px bg-gradient-to-r from-yellow-500/30 via-amber-400/20 to-transparent" />
+            <p className="font-serif text-sm italic text-muted-foreground text-center py-2" data-testid={`text-glory-entry-placeholder-${challenge.id}`}>
+              يمكنك الاطلاع على العمل الفائز من صفحة التحدي
+            </p>
           </div>
         )}
 

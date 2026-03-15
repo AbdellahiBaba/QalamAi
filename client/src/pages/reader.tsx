@@ -191,15 +191,30 @@ export default function Reader() {
           className={`font-serif leading-[2.2] ${fontSizeClass[fontSize]}`}
           data-testid="article-chapter-content"
         >
-          {paragraphs.map((text, i) => (
-            <p
-              key={i}
-              className="mb-6"
-              style={{ textIndent: "2em" }}
-            >
-              {text}
-            </p>
-          ))}
+          {paragraphs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center space-y-6" data-testid="empty-chapter-content">
+              <p className="text-lg text-muted-foreground font-serif">لا يوجد محتوى في هذا الفصل بعد</p>
+              <Button
+                variant="outline"
+                onClick={() => setLocation(`/project/${projectId}`)}
+                className="gap-2"
+                data-testid="button-back-empty-chapter"
+              >
+                <ArrowRight className="w-4 h-4" />
+                العودة للمشروع
+              </Button>
+            </div>
+          ) : (
+            paragraphs.map((text, i) => (
+              <p
+                key={i}
+                className="mb-6"
+                style={{ textIndent: "2em" }}
+              >
+                {text}
+              </p>
+            ))
+          )}
         </article>
       </main>
 
