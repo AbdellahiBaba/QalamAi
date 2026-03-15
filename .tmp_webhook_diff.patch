@@ -1,0 +1,15 @@
+diff --git a/server/webhookHandlers.ts b/server/webhookHandlers.ts
+index 56c14d3..2cade82 100644
+--- a/server/webhookHandlers.ts
++++ b/server/webhookHandlers.ts
+@@ -176,8 +176,8 @@ export class WebhookHandlers {
+         link: "/profile",
+       });
+ 
+-      const emailEnabled = await storage.getEmailNotificationsEnabled(toAuthorId);
+-      if (emailEnabled) {
++      const prefs = await storage.getUserEmailPreferences(toAuthorId);
++      if (prefs.emailNotifications && prefs.emailTipsComments) {
+         const author = await storage.getUser(toAuthorId);
+         if (author?.email) {
+           sendNotificationEmail(author.email, tipTitle, tipMessage, "/profile").catch(() => {});

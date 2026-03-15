@@ -2054,7 +2054,10 @@ export class DatabaseStorage implements IStorage {
       SELECT u.email, u.display_name as "displayName"
       FROM author_follows af
       JOIN users u ON u.id = af.follower_id
-      WHERE af.following_id = ${authorId} AND u.email IS NOT NULL
+      WHERE af.following_id = ${authorId}
+        AND u.email IS NOT NULL
+        AND (u.email_notifications IS NULL OR u.email_notifications = true)
+        AND (u.email_follow_publications IS NULL OR u.email_follow_publications = true)
     `)).rows;
     return rows.filter(r => r.email);
   }

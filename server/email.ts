@@ -424,7 +424,11 @@ ${essayRows}
    style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
 استعرض جميع المقالات
 </a>
-</div>`;
+</div>
+<p style="color:#999;font-size:11px;text-align:center;margin-top:24px;border-top:1px solid #eee;padding-top:12px;">
+لإيقاف استلام هذه النشرة، قم بتعديل تفضيلات البريد من
+<a href="${baseUrl}/profile" style="color:${BRAND_GOLD};text-decoration:underline;">صفحة الملف الشخصي</a>.
+</p>`;
 
   const subject = "ملخّص الأسبوع — أبرز مقالات QalamAI";
 
@@ -956,7 +960,11 @@ ${rows}
    style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
 استعرض المزيد
 </a>
-</div>`;
+</div>
+<p style="color:#999;font-size:11px;text-align:center;margin-top:24px;border-top:1px solid #eee;padding-top:12px;">
+لإيقاف إشعارات المتابَعين، قم بتعديل تفضيلات البريد من
+<a href="${baseUrl}/profile" style="color:${BRAND_GOLD};text-decoration:underline;">صفحة الملف الشخصي</a>.
+</p>`;
 
   try {
     await t.sendMail({

@@ -708,6 +708,19 @@ async function runStartupMigrations() {
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        key VARCHAR PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS digest_opt_out BOOLEAN DEFAULT false`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN DEFAULT true`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_follow_publications BOOLEAN DEFAULT true`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_tips_comments BOOLEAN DEFAULT true`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_challenges BOOLEAN DEFAULT true`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);
@@ -912,7 +925,7 @@ async function runStartupMigrations() {
       // Weekly digest — checked every 6 hours, runs once per 7 days (persistent)
       const WEEKLY_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
       const WEEKLY_THRESHOLD = 7 * 24 * 60 * 60 * 1000;
-      setInterval(async () => {
+      async function runWeeklyDigestCheck() {
         try {
           const lastRun = await storage.getSystemSetting("last_weekly_digest");
           const lastRunMs = lastRun ? Number(lastRun) : 0;
@@ -941,13 +954,15 @@ async function runStartupMigrations() {
         } catch (err: any) {
           console.error("[WeeklyDigest] Error:", err.message);
         }
-      }, WEEKLY_CHECK_INTERVAL);
-      log("Weekly digest job registered (checked every 6h, runs once per 7 days)");
+      }
+      setTimeout(() => runWeeklyDigestCheck(), 30_000);
+      setInterval(runWeeklyDigestCheck, WEEKLY_CHECK_INTERVAL);
+      log("Weekly digest job registered (startup check + every 6h, runs once per 7 days)");
 
       // Monthly author performance report — checked every 24 hours, runs once per 30 days (persistent)
       const MONTHLY_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
       const MONTHLY_THRESHOLD = 30 * 24 * 60 * 60 * 1000;
-      setInterval(async () => {
+      async function runMonthlyReportCheck() {
         try {
           const lastRun = await storage.getSystemSetting("last_monthly_report");
           const lastRunMs = lastRun ? Number(lastRun) : 0;
@@ -968,8 +983,10 @@ async function runStartupMigrations() {
         } catch (err: any) {
           console.error("[MonthlyReport] Error:", err.message);
         }
-      }, MONTHLY_CHECK_INTERVAL);
-      log("Monthly author report job registered (checked every 24h, runs once per 30 days)");
+      }
+      setTimeout(() => runMonthlyReportCheck(), 60_000);
+      setInterval(runMonthlyReportCheck, MONTHLY_CHECK_INTERVAL);
+      log("Monthly author report job registered (startup check + every 24h, runs once per 30 days)");
     },
   );
 })();

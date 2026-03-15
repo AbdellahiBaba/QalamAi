@@ -1,0 +1,71 @@
+diff --git a/server/routes.ts b/server/routes.ts
+index bcd6e5f..8b71ed4 100644
+--- a/server/routes.ts
++++ b/server/routes.ts
+@@ -437,12 +437,17 @@ export async function registerRoutes(
+   async function notifyUser(userId: string, type: string, title: string, message: string, link?: string) {
+     try {
+       await storage.createNotification({ userId, type, title, message, link });
+-      const emailEnabled = await storage.getEmailNotificationsEnabled(userId);
+-      if (emailEnabled) {
+-        const user = await storage.getUser(userId);
+-        if (user?.email) {
+-          sendNotificationEmail(user.email, title, message, link).catch(() => {});
+-        }
++      const prefs = await storage.getUserEmailPreferences(userId);
++      if (!prefs.emailNotifications) return;
++      const tipCommentTypes = ["comment", "tip", "new_tip"];
++      const challengeTypes = ["challenge", "new_challenge", "challenge_winner"];
++      const followTypes = ["new_follower", "new_publication"];
++      if (tipCommentTypes.includes(type) && !prefs.emailTipsComments) return;
++      if (challengeTypes.includes(type) && !prefs.emailChallenges) return;
++      if (followTypes.includes(type) && !prefs.emailFollowPublications) return;
++      const user = await storage.getUser(userId);
++      if (user?.email) {
++        sendNotificationEmail(user.email, title, message, link).catch(() => {});
+       }
+     } catch (err) {
+       console.error(`[Notify] Failed to notify user ${userId}:`, err);
+@@ -10501,7 +10506,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
+               console.error(`Failed to notify user ${u.id}:`, e);
+             }
+           }
+-          const emailRecipients = await storage.getUsersWithEmails();
++          const emailRecipients = await storage.getUsersForChallengeEmails();
+           await sendNewChallengeEmail(emailRecipients, {
+             id: challenge.id,
+             title: challenge.title,
+@@ -10995,6 +11000,33 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
+     }
+   });
+ 
++  app.get("/api/me/email-preferences", isAuthenticated, async (req: any, res) => {
++    try {
++      const userId = req.user.claims.sub;
++      const prefs = await storage.getUserEmailPreferences(userId);
++      res.json(prefs);
++    } catch (error) {
++      res.status(500).json({ error: "فشل في جلب تفضيلات البريد" });
++    }
++  });
++
++  app.patch("/api/me/email-preferences", isAuthenticated, async (req: any, res) => {
++    try {
++      const userId = req.user.claims.sub;
++      const allowed = ["digestOptOut", "emailNotifications", "emailFollowPublications", "emailTipsComments", "emailChallenges"];
++      const prefs: any = {};
++      for (const key of allowed) {
++        if (typeof req.body[key] === "boolean") prefs[key] = req.body[key];
++      }
++      if (Object.keys(prefs).length === 0) return res.status(400).json({ error: "لم يتم تقديم تفضيلات صالحة" });
++      await storage.setUserEmailPreferences(userId, prefs);
++      const updated = await storage.getUserEmailPreferences(userId);
++      res.json(updated);
++    } catch (error) {
++      res.status(500).json({ error: "فشل في تحديث تفضيلات البريد" });
++    }
++  });
++
+   app.post("/api/me/newsletter/send", isAuthenticated, async (req: any, res) => {
+     try {
+       const userId = req.user.claims.sub;

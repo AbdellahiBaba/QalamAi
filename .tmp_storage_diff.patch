@@ -1,0 +1,146 @@
+diff --git a/server/storage.ts b/server/storage.ts
+index 6fe77e0..b2f1a8c 100644
+--- a/server/storage.ts
++++ b/server/storage.ts
+@@ -3,6 +3,7 @@ import {
+   users, supportTickets, ticketReplies, notifications, promoCodes, readingProgress, bookmarks, projectFavorites, apiUsageLogs,
+   authorRatings, platformReviews, trackingPixels, essayViews, essayClicks, passwordResetTokens, authorFollows,
+   conversations, messages,
++  systemSettings,
+   type Conversation, type InsertConversation,
+   type Message, type InsertMessage,
+   type NovelProject, type InsertNovelProject,
+@@ -258,6 +259,13 @@ export interface IStorage {
+   getMessagesByConversation(conversationId: number, limit?: number): Promise<Message[]>;
+   addMessage(data: InsertMessage): Promise<Message>;
+   updateConversationTitle(id: number, userId: string, title: string): Promise<Conversation>;
++  getSystemSetting(key: string): Promise<string | null>;
++  setSystemSetting(key: string, value: string): Promise<void>;
++  getUserEmailPreferences(userId: string): Promise<{ digestOptOut: boolean; emailNotifications: boolean; emailFollowPublications: boolean; emailTipsComments: boolean; emailChallenges: boolean }>;
++  setUserEmailPreferences(userId: string, prefs: { digestOptOut?: boolean; emailNotifications?: boolean; emailFollowPublications?: boolean; emailTipsComments?: boolean; emailChallenges?: boolean }): Promise<void>;
++  getUsersForFollowDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
++  getUsersForMonthlyReport(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
++  getUsersForChallengeEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
+ }
+ 
+ export class DatabaseStorage implements IStorage {
+@@ -1713,28 +1721,32 @@ export class DatabaseStorage implements IStorage {
+   }
+ 
+   async getUsersWithEmailsForDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>> {
+-    const rows: any[] = (await pool.query(
+-      `SELECT id, email, display_name as "displayName" FROM users WHERE email IS NOT NULL AND (digest_opt_out IS NULL OR digest_opt_out = false)`
+-    )).rows;
+-    return rows.filter((r: any) => r.email);
++    const rows = await db.select({ id: users.id, email: users.email, displayName: users.displayName })
++      .from(users)
++      .where(and(
++        isNotNull(users.email),
++        or(eq(users.digestOptOut, false), isNull(users.digestOptOut)),
++        or(eq(users.emailNotifications, true), isNull(users.emailNotifications))
++      ));
++    return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
+   }
+ 
+   async setDigestOptOut(userId: string, optOut: boolean): Promise<void> {
+-    await pool.query(`UPDATE users SET digest_opt_out = $1 WHERE id = $2`, [optOut, userId]);
++    await db.update(users).set({ digestOptOut: optOut, updatedAt: new Date() }).where(eq(users.id, userId));
+   }
+ 
+   async getDigestOptOut(userId: string): Promise<boolean> {
+-    const result = await pool.query(`SELECT digest_opt_out FROM users WHERE id = $1`, [userId]);
+-    return result.rows[0]?.digest_opt_out === true;
++    const [row] = await db.select({ digestOptOut: users.digestOptOut }).from(users).where(eq(users.id, userId));
++    return row?.digestOptOut === true;
+   }
+ 
+   async getEmailNotificationsEnabled(userId: string): Promise<boolean> {
+-    const result = await pool.query(`SELECT email_notifications FROM users WHERE id = $1`, [userId]);
+-    return result.rows[0]?.email_notifications !== false;
++    const [row] = await db.select({ emailNotifications: users.emailNotifications }).from(users).where(eq(users.id, userId));
++    return row?.emailNotifications !== false;
+   }
+ 
+   async setEmailNotificationsEnabled(userId: string, enabled: boolean): Promise<void> {
+-    await pool.query(`UPDATE users SET email_notifications = $1 WHERE id = $2`, [enabled, userId]);
++    await db.update(users).set({ emailNotifications: enabled, updatedAt: new Date() }).where(eq(users.id, userId));
+   }
+ 
+   async getTopEssaysForWeek(limit: number = 5): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>> {
+@@ -2918,6 +2930,76 @@ export class DatabaseStorage implements IStorage {
+       .returning();
+     return conv;
+   }
++
++  async getSystemSetting(key: string): Promise<string | null> {
++    const [row] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
++    return row?.value ?? null;
++  }
++
++  async setSystemSetting(key: string, value: string): Promise<void> {
++    await db.insert(systemSettings)
++      .values({ key, value, updatedAt: new Date() })
++      .onConflictDoUpdate({ target: systemSettings.key, set: { value, updatedAt: new Date() } });
++  }
++
++  async getUserEmailPreferences(userId: string): Promise<{ digestOptOut: boolean; emailNotifications: boolean; emailFollowPublications: boolean; emailTipsComments: boolean; emailChallenges: boolean }> {
++    const [row] = await db.select({
++      digestOptOut: users.digestOptOut,
++      emailNotifications: users.emailNotifications,
++      emailFollowPublications: users.emailFollowPublications,
++      emailTipsComments: users.emailTipsComments,
++      emailChallenges: users.emailChallenges,
++    }).from(users).where(eq(users.id, userId));
++    return {
++      digestOptOut: row?.digestOptOut ?? false,
++      emailNotifications: row?.emailNotifications ?? true,
++      emailFollowPublications: row?.emailFollowPublications ?? true,
++      emailTipsComments: row?.emailTipsComments ?? true,
++      emailChallenges: row?.emailChallenges ?? true,
++    };
++  }
++
++  async setUserEmailPreferences(userId: string, prefs: { digestOptOut?: boolean; emailNotifications?: boolean; emailFollowPublications?: boolean; emailTipsComments?: boolean; emailChallenges?: boolean }): Promise<void> {
++    const updateData: any = { updatedAt: new Date() };
++    if (prefs.digestOptOut !== undefined) updateData.digestOptOut = prefs.digestOptOut;
++    if (prefs.emailNotifications !== undefined) updateData.emailNotifications = prefs.emailNotifications;
++    if (prefs.emailFollowPublications !== undefined) updateData.emailFollowPublications = prefs.emailFollowPublications;
++    if (prefs.emailTipsComments !== undefined) updateData.emailTipsComments = prefs.emailTipsComments;
++    if (prefs.emailChallenges !== undefined) updateData.emailChallenges = prefs.emailChallenges;
++    await db.update(users).set(updateData).where(eq(users.id, userId));
++  }
++
++  async getUsersForFollowDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>> {
++    const rows = await db.select({ id: users.id, email: users.email, displayName: users.displayName })
++      .from(users)
++      .where(and(
++        isNotNull(users.email),
++        or(eq(users.emailFollowPublications, true), isNull(users.emailFollowPublications)),
++        or(eq(users.emailNotifications, true), isNull(users.emailNotifications))
++      ));
++    return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
++  }
++
++  async getUsersForMonthlyReport(): Promise<Array<{ id: string; email: string; displayName: string | null }>> {
++    const rows = await db.select({ id: users.id, email: users.email, displayName: users.displayName })
++      .from(users)
++      .where(and(
++        isNotNull(users.email),
++        or(eq(users.emailNotifications, true), isNull(users.emailNotifications))
++      ));
++    return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
++  }
++
++  async getUsersForChallengeEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>> {
++    const rows = await db.select({ id: users.id, email: users.email, displayName: users.displayName })
++      .from(users)
++      .where(and(
++        isNotNull(users.email),
++        or(eq(users.emailNotifications, true), isNull(users.emailNotifications)),
++        or(eq(users.emailChallenges, true), isNull(users.emailChallenges))
++      ));
++    return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
++  }
+ }
+ 
+ export const storage = new DatabaseStorage();
