@@ -9497,15 +9497,16 @@ ${ch.content}
       const openai = new OpenAI({ apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL });
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
-        max_completion_tokens: 300,
+        max_completion_tokens: 600,
         messages: [
-          { role: "system", content: "أنت محقق في أصالة المحتوى الأدبي العربي. حلل النص وأعطِ تقييماً لأصالته. أجب بـ JSON فقط: {\"score\": <0-100 نسبة الأصالة>, \"verdict\": \"original\" | \"suspicious\" | \"likely_copied\", \"notes\": \"<ملاحظة مختصرة>\"}" },
+          { role: "system", content: "أنت محقق في أصالة المحتوى الأدبي العربي. حلل النص وأعطِ تقييماً لأصالته مع ذكر أسباب واضحة. أجب بـ JSON فقط: {\"score\": <0-100 نسبة الأصالة>, \"verdict\": \"original\" | \"suspicious\" | \"likely_copied\", \"notes\": \"<ملاحظة مختصرة>\", \"reasons\": [\"<سبب 1: عبارة أو نمط مشبوه مع توضيح>\", \"<سبب 2>\"]}. إذا كان المحتوى أصيلاً اترك reasons فارغة. إذا وجدت تشابهاً، اذكر العبارات أو الأنماط المحددة التي تبدو مقتبسة أو مكررة مع شرح السبب." },
           { role: "user", content: `حلل أصالة هذا النص:\n\n${text}` },
         ],
       });
       const raw = response.choices[0]?.message?.content || "{}";
-      let result = { score: 85, verdict: "original", notes: "لم يتمكن من التحليل" };
+      let result: any = { score: 85, verdict: "original", notes: "لم يتمكن من التحليل", reasons: [] };
       try { result = JSON.parse(raw); } catch {}
+      if (!Array.isArray(result.reasons)) result.reasons = [];
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "فشل في فحص الأصالة" });

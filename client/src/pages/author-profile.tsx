@@ -95,8 +95,6 @@ export default function AuthorProfile() {
     }
   }, [id]);
 
-  const isOwnProfile = !!(user && user.id === id);
-
   const [payoutMethod, setPayoutMethod] = useState("paypal");
   const [payoutPaypalEmail, setPayoutPaypalEmail] = useState("");
   const [payoutKastWalletId, setPayoutKastWalletId] = useState("");
@@ -116,6 +114,8 @@ export default function AuthorProfile() {
     },
     enabled: !!id,
   });
+
+  const isOwnProfile = !!(user && (user.id === id || (author && user.id === author.id)));
 
   const { data: payoutSettings } = useQuery<{
     method: string;

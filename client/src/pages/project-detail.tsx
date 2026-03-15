@@ -20,7 +20,7 @@ import {
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
   Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Layers,
-  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck
+  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck, AlertTriangle
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -401,7 +401,7 @@ export default function ProjectDetail() {
   const [originalityChapterId, setOriginalityChapterId] = useState<number | null>(null);
   const [originalityResult, setOriginalityResult] = useState<any>(null);
   const [plagiarismOpen, setPlagiarismOpen] = useState(false);
-  const [plagiarismResult, setPlagiarismResult] = useState<{ isOriginal: boolean; similarityScore: number; report: string } | null>(null);
+  const [plagiarismResult, setPlagiarismResult] = useState<{ isOriginal: boolean; similarityScore: number; report: string; reasons: string[] } | null>(null);
   const [addToSeriesOpen, setAddToSeriesOpen] = useState(false);
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
   const [bookmarkNote, setBookmarkNote] = useState("");
@@ -1011,12 +1011,17 @@ export default function ProjectDetail() {
       return res.json();
     },
     onSuccess: (data: any) => {
-      setPlagiarismResult(data);
+      setPlagiarismResult({
+        isOriginal: data.verdict === "original",
+        similarityScore: 100 - (typeof data.score === "number" ? data.score : 0),
+        report: data.notes || data.message || "",
+        reasons: Array.isArray(data.reasons) ? data.reasons : [],
+      });
       setPlagiarismOpen(true);
       invalidateAiUsage();
     },
     onError: (err: any) => {
-      toast({ title: err?.message || "فشل فحص الانتحال", variant: "destructive" });
+      toast({ title: err?.message || "فشل فحص الإنتحال", variant: "destructive" });
     },
   });
 
@@ -2014,7 +2019,7 @@ export default function ProjectDetail() {
                   data-testid="menu-plagiarism-check"
                 >
                   <Shield className="w-4 h-4 ml-2" />
-                  {plagiarismCheckMutation.isPending ? "جارٍ الفحص..." : "فحص الانتحال بالذكاء الاصطناعي"}
+                  {plagiarismCheckMutation.isPending ? "جارٍ الفحص..." : "فحص الإنتحال"}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => { setSelectedSeriesId(""); setAddToSeriesOpen(true); }}
@@ -5184,7 +5189,7 @@ export default function ProjectDetail() {
         <Dialog open={plagiarismOpen} onOpenChange={(open) => { if (!open) { setPlagiarismOpen(false); setPlagiarismResult(null); } }}>
           <DialogContent className="max-w-lg" dir="rtl">
             <DialogHeader>
-              <DialogTitle data-testid="text-plagiarism-dialog-title">فحص الانتحال بالذكاء الاصطناعي</DialogTitle>
+              <DialogTitle data-testid="text-plagiarism-dialog-title">فحص الإنتحال</DialogTitle>
             </DialogHeader>
             {plagiarismResult && (
               <div className="space-y-4">
@@ -5200,6 +5205,22 @@ export default function ProjectDetail() {
                 <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-plagiarism-report">
                   <p className="text-sm leading-relaxed whitespace-pre-line">{plagiarismResult.report}</p>
                 </div>
+                {!plagiarismResult.isOriginal && plagiarismResult.reasons.length > 0 && (
+                  <div className="space-y-2" data-testid="text-plagiarism-reasons">
+                    <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                      أسباب الاكتشاف
+                    </h4>
+                    <ul className="space-y-2">
+                      {plagiarismResult.reasons.map((reason: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
+                          <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
+                          <span>{reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">ملاحظة: هذا الفحص تقديري بالذكاء الاصطناعي وليس بديلاً عن أدوات الفحص المتخصصة.</p>
               </div>
             )}
