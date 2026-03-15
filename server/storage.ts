@@ -2552,11 +2552,14 @@ export class DatabaseStorage implements IStorage {
   async getWritingChallenges(): Promise<any[]> {
     return (await db.execute(sql`
       SELECT wc.*, COUNT(ce.id)::int as "entryCount",
-        COALESCE(wu.display_name, wu.first_name || ' ' || wu.last_name, NULL) as "winnerName"
+        COALESCE(wu.display_name, wu.first_name || ' ' || wu.last_name, NULL) as "winnerName",
+        wu.profile_image_url as "winnerProfileImage",
+        we.content as "winnerEntryContent"
       FROM writing_challenges wc
       LEFT JOIN challenge_entries ce ON ce.challenge_id = wc.id
       LEFT JOIN users wu ON wu.id = wc.winner_id
-      GROUP BY wc.id, wu.display_name, wu.first_name, wu.last_name
+      LEFT JOIN challenge_entries we ON we.id = wc.winner_entry_id
+      GROUP BY wc.id, wu.display_name, wu.first_name, wu.last_name, wu.profile_image_url, we.content
       ORDER BY wc.end_date DESC
     `)).rows;
   }
