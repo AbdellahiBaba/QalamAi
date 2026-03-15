@@ -2843,7 +2843,7 @@ export class DatabaseStorage implements IStorage {
           bankIban: data.bankIban,
           bankSwift: data.bankSwift,
           bankCountry: data.bankCountry,
-          stripeConnectId: data.stripeConnectId,
+          stripeAccountId: data.stripeAccountId,
           updatedAt: new Date(),
         },
       })

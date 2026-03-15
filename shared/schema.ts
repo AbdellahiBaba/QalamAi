@@ -1037,7 +1037,7 @@ export const payoutSettings = pgTable("payout_settings", {
   bankIban: text("bank_iban"),
   bankSwift: text("bank_swift"),
   bankCountry: text("bank_country"),
-  stripeConnectId: text("stripe_connect_id"),
+  stripeAccountId: varchar("stripe_account_id", { length: 100 }),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

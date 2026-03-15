@@ -9615,7 +9615,7 @@ ${ch.content}
         bankIban: z.string().max(100).optional().nullable(),
         bankSwift: z.string().max(20).optional().nullable(),
         bankCountry: z.string().max(100).optional().nullable(),
-        stripeConnectId: z.string().max(100).optional().nullable(),
+        stripeAccountId: z.string().max(100).optional().nullable(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });

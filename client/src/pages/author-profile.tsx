@@ -103,7 +103,7 @@ export default function AuthorProfile() {
   const [payoutBankIban, setPayoutBankIban] = useState("");
   const [payoutBankSwift, setPayoutBankSwift] = useState("");
   const [payoutBankCountry, setPayoutBankCountry] = useState("");
-  const [payoutStripeConnectId, setPayoutStripeConnectId] = useState("");
+  const [payoutStripeAccountId, setPayoutStripeAccountId] = useState("");
   const [payoutFormDirty, setPayoutFormDirty] = useState(false);
 
   const { data: author, isLoading, error } = useQuery<AuthorData>({
@@ -123,7 +123,7 @@ export default function AuthorProfile() {
     bankIban: string | null;
     bankSwift: string | null;
     bankCountry: string | null;
-    stripeConnectId: string | null;
+    stripeAccountId: string | null;
   } | null>({
     queryKey: ["/api/payout-settings"],
     enabled: isOwnProfile,
@@ -137,7 +137,7 @@ export default function AuthorProfile() {
       setPayoutBankIban(payoutSettings.bankIban || "");
       setPayoutBankSwift(payoutSettings.bankSwift || "");
       setPayoutBankCountry(payoutSettings.bankCountry || "");
-      setPayoutStripeConnectId(payoutSettings.stripeConnectId || "");
+      setPayoutStripeAccountId(payoutSettings.stripeAccountId || "");
     }
   }, [payoutSettings, payoutFormDirty]);
 
@@ -150,7 +150,7 @@ export default function AuthorProfile() {
         bankIban: payoutMethod === "bank" ? payoutBankIban : null,
         bankSwift: payoutMethod === "bank" ? payoutBankSwift : null,
         bankCountry: payoutMethod === "bank" ? payoutBankCountry : null,
-        stripeConnectId: payoutMethod === "stripe" ? payoutStripeConnectId : null,
+        stripeAccountId: payoutMethod === "stripe" ? payoutStripeAccountId : null,
       };
       const res = await apiRequest("POST", "/api/payout-settings", body);
       return res.json();
@@ -665,9 +665,9 @@ export default function AuthorProfile() {
                     <Input
                       dir="ltr"
                       placeholder="acct_1234567890"
-                      value={payoutStripeConnectId}
-                      onChange={e => { setPayoutStripeConnectId(e.target.value); setPayoutFormDirty(true); }}
-                      data-testid="input-payout-stripe-connect-id"
+                      value={payoutStripeAccountId}
+                      onChange={e => { setPayoutStripeAccountId(e.target.value); setPayoutFormDirty(true); }}
+                      data-testid="input-payout-stripe-account-id"
                     />
                     <p className="text-xs text-muted-foreground">أدخل معرّف حساب Stripe Connect الخاص بك (يبدأ بـ acct_)</p>
                   </div>

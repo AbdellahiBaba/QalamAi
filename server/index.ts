@@ -686,7 +686,7 @@ async function runStartupMigrations() {
         bank_iban TEXT,
         bank_swift TEXT,
         bank_country TEXT,
-        stripe_connect_id TEXT,
+        stripe_account_id VARCHAR(100),
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
       )
     `);
