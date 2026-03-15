@@ -338,6 +338,17 @@ function AdminChallengesTab() {
     onError: () => toast({ title: "فشل في إنشاء التحدي", variant: "destructive" }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/admin/challenges/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "تم حذف التحدي" });
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+    },
+    onError: () => toast({ title: "فشل في حذف التحدي", variant: "destructive" }),
+  });
+
   const handleGeneratePrompt = async () => {
     setIsGenerating(true);
     try {
@@ -491,6 +502,20 @@ function AdminChallengesTab() {
                           <X className="w-3 h-3" /> إغلاق
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs h-7 gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => {
+                          if (confirm(`هل أنت متأكد من حذف التحدي "${ch.title}"؟ سيتم حذف جميع المشاركات.`)) {
+                            deleteMutation.mutate(ch.id);
+                          }
+                        }}
+                        data-testid={`button-delete-challenge-${ch.id}`}
+                      >
+                        <Trash2 className="w-3 h-3" /> حذف
+                      </Button>
                       <Badge variant={isActive ? "default" : "outline"}>
                         {isActive ? "نشط" : "منتهي"}
                       </Badge>

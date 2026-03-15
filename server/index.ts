@@ -562,23 +562,29 @@ app.use((req, res, next) => {
         description TEXT,
         start_date TIMESTAMP DEFAULT NOW(),
         end_date TIMESTAMP,
-        status TEXT DEFAULT 'active',
         created_by TEXT NOT NULL,
+        winner_id TEXT,
         winner_entry_id INTEGER,
+        project_type VARCHAR(50) DEFAULT 'essay',
+        prize_description TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
-    // Note: writing_challenges.status column removed; index no longer needed
+    await pool.query(`ALTER TABLE writing_challenges ADD COLUMN IF NOT EXISTS winner_id TEXT`);
+    await pool.query(`ALTER TABLE writing_challenges ADD COLUMN IF NOT EXISTS project_type VARCHAR(50) DEFAULT 'essay'`);
+    await pool.query(`ALTER TABLE writing_challenges ADD COLUMN IF NOT EXISTS prize_description TEXT`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS challenge_entries (
         id SERIAL PRIMARY KEY,
         challenge_id INTEGER NOT NULL REFERENCES writing_challenges(id),
         user_id TEXT NOT NULL,
-        project_id INTEGER NOT NULL,
-        submitted_at TIMESTAMP DEFAULT NOW()
+        content TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    await pool.query(`ALTER TABLE challenge_entries ADD COLUMN IF NOT EXISTS content TEXT`);
+    await pool.query(`ALTER TABLE challenge_entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_challenge_entries_challenge ON challenge_entries (challenge_id)`);
 
     await pool.query(`
@@ -669,6 +675,21 @@ app.use((req, res, next) => {
     await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_collection_items_essay ON collection_items (collection_id, essay_id) WHERE essay_id IS NOT NULL`);
     await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_collection_items_project ON collection_items (collection_id, project_id) WHERE project_id IS NOT NULL`);
     await pool.query(`DO $$ BEGIN ALTER TABLE collection_items ADD CONSTRAINT chk_collection_items_one_ref CHECK ((essay_id IS NOT NULL AND project_id IS NULL) OR (essay_id IS NULL AND project_id IS NOT NULL)); EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS payout_settings (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL UNIQUE,
+        method VARCHAR(30) NOT NULL,
+        paypal_email TEXT,
+        bank_account_name TEXT,
+        bank_iban TEXT,
+        bank_swift TEXT,
+        bank_country TEXT,
+        stripe_connect_id TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `);
 
     console.log("[startup] All tables and columns ensured");
   } catch (e) {

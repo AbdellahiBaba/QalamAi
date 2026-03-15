@@ -175,24 +175,7 @@ async function checkApiSuspension(userId: string, res: any): Promise<boolean> {
 
 async function updateWritingStreak(userId: string) {
   try {
-    const user = await storage.getUser(userId);
-    if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
-    if (user.lastWritingDate === today) return;
-
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-    let newStreak = 1;
-    if (user.lastWritingDate === yesterdayStr) {
-      newStreak = (user.writingStreak || 0) + 1;
-    }
-
-    await db.update(users).set({
-      writingStreak: newStreak,
-      lastWritingDate: today,
-    }).where(eq(users.id, userId));
+    await storage.updateWritingStreak(userId);
   } catch (e) {
     console.error("Error updating writing streak:", e);
   }
@@ -399,11 +382,6 @@ export async function publishSocialPostToAPIs(
         const accessTokenSecret = (credentials["x_access_token_secret"] || "").trim();
         const rawBearer = (credentials["x_bearer_token"] || credentials["x"] || "").trim();
         const bearerToken = rawBearer ? decodeURIComponent(rawBearer) : "";
-
-        console.log("[X Publish] apiKey present:", !!apiKey, "len:", apiKey.length);
-        console.log("[X Publish] apiSecret present:", !!apiSecret, "len:", apiSecret.length);
-        console.log("[X Publish] accessToken present:", !!accessToken, "len:", accessToken.length);
-        console.log("[X Publish] accessTokenSecret present:", !!accessTokenSecret, "len:", accessTokenSecret.length);
 
         if (apiKey && apiSecret && accessToken && accessTokenSecret) {
           const tweetUrl = "https://api.twitter.com/2/tweets";
@@ -9624,7 +9602,7 @@ ${ch.content}
   };
 
   // ── XTTS v2 Voice Cloning TTS ───────────────────────────────────────────────
-  const TTS_SERVER_URL = "http://localhost:8000";
+  const TTS_SERVER_URL = process.env.TTS_SERVER_URL || "http://localhost:8000";
 
   app.get("/api/tts/health", async (_req, res) => {
     try {
@@ -10643,6 +10621,20 @@ ${platformInstructions}
     } catch (error: any) {
       console.error("Close challenge error:", error);
       res.status(500).json({ error: "فشل في إغلاق التحدي" });
+    }
+  });
+
+  app.delete("/api/admin/challenges/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const challengeId = parseIntParam(req.params.id);
+      if (!challengeId) return res.status(400).json({ error: "معرف غير صالح" });
+      const challenge = await storage.getWritingChallenge(challengeId);
+      if (!challenge) return res.status(404).json({ error: "التحدي غير موجود" });
+      await storage.deleteChallenge(challengeId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete challenge error:", error);
+      res.status(500).json({ error: "فشل في حذف التحدي" });
     }
   });
 

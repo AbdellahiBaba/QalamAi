@@ -221,6 +221,7 @@ export interface IStorage {
   createWritingChallenge(data: import("@shared/schema").InsertWritingChallenge): Promise<import("@shared/schema").WritingChallenge>;
   getWritingChallenges(): Promise<import("@shared/schema").WritingChallenge[]>;
   getWritingChallenge(id: number): Promise<import("@shared/schema").WritingChallenge | undefined>;
+  deleteChallenge(id: number): Promise<void>;
   setChallengWinner(challengeId: number, winnerId: string, winnerEntryId: number): Promise<import("@shared/schema").WritingChallenge>;
   submitChallengeEntry(data: import("@shared/schema").InsertChallengeEntry): Promise<import("@shared/schema").ChallengeEntry>;
   getChallengeEntries(challengeId: number): Promise<(import("@shared/schema").ChallengeEntry & { authorName: string; authorProfileImage: string | null })[]>;
@@ -2100,8 +2101,8 @@ export class DatabaseStorage implements IStorage {
   // ── Daily Prompts ────────────────────────────────────────────────────────────
   async getTodayPrompt(): Promise<any> {
     const today = new Date().toISOString().split('T')[0];
-    const [row] = await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date = ${today} AND active = true LIMIT 1`);
-    return (row as any)?.rows?.[0] ?? (await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date = ${today} AND active = true LIMIT 1`)).rows[0];
+    const result = await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date = ${today} AND active = true LIMIT 1`);
+    return result.rows[0];
   }
 
   async getPastPrompts(limit: number = 10): Promise<any[]> {
@@ -2536,6 +2537,11 @@ export class DatabaseStorage implements IStorage {
       GROUP BY wc.id
     `)).rows;
     return rows[0];
+  }
+
+  async deleteChallenge(id: number): Promise<void> {
+    await db.execute(sql`DELETE FROM challenge_entries WHERE challenge_id = ${id}`);
+    await db.execute(sql`DELETE FROM writing_challenges WHERE id = ${id}`);
   }
 
   async setChallengWinner(challengeId: number, winnerId: string, winnerEntryId: number): Promise<any> {
