@@ -406,7 +406,7 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
+async function runStartupMigrations() {
   // Ensure required columns and tables exist (safe, idempotent startup migrations)
   try {
     const { pool } = await import("./db");
@@ -695,7 +695,9 @@ app.use((req, res, next) => {
   } catch (e) {
     console.warn("[startup] Migration warning:", e);
   }
+}
 
+(async () => {
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -728,6 +730,10 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      // Run DB migrations in background — server accepts connections immediately
+      runStartupMigrations().catch((e: unknown) =>
+        console.warn("[startup] Migration warning:", e instanceof Error ? e.message : e)
+      );
       checkSmtpStatus();
 
       const TRIAL_CHECK_INTERVAL = 5 * 60 * 1000;
