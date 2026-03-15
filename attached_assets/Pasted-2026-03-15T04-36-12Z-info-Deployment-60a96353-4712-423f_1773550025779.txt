@@ -1,0 +1,188 @@
+2026-03-15T04:36:12Z info: Deployment: 60a96353-4712-423f-a4fe-913f9291369b
+2026-03-15T04:36:12Z info: Build: 8ded3301-3812-451a-9147-6d9074a8a6e4
+2026-03-15T04:36:12Z info: Running Security Scan
+2026-03-15T04:39:48Z info: Security Scan Complete
+2026-03-15T04:39:48Z info: Connecting to builder
+2026-03-15T04:39:48Z info: Builder connected
+2026-03-15T04:39:49Z info: Installing packages
+2026-03-15T04:39:49Z info: Starting Build
+
+> rest-express@1.0.0 build
+> tsx script/build.ts
+
+
+building client + server in parallel...
+
+vite v7.3.0 building client environment for production...
+
+
+  dist/index.cjs  5.2mb ⚠️
+
+⚡ Done in 1662ms
+
+transforming...
+
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+
+✓ 2823 modules transformed.
+
+rendering chunks...
+
+computing gzip size...
+
+../dist/public/registerSW.js                             0.13 kB
+
+../dist/public/index.html                                4.34 kB │ gzip:   1.73 kB
+../dist/public/assets/index-9rWhIQEb.css               161.94 kB │ gzip:  24.04 kB
+../dist/public/assets/ltr-num-CKfSuUMD.js                0.16 kB │ gzip:   0.16 kB
+../dist/public/assets/skeleton-DML7ufRX.js               0.21 kB │ gzip:   0.18 kB
+../dist/public/assets/index-DiW0AS_0.js                  0.24 kB │ gzip:   0.20 kB
+
+../dist/public/assets/theme-toggle-D2LURlbD.js           0.48 kB │ gzip:   0.34 kB
+../dist/public/assets/textarea-BfX8OWAP.js               0.58 kB │ gzip:   0.36 kB
+../dist/public/assets/label-DPbXqBBq.js                  0.65 kB │ gzip:   0.41 kB
+../dist/public/assets/input-DQEQs3bi.js                  0.66 kB │ gzip:   0.39 kB
+../dist/public/assets/utils-CK5PXSFF.js                  0.80 kB │ gzip:   0.29 kB
+../dist/public/assets/badge-Bm_AiWhc.js                  0.80 kB │ gzip:   0.44 kB
+../dist/public/assets/use-document-title-DIUUXh2d.js     1.09 kB │ gzip:   0.46 kB
+
+../dist/public/assets/use-xtts-B81O-a1m.js               1.14 kB │ gzip:   0.75 kB
+../dist/public/assets/not-found-hBk0wPwO.js              1.15 kB │ gzip:   0.62 kB
+../dist/public/assets/star-rating-P_OwpC_z.js            1.22 kB │ gzip:   0.66 kB
+../dist/public/assets/progress-BCJrCeY8.js               1.98 kB │ gzip:   0.98 kB
+../dist/public/assets/dialog-BCC_HC5Z.js                 2.12 kB │ gzip:   0.87 kB
+../dist/public/assets/sheet-DLouoTBA.js                  2.17 kB │ gzip:   0.88 kB
+../dist/public/assets/switch-J3EuzA7N.js                 2.44 kB │ gzip:   1.24 kB
+../dist/public/assets/challenge-banner-3_CP2924.js       2.48 kB │ gzip:   1.10 kB
+../dist/public/assets/avatar-M-D_fx9T.js                 2.48 kB │ gzip:   1.15 kB
+
+../dist/public/assets/form-CDo9bO27.js                   2.80 kB │ gzip:   1.23 kB
+../dist/public/assets/checkbox-7QNS2CE3.js               2.89 kB │ gzip:   1.43 kB
+../dist/public/assets/forgot-password-flUtFfx8.js        4.11 kB │ gzip:   1.74 kB
+../dist/public/assets/collection-public-Bgo5DXjU.js      4.27 kB │ gzip:   1.72 kB
+../dist/public/assets/shared-footer-3Jx4wbUK.js          4.48 kB │ gzip:   1.56 kB
+../dist/public/assets/save-to-list-button-DUl7Dtux.js    4.49 kB │ gzip:   1.53 kB
+../dist/public/assets/alert-dialog-B3-8hT_7.js           4.78 kB │ gzip:   1.75 kB
+../dist/public/assets/reader-fuhWv8C1.js                 4.85 kB │ gzip:   1.75 kB
+
+../dist/public/assets/apply-verified-EfbE0uMN.js         5.06 kB │ gzip:   1.99 kB
+../dist/public/assets/writing-stats-panel-D9_N8x2E.js    5.06 kB │ gzip:   1.78 kB
+../dist/public/assets/index-CvaKAa1n.js                  5.20 kB │ gzip:   2.00 kB
+../dist/public/assets/login-CCga2izC.js                  5.23 kB │ gzip:   2.11 kB
+
+../dist/public/assets/leaderboard-D-pnhX9n.js            6.04 kB │ gzip:   2.35 kB
+../dist/public/assets/challenges-B6lfOfiW.js             6.39 kB │ gzip:   2.06 kB
+../dist/public/assets/tickets-B84l0_-u.js                6.48 kB │ gzip:   2.33 kB
+../dist/public/assets/tabs-DuVdW8pB.js                   6.57 kB │ gzip:   2.62 kB
+../dist/public/assets/series-detail-DOMeOHvB.js          6.73 kB │ gzip:   2.40 kB
+../dist/public/assets/abu-hashim-chat-D-7XF5PX.js        7.01 kB │ gzip:   2.57 kB
+../dist/public/assets/content-series-DrPuPHTS.js         7.07 kB │ gzip:   2.55 kB
+
+../dist/public/assets/reset-password-CXISQKZR.js         7.58 kB │ gzip:   2.56 kB
+../dist/public/assets/contact-H0bGRaF0.js                7.69 kB │ gzip:   2.57 kB
+../dist/public/assets/daily-prompt-4el4pB4R.js           8.17 kB │ gzip:   2.92 kB
+../dist/public/assets/slider-BJLaD_GL.js                 8.20 kB │ gzip:   3.32 kB
+../dist/public/assets/ticket-detail-Wcs2D86d.js          8.48 kB │ gzip:   2.92 kB
+../dist/public/assets/reviews-Cw0X5Q18.js                8.60 kB │ gzip:   3.11 kB
+../dist/public/assets/admin-ticket-DbqBmOpY.js           9.04 kB │ gzip:   2.77 kB
+../dist/public/assets/my-lists-Coclmdt9.js               9.05 kB │ gzip:   3.09 kB
+../dist/public/assets/register-8YbAzSWF.js               9.09 kB │ gzip:   3.14 kB
+
+../dist/public/assets/challenge-detail-BPiiM-Yo.js       9.22 kB │ gzip:   3.03 kB
+../dist/public/assets/trial-prompt-popup-DwwrhAfQ.js    10.10 kB │ gzip:   3.59 kB
+../dist/public/assets/social-marketing-CwTH_Qw6.js      10.48 kB │ gzip:   3.76 kB
+../dist/public/assets/countries-UHL2t-bp.js             10.53 kB │ gzip:   2.63 kB
+../dist/public/assets/index-Bqh9hSfC.js                 10.64 kB │ gzip:   4.74 kB
+../dist/public/assets/terms-CKawF1hB.js                 10.90 kB │ gzip:   3.69 kB
+../dist/public/assets/report-dialog-GH2HHJbT.js         10.96 kB │ gzip:   3.51 kB
+../dist/public/assets/essays-news-CX8-i9k5.js           10.97 kB │ gzip:   3.80 kB
+../dist/public/assets/new-khawater-B-xgI6v1.js          11.34 kB │ gzip:   3.80 kB
+
+../dist/public/assets/admin-marketing-BCSdlG5u.js       11.54 kB │ gzip:   4.12 kB
+../dist/public/assets/abu-hashim-1nA32VWc.js            12.05 kB │ gzip:   3.35 kB
+../dist/public/assets/new-social-media-CmLAQf6f.js      12.06 kB │ gzip:   4.01 kB
+../dist/public/assets/new-reels-vFWCyA9R.js             12.30 kB │ gzip:   4.09 kB
+../dist/public/assets/promo-B80ZhwaG.js                 12.47 kB │ gzip:   3.60 kB
+../dist/public/assets/about-DQN8INZH.js                 12.49 kB │ gzip:   3.48 kB
+../dist/public/assets/scroll-area-BhsiXvq9.js           12.50 kB │ gzip:   3.96 kB
+../dist/public/assets/react-stripe.esm-CsnEAIpr.js      12.50 kB │ gzip:   4.72 kB
+../dist/public/assets/search-C2QFgclT.js                12.66 kB │ gzip:   3.71 kB
+
+../dist/public/assets/gallery-BQL7_4tv.js               12.67 kB │ gzip:   4.63 kB
+../dist/public/assets/refund-DgxOj6lG.js                12.70 kB │ gzip:   2.94 kB
+../dist/public/assets/novel-theme-svv6KCyd.js           12.91 kB │ gzip:   3.43 kB
+../dist/public/assets/memoire-gallery-Bk-yUVQF.js       13.91 kB │ gzip:   4.63 kB
+../dist/public/assets/features-CyDeFbBo.js              14.65 kB │ gzip:   4.52 kB
+../dist/public/assets/privacy-UWsZomdg.js               15.01 kB │ gzip:   3.10 kB
+../dist/public/assets/analytics-J0HMq2Sz.js             16.11 kB │ gzip:   4.07 kB
+../dist/public/assets/Combination-FhkxEy-F.js           16.61 kB │ gzip:   6.29 kB
+../dist/public/assets/shared-navbar-CSY2tLxx.js         17.00 kB │ gzip:   4.66 kB
+../dist/public/assets/shared-project-BmbW5wep.js        17.79 kB │ gzip:   6.03 kB
+../dist/public/assets/author-profile-CdtGYCkl.js        19.65 kB │ gzip:   6.06 kB
+../dist/public/assets/new-essay-CX7zrtUO.js             19.76 kB │ gzip:   5.83 kB
+../dist/public/assets/new-scenario-S5MBOnri.js          20.99 kB │ gzip:   5.96 kB
+
+../dist/public/assets/select-BRIhsqBv.js                21.05 kB │ gzip:   7.30 kB
+../dist/public/assets/purify.es-Bzr520pe.js             22.45 kB │ gzip:   8.59 kB
+../dist/public/assets/essay-public-DIL41R2d.js          25.39 kB │ gzip:   8.08 kB
+../dist/public/assets/landing-i2FhErqY.js               26.67 kB │ gzip:   6.09 kB
+../dist/public/assets/new-short-story-BZtvo5aO.js       27.07 kB │ gzip:   6.70 kB
+../dist/public/assets/vendor-query-B2p9EHPW.js          33.99 kB │ gzip:  10.25 kB
+../dist/public/assets/profile-Ba-tWgzK.js               36.67 kB │ gzip:   9.98 kB
+../dist/public/assets/pricing-B0gaErDC.js               40.84 kB │ gzip:  10.03 kB
+../dist/public/assets/dropdown-menu-B7_kgAkm.js         41.48 kB │ gzip:  13.03 kB
+../dist/public/assets/admin-social-hub-BFjukQOY.js      55.53 kB │ gzip:  12.42 kB
+
+../dist/public/assets/vendor-ui-BlfKejEq.js             61.04 kB │ gzip:  20.05 kB
+../dist/public/assets/schema-DPQUTEnZ.js                61.45 kB │ gzip:  15.11 kB
+../dist/public/assets/new-project-DdJhfQ4D.js           65.29 kB │ gzip:  15.34 kB
+../dist/public/assets/home-CJRmJ2pi.js                  78.39 kB │ gzip:  17.76 kB
+../dist/public/assets/vendor-form-BaG3kV84.js           89.49 kB │ gzip:  24.87 kB
+../dist/public/assets/index-obt2ON3V.js                 90.48 kB │ gzip:  30.76 kB
+../dist/public/assets/vendor-react-BRPid8WZ.js         146.38 kB │ gzip:  47.82 kB
+../dist/public/assets/index.es-CBtRp1ob.js             159.51 kB │ gzip:  53.25 kB
+
+../dist/public/assets/new-memoire-0Z5OiXmv.js          159.64 kB │ gzip:  18.32 kB
+../dist/public/assets/admin-HAvwYPJe.js                187.12 kB │ gzip:  36.31 kB
+../dist/public/assets/html2canvas.esm-DXEQVQnt.js      201.04 kB │ gzip:  47.07 kB
+../dist/public/assets/vendor-charts-_RtfWeEj.js        391.57 kB │ gzip: 106.96 kB
+../dist/public/assets/project-detail-B6ylVTyg.js       583.95 kB │ gzip: 165.95 kB
+
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+✓ built in 10.88s
+
+
+PWA v1.2.0
+mode      generateSW
+precache  8 entries (485.52 KiB)
+files generated
+  ../dist/public/sw.js
+  ../dist/public/workbox-78ef5c9b.js
+
+copying pdfkit AFM data files to dist/data/...
+
+warnings
+  assets/vendor-charts-_RtfWeEj.js is 392 kB, and won't be precached. Configure maximumFileSizeToCacheInBytes to change this limit.
+
+
+build complete
+
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.11.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.11.1
+npm notice To update run: npm install -g npm@11.11.1
+npm notice
+
+2026-03-15T04:40:09Z info: Pushing pid1 binary layer...
+2026-03-15T04:40:11Z info: Created pid1 binary layer
+2026-03-15T04:40:12Z info: Pushing Repl layer...
+2026-03-15T04:40:12Z info: Pushing hosting layer...
+2026-03-15T04:40:12Z info: Retrieved cached nix layer
+2026-03-15T04:40:12Z info: Created hosting layer
+Deployment timed out. Check the Logs tab for more details. - 2026-03-15T04:45:12.025Z
