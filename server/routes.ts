@@ -2199,6 +2199,10 @@ ${allPages.map(p => `  <url>
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
 
+      if (chapter.status === "generating") {
+        return res.status(409).json({ error: "هذا الفصل قيد التوليد حالياً — يرجى الانتظار" });
+      }
+
       let oldWordCount = 0;
       if (chapter.status === "completed" && chapter.content) {
         oldWordCount = chapter.content.split(/\s+/).filter(w => w.length > 0).length;
@@ -10295,7 +10299,12 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
 
   app.get("/api/projects/by-tag/:tag", async (req, res) => {
     try {
-      const tag = decodeURIComponent(req.params.tag).trim();
+      let tag: string;
+      try {
+        tag = decodeURIComponent(req.params.tag).trim();
+      } catch {
+        return res.status(400).json({ error: "وسم غير صالح" });
+      }
       if (!tag) return res.status(400).json({ error: "الوسم مطلوب" });
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const limit = Math.min(50, parseInt(req.query.limit as string) || 24);
