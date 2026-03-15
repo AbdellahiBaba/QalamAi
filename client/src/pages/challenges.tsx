@@ -15,6 +15,8 @@ interface Challenge {
   title: string;
   description: string;
   theme: string | null;
+  project_type: string | null;
+  prize_description: string | null;
   start_date: string;
   end_date: string;
   winner_id: string | null;
@@ -23,6 +25,16 @@ interface Challenge {
   entryCount: number;
   winnerName: string | null;
 }
+
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  essay: "مقال",
+  novel: "رواية",
+  poem: "قصيدة",
+  short_story: "قصة قصيرة",
+  screenplay: "سيناريو",
+  khawater: "خاطرة",
+  memoire: "مذكرة",
+};
 
 function getTimeRemaining(endDate: string) {
   const diff = new Date(endDate).getTime() - Date.now();
@@ -84,15 +96,27 @@ export default function Challenges() {
                       <Card className="hover:shadow-lg transition-shadow cursor-pointer" data-testid={`card-challenge-${ch.id}`}>
                         <CardContent className="p-5 space-y-3">
                           <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
+                            <div className="space-y-1 flex-1 min-w-0">
                               <h3 className="font-serif font-bold text-lg" data-testid={`text-challenge-title-${ch.id}`}>{ch.title}</h3>
-                              {ch.theme && <Badge variant="secondary" className="text-xs">{ch.theme}</Badge>}
+                              <div className="flex flex-wrap gap-1.5">
+                                {ch.project_type && (
+                                  <Badge variant="outline" className="text-xs border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-900/20">
+                                    {PROJECT_TYPE_LABELS[ch.project_type] || ch.project_type}
+                                  </Badge>
+                                )}
+                                {ch.theme && <Badge variant="secondary" className="text-xs">{ch.theme}</Badge>}
+                              </div>
                             </div>
                             <Badge className="bg-green-500/10 text-green-600 border-green-500/30 dark:text-green-400 shrink-0">
                               نشط
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-2">{ch.description}</p>
+                          {ch.prize_description && (
+                            <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                              <Trophy className="w-3.5 h-3.5" /> الجائزة: {ch.prize_description}
+                            </p>
+                          )}
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
                             {remaining && (
                               <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {remaining}</span>

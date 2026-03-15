@@ -26,6 +26,7 @@ import { estimateReadingTime } from "@shared/utils";
 import { useMemo, useState, useEffect, useRef, lazy, Suspense } from "react";
 import LtrNum from "@/components/ui/ltr-num";
 import { Crown } from "lucide-react";
+import { ChallengeBanner } from "@/components/challenge-banner";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
@@ -1038,6 +1039,9 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
+
+        {/* Active Challenge Banner */}
+        <ChallengeBanner />
 
         {/* Daily Writing Prompt */}
         {dailyPromptData?.prompt && (

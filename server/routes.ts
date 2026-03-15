@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail, sendNewChallengeEmail } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -9579,6 +9579,40 @@ ${ch.content}
     }
   });
 
+  // ===== Payout Settings =====
+  app.get("/api/payout-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const settings = await storage.getPayoutSettings(userId);
+      res.json(settings || null);
+    } catch (error: unknown) {
+      console.error("Get payout settings error:", error);
+      res.status(500).json({ error: "فشل في جلب إعدادات الدفع" });
+    }
+  });
+
+  app.post("/api/payout-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const schema = z.object({
+        method: z.enum(["paypal", "bank", "stripe"]),
+        paypalEmail: z.string().email().optional().nullable(),
+        bankAccountName: z.string().max(200).optional().nullable(),
+        bankIban: z.string().max(100).optional().nullable(),
+        bankSwift: z.string().max(20).optional().nullable(),
+        bankCountry: z.string().max(100).optional().nullable(),
+        stripeConnectId: z.string().max(100).optional().nullable(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      const settings = await storage.upsertPayoutSettings({ userId, ...parsed.data });
+      res.json(settings);
+    } catch (error: unknown) {
+      console.error("Upsert payout settings error:", error);
+      res.status(500).json({ error: "فشل في حفظ إعدادات الدفع" });
+    }
+  });
+
   // ===== Social Media Hub (Super Admin) =====
   const isSuperAdmin = (req: any, res: any, next: any) => {
     const SUPER_IDS = ["39706084", "e482facd-d157-4e97-ad91-af96b8ec8f49"];
@@ -10487,6 +10521,8 @@ ${platformInstructions}
         title: z.string().min(1).max(200),
         description: z.string().min(1).max(2000),
         theme: z.string().max(200).optional(),
+        projectType: z.string().max(50).optional(),
+        prizeDescription: z.string().max(500).optional(),
         endDate: z.string().min(1),
       });
       const parsed = schema.safeParse(req.body);
@@ -10495,12 +10531,52 @@ ${platformInstructions}
         title: parsed.data.title,
         description: parsed.data.description,
         theme: parsed.data.theme || null,
+        projectType: parsed.data.projectType || "essay",
+        prizeDescription: parsed.data.prizeDescription || null,
         startDate: new Date(),
         endDate: new Date(parsed.data.endDate),
         createdBy: req.user.claims.sub,
       });
+      // Notify all users in the background
+      (async () => {
+        try {
+          const allUsers = await storage.getAllUsers();
+          const PROJECT_TYPE_LABELS: Record<string, string> = {
+            essay: "مقال",
+            novel: "رواية",
+            poem: "قصيدة",
+            short_story: "قصة قصيرة",
+            screenplay: "سيناريو",
+          };
+          const projectTypeLabel = PROJECT_TYPE_LABELS[challenge.projectType || "essay"] || challenge.projectType || "";
+          for (const u of allUsers) {
+            try {
+              await storage.createNotification({
+                userId: u.id,
+                type: "new_challenge",
+                title: "تحدٍّ كتابي جديد!",
+                message: `"${challenge.title}" — ${challenge.description.slice(0, 100)}${challenge.description.length > 100 ? "..." : ""}`,
+                link: `/challenges/${challenge.id}`,
+              });
+            } catch (e) {
+              console.error(`Failed to notify user ${u.id}:`, e);
+            }
+          }
+          const emailRecipients = await storage.getUsersWithEmails();
+          await sendNewChallengeEmail(emailRecipients, {
+            id: challenge.id,
+            title: challenge.title,
+            description: challenge.description,
+            endDate: new Date(challenge.endDate),
+            prizeDescription: challenge.prizeDescription,
+            projectTypeLabel,
+          });
+        } catch (bgErr) {
+          console.error("Challenge notification background error:", bgErr);
+        }
+      })();
       res.json(challenge);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Create challenge error:", error);
       res.status(500).json({ error: "فشل في إنشاء التحدي" });
     }

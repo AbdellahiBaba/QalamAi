@@ -23,6 +23,7 @@ import { MarketingPopup } from "@/components/marketing-popup";
 import { EssaysMarketingPopup } from "@/components/essays-marketing-popup";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
+import { ChallengeBanner } from "@/components/challenge-banner";
 
 interface LandingReview {
   id: number;
@@ -126,7 +127,12 @@ export default function Landing() {
       <EssaysMarketingPopup />
       <SharedNavbar />
 
-      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6">
+      {/* Active Challenge Banner */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24" dir="rtl">
+        <ChallengeBanner />
+      </div>
+
+      <section className="pt-6 pb-12 sm:pb-20 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 sm:gap-16 items-center">
           <div className="space-y-5 sm:space-y-8">
             <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-primary/10 rounded-full">

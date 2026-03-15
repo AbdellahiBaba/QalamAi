@@ -244,6 +244,8 @@ export interface IStorage {
   getRecentPublicationsByFollowedAuthors(userId: string, daysBack?: number): Promise<Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>>;
   checkAndIncrementAiUsage(userId: string): Promise<{ allowed: boolean; remaining: number; resetTime: string }>;
   getAiUsageStatus(userId: string): Promise<{ used: number; limit: number; remaining: number; resetTime: string }>;
+  getPayoutSettings(userId: string): Promise<import("@shared/schema").PayoutSettings | undefined>;
+  upsertPayoutSettings(data: import("@shared/schema").InsertPayoutSettings): Promise<import("@shared/schema").PayoutSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2814,6 +2816,34 @@ export class DatabaseStorage implements IStorage {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     return { used, limit: 20, remaining: 20 - used, resetTime: tomorrow.toISOString() };
+  }
+
+  async getPayoutSettings(userId: string): Promise<import("@shared/schema").PayoutSettings | undefined> {
+    const { payoutSettings } = await import("@shared/schema");
+    const [row] = await db.select().from(payoutSettings).where(eq(payoutSettings.userId, userId));
+    return row;
+  }
+
+  async upsertPayoutSettings(data: import("@shared/schema").InsertPayoutSettings): Promise<import("@shared/schema").PayoutSettings> {
+    const { payoutSettings } = await import("@shared/schema");
+    const [row] = await db
+      .insert(payoutSettings)
+      .values({ ...data, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: payoutSettings.userId,
+        set: {
+          method: data.method,
+          paypalEmail: data.paypalEmail,
+          bankAccountName: data.bankAccountName,
+          bankIban: data.bankIban,
+          bankSwift: data.bankSwift,
+          bankCountry: data.bankCountry,
+          stripeConnectId: data.stripeConnectId,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return row;
   }
 }
 

@@ -898,6 +898,8 @@ export const writingChallenges = pgTable("writing_challenges", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   theme: text("theme"),
+  projectType: varchar("project_type", { length: 50 }).default("essay"),
+  prizeDescription: text("prize_description"),
   startDate: timestamp("start_date").default(sql`CURRENT_TIMESTAMP`).notNull(),
   endDate: timestamp("end_date").notNull(),
   winnerId: varchar("winner_id"),
@@ -1023,3 +1025,20 @@ export const newsletterSends = pgTable("newsletter_sends", {
 export const insertNewsletterSendSchema = createInsertSchema(newsletterSends).omit({ id: true, createdAt: true });
 export type InsertNewsletterSend = z.infer<typeof insertNewsletterSendSchema>;
 export type NewsletterSend = typeof newsletterSends.$inferSelect;
+
+export const payoutSettings = pgTable("payout_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().unique(),
+  method: varchar("method", { length: 30 }).notNull(),
+  paypalEmail: text("paypal_email"),
+  bankAccountName: text("bank_account_name"),
+  bankIban: text("bank_iban"),
+  bankSwift: text("bank_swift"),
+  bankCountry: text("bank_country"),
+  stripeConnectId: text("stripe_connect_id"),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
+export const insertPayoutSettingsSchema = createInsertSchema(payoutSettings).omit({ id: true, updatedAt: true });
+export type InsertPayoutSettings = z.infer<typeof insertPayoutSettingsSchema>;
+export type PayoutSettings = typeof payoutSettings.$inferSelect;

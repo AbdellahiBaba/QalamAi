@@ -173,6 +173,7 @@ function PublicRouter() {
         <Route path="/search" component={SearchPage} />
         <Route path="/challenges" component={Challenges} />
         <Route path="/challenges/:id" component={ChallengeDetail} />
+        <Route path="/project/:id" component={ProjectDetail} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
         <Route path="/refund" component={Refund} />

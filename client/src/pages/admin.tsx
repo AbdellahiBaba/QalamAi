@@ -290,11 +290,23 @@ function AdminTTSTab() {
   );
 }
 
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  essay: "مقال",
+  novel: "رواية",
+  poem: "قصيدة",
+  short_story: "قصة قصيرة",
+  screenplay: "سيناريو",
+  khawater: "خاطرة",
+  memoire: "مذكرة",
+};
+
 function AdminChallengesTab() {
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
+  const [projectType, setProjectType] = useState("essay");
+  const [prizeDescription, setPrizeDescription] = useState("");
   const [endDays, setEndDays] = useState("7");
   const [generatedPrompt, setGeneratedPrompt] = useState<{ promptText: string; promptDate: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -309,13 +321,18 @@ function AdminChallengesTab() {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + parseInt(endDays));
       const res = await apiRequest("POST", "/api/admin/challenges", {
-        title, description, theme: theme || undefined, endDate: endDate.toISOString(),
+        title,
+        description,
+        theme: theme || undefined,
+        projectType,
+        prizeDescription: prizeDescription || undefined,
+        endDate: endDate.toISOString(),
       });
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "تم إنشاء التحدي" });
-      setTitle(""); setDescription(""); setTheme("");
+      toast({ title: "تم إنشاء التحدي وإرسال الإشعارات" });
+      setTitle(""); setDescription(""); setTheme(""); setPrizeDescription(""); setProjectType("essay");
       queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
     },
     onError: () => toast({ title: "فشل في إنشاء التحدي", variant: "destructive" }),
@@ -404,13 +421,27 @@ function AdminChallengesTab() {
             <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="عنوان التحدي" dir="rtl" data-testid="input-challenge-title" />
             <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="وصف التحدي والشروط..." dir="rtl" rows={3} data-testid="textarea-challenge-desc" />
             <Input value={theme} onChange={e => setTheme(e.target.value)} placeholder="الموضوع (اختياري)" dir="rtl" data-testid="input-challenge-theme" />
+            <div className="flex items-center gap-2" dir="rtl">
+              <Label className="text-sm text-muted-foreground shrink-0">نوع الكتابة:</Label>
+              <Select value={projectType} onValueChange={setProjectType} dir="rtl">
+                <SelectTrigger className="w-40" data-testid="select-challenge-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PROJECT_TYPE_LABELS).map(([val, label]) => (
+                    <SelectItem key={val} value={val}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Input value={prizeDescription} onChange={e => setPrizeDescription(e.target.value)} placeholder="وصف الجائزة (اختياري) — مثال: كتاب + شهادة + نشر على المنصة" dir="rtl" data-testid="input-challenge-prize" />
             <div className="flex items-center gap-2">
               <Label className="text-sm text-muted-foreground shrink-0">المدة (أيام):</Label>
               <Input type="number" value={endDays} onChange={e => setEndDays(e.target.value)} className="w-24" min="1" max="90" data-testid="input-challenge-days" />
             </div>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !title.trim() || !description.trim()} className="gap-1" data-testid="button-create-challenge">
               {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              إنشاء التحدي
+              إنشاء التحدي وإشعار الكتّاب
             </Button>
           </div>
         </CardContent>
@@ -426,9 +457,19 @@ function AdminChallengesTab() {
                 const isActive = new Date(ch.end_date) > new Date();
                 return (
                   <div key={ch.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg" data-testid={`admin-challenge-${ch.id}`}>
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5 flex-1 min-w-0">
                       <p className="font-medium text-sm">{ch.title}</p>
-                      <p className="text-xs text-muted-foreground">{ch.entryCount || 0} مشاركة</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {ch.project_type && (
+                          <Badge variant="outline" className="text-xs py-0 h-4 border-amber-400/40 text-amber-700 dark:text-amber-400">
+                            {PROJECT_TYPE_LABELS[ch.project_type] || ch.project_type}
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">{ch.entryCount || 0} مشاركة</span>
+                      </div>
+                      {ch.prize_description && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 truncate">🏆 {ch.prize_description}</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {isActive && (

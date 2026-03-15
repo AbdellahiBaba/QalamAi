@@ -969,3 +969,48 @@ ${rows}
     console.error(`[Email] Failed to send follow digest to ${email}:`, err);
   }
 }
+
+export async function sendNewChallengeEmail(
+  recipients: Array<{ email: string; displayName: string | null }>,
+  challenge: { id: number; title: string; description: string; endDate: Date; prizeDescription?: string | null; projectTypeLabel?: string },
+): Promise<void> {
+  const t = getTransporter();
+  if (!t || recipients.length === 0) return;
+
+  const baseUrl = getBaseUrl();
+  const challengeUrl = `${baseUrl}/challenges/${challenge.id}`;
+  const endStr = challenge.endDate.toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric" });
+
+  const body = `
+<p style="color:#333;line-height:1.8;font-size:15px;">يسعدنا إعلانك عن تحدٍّ كتابي جديد على منصة QalamAI!</p>
+<div style="background:#fdf9f2;border-right:4px solid ${BRAND_GOLD};padding:16px 20px;margin:16px 0;border-radius:8px;">
+  <h3 style="margin:0 0 8px;color:${BRAND_BLUE};font-size:18px;">${challenge.title}</h3>
+  ${challenge.projectTypeLabel ? `<p style="margin:0 0 8px;color:#888;font-size:13px;">نوع الكتابة: ${challenge.projectTypeLabel}</p>` : ""}
+  <p style="margin:0 0 12px;color:#555;font-size:14px;line-height:1.7;">${challenge.description}</p>
+  ${challenge.prizeDescription ? `<p style="margin:0;color:${BRAND_GOLD};font-weight:bold;font-size:14px;">🏆 الجائزة: ${challenge.prizeDescription}</p>` : ""}
+  <p style="margin:8px 0 0;color:#888;font-size:13px;">⏰ ينتهي: ${endStr}</p>
+</div>
+<div style="text-align:center;margin:24px 0;">
+<a href="${challengeUrl}"
+   style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+شارك الآن في التحدي
+</a>
+</div>`;
+
+  const subject = `تحدٍّ كتابي جديد: ${challenge.title} — QalamAI`;
+  let sent = 0;
+  for (const recipient of recipients) {
+    try {
+      await t.sendMail({
+        from: `"QalamAI" <${process.env.SMTP_USER}>`,
+        to: recipient.email,
+        subject,
+        html: wrapInTemplate("تحدٍّ كتابي جديد!", body),
+      });
+      sent++;
+    } catch (err) {
+      console.error(`[Email] Failed to send challenge email to ${recipient.email}:`, err);
+    }
+  }
+  console.log(`[Email] New challenge email sent to ${sent}/${recipients.length} recipients`);
+}
