@@ -117,7 +117,8 @@ export async function setupAuth(app: Express) {
         scope: ["openid", "email", "profile", "offline_access"],
       })(req, res, next);
     } catch (err) {
-      next(err);
+      console.error("[Auth] OIDC login initiation error:", err);
+      res.redirect("/login?error=oidc_unavailable");
     }
   });
 
@@ -126,10 +127,11 @@ export async function setupAuth(app: Express) {
       await ensureStrategy(req.hostname);
       passport.authenticate(`replitauth:${req.hostname}`, {
         successReturnToOrRedirect: "/",
-        failureRedirect: "/api/login",
+        failureRedirect: "/login?error=auth_failed",
       })(req, res, next);
     } catch (err) {
-      next(err);
+      console.error("[Auth] OAuth callback error:", err);
+      res.redirect("/login?error=auth_failed");
     }
   });
 

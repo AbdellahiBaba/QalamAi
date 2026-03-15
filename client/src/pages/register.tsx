@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Feather, Loader2, Eye, EyeOff } from "lucide-react";
+import { SiReplit } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
@@ -248,9 +249,15 @@ export default function Register() {
               </div>
             </div>
 
-            <a href="/api/login">
-              <Button variant="outline" className="w-full" size="lg" data-testid="button-replit-register">
-                التسجيل عبر Replit
+            <a href="/api/login" className="block" data-testid="link-replit-register">
+              <Button
+                variant="outline"
+                className="w-full gap-3 border-2 hover:bg-[#F5A623]/5 hover:border-[#F5A623]/40 transition-all"
+                size="lg"
+                data-testid="button-replit-register"
+              >
+                <SiReplit className="w-5 h-5 text-[#F5A623]" />
+                <span className="font-semibold">التسجيل عبر Replit</span>
               </Button>
             </a>
           </CardContent>
