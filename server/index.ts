@@ -944,7 +944,7 @@ async function runStartupMigrations() {
             try {
               const pubs = await storage.getRecentPublicationsByFollowedAuthors(u.id, 7);
               if (pubs.length > 0) {
-                await sendPersonalizedFollowDigest(u.email, u.displayName, pubs);
+                await sendPersonalizedFollowDigest(u.id, u.email, u.displayName, pubs);
                 followDigestSent++;
               }
             } catch {}

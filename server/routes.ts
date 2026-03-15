@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail, sendNewChallengeEmail } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail, sendNewChallengeEmail, verifyDigestUnsubscribeToken } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -9241,6 +9241,31 @@ ${ch.content}
       } else {
         res.status(404).send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>رابط غير صالح — QalamAI</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f0f0f;color:#e5e5e5;direction:rtl;} .box{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:40px;max-width:400px;text-align:center;}</style></head><body><div class="box"><h2>رابط غير صالح</h2><p>هذا الرابط منتهي أو لم يُعثر على الاشتراك.</p><a href="https://qalamai.net" style="color:#d4a853;">العودة إلى QalamAI</a></div></body></html>`);
       }
+    } catch (error) {
+      res.status(500).send("حدث خطأ");
+    }
+  });
+
+  app.get("/api/digest-unsubscribe", async (req, res) => {
+    try {
+      const { uid, cat, tok } = req.query as { uid?: string; cat?: string; tok?: string };
+      if (!uid || !cat || !tok || !["digest", "follow"].includes(cat)) {
+        return res.status(400).send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>رابط غير صالح — QalamAI</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f0f0f;color:#e5e5e5;direction:rtl;} .box{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:40px;max-width:400px;text-align:center;}</style></head><body><div class="box"><h2>رابط غير صالح</h2><p>تعذّر التحقق من الرابط.</p><a href="https://qalamai.net" style="color:#d4a853;">العودة إلى QalamAI</a></div></body></html>`);
+      }
+      if (!verifyDigestUnsubscribeToken(uid, cat, tok)) {
+        return res.status(403).send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>رابط غير صالح — QalamAI</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f0f0f;color:#e5e5e5;direction:rtl;} .box{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:40px;max-width:400px;text-align:center;}</style></head><body><div class="box"><h2>رابط غير صالح</h2><p>هذا الرابط منتهي الصلاحية أو غير صالح.</p><a href="https://qalamai.net" style="color:#d4a853;">العودة إلى QalamAI</a></div></body></html>`);
+      }
+      const prefs: Record<string, boolean> = {};
+      if (cat === "digest") {
+        prefs.digestOptOut = true;
+      } else if (cat === "follow") {
+        prefs.emailFollowPublications = false;
+      }
+      await storage.setUserEmailPreferences(uid, prefs);
+      const message = cat === "digest"
+        ? "تم إلغاء اشتراكك من النشرة الأسبوعية بنجاح."
+        : "تم إيقاف إشعارات المتابَعين بنجاح.";
+      res.send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>تم إلغاء الاشتراك — QalamAI</title><style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f0f0f;color:#e5e5e5;direction:rtl;} .box{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:40px;max-width:400px;text-align:center;}</style></head><body><div class="box"><h2 style="color:#d4a853;">تم إلغاء الاشتراك</h2><p>${message}</p><p style="font-size:13px;color:#888;">يمكنك إعادة تفعيل الإشعارات من صفحة الملف الشخصي.</p><a href="https://qalamai.net" style="color:#d4a853;">العودة إلى QalamAI</a></div></body></html>`);
     } catch (error) {
       res.status(500).send("حدث خطأ");
     }

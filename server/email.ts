@@ -1,7 +1,21 @@
 import nodemailer from "nodemailer";
+import crypto from "crypto";
 
 const BRAND_GOLD = "#D4A017";
 const BRAND_BLUE = "#0D1B2A";
+
+function getDigestUnsubscribeUrl(userId: string, category: "digest" | "follow"): string {
+  const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+  const secret = process.env.SESSION_SECRET || "qalamai-unsubscribe-secret";
+  const token = crypto.createHmac("sha256", secret).update(`${userId}:${category}`).digest("hex");
+  return `${baseUrl}/api/digest-unsubscribe?uid=${encodeURIComponent(userId)}&cat=${category}&tok=${token}`;
+}
+
+export function verifyDigestUnsubscribeToken(userId: string, category: string, token: string): boolean {
+  const secret = process.env.SESSION_SECRET || "qalamai-unsubscribe-secret";
+  const expected = crypto.createHmac("sha256", secret).update(`${userId}:${category}`).digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+}
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -394,7 +408,7 @@ export async function sendViewMilestoneNotification(
 }
 
 export async function sendWeeklyDigest(
-  recipients: Array<{ email: string; displayName: string | null }>,
+  recipients: Array<{ id: string; email: string; displayName: string | null }>,
   topEssays: Array<{ id: number; title: string; shareToken: string | null; authorName: string; views: number }>,
 ): Promise<void> {
   const t = getTransporter();
@@ -414,7 +428,12 @@ export async function sendWeeklyDigest(
 </tr>`;
   }).join("\n");
 
-  const body = `
+  const subject = "ملخّص الأسبوع — أبرز مقالات QalamAI";
+
+  let sent = 0;
+  for (const recipient of recipients) {
+    const unsubUrl = getDigestUnsubscribeUrl(recipient.id, "digest");
+    const body = `
 <p style="color:#333;line-height:1.8;font-size:15px;">إليك أبرز مقالات هذا الأسبوع على منصّة QalamAI:</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;">
 ${essayRows}
@@ -426,14 +445,9 @@ ${essayRows}
 </a>
 </div>
 <p style="color:#999;font-size:11px;text-align:center;margin-top:24px;border-top:1px solid #eee;padding-top:12px;">
-لإيقاف استلام هذه النشرة، قم بتعديل تفضيلات البريد من
-<a href="${baseUrl}/profile" style="color:${BRAND_GOLD};text-decoration:underline;">صفحة الملف الشخصي</a>.
+<a href="${unsubUrl}" style="color:${BRAND_GOLD};text-decoration:underline;">إلغاء الاشتراك</a> من هذه النشرة |
+<a href="${baseUrl}/profile" style="color:${BRAND_GOLD};text-decoration:underline;">تعديل تفضيلات البريد</a>
 </p>`;
-
-  const subject = "ملخّص الأسبوع — أبرز مقالات QalamAI";
-
-  let sent = 0;
-  for (const recipient of recipients) {
     try {
       await t.sendMail({
         from: `"QalamAI" <${process.env.SMTP_USER}>`,
@@ -923,6 +937,7 @@ export async function sendAuthorNewsletter(
 }
 
 export async function sendPersonalizedFollowDigest(
+  userId: string,
   email: string,
   displayName: string | null,
   publications: Array<{ id: number; title: string; shareToken: string | null; authorName: string; projectType: string }>,
@@ -949,6 +964,7 @@ export async function sendPersonalizedFollowDigest(
   }).join("\n");
 
   const greeting = displayName ? `مرحباً ${displayName}` : "مرحباً";
+  const unsubUrl = getDigestUnsubscribeUrl(userId, "follow");
 
   const body = `
 <p style="color:#333;line-height:1.8;font-size:15px;">${greeting}، إليك جديد الكتّاب الذين تتابعهم هذا الأسبوع:</p>
@@ -962,8 +978,8 @@ ${rows}
 </a>
 </div>
 <p style="color:#999;font-size:11px;text-align:center;margin-top:24px;border-top:1px solid #eee;padding-top:12px;">
-لإيقاف إشعارات المتابَعين، قم بتعديل تفضيلات البريد من
-<a href="${baseUrl}/profile" style="color:${BRAND_GOLD};text-decoration:underline;">صفحة الملف الشخصي</a>.
+<a href="${unsubUrl}" style="color:${BRAND_GOLD};text-decoration:underline;">إلغاء الاشتراك</a> من إشعارات المتابَعين |
+<a href="${baseUrl}/profile" style="color:${BRAND_GOLD};text-decoration:underline;">تعديل تفضيلات البريد</a>
 </p>`;
 
   try {
