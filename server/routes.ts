@@ -5469,6 +5469,11 @@ ${glossaryParagraphs}
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
       await storage.updateProject(id, { shareToken: null, publishedToGallery: false, publishedToNews: false } as any);
+      apiCache.invalidate("gallery");
+      apiCache.invalidate("memoires");
+      apiCache.invalidate("essays");
+      apiCache.invalidate("leaderboard");
+      apiCache.invalidate("essay-of-week");
       apiCache.invalidate(`user-projects-${req.user.claims.sub}`);
       res.json({ success: true });
     } catch (error) {
@@ -5828,7 +5833,7 @@ ${glossaryParagraphs}
     const betaFilter = req.query.beta === "true";
     const authorId = ((req.query.authorId as string) || "").trim();
     const cacheKey = `gallery_p${page}_l${limit}${tag ? `_tag_${tag}` : ''}${betaFilter ? '_beta' : ''}${authorId ? `_author_${authorId}` : ''}`;
-    serveCached(req, res, cacheKey, 300, async () => {
+    serveCached(req, res, cacheKey, 120, async () => {
       if (betaFilter || authorId) {
         const { pool } = await import("./db");
         const offset = (page - 1) * limit;
@@ -6150,7 +6155,7 @@ ${glossaryParagraphs}
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `memoires_p${page}_l${limit}`;
-    serveCached(req, res, cacheKey, 300, async () => {
+    serveCached(req, res, cacheKey, 120, async () => {
       const result = await storage.getGalleryProjectsPaginated(page, limit, "memoire");
       return {
         data: result.rows.map(p => ({
@@ -6182,7 +6187,7 @@ ${glossaryParagraphs}
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
     const cacheKey = `essays_p${page}_l${limit}`;
-    serveCached(req, res, cacheKey, 300, async () => {
+    serveCached(req, res, cacheKey, 120, async () => {
       const result = await storage.getPublishedEssaysWithStats(page, limit);
       return {
         data: result.rows,
@@ -6242,6 +6247,9 @@ ${glossaryParagraphs}
       if (!project.shareToken) return res.status(400).json({ error: "يجب مشاركة المقال أولاً" });
       if (!(await isProjectEligibleForSharing(project))) return res.status(400).json({ error: "يجب إتمام الدفع أو إكمال جميع الفصول قبل النشر" });
       await storage.updateProject(projectId, { publishedToNews: true } as any);
+      apiCache.invalidate("essays");
+      apiCache.invalidate("leaderboard");
+      apiCache.invalidate("essay-of-week");
       apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
       // Fire follower + email-subscriber notifications asynchronously (non-blocking)
@@ -6296,6 +6304,9 @@ ${glossaryParagraphs}
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرح" });
       if (project.projectType !== "essay") return res.status(400).json({ error: "هذا الخيار متاح للمقالات فقط" });
       await storage.updateProject(projectId, { publishedToNews: false } as any);
+      apiCache.invalidate("essays");
+      apiCache.invalidate("leaderboard");
+      apiCache.invalidate("essay-of-week");
       apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
     } catch (error) {
@@ -6316,6 +6327,8 @@ ${glossaryParagraphs}
       apiCache.invalidate("gallery");
       apiCache.invalidate("memoires");
       apiCache.invalidate("essays");
+      apiCache.invalidate("leaderboard");
+      apiCache.invalidate("essay-of-week");
       apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
     } catch (error) {
@@ -6333,6 +6346,9 @@ ${glossaryParagraphs}
       await storage.updateProject(projectId, { publishedToGallery: false } as any);
       apiCache.invalidate("gallery");
       apiCache.invalidate("memoires");
+      apiCache.invalidate("essays");
+      apiCache.invalidate("leaderboard");
+      apiCache.invalidate("essay-of-week");
       apiCache.invalidate(`user-projects-${userId}`);
       res.json({ success: true });
     } catch (error) {
@@ -8465,6 +8481,11 @@ ${ch.content}
           publishedToGallery: false,
           publishedToNews: false,
         });
+        apiCache.invalidate("gallery");
+        apiCache.invalidate("memoires");
+        apiCache.invalidate("essays");
+        apiCache.invalidate("leaderboard");
+        apiCache.invalidate("essay-of-week");
       }
 
       if (actionTaken === "banned") {
@@ -8477,6 +8498,11 @@ ${ch.content}
             flagged: true,
             flagReason: adminNote || "تم الحظر بسبب بلاغ محتوى",
           });
+          apiCache.invalidate("gallery");
+          apiCache.invalidate("memoires");
+          apiCache.invalidate("essays");
+          apiCache.invalidate("leaderboard");
+          apiCache.invalidate("essay-of-week");
         }
       }
 
@@ -8545,6 +8571,11 @@ ${ch.content}
           const report = await storage.getContentReport(Number(id));
           if (report) {
             await storage.updateProject(report.projectId, { publishedToGallery: false, publishedToNews: false });
+            apiCache.invalidate("gallery");
+            apiCache.invalidate("memoires");
+            apiCache.invalidate("essays");
+            apiCache.invalidate("leaderboard");
+            apiCache.invalidate("essay-of-week");
             await storage.updateContentReport(Number(id), { status: "action_taken", actionTaken: "unpublished", reviewedBy: adminId, reviewedAt: new Date(), resolvedAt: new Date() });
             removed++;
           } else { failed.push(Number(id)); }
@@ -8682,23 +8713,17 @@ ${ch.content}
   });
 
   // ===== Leaderboard =====
-  app.get("/api/public/leaderboard", async (_req, res) => {
-    try {
-      const rows = await storage.getLeaderboard(20);
-      res.json(rows);
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب لوحة المتصدرين" });
-    }
+  app.get("/api/public/leaderboard", async (req, res) => {
+    serveCached(req, res, "leaderboard", 120, async () => {
+      return await storage.getLeaderboard(20);
+    });
   });
 
   // ===== Essay of Week =====
-  app.get("/api/public/essay-of-week", async (_req, res) => {
-    try {
-      const essay = await storage.getEssayOfWeek();
-      res.json(essay);
-    } catch (error) {
-      res.status(500).json({ error: "فشل في جلب مقال الأسبوع" });
-    }
+  app.get("/api/public/essay-of-week", async (req, res) => {
+    serveCached(req, res, "essay-of-week", 120, async () => {
+      return await storage.getEssayOfWeek();
+    });
   });
 
   // ===== Related Essays =====

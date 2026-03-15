@@ -204,6 +204,7 @@ export const novelProjects = pgTable("novel_projects", {
   index("idx_projects_user_id").on(table.userId),
   index("idx_projects_type_gallery").on(table.projectType, table.publishedToGallery),
   index("idx_projects_share_token").on(table.shareToken),
+  index("idx_projects_published").on(table.publishedToNews, table.publishedToGallery),
 ]);
 
 export const characters = pgTable("characters", {
@@ -350,6 +351,7 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
   index("idx_notifications_user_id").on(table.userId),
+  index("idx_notifications_user_read").on(table.userId, table.read),
 ]);
 
 export const promoCodes = pgTable("promo_codes", {
