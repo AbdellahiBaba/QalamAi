@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, cp, mkdir, access } from "fs/promises";
+import { rm, cp, mkdir, access, readdir } from "fs/promises";
 
 const MUST_KEEP_EXTERNAL = [
   "@napi-rs/canvas",
@@ -40,8 +40,14 @@ async function buildAll() {
     try {
       await access(src);
       await mkdir(dest, { recursive: true });
-      await cp(src, dest, { recursive: true });
-      console.log(`  copied ${pkg}`);
+      await cp(`${src}/package.json`, `${dest}/package.json`);
+      const entries = await readdir(src);
+      for (const entry of entries) {
+        if (entry.endsWith(".node") || entry.endsWith(".js")) {
+          await cp(`${src}/${entry}`, `${dest}/${entry}`);
+        }
+      }
+      console.log(`  copied ${pkg} (package.json + .node/.js files only)`);
     } catch {
       console.log(`  skipped ${pkg} (not installed on this platform)`);
     }
