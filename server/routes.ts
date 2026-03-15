@@ -431,7 +431,9 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
-  await storage.seedDefaultFeatures();
+  storage.seedDefaultFeatures().catch((e: unknown) =>
+    console.warn("[startup] seedDefaultFeatures:", e instanceof Error ? e.message : e)
+  );
 
   async function notifyUser(userId: string, type: string, title: string, message: string, link?: string) {
     try {
