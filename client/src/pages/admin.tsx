@@ -401,6 +401,9 @@ function ChallengeEntriesPanel({ challengeId, winnerId, onClose }: { challengeId
                                   <SelectItem value="سيميائي">سيميائي (Semiotics)</SelectItem>
                                   <SelectItem value="تفكيكي">تفكيكي (Deconstruction)</SelectItem>
                                   <SelectItem value="جمالي">جمالي (Aesthetics)</SelectItem>
+                                  <SelectItem value="تاريخي">تاريخي (Historical)</SelectItem>
+                                  <SelectItem value="انطباعي">انطباعي (Impressionistic)</SelectItem>
+                                  <SelectItem value="نسوي">نسوي (Feminist)</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>

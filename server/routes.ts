@@ -10649,7 +10649,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     try {
       const schema = z.object({
         entryContent: z.string().min(10).max(50000),
-        critiqueType: z.enum(["شامل", "بنيوي", "أسلوبي", "نفسي", "اجتماعي", "سيميائي", "تفكيكي", "جمالي"]),
+        critiqueType: z.enum(["شامل", "بنيوي", "أسلوبي", "نفسي", "اجتماعي", "سيميائي", "تفكيكي", "جمالي", "تاريخي", "انطباعي", "نسوي"]),
         wordCount: z.number().int().min(100).max(500),
         challengeTitle: z.string().min(1).max(500),
       });
