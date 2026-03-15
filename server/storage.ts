@@ -2542,8 +2542,8 @@ export class DatabaseStorage implements IStorage {
 
   async createWritingChallenge(data: any): Promise<any> {
     const [row] = (await db.execute(sql`
-      INSERT INTO writing_challenges (title, description, theme, start_date, end_date, created_by)
-      VALUES (${data.title}, ${data.description}, ${data.theme || null}, ${data.startDate || new Date()}, ${data.endDate}, ${data.createdBy})
+      INSERT INTO writing_challenges (title, description, theme, project_type, prize_description, start_date, end_date, created_by)
+      VALUES (${data.title}, ${data.description}, ${data.theme || null}, ${data.projectType || "essay"}, ${data.prizeDescription || null}, ${data.startDate || new Date()}, ${data.endDate}, ${data.createdBy})
       RETURNING *
     `)).rows;
     return row;
@@ -2872,6 +2872,7 @@ export class DatabaseStorage implements IStorage {
         set: {
           method: data.method,
           paypalEmail: data.paypalEmail,
+          kastWalletId: data.kastWalletId,
           bankAccountName: data.bankAccountName,
           bankIban: data.bankIban,
           bankSwift: data.bankSwift,

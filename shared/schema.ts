@@ -920,6 +920,8 @@ export const challengeEntries = pgTable("challenge_entries", {
   challengeId: integer("challenge_id").notNull().references(() => writingChallenges.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull(),
   content: text("content").notNull(),
+  adminRating: integer("admin_rating"),
+  adminNotes: text("admin_notes"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
   index("idx_challenge_entries_challenge").on(table.challengeId),
@@ -1032,6 +1034,7 @@ export const payoutSettings = pgTable("payout_settings", {
   userId: varchar("user_id").notNull().unique(),
   method: varchar("method", { length: 30 }).notNull(),
   paypalEmail: text("paypal_email"),
+  kastWalletId: text("kast_wallet_id"),
   bankAccountName: text("bank_account_name"),
   bankIban: text("bank_iban"),
   bankSwift: text("bank_swift"),

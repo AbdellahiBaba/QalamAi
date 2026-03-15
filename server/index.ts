@@ -720,6 +720,9 @@ async function runStartupMigrations() {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_follow_publications BOOLEAN DEFAULT true`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_tips_comments BOOLEAN DEFAULT true`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_challenges BOOLEAN DEFAULT true`);
+    await pool.query(`ALTER TABLE challenge_entries ADD COLUMN IF NOT EXISTS admin_rating INTEGER`);
+    await pool.query(`ALTER TABLE challenge_entries ADD COLUMN IF NOT EXISTS admin_notes TEXT`);
+    await pool.query(`ALTER TABLE payout_settings ADD COLUMN IF NOT EXISTS kast_wallet_id TEXT`);
 
     console.log("[startup] All tables and columns ensured");
   } catch (e) {

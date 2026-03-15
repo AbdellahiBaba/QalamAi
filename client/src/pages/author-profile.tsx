@@ -99,6 +99,7 @@ export default function AuthorProfile() {
 
   const [payoutMethod, setPayoutMethod] = useState("paypal");
   const [payoutPaypalEmail, setPayoutPaypalEmail] = useState("");
+  const [payoutKastWalletId, setPayoutKastWalletId] = useState("");
   const [payoutBankName, setPayoutBankName] = useState("");
   const [payoutBankIban, setPayoutBankIban] = useState("");
   const [payoutBankSwift, setPayoutBankSwift] = useState("");
@@ -119,6 +120,7 @@ export default function AuthorProfile() {
   const { data: payoutSettings } = useQuery<{
     method: string;
     paypalEmail: string | null;
+    kastWalletId: string | null;
     bankAccountName: string | null;
     bankIban: string | null;
     bankSwift: string | null;
@@ -133,6 +135,7 @@ export default function AuthorProfile() {
     if (payoutSettings && !payoutFormDirty) {
       setPayoutMethod(payoutSettings.method || "paypal");
       setPayoutPaypalEmail(payoutSettings.paypalEmail || "");
+      setPayoutKastWalletId(payoutSettings.kastWalletId || "");
       setPayoutBankName(payoutSettings.bankAccountName || "");
       setPayoutBankIban(payoutSettings.bankIban || "");
       setPayoutBankSwift(payoutSettings.bankSwift || "");
@@ -146,6 +149,7 @@ export default function AuthorProfile() {
       const body: Record<string, string | null> = {
         method: payoutMethod,
         paypalEmail: payoutMethod === "paypal" ? payoutPaypalEmail : null,
+        kastWalletId: payoutMethod === "kast" ? payoutKastWalletId : null,
         bankAccountName: payoutMethod === "bank" ? payoutBankName : null,
         bankIban: payoutMethod === "bank" ? payoutBankIban : null,
         bankSwift: payoutMethod === "bank" ? payoutBankSwift : null,
@@ -588,11 +592,11 @@ export default function AuthorProfile() {
                       <SelectItem value="paypal">
                         <span className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> PayPal</span>
                       </SelectItem>
+                      <SelectItem value="kast">
+                        <span className="flex items-center gap-2"><Wallet className="w-4 h-4" /> Kast App Wallet</span>
+                      </SelectItem>
                       <SelectItem value="bank">
                         <span className="flex items-center gap-2"><Building2 className="w-4 h-4" /> تحويل بنكي</span>
-                      </SelectItem>
-                      <SelectItem value="stripe">
-                        <span className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Stripe Connect</span>
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -609,6 +613,20 @@ export default function AuthorProfile() {
                       onChange={e => { setPayoutPaypalEmail(e.target.value); setPayoutFormDirty(true); }}
                       data-testid="input-payout-paypal-email"
                     />
+                  </div>
+                )}
+
+                {payoutMethod === "kast" && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">معرّف محفظة Kast App</Label>
+                    <Input
+                      dir="ltr"
+                      placeholder="tag / email / phone number"
+                      value={payoutKastWalletId}
+                      onChange={e => { setPayoutKastWalletId(e.target.value); setPayoutFormDirty(true); }}
+                      data-testid="input-payout-kast-wallet"
+                    />
+                    <p className="text-xs text-muted-foreground">أدخل معرّف محفظتك على تطبيق Kast (يمكن أن يكون Tag أو بريد إلكتروني أو رقم هاتف)</p>
                   </div>
                 )}
 

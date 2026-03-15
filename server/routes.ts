@@ -9650,8 +9650,9 @@ ${ch.content}
     try {
       const userId = req.user.claims.sub;
       const schema = z.object({
-        method: z.enum(["paypal", "bank", "stripe"]),
+        method: z.enum(["paypal", "kast", "bank", "stripe"]),
         paypalEmail: z.string().email().optional().nullable(),
+        kastWalletId: z.string().max(200).optional().nullable(),
         bankAccountName: z.string().max(200).optional().nullable(),
         bankIban: z.string().max(100).optional().nullable(),
         bankSwift: z.string().max(20).optional().nullable(),
@@ -10612,6 +10613,28 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error: any) {
       console.error("Close challenge error:", error);
       res.status(500).json({ error: "فشل في إغلاق التحدي" });
+    }
+  });
+
+  app.put("/api/admin/challenges/:id/entries/:entryId/rate", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const challengeId = parseIntParam(req.params.id);
+      const entryId = parseIntParam(req.params.entryId);
+      if (!challengeId || !entryId) return res.status(400).json({ error: "معرف غير صالح" });
+      const schema = z.object({
+        adminRating: z.number().int().min(1).max(5),
+        adminNotes: z.string().max(500).optional().nullable(),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      await db.execute(dsql`
+        UPDATE challenge_entries SET admin_rating = ${parsed.data.adminRating}, admin_notes = ${parsed.data.adminNotes || null}
+        WHERE id = ${entryId} AND challenge_id = ${challengeId}
+      `);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Rate challenge entry error:", error);
+      res.status(500).json({ error: "فشل في تقييم المشاركة" });
     }
   });
 
