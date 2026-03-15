@@ -9608,17 +9608,22 @@ ${ch.content}
       if (!contentType.includes("multipart/form-data")) {
         return res.status(400).json({ error: "يجب إرسال ملف بصيغة multipart/form-data" });
       }
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const bodyBuffer = Buffer.concat(chunks);
       const proxyRes = await fetch(`${TTS_SERVER_URL}/admin/upload-voice`, {
         method: "POST",
         headers: { "content-type": contentType },
-        body: req,
-        duplex: "half",
-      } as any);
+        body: bodyBuffer,
+      });
       const data = await proxyRes.json();
       if (!proxyRes.ok) return res.status(proxyRes.status).json(data);
       res.json(data);
-    } catch (error: any) {
-      console.error("[TTS Upload] Proxy error:", error?.message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.error("[TTS Upload] Proxy error:", msg);
       res.status(503).json({ error: "خدمة الصوت غير متاحة حالياً — تأكد من تشغيل TTS Server" });
     }
   });
@@ -9642,8 +9647,9 @@ ${ch.content}
       res.set("Cache-Control", "private, max-age=3600");
       const arrayBuf = await ttsRes.arrayBuffer();
       res.send(Buffer.from(arrayBuf));
-    } catch (error: any) {
-      console.error("[TTS Generate] Proxy error:", error?.message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.error("[TTS Generate] Proxy error:", msg);
       res.status(503).json({ error: "خدمة الصوت غير متاحة حالياً" });
     }
   });

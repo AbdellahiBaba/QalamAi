@@ -684,23 +684,28 @@ export default function EssayPublic() {
               {audioLoading ? "جارٍ التحضير…" : audioPlaying ? (ttsStatus || "إيقاف") : "استمع للمقال"}
             </Button>
             {user && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => xtts.speak(getEssayText())}
-                disabled={xtts.loading}
-                data-testid="button-xtts"
-                className={`gap-1.5 transition-all ${xtts.playing ? "border-violet-500 text-violet-600" : ""}`}
-              >
-                {xtts.loading ? (
-                  <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
-                ) : xtts.playing ? (
-                  <VolumeX className="w-3.5 h-3.5" />
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5 text-violet-500" />
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => xtts.audioUrl ? xtts.clearAudio() : xtts.generate(getEssayText())}
+                  disabled={xtts.loading}
+                  data-testid="button-xtts"
+                  className={`gap-1.5 transition-all ${xtts.audioUrl ? "border-violet-500 text-violet-600" : ""}`}
+                >
+                  {xtts.loading ? (
+                    <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+                  ) : xtts.audioUrl ? (
+                    <VolumeX className="w-3.5 h-3.5" />
+                  ) : (
+                    <Volume2 className="w-3.5 h-3.5 text-violet-500" />
+                  )}
+                  {xtts.loading ? "جارٍ التوليد…" : xtts.audioUrl ? "إغلاق المشغّل" : "استمع (XTTS)"}
+                </Button>
+                {xtts.audioUrl && (
+                  <audio controls autoPlay src={xtts.audioUrl} data-testid="audio-xtts-player" className="h-8" />
                 )}
-                {xtts.loading ? "جارٍ التوليد…" : xtts.playing ? "إيقاف XTTS" : "استمع (XTTS)"}
-              </Button>
+              </>
             )}
             <Button
               variant="outline"

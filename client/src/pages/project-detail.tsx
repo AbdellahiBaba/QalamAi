@@ -4069,21 +4069,28 @@ export default function ProjectDetail() {
                                     variant="outline"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      xtts.speak(displayContent || "");
+                                      if (xtts.audioUrl) {
+                                        xtts.clearAudio();
+                                      } else {
+                                        xtts.generate(displayContent || "");
+                                      }
                                     }}
                                     disabled={xtts.loading}
                                     data-testid={`button-xtts-chapter-${chapter.id}`}
-                                    className={`gap-1 ${xtts.playing ? "border-violet-500 text-violet-600" : ""}`}
+                                    className={`gap-1 ${xtts.audioUrl ? "border-violet-500 text-violet-600" : ""}`}
                                   >
                                     {xtts.loading ? (
                                       <span className="w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
-                                    ) : xtts.playing ? (
+                                    ) : xtts.audioUrl ? (
                                       <VolumeX className="w-3.5 h-3.5 ml-1" />
                                     ) : (
                                       <Volume2 className="w-3.5 h-3.5 ml-1 text-violet-500" />
                                     )}
-                                    {xtts.loading ? "جارٍ التوليد…" : xtts.playing ? "إيقاف" : "استمع"}
+                                    {xtts.loading ? "جارٍ التوليد…" : xtts.audioUrl ? "إغلاق المشغّل" : "استمع"}
                                   </Button>
+                                  {xtts.audioUrl && (
+                                    <audio controls autoPlay src={xtts.audioUrl} data-testid={`audio-xtts-chapter-${chapter.id}`} className="h-8" />
+                                  )}
                                   <Button
                                     size="sm"
                                     variant="outline"

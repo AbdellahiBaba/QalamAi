@@ -9,32 +9,24 @@ function getCsrfToken(): string {
 export function useXTTS() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const blobUrlRef = useRef<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const prevUrlRef = useRef<string | null>(null);
 
-  const stop = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+  const clearAudio = useCallback(() => {
+    if (prevUrlRef.current) {
+      URL.revokeObjectURL(prevUrlRef.current);
+      prevUrlRef.current = null;
     }
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-    setPlaying(false);
+    setAudioUrl(null);
   }, []);
 
-  const speak = useCallback(async (text: string) => {
-    if (playing) {
-      stop();
-      return;
-    }
+  const generate = useCallback(async (text: string) => {
     if (!text.trim()) {
       toast({ title: "لا يوجد نص للقراءة", variant: "destructive" });
       return;
     }
 
+    clearAudio();
     setLoading(true);
     try {
       const res = await fetch("/api/tts/generate", {
@@ -47,34 +39,20 @@ export function useXTTS() {
         body: JSON.stringify({ text: text.substring(0, 5000) }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any)?.error || "فشل في توليد الصوت");
+        const err = await res.json().catch(() => ({ error: "فشل في توليد الصوت" }));
+        throw new Error((err as Record<string, string>)?.error || "فشل في توليد الصوت");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      blobUrlRef.current = url;
-
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => {
-        setPlaying(false);
-        if (blobUrlRef.current) {
-          URL.revokeObjectURL(blobUrlRef.current);
-          blobUrlRef.current = null;
-        }
-      };
-      audio.onerror = () => {
-        setPlaying(false);
-        toast({ title: "حدث خطأ أثناء التشغيل", variant: "destructive" });
-      };
-      await audio.play();
-      setPlaying(true);
-    } catch (err: any) {
-      toast({ title: err.message || "خدمة الصوت غير متاحة حالياً", variant: "destructive" });
+      prevUrlRef.current = url;
+      setAudioUrl(url);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "خدمة الصوت غير متاحة حالياً";
+      toast({ title: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [playing, stop, toast]);
+  }, [clearAudio, toast]);
 
-  return { speak, stop, loading, playing };
+  return { generate, clearAudio, loading, audioUrl };
 }

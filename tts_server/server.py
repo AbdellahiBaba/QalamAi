@@ -1,9 +1,10 @@
 import os
 import io
+import tempfile
 import torch
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import soundfile as sf
 
@@ -85,14 +86,13 @@ async def generate_tts(request: TTSRequest):
         )
 
         wav_array = np.array(wav_data, dtype=np.float32)
-        buf = io.BytesIO()
-        sf.write(buf, wav_array, samplerate=22050, format="WAV")
-        buf.seek(0)
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        sf.write(tmp.name, wav_array, samplerate=22050, format="WAV")
 
-        return Response(
-            content=buf.read(),
+        return FileResponse(
+            path=tmp.name,
             media_type="audio/wav",
-            headers={"Content-Disposition": "inline; filename=tts_output.wav"},
+            filename="tts_output.wav",
         )
     except Exception as e:
         print(f"[TTS] Generation error: {e}")
