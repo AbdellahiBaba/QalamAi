@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, giftSubscriptions, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt, buildLiteraryCritiquePrompt } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
 import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
@@ -10630,7 +10630,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       if (!challengeId || !entryId) return res.status(400).json({ error: "معرف غير صالح" });
       const schema = z.object({
         adminRating: z.number().int().min(1).max(5),
-        adminNotes: z.string().max(500).optional().nullable(),
+        adminNotes: z.string().max(10000).optional().nullable(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
@@ -10642,6 +10642,39 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error: any) {
       console.error("Rate challenge entry error:", error);
       res.status(500).json({ error: "فشل في تقييم المشاركة" });
+    }
+  });
+
+  app.post("/api/admin/literary-critique", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        entryContent: z.string().min(10).max(50000),
+        critiqueType: z.enum(["شامل", "بنيوي", "أسلوبي", "نفسي", "اجتماعي", "سيميائي", "تفكيكي", "جمالي"]),
+        wordCount: z.number().int().min(100).max(500),
+        challengeTitle: z.string().min(1).max(500),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
+
+      const { entryContent, critiqueType, wordCount, challengeTitle } = parsed.data;
+      const { system, user } = buildLiteraryCritiquePrompt(entryContent, critiqueType, wordCount, challengeTitle);
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_completion_tokens: Math.max(2000, wordCount * 8),
+        temperature: 0.7,
+      });
+
+      const critique = response.choices[0]?.message?.content || "عذراً، لم أتمكن من إنتاج النقد الأدبي.";
+      logApiUsage(req.user.claims.sub, null, "literary_critique", "gpt-5.2", response);
+      res.json({ critique });
+    } catch (error: any) {
+      console.error("Literary critique error:", error);
+      res.status(500).json({ error: "فشل في توليد النقد الأدبي" });
     }
   });
 

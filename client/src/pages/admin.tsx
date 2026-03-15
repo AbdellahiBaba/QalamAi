@@ -214,6 +214,11 @@ function ChallengeEntriesPanel({ challengeId, winnerId, onClose }: { challengeId
   const [entryRatings, setEntryRatings] = useState<Record<number, number>>({});
   const [entryNotes, setEntryNotes] = useState<Record<number, string>>({});
   const [expandedEntry, setExpandedEntry] = useState<number | null>(null);
+  const [critiqueOpen, setCritiqueOpen] = useState<Record<number, boolean>>({});
+  const [critiqueType, setCritiqueType] = useState<Record<number, string>>({});
+  const [critiqueWordCount, setCritiqueWordCount] = useState<Record<number, number>>({});
+  const [critiqueResult, setCritiqueResult] = useState<Record<number, string>>({});
+  const [critiqueLoading, setCritiqueLoading] = useState<Record<number, boolean>>({});
 
   const { data: challenge, isLoading, refetch } = useQuery<any>({
     queryKey: ["/api/challenges", challengeId],
@@ -361,7 +366,115 @@ function ChallengeEntriesPanel({ challengeId, winnerId, onClose }: { challengeId
                             <Crown className="w-3 h-3" /> تحديد كفائز
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant={critiqueOpen[entry.id] ? "secondary" : "outline"}
+                          className="text-xs h-7 gap-1"
+                          onClick={() => setCritiqueOpen(prev => ({ ...prev, [entry.id]: !prev[entry.id] }))}
+                          data-testid={`button-toggle-critique-${entry.id}`}
+                        >
+                          <PenTool className="w-3 h-3" /> نقد أدبي
+                        </Button>
                       </div>
+                      {critiqueOpen[entry.id] && (
+                        <div className="mt-3 p-3 border rounded-lg bg-gradient-to-b from-violet-50/50 to-transparent dark:from-violet-950/20 space-y-3">
+                          <div className="flex items-center gap-2 text-xs font-medium text-violet-700 dark:text-violet-300">
+                            <Brain className="w-3.5 h-3.5" />
+                            <span>أبو هاشم — الناقد الأدبي</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground mb-1 block">المنهج النقدي</Label>
+                              <Select
+                                value={critiqueType[entry.id] || "شامل"}
+                                onValueChange={(v) => setCritiqueType(prev => ({ ...prev, [entry.id]: v }))}
+                              >
+                                <SelectTrigger className="h-7 text-xs" data-testid={`select-critique-type-${entry.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="شامل">شامل (متعدد المناهج)</SelectItem>
+                                  <SelectItem value="بنيوي">بنيوي (Structuralism)</SelectItem>
+                                  <SelectItem value="أسلوبي">أسلوبي (Stylistics)</SelectItem>
+                                  <SelectItem value="نفسي">نفسي (Psychoanalytic)</SelectItem>
+                                  <SelectItem value="اجتماعي">اجتماعي (Sociological)</SelectItem>
+                                  <SelectItem value="سيميائي">سيميائي (Semiotics)</SelectItem>
+                                  <SelectItem value="تفكيكي">تفكيكي (Deconstruction)</SelectItem>
+                                  <SelectItem value="جمالي">جمالي (Aesthetics)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground mb-1 block">عدد الكلمات</Label>
+                              <div className="flex gap-1">
+                                {[100, 200, 300, 500].map(wc => (
+                                  <Button
+                                    key={wc}
+                                    size="sm"
+                                    variant={(critiqueWordCount[entry.id] || 200) === wc ? "default" : "outline"}
+                                    className="text-xs h-7 flex-1 px-1"
+                                    onClick={() => setCritiqueWordCount(prev => ({ ...prev, [entry.id]: wc }))}
+                                    data-testid={`button-critique-wc-${wc}-${entry.id}`}
+                                  >
+                                    {wc}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="w-full text-xs h-8 gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
+                            disabled={critiqueLoading[entry.id] || !entry.content || !challenge?.title}
+                            onClick={async () => {
+                              setCritiqueLoading(prev => ({ ...prev, [entry.id]: true }));
+                              setCritiqueResult(prev => ({ ...prev, [entry.id]: "" }));
+                              try {
+                                const res = await apiRequest("POST", "/api/admin/literary-critique", {
+                                  entryContent: entry.content,
+                                  critiqueType: critiqueType[entry.id] || "شامل",
+                                  wordCount: critiqueWordCount[entry.id] || 200,
+                                  challengeTitle: challenge?.title || "",
+                                });
+                                const data = await res.json();
+                                setCritiqueResult(prev => ({ ...prev, [entry.id]: data.critique }));
+                              } catch {
+                                toast({ title: "فشل في توليد النقد الأدبي", variant: "destructive" });
+                              } finally {
+                                setCritiqueLoading(prev => ({ ...prev, [entry.id]: false }));
+                              }
+                            }}
+                            data-testid={`button-generate-critique-${entry.id}`}
+                          >
+                            {critiqueLoading[entry.id] ? (
+                              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> جارٍ التحليل النقدي...</>
+                            ) : (
+                              <><Sparkles className="w-3.5 h-3.5" /> توليد النقد</>
+                            )}
+                          </Button>
+                          {critiqueResult[entry.id] && (
+                            <div className="space-y-2">
+                              <ScrollArea className="h-48 border rounded-md p-3 bg-white dark:bg-zinc-900">
+                                <p className="text-xs leading-relaxed whitespace-pre-wrap" data-testid={`text-critique-result-${entry.id}`}>
+                                  {critiqueResult[entry.id]}
+                                </p>
+                              </ScrollArea>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-7 gap-1"
+                                onClick={() => {
+                                  setEntryNotes(prev => ({ ...prev, [entry.id]: critiqueResult[entry.id] }));
+                                  toast({ title: "تم نسخ النقد إلى الملاحظات" });
+                                }}
+                                data-testid={`button-copy-critique-${entry.id}`}
+                              >
+                                <FileText className="w-3 h-3" /> نسخ إلى الملاحظات
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
