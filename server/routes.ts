@@ -2198,6 +2198,7 @@ ${allPages.map(p => `  <url>
 
       const chapter = await storage.getChapter(chapterId);
       if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
+      if (chapter.projectId !== projectId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
       if (chapter.status === "generating") {
         return res.status(409).json({ error: "هذا الفصل قيد التوليد حالياً — يرجى الانتظار" });
