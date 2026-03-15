@@ -1,0 +1,79 @@
+You are an expert full‑stack performance engineer and UI/UX architect. Your task is to optimize my entire project for maximum speed, instant loading, and ultra‑responsive behavior across all layers of the platform — AND ensure it is fully mobile-friendly on every screen size.
+
+IMPORTANT RULE:
+Do NOT break, modify, remove, or negatively affect ANY existing working features, backend logic, frontend behavior, user flows, APIs, database operations, or integrations. 
+All optimizations must be 100% backward-compatible and safe.
+
+Optimize the following aspects of my project:
+
+1. FRONTEND PERFORMANCE
+   - Minimize bundle size, remove unused code, and enable tree-shaking.
+   - Implement aggressive caching (static assets, fonts, images, API responses).
+   - Use lazy loading, code splitting, and component-level hydration.
+   - Optimize images (compression, next-gen formats, responsive sizes).
+   - Improve Core Web Vitals (LCP, FID, CLS).
+   - Ensure all pages load in under 1 second on average hardware.
+   - Apply all improvements WITHOUT altering existing UI logic or breaking components.
+
+2. FULL MOBILE RESPONSIVENESS & UI ADAPTATION
+   - Make the entire platform fully responsive on all screen sizes (phones, tablets, desktops, ultrawide).
+   - Use fluid layouts, responsive grids, and scalable typography.
+   - Ensure all components adapt gracefully to small screens.
+   - Fix any overflow, spacing, or layout-breaking issues.
+   - Optimize touch interactions (tap targets, gestures, mobile-friendly menus).
+   - Ensure dashboards, forms, tables, and user content display perfectly on mobile.
+   - Implement mobile-first CSS strategies and responsive breakpoints.
+   - Guarantee 100% Lighthouse mobile responsiveness score.
+   - Do NOT change any existing functionality or behavior while improving responsiveness.
+
+3. BACKEND PERFORMANCE
+   - Reduce response times for all API endpoints.
+   - Implement efficient database queries (indexes, batching, pagination).
+   - Add caching layers (Redis or in-memory caching).
+   - Optimize server logic to avoid blocking operations.
+   - Ensure endpoints respond in under 100ms whenever possible.
+   - Do NOT modify existing API behavior, routes, or logic.
+
+4. DATABASE OPTIMIZATION
+   - Analyze schema and suggest improvements.
+   - Remove redundant queries and N+1 patterns.
+   - Add indexes where needed.
+   - Optimize read/write operations.
+   - Ensure all changes are non-breaking and backward-compatible.
+
+5. USER DASHBOARD SPEED
+   - Preload critical data.
+   - Use background fetching and optimistic UI updates.
+   - Reduce dashboard load time to under 800ms.
+   - Ensure dashboards are fully responsive and mobile-friendly.
+   - Do NOT alter any existing dashboard features or workflows.
+
+6. PUBLIC PAGES SPEED
+   - Pre-render or statically generate pages when possible.
+   - Use CDN for all static assets.
+   - Ensure first contentful paint is extremely fast.
+   - Guarantee perfect rendering on all screen sizes.
+   - Do NOT change any existing content or functionality.
+
+7. PROJECTS & USER CONTENT
+   - Optimize how user-generated content is stored, loaded, and rendered.
+   - Implement pagination, infinite scroll, or streaming where needed.
+   - Ensure large content loads smoothly without blocking UI.
+   - Make all content layouts responsive and mobile-optimized.
+   - Do NOT modify how content behaves or is processed.
+
+8. GLOBAL OPTIMIZATION
+   - Remove unnecessary dependencies.
+   - Improve build pipeline.
+   - Suggest best practices for deployment and scaling.
+   - Provide code samples for every optimization you propose.
+   - Ensure all improvements are safe, reversible, and non-destructive.
+
+Your output should include:
+- A detailed list of improvements.
+- Exact code changes or snippets.
+- File-by-file recommendations.
+- Explanations of why each optimization matters.
+- A final summary of expected performance gains.
+
+Begin by analyzing the project structure and identifying the biggest performance and responsiveness bottlenecks — WITHOUT changing or breaking any existing functionality.
