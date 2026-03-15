@@ -80,9 +80,8 @@ async function upsertUser(claims: any) {
 }
 
 function getAuthDomain(reqHostname: string): string {
-  const domains = process.env.REPLIT_DOMAINS?.split(",");
-  if (domains?.length) return domains[0];
-  return reqHostname;
+  const first = process.env.REPLIT_DOMAINS?.split(",").map(d => d.trim()).filter(Boolean)[0];
+  return first || reqHostname;
 }
 
 export async function setupAuth(app: Express) {
@@ -159,7 +158,7 @@ export async function setupAuth(app: Express) {
       console.log("[Auth] Session ID at callback:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "NO SESSION");
       passport.authenticate(`replitauth:${domain}`, (err: Error | null, user: Express.User | false, info: object) => {
         if (err) {
-          console.error("[Auth] Callback authentication error:", err.message, "cause:", (err as any).cause || "none");
+          console.error("[Auth] Callback authentication error:", err.message, "cause:", "cause" in err ? err.cause : "none");
           return res.redirect("/login?error=auth_failed");
         }
         if (!user) {
@@ -177,7 +176,7 @@ export async function setupAuth(app: Express) {
       })(req, res, next);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      const cause = err instanceof Error ? (err as any).cause : undefined;
+      const cause = err instanceof Error && "cause" in err ? err.cause : undefined;
       console.error("[Auth] OAuth callback error:", message, "cause:", cause || "none");
       res.redirect("/login?error=auth_failed");
     }
