@@ -1,18 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile, cp, mkdir, readdir } from "fs/promises";
+import { rm, cp, mkdir, readdir } from "fs/promises";
 
-// Packages that CANNOT be bundled into a single file:
-//
-// - @napi-rs/canvas: native pre-built binary (.node) — must remain in node_modules
-//
-// pdfkit is now bundled (no longer external). Its AFM data files are copied
-// to dist/data/ so that __dirname-based resolution works at runtime.
-//
-// Everything else is inlined into dist/index.cjs so the deployment image
-// doesn't need to carry a large node_modules directory.
-// Node.js built-ins (fs, path, crypto, …) are automatically externalised
-// when esbuild's platform is set to "node".
 const MUST_KEEP_EXTERNAL = [
   "@napi-rs/canvas",
 ];
@@ -62,6 +51,8 @@ async function buildAll() {
       console.log(`  skipped @napi-rs/${entry}`);
     }
   }
+
+  console.log("build complete — dist/ is self-contained");
 }
 
 buildAll().catch((err) => {
