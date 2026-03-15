@@ -5205,20 +5205,24 @@ export default function ProjectDetail() {
                 <div className="bg-muted/50 rounded-lg p-3 border" data-testid="text-plagiarism-report">
                   <p className="text-sm leading-relaxed whitespace-pre-line">{plagiarismResult.report}</p>
                 </div>
-                {!plagiarismResult.isOriginal && plagiarismResult.reasons.length > 0 && (
+                {!plagiarismResult.isOriginal && (
                   <div className="space-y-2" data-testid="text-plagiarism-reasons">
                     <h4 className="text-sm font-semibold flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4 text-red-500" />
                       أسباب الاكتشاف
                     </h4>
-                    <ul className="space-y-2">
-                      {plagiarismResult.reasons.map((reason: string, i: number) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
-                          <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
-                          <span>{reason}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {plagiarismResult.reasons.length > 0 ? (
+                      <ul className="space-y-2">
+                        {plagiarismResult.reasons.map((reason: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
+                            <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span>{reason}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">لم يتم تحديد عبارات محددة — راجع التقرير أعلاه للتفاصيل.</p>
+                    )}
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">ملاحظة: هذا الفحص تقديري بالذكاء الاصطناعي وليس بديلاً عن أدوات الفحص المتخصصة.</p>
