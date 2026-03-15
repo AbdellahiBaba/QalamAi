@@ -107,7 +107,7 @@ export interface IStorage {
   upsertEssayReaction(projectId: number, visitorIp: string, reactionType: string): Promise<void>;
   getEssayReactionCounts(projectId: number): Promise<Record<string, number>>;
   getPublishedEssays(): Promise<NovelProject[]>;
-  getPublishedEssaysWithStats(page?: number, limit?: number): Promise<{ rows: Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>; total: number }>;
+  getPublishedEssaysWithStats(page?: number, limit?: number, search?: string): Promise<{ rows: Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>; total: number }>;
   getGalleryProjectsPaginated(page?: number, limit?: number, projectType?: string): Promise<{ rows: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }>;
   getSocialMediaLinks(): Promise<SocialMediaLink[]>;
   getEnabledSocialMediaLinks(): Promise<SocialMediaLink[]>;
@@ -217,7 +217,7 @@ export interface IStorage {
   deleteSeries(id: number): Promise<void>;
   updateProjectTags(projectId: number, tags: string[]): Promise<import("@shared/schema").NovelProject>;
   getProjectsByTag(tag: string, limit?: number, offset?: number): Promise<{ rows: import("@shared/schema").NovelProject[]; total: number }>;
-  getGalleryProjectsByTag(tag: string, page?: number, limit?: number): Promise<{ rows: (import("@shared/schema").NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }>;
+  getGalleryProjectsByTag(tag: string, page?: number, limit?: number, projectType?: string): Promise<{ rows: (import("@shared/schema").NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }>;
   createWritingChallenge(data: import("@shared/schema").InsertWritingChallenge): Promise<import("@shared/schema").WritingChallenge>;
   getWritingChallenges(): Promise<import("@shared/schema").WritingChallenge[]>;
   getWritingChallenge(id: number): Promise<import("@shared/schema").WritingChallenge | undefined>;
@@ -1072,14 +1072,17 @@ export class DatabaseStorage implements IStorage {
     ).orderBy(desc(novelProjects.updatedAt));
   }
 
-  async getPublishedEssaysWithStats(page: number = 1, limit: number = 24): Promise<{ rows: Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>; total: number }> {
+  async getPublishedEssaysWithStats(page: number = 1, limit: number = 24, search?: string): Promise<{ rows: Array<{ id: number; title: string; mainIdea: string | null; coverImageUrl: string | null; shareToken: string | null; authorName: string; authorId: string; authorAverageRating: number; subject: string | null; views: number; clicks: number; reactions: Record<string, number>; totalWords: number; createdAt: Date }>; total: number }> {
     const offset = (page - 1) * limit;
+    const searchFilter = search ? sql` AND (p.title ILIKE ${'%' + search + '%'} OR p.main_idea ILIKE ${'%' + search + '%'} OR u.display_name ILIKE ${'%' + search + '%'} OR u.first_name ILIKE ${'%' + search + '%'} OR u.last_name ILIKE ${'%' + search + '%'})` : sql``;
 
     const countResult: any[] = (await db.execute(sql`
       SELECT COUNT(*)::int as total FROM novel_projects p
+      LEFT JOIN users u ON u.id = p.user_id
       WHERE p.project_type = 'essay' AND p.share_token IS NOT NULL
         AND (p.flagged = false OR p.flagged IS NULL)
         AND (p.published_to_news = true OR p.published_to_gallery = true)
+        ${searchFilter}
     `)).rows;
     const total = countResult[0]?.total || 0;
 
@@ -1101,6 +1104,7 @@ export class DatabaseStorage implements IStorage {
       WHERE p.project_type = 'essay' AND p.share_token IS NOT NULL
         AND (p.flagged = false OR p.flagged IS NULL)
         AND (p.published_to_news = true OR p.published_to_gallery = true)
+        ${searchFilter}
       ORDER BY COALESCE(u.verified, false) DESC, clicks DESC, p.updated_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `)).rows;
@@ -2470,8 +2474,9 @@ export class DatabaseStorage implements IStorage {
     return { rows, total };
   }
 
-  async getGalleryProjectsByTag(tag: string, page = 1, limit = 24): Promise<{ rows: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }> {
+  async getGalleryProjectsByTag(tag: string, page = 1, limit = 24, projectType?: string): Promise<{ rows: (NovelProject & { authorName: string; authorId: string; authorAverageRating: number })[]; total: number }> {
     const offset = (page - 1) * limit;
+    const typeFilter = projectType ? sql`AND np.project_type = ${projectType}` : sql``;
     const rows: any[] = (await db.execute(sql`
       SELECT
         np.id, np.title, np.project_type as "projectType",
@@ -2491,12 +2496,15 @@ export class DatabaseStorage implements IStorage {
       WHERE np.published_to_gallery = true
         AND (np.flagged = false OR np.flagged IS NULL)
         AND ${tag} = ANY(np.tags)
+        ${typeFilter}
       ORDER BY COALESCE(u.verified, false) DESC, "authorAverageRating" DESC, np.updated_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `)).rows;
+    const typeFilterCount = projectType ? sql`AND project_type = ${projectType}` : sql``;
     const [{ count: total }]: any[] = (await db.execute(sql`
       SELECT COUNT(*)::int as count FROM novel_projects
       WHERE published_to_gallery = true AND (flagged = false OR flagged IS NULL) AND ${tag} = ANY(tags)
+      ${typeFilterCount}
     `)).rows;
     return {
       rows: rows.map(r => ({

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,20 +52,32 @@ export default function EssaysNews() {
   useDocumentTitle("المقالات السياسية والرأي العام — قلم AI", "اكتشف أحدث المقالات والتحليلات السياسية ومقالات الرأي من كتّاب عرب مميزين على منصة QalamAI.");
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const [embedOpenId, setEmbedOpenId] = useState<number | null>(null);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const [page, setPage] = useState(1);
   const pageLimit = 24;
 
   const { data: essaysData, isLoading } = useQuery<{ data: PublicEssay[]; total: number; page: number; limit: number }>({
-    queryKey: ["/api/public/essays", page, pageLimit],
-    queryFn: () => fetch(`/api/public/essays?page=${page}&limit=${pageLimit}`).then(r => r.json()),
+    queryKey: ["/api/public/essays", page, pageLimit, debouncedSearch],
+    queryFn: () => {
+      let url = `/api/public/essays?page=${page}&limit=${pageLimit}`;
+      if (debouncedSearch) url += `&q=${encodeURIComponent(debouncedSearch)}`;
+      return fetch(url).then(r => r.json());
+    },
   });
 
-  const essays = essaysData?.data;
+  const essays = essaysData?.data || [];
   const totalItems = essaysData?.total || 0;
   const totalPages = Math.ceil(totalItems / pageLimit);
 
@@ -75,18 +87,6 @@ export default function EssaysNews() {
     fetch(`/api/public/essays/${essay.id}/view`, { method: "POST", headers: { "X-CSRF-Token": csrfVal } }).catch((e: unknown) => console.warn("Failed to track essay view:", e));
     fetch(`/api/public/essays/${essay.id}/click`, { method: "POST", headers: { "X-CSRF-Token": csrfVal } }).catch((e: unknown) => console.warn("Failed to track essay click:", e));
   };
-
-  const filteredEssays = useMemo(() => {
-    if (!essays) return [];
-    if (!searchQuery.trim()) return essays;
-    const q = searchQuery.trim();
-    return essays.filter(
-      (e) =>
-        e.title.includes(q) ||
-        (e.mainIdea && e.mainIdea.includes(q)) ||
-        (e.authorName && e.authorName.includes(q))
-    );
-  }, [essays, searchQuery]);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -148,7 +148,7 @@ export default function EssaysNews() {
               </Card>
             ))}
           </div>
-        ) : filteredEssays.length === 0 ? (
+        ) : essays.length === 0 ? (
           <div className="text-center py-16 space-y-4" data-testid="essays-empty">
             <BookOpen className="w-16 h-16 text-muted-foreground mx-auto" />
             <p className="text-muted-foreground" data-testid="text-no-essays">لا توجد مقالات مطابقة</p>
@@ -158,7 +158,7 @@ export default function EssaysNews() {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
             data-testid="grid-essays"
           >
-            {filteredEssays.map((essay) => (
+            {essays.map((essay) => (
               <Link
                 key={essay.id}
                 href={essay.shareToken ? `/essay/${essay.shareToken}` : "#"}

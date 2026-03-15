@@ -5785,7 +5785,9 @@ ${glossaryParagraphs}
     const tag = ((req.query.tag as string) || "").trim();
     const betaFilter = req.query.beta === "true";
     const authorId = ((req.query.authorId as string) || "").trim();
-    const cacheKey = `gallery_p${page}_l${limit}${tag ? `_tag_${tag}` : ''}${betaFilter ? '_beta' : ''}${authorId ? `_author_${authorId}` : ''}`;
+    const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"];
+    const projectType = validTypes.includes(req.query.type as string) ? (req.query.type as string) : "";
+    const cacheKey = `gallery_p${page}_l${limit}${tag ? `_tag_${tag}` : ''}${betaFilter ? '_beta' : ''}${authorId ? `_author_${authorId}` : ''}${projectType ? `_type_${projectType}` : ''}`;
     serveCached(req, res, cacheKey, 120, async () => {
       if (betaFilter || authorId) {
         const { pool } = await import("./db");
@@ -5808,6 +5810,11 @@ ${glossaryParagraphs}
         if (tag) {
           conditions.push(`$${paramIdx} = ANY(p.tags)`);
           countParams.push(tag);
+          paramIdx++;
+        }
+        if (projectType) {
+          conditions.push(`p.project_type = $${paramIdx}`);
+          countParams.push(projectType);
           paramIdx++;
         }
         const whereClause = conditions.join(' AND ');
@@ -5847,9 +5854,9 @@ ${glossaryParagraphs}
       }
       let result;
       if (tag) {
-        result = await storage.getGalleryProjectsByTag(tag, page, limit);
+        result = await storage.getGalleryProjectsByTag(tag, page, limit, projectType || undefined);
       } else {
-        result = await storage.getGalleryProjectsPaginated(page, limit);
+        result = await storage.getGalleryProjectsPaginated(page, limit, projectType || undefined);
       }
       return {
         data: result.rows.map(p => ({
@@ -6139,9 +6146,10 @@ ${glossaryParagraphs}
   app.get("/api/public/essays", async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 24));
-    const cacheKey = `essays_p${page}_l${limit}`;
+    const search = ((req.query.q as string) || "").trim().substring(0, 200);
+    const cacheKey = `essays_p${page}_l${limit}${search ? `_q_${search}` : ''}`;
     serveCached(req, res, cacheKey, 120, async () => {
-      const result = await storage.getPublishedEssaysWithStats(page, limit);
+      const result = await storage.getPublishedEssaysWithStats(page, limit, search || undefined);
       return {
         data: result.rows,
         total: result.total,

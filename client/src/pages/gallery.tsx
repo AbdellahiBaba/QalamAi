@@ -189,12 +189,13 @@ export default function Gallery() {
   const pageLimit = 24;
 
   const { data: galleryData, isLoading } = useQuery<{ data: GalleryProject[]; total: number; page: number; limit: number }>({
-    queryKey: ["/api/gallery", page, pageLimit, activeTag, betaFilter, authorIdFilter],
+    queryKey: ["/api/gallery", page, pageLimit, activeTag, betaFilter, authorIdFilter, activeFilter],
     queryFn: () => {
       let url = `/api/gallery?page=${page}&limit=${pageLimit}`;
       if (activeTag) url += `&tag=${encodeURIComponent(activeTag)}`;
       if (betaFilter) url += `&beta=true`;
       if (authorIdFilter) url += `&authorId=${encodeURIComponent(authorIdFilter)}`;
+      if (activeFilter && activeFilter !== "all") url += `&type=${encodeURIComponent(activeFilter)}`;
       return fetch(url).then(r => r.json());
     },
   });
@@ -212,16 +213,14 @@ export default function Gallery() {
 
   const filteredProjects = useMemo(() => {
     if (!projects) return [];
-    return projects.filter((p) => {
-      const matchesFilter = activeFilter === "all" || p.projectType === activeFilter;
-      const matchesSearch =
-        !searchQuery ||
-        p.title.includes(searchQuery) ||
-        (p.mainIdea && p.mainIdea.includes(searchQuery)) ||
-        (p.authorName && p.authorName.includes(searchQuery));
-      return matchesFilter && matchesSearch;
-    });
-  }, [projects, searchQuery, activeFilter]);
+    if (!searchQuery.trim()) return projects;
+    const q = searchQuery.trim();
+    return projects.filter((p) =>
+      p.title.includes(q) ||
+      (p.mainIdea && p.mainIdea.includes(q)) ||
+      (p.authorName && p.authorName.includes(q))
+    );
+  }, [projects, searchQuery]);
 
   const itemListJsonLd = useMemo(() => {
     if (!filteredProjects || filteredProjects.length === 0) return null;
@@ -290,7 +289,7 @@ export default function Gallery() {
                 key={opt.value}
                 variant={activeFilter === opt.value ? "default" : "outline"}
                 className="cursor-pointer toggle-elevate"
-                onClick={() => setActiveFilter(opt.value)}
+                onClick={() => { setActiveFilter(opt.value); setPage(1); }}
                 data-testid={`filter-${opt.value}`}
               >
                 {opt.label}
