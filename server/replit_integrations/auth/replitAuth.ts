@@ -42,6 +42,9 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  sessionStore.on("error", (err: any) => {
+    console.error("[Session Store Error]", err);
+  });
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -82,8 +85,8 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Kick off OIDC discovery in the background so the first login is fast.
-  // Failures are intentionally NOT cached — the next login attempt will retry.
+  console.log("[Auth] REPL_ID:", process.env.REPL_ID ? "set" : "MISSING");
+
   getOidcConfig().catch((err) =>
     console.warn("[Auth] Background OIDC pre-discovery failed (will retry on login):", err)
   );
@@ -92,24 +95,29 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
+    try {
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    } catch (verifyErr) {
+      console.error("[Auth] verify callback error:", verifyErr);
+      verified(verifyErr as Error);
+    }
   };
 
-  // Resolves the OIDC config and registers the per-domain strategy the first
-  // time a login or callback is initiated for that domain.
   const ensureStrategy = async (domain: string) => {
     const strategyName = `replitauth:${domain}`;
     if (!registeredStrategies.has(strategyName)) {
       const config = await getOidcConfig();
+      const callbackURL = `https://${domain}/api/callback`;
+      console.log("[Auth] Registering OIDC strategy for domain:", domain, "callback:", callbackURL);
       const strategy = new Strategy(
         {
           name: strategyName,
           config,
           scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/callback`,
+          callbackURL,
         },
         verify
       );
@@ -124,6 +132,13 @@ export async function setupAuth(app: Express) {
   app.get("/api/login", async (req, res, next) => {
     try {
       await ensureStrategy(req.hostname);
+      const origRedirect = res.redirect.bind(res);
+      (res as any).redirect = function (...args: any[]) {
+        req.session.save((saveErr) => {
+          if (saveErr) console.error("[Auth] Session save before OIDC redirect error:", saveErr);
+          origRedirect(...args);
+        });
+      };
       passport.authenticate(`replitauth:${req.hostname}`, {
         prompt: "login consent",
         scope: ["openid", "email", "profile", "offline_access"],
@@ -137,12 +152,28 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", async (req, res, next) => {
     try {
       await ensureStrategy(req.hostname);
-      passport.authenticate(`replitauth:${req.hostname}`, {
-        successReturnToOrRedirect: "/",
-        failureRedirect: "/login?error=auth_failed",
+      console.log("[Auth] Callback hit, query params:", JSON.stringify({ state: req.query.state ? "present" : "missing", code: req.query.code ? "present" : "missing", error: req.query.error || "none" }));
+      console.log("[Auth] Session ID at callback:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "NO SESSION");
+      passport.authenticate(`replitauth:${req.hostname}`, (err: any, user: any, info: any) => {
+        if (err) {
+          console.error("[Auth] Callback authentication error:", err.message || err, "cause:", err.cause || "none");
+          return res.redirect("/login?error=auth_failed");
+        }
+        if (!user) {
+          console.error("[Auth] Callback: no user returned. info:", JSON.stringify(info));
+          return res.redirect("/login?error=auth_failed");
+        }
+        req.login(user, (loginErr: any) => {
+          if (loginErr) {
+            console.error("[Auth] Login after OIDC callback error:", loginErr);
+            return res.redirect("/login?error=auth_failed");
+          }
+          console.log("[Auth] OIDC login successful for user:", (user as any)?.claims?.sub);
+          res.redirect("/");
+        });
       })(req, res, next);
-    } catch (err) {
-      console.error("[Auth] OAuth callback error:", err);
+    } catch (err: any) {
+      console.error("[Auth] OAuth callback error:", err.message || err, "cause:", err.cause || "none");
       res.redirect("/login?error=auth_failed");
     }
   });
