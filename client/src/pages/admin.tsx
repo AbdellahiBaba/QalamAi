@@ -3476,6 +3476,22 @@ export default function Admin() {
                             <Button
                               size="sm"
                               variant="outline"
+                              className="h-7 text-xs gap-1 text-amber-600"
+                              onClick={async () => {
+                                await fetch(`/api/project-comments/${c.id}/report`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ reason: "تم الإبلاغ بواسطة المشرف" }),
+                                });
+                                toast({ title: "تم الإبلاغ عن التعليق" });
+                              }}
+                              data-testid={`button-flag-project-comment-${c.id}`}
+                            >
+                              <Flag className="w-3 h-3" /> إبلاغ
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               className="h-7 text-xs gap-1 text-red-600"
                               onClick={async () => {
                                 await apiRequest("DELETE", `/api/admin/project-comments/${c.id}`);

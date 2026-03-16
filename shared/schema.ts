@@ -705,7 +705,7 @@ export type EssayComment = typeof essayComments.$inferSelect;
 
 export const projectComments = pgTable("project_comments", {
   id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
   authorName: varchar("author_name").notNull(),
   content: text("content").notNull(),
   approved: boolean("approved").default(true).notNull(),
