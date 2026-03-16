@@ -1061,20 +1061,7 @@ export const workVotes = pgTable("work_votes", {
 
 export type WorkVote = typeof workVotes.$inferSelect;
 
-// ── Hall of Glory Featured Works ──────────────────────────────────────────────
-export const hallOfGloryFeatured = pgTable("hall_of_glory_featured", {
-  id: serial("id").primaryKey(),
-  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
-  featuredByAdminId: varchar("featured_by_admin_id").notNull(),
-  featuredAt: timestamp("featured_at").defaultNow(),
-}, (table) => [
-  unique("uq_hog_project").on(table.projectId),
-  index("idx_hog_featured_at").on(table.featuredAt),
-]);
-
-export type HallOfGloryFeatured = typeof hallOfGloryFeatured.$inferSelect;
-
-// ── Challenge Entry Votes ──────────────────────────────────────────────────────
+// ── Challenge Entry Votes ─────────────────────────────────────────────────────
 export const challengeEntryVotes = pgTable("challenge_entry_votes", {
   id: serial("id").primaryKey(),
   entryId: integer("entry_id").notNull().references(() => challengeEntries.id, { onDelete: "cascade" }),
@@ -1087,3 +1074,16 @@ export const challengeEntryVotes = pgTable("challenge_entry_votes", {
 ]);
 
 export type ChallengeEntryVote = typeof challengeEntryVotes.$inferSelect;
+
+// ── Hall of Glory Featured Works ──────────────────────────────────────────────
+export const hallOfGloryFeatured = pgTable("hall_of_glory_featured", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  featuredByAdminId: varchar("featured_by_admin_id").notNull(),
+  featuredAt: timestamp("featured_at").defaultNow(),
+}, (table) => [
+  unique("uq_hog_project").on(table.projectId),
+  index("idx_hog_featured_at").on(table.featuredAt),
+]);
+
+export type HallOfGloryFeatured = typeof hallOfGloryFeatured.$inferSelect;

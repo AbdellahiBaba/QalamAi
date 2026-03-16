@@ -444,19 +444,22 @@ export default function ChallengeDetailPage() {
                     <p className="font-serif text-sm leading-loose whitespace-pre-wrap text-foreground/80" data-testid={`text-entry-content-${entry.id}`}>
                       {entry.content}
                     </p>
-                    {isAdmin && !challenge.winner_id && !isActive && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-xs border-amber-500/40 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                        onClick={() => setWinnerMutation.mutate({ winnerId: entry.user_id, winnerEntryId: entry.id })}
-                        disabled={setWinnerMutation.isPending}
-                        data-testid={`button-set-winner-${entry.id}`}
-                      >
-                        {setWinnerMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crown className="w-3 h-3" />}
-                        اختيار كفائز
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2 pt-1">
+                      <EntryVoteButton entryId={entry.id} userId={user?.id} />
+                      {isAdmin && !challenge.winner_id && !isActive && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs border-amber-500/40 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                          onClick={() => setWinnerMutation.mutate({ winnerId: entry.user_id, winnerEntryId: entry.id })}
+                          disabled={setWinnerMutation.isPending}
+                          data-testid={`button-set-winner-${entry.id}`}
+                        >
+                          {setWinnerMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crown className="w-3 h-3" />}
+                          اختيار كفائز
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
