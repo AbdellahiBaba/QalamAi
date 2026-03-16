@@ -1050,7 +1050,7 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-3">
                 <PenLine className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                 <h3 className="font-semibold text-sm text-violet-700 dark:text-violet-300">تحدي الكتابة اليومي</h3>
-                <span className="text-xs text-muted-foreground mr-auto">{new Date(dailyPromptData.prompt.promptDate).toLocaleDateString("ar-EG", { month: "long", day: "numeric" })}</span>
+                <span className="text-xs text-muted-foreground mr-auto">{(() => { const pd = dailyPromptData.prompt.promptDate; if (!pd) return ""; const [y,m,d] = pd.split("-").map(Number); const dt = new Date(y,m-1,d); return isNaN(dt.getTime()) ? "" : dt.toLocaleDateString("ar-EG", { month: "long", day: "numeric" }); })()}</span>
               </div>
               <p className="text-base font-serif leading-relaxed mb-4 text-foreground bg-violet-50/50 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-900 rounded-lg p-3" data-testid="text-daily-prompt">
                 {dailyPromptData.prompt.promptText}

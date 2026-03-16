@@ -2137,16 +2137,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── Daily Prompts ────────────────────────────────────────────────────────────
+  private _mapDailyPromptRow(row: any): any {
+    if (!row) return row;
+    return {
+      id: row.id,
+      promptText: row.prompt_text ?? row.promptText,
+      promptDate: row.prompt_date ?? row.promptDate,
+      active: row.active,
+      winnerId: row.winner_id ?? row.winnerId ?? null,
+      winnerEntryId: row.winner_entry_id ?? row.winnerEntryId ?? null,
+      createdAt: row.created_at ?? row.createdAt,
+    };
+  }
+
   async getTodayPrompt(): Promise<any> {
     const today = new Date().toISOString().split('T')[0];
     const result = await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date = ${today} AND active = true LIMIT 1`);
-    return result.rows[0];
+    return this._mapDailyPromptRow(result.rows[0]);
   }
 
   async getPastPrompts(limit: number = 10): Promise<any[]> {
     const today = new Date().toISOString().split('T')[0];
     const rows: any[] = (await db.execute(sql`SELECT * FROM daily_prompts WHERE prompt_date <= ${today} ORDER BY prompt_date DESC LIMIT ${limit}`)).rows;
-    return rows;
+    return rows.map((r) => this._mapDailyPromptRow(r));
   }
 
   async createDailyPrompt(data: any): Promise<any> {
@@ -2156,7 +2169,7 @@ export class DatabaseStorage implements IStorage {
       ON CONFLICT (prompt_date) DO UPDATE SET prompt_text = EXCLUDED.prompt_text, active = EXCLUDED.active
       RETURNING *
     `)).rows;
-    return row;
+    return this._mapDailyPromptRow(row);
   }
 
   async getPromptEntries(promptId: number): Promise<any[]> {

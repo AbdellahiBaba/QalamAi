@@ -38,13 +38,17 @@ type DailyPromptResponse = {
   entryCount: number;
 };
 
-function formatArabicDate(dateStr: string) {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("ar-SA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  } catch {
-    return dateStr;
-  }
+function parseLocalDate(dateStr: string): Date {
+  // Parse YYYY-MM-DD as local time to avoid UTC midnight timezone shift
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function formatArabicDate(dateStr: string | undefined | null) {
+  if (!dateStr) return "";
+  const d = parseLocalDate(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("ar-SA", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
 function EntryCard({ entry, isWinner }: { entry: PromptEntry; isWinner: boolean }) {
