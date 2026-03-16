@@ -10729,12 +10729,13 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
-  // ── Challenge Entry Votes ────────────────────────────────────────────────────
-  app.post("/api/challenge-entries/:id/vote", isAuthenticated, async (req: any, res) => {
+  // ── Challenge Entry Votes (open to all visitors) ─────────────────────────────
+  app.post("/api/challenge-entries/:id/vote", async (req: any, res) => {
     try {
       const entryId = parseIntParam(req.params.id);
       if (entryId === null) return res.status(400).json({ error: "معرّف غير صالح" });
-      const userId = req.user.claims.sub;
+      const userId: string = req.user?.claims?.sub || (req.body?.voterId ? `anon_${String(req.body.voterId).slice(0, 64)}` : null);
+      if (!userId) return res.status(400).json({ error: "معرّف المصوّت مطلوب" });
       const result = await storage.toggleChallengeEntryVote(entryId, userId);
       res.json(result);
     } catch (error) {
@@ -10747,7 +10748,8 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     try {
       const entryId = parseIntParam(req.params.id);
       if (entryId === null) return res.status(400).json({ error: "معرّف غير صالح" });
-      const userId = req.user?.claims?.sub;
+      const rawVoterId = req.query?.voterId as string | undefined;
+      const userId: string | undefined = req.user?.claims?.sub || (rawVoterId ? `anon_${rawVoterId.slice(0, 64)}` : undefined);
       const result = await storage.getChallengeEntryVoteCount(entryId, userId);
       res.json(result);
     } catch (error) {

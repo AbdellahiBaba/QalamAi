@@ -10,23 +10,50 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Clock, Users, Crown, Send, Loader2, Feather, Star, Sparkles, ChevronRight, Heart } from "lucide-react";
+import { Trophy, Clock, Users, Crown, Send, Loader2, Feather, Star, Sparkles, ChevronRight, Heart, Gift } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { SharedFooter } from "@/components/shared-footer";
 import { SharedNavbar } from "@/components/shared-navbar";
 import LtrNum from "@/components/ui/ltr-num";
+import { VoteDonateModal } from "@/components/vote-donate-modal";
 
-function EntryVoteButton({ entryId, userId }: { entryId: number; userId: string | undefined }) {
+function getAnonVoterId(): string {
+  let id = localStorage.getItem("qalamai_voter_id");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("qalamai_voter_id", id);
+  }
+  return id;
+}
+
+function EntryVoteButton({ entryId, loggedInUserId, authorId, authorName }: {
+  entryId: number;
+  loggedInUserId: string | undefined;
+  authorId: string;
+  authorName: string;
+}) {
   const [optimistic, setOptimistic] = useState<{ voted: boolean; voteCount: number } | null>(null);
+  const [showDonate, setShowDonate] = useState(false);
+
+  const voterId = loggedInUserId ?? getAnonVoterId();
+
   const { data } = useQuery<{ voteCount: number; voted: boolean }>({
-    queryKey: ["/api/challenge-entries", entryId, "vote-count"],
-    queryFn: () => fetch(`/api/challenge-entries/${entryId}/vote-count`).then(r => r.json()),
+    queryKey: ["/api/challenge-entries", entryId, "vote-count", voterId],
+    queryFn: () => {
+      const params = loggedInUserId ? "" : `?voterId=${encodeURIComponent(getAnonVoterId())}`;
+      return fetch(`/api/challenge-entries/${entryId}/vote-count${params}`).then(r => r.json());
+    },
   });
+
   const voted = optimistic !== null ? optimistic.voted : (data?.voted ?? false);
   const voteCount = optimistic !== null ? optimistic.voteCount : (data?.voteCount ?? 0);
 
   const mutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/challenge-entries/${entryId}/vote`),
+    mutationFn: () => {
+      const body: Record<string, unknown> = {};
+      if (!loggedInUserId) body.voterId = getAnonVoterId();
+      return apiRequest("POST", `/api/challenge-entries/${entryId}/vote`, Object.keys(body).length ? body : undefined);
+    },
     onMutate: () => {
       const newVoted = !voted;
       setOptimistic({ voted: newVoted, voteCount: newVoted ? voteCount + 1 : Math.max(0, voteCount - 1) });
@@ -35,25 +62,52 @@ function EntryVoteButton({ entryId, userId }: { entryId: number; userId: string 
       const result = await res.json();
       setOptimistic(result);
       queryClient.invalidateQueries({ queryKey: ["/api/challenge-entries", entryId, "vote-count"] });
+      if (result.voted) setShowDonate(true);
     },
     onError: () => setOptimistic(null),
   });
 
   return (
-    <button
-      onClick={() => userId && mutation.mutate()}
-      disabled={!userId || mutation.isPending}
-      className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border transition-all ${
-        voted
-          ? "bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400"
-          : "border-border text-muted-foreground hover:border-rose-300 hover:text-rose-500 dark:hover:border-rose-700"
-      } ${!userId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-      data-testid={`vote-btn-entry-${entryId}`}
-      title={!userId ? "سجّل الدخول للتصويت" : voted ? "إلغاء التصويت" : "تصويت"}
-    >
-      <Heart className={`w-3.5 h-3.5 ${voted ? "fill-rose-500 text-rose-500" : ""}`} />
-      <LtrNum>{voteCount}</LtrNum>
-    </button>
+    <>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+            voted
+              ? "bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400"
+              : "border-border text-muted-foreground hover:border-rose-300 hover:text-rose-500 dark:hover:border-rose-700 hover:bg-rose-50/50 dark:hover:bg-rose-950/20"
+          } cursor-pointer`}
+          data-testid={`vote-btn-entry-${entryId}`}
+        >
+          {mutation.isPending
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <Heart className={`w-3.5 h-3.5 ${voted ? "fill-rose-500 text-rose-500" : ""}`} />
+          }
+          <span>{voted ? "صوّتّ" : "صوّت"}</span>
+          {voteCount > 0 && <span className="opacity-70"><LtrNum>{voteCount}</LtrNum></span>}
+        </button>
+
+        {voted && (
+          <button
+            onClick={() => setShowDonate(true)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-all cursor-pointer font-medium"
+            data-testid={`donate-btn-entry-${entryId}`}
+          >
+            <Gift className="w-3.5 h-3.5" />
+            <span>ادعم الكاتب</span>
+          </button>
+        )}
+      </div>
+
+      <VoteDonateModal
+        open={showDonate}
+        onClose={() => setShowDonate(false)}
+        authorId={authorId}
+        authorName={authorName}
+        projectId={0}
+      />
+    </>
   );
 }
 
@@ -445,7 +499,12 @@ export default function ChallengeDetailPage() {
                       {entry.content}
                     </p>
                     <div className="flex items-center gap-2 pt-1">
-                      <EntryVoteButton entryId={entry.id} userId={user?.id} />
+                      <EntryVoteButton
+                        entryId={entry.id}
+                        loggedInUserId={user?.id}
+                        authorId={entry.user_id}
+                        authorName={entry.authorName || "الكاتب"}
+                      />
                       {isAdmin && !challenge.winner_id && !isActive && (
                         <Button
                           size="sm"
