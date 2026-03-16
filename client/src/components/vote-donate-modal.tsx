@@ -26,11 +26,12 @@ export function VoteDonateModal({ open, onClose, authorId, authorName, projectId
     }
     setLoading(true);
     try {
-      const data = await apiRequest("POST", "/api/votes/donate", {
+      const res = await apiRequest("POST", "/api/votes/donate", {
         toAuthorId: authorId,
         projectId,
         amountCents,
       });
+      const data = await res.json();
       if (data?.url) {
         window.location.href = data.url;
       }
