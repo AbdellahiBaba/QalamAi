@@ -178,6 +178,7 @@ export interface IStorage {
   getPendingComments(limit?: number, offset?: number): Promise<{ data: import("@shared/schema").EssayComment[]; total: number }>;
   createProjectComment(data: { projectId: number; authorName: string; content: string; ipHash?: string }): Promise<import("@shared/schema").ProjectComment>;
   getProjectComments(projectId: number, onlyApproved?: boolean): Promise<import("@shared/schema").ProjectComment[]>;
+  getProjectCommentsPaginated(projectId: number, limit: number, offset: number): Promise<{ data: any[]; total: number }>;
   getProjectComment(id: number): Promise<import("@shared/schema").ProjectComment | undefined>;
   getProjectCommentCount(projectId: number): Promise<number>;
   approveProjectComment(id: number): Promise<void>;
@@ -1887,6 +1888,19 @@ export class DatabaseStorage implements IStorage {
       ORDER BY created_at DESC
     `)).rows;
     return rows;
+  }
+
+  async getProjectCommentsPaginated(projectId: number, limit: number, offset: number): Promise<{ data: any[]; total: number }> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM project_comments
+      WHERE project_id = ${projectId} AND approved = true
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+    const [{ total }]: any[] = (await db.execute(sql`
+      SELECT COUNT(*)::int as total FROM project_comments WHERE project_id = ${projectId} AND approved = true
+    `)).rows;
+    return { data: rows, total: Number(total) };
   }
 
   async getProjectComment(id: number): Promise<any> {

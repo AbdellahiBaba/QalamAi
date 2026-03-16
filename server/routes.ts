@@ -9021,19 +9021,18 @@ ${ch.content}
   });
 
   // ===== Project Comments =====
-  app.post("/api/public/projects/:id/comment", async (req, res) => {
+  app.post("/api/projects/:shareToken/comments", async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
-      if (isNaN(projectId)) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { shareToken } = req.params;
+      const project = await storage.getProjectByShareToken(shareToken);
+      if (!project || !(project as any).shareToken) {
+        return res.status(404).json({ error: "العمل غير موجود أو غير منشور" });
+      }
       const { authorName, content } = req.body;
       if (!authorName?.trim() || !content?.trim()) return res.status(400).json({ error: "الاسم والتعليق مطلوبان" });
       if (content.length > 1000) return res.status(400).json({ error: "التعليق طويل جداً" });
-      const project = await storage.getProject(projectId);
-      if (!project || !(project as any).shareToken || !(project as any).publishedToGallery) {
-        return res.status(404).json({ error: "العمل غير موجود أو غير منشور" });
-      }
       const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.ip || "unknown";
-      const ipHash = crypto.createHash("sha256").update(ip + String(projectId)).digest("hex");
+      const ipHash = crypto.createHash("sha256").update(ip + String(project.id)).digest("hex");
       const existing = await db.execute(dsql`
         SELECT COUNT(*)::int as cnt FROM project_comments
         WHERE ip_hash = ${ipHash} AND created_at > NOW() - INTERVAL '1 hour'
@@ -9041,7 +9040,7 @@ ${ch.content}
       if ((existing.rows[0] as any)?.cnt >= 3) {
         return res.status(429).json({ error: "عدد التعليقات المسموح به في الساعة تم تجاوزه" });
       }
-      const comment = await storage.createProjectComment({ projectId, authorName: authorName.trim(), content: content.trim(), ipHash });
+      const comment = await storage.createProjectComment({ projectId: project.id, authorName: authorName.trim(), content: content.trim(), ipHash });
       if (project.userId) {
         notifyUser(project.userId, "comment", "تعليق جديد على عملك", `علّق ${authorName.trim()} على عملك "${project.title}"`, `/shared/${(project as any).shareToken || ""}`);
       }
@@ -9051,24 +9050,36 @@ ${ch.content}
     }
   });
 
-  app.get("/api/public/projects/:id/comments", async (req, res) => {
+  app.get("/api/projects/:shareToken/comments", async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
-      if (isNaN(projectId)) return res.status(400).json({ error: "معرّف غير صالح" });
-      const comments = await storage.getProjectComments(projectId, true);
-      res.json(comments);
+      const { shareToken } = req.params;
+      const project = await storage.getProjectByShareToken(shareToken);
+      if (!project) return res.status(404).json({ error: "العمل غير موجود" });
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const result = await storage.getProjectCommentsPaginated(project.id, limit, offset);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب التعليقات" });
     }
   });
 
-  app.get("/api/public/projects/:id/comment-count", async (req, res) => {
+  app.post("/api/project-comments/:id/report", async (req, res) => {
     try {
-      const projectId = parseInt(req.params.id);
-      const count = await storage.getProjectCommentCount(projectId);
-      res.json({ count });
+      const commentId = parseInt(req.params.id);
+      if (isNaN(commentId)) return res.status(400).json({ error: "معرّف غير صالح" });
+      const comment = await storage.getProjectComment(commentId);
+      if (!comment) return res.status(404).json({ error: "التعليق غير موجود" });
+      const { reason } = req.body;
+      const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.ip || "unknown";
+      const reporterId = (req as any).user?.claims?.sub || null;
+      await db.execute(dsql`
+        INSERT INTO content_reports (project_id, reporter_ip, reporter_user_id, reason, sub_reason, status, created_at)
+        VALUES (${(comment as any).project_id}, ${ip}, ${reporterId}, ${"تعليق مخالف"}, ${(reason || "إبلاغ").substring(0, 500)}, 'pending', NOW())
+      `);
+      res.json({ success: true, message: "تم الإبلاغ عن التعليق" });
     } catch (error) {
-      res.status(500).json({ error: "فشل في جلب عدد التعليقات" });
+      res.status(500).json({ error: "فشل في الإبلاغ" });
     }
   });
 

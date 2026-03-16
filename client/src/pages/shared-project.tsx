@@ -171,32 +171,36 @@ function relativeTime(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" });
 }
 
-function ProjectCommentsSection({ projectId }: { projectId: number }) {
+function ProjectCommentsSection({ shareToken }: { shareToken: string }) {
   const { toast } = useToast();
   const { data: authUser } = useQuery<any>({ queryKey: ["/api/auth/user"] });
   const authName = authUser?.displayName || authUser?.firstName || "";
   const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
   const [commentSent, setCommentSent] = useState(false);
+  const [page, setPage] = useState(0);
+  const pageSize = 50;
 
   useEffect(() => {
     if (authName && !commentName) setCommentName(authName);
   }, [authName]);
 
-  const { data: comments } = useQuery<ProjectCommentData[]>({
-    queryKey: ["/api/public/projects/comments", projectId],
+  const { data: commentsResult } = useQuery<{ data: ProjectCommentData[]; total: number }>({
+    queryKey: ["/api/projects/comments", shareToken, page],
     queryFn: async () => {
-      const res = await fetch(`/api/public/projects/${projectId}/comments`);
+      const res = await fetch(`/api/projects/${shareToken}/comments?limit=${pageSize}&offset=${page * pageSize}`);
       return res.json();
     },
-    enabled: !!projectId,
+    enabled: !!shareToken,
   });
+  const comments = commentsResult?.data;
+  const totalComments = commentsResult?.total || 0;
 
   const commentMutation = useMutation({
     mutationFn: async () => {
       const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
       const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
-      const res = await fetch(`/api/public/projects/${projectId}/comment`, {
+      const res = await fetch(`/api/projects/${shareToken}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
         body: JSON.stringify({ authorName: commentName, content: commentText }),
@@ -208,7 +212,7 @@ function ProjectCommentsSection({ projectId }: { projectId: number }) {
     onSuccess: (data) => {
       setCommentSent(true);
       setCommentText("");
-      queryClient.invalidateQueries({ queryKey: ["/api/public/projects/comments", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects/comments", shareToken] });
     },
     onError: (err: any) => {
       toast({ title: err.message || "فشل الإرسال", variant: "destructive" });
@@ -220,7 +224,7 @@ function ProjectCommentsSection({ projectId }: { projectId: number }) {
       <div className="flex items-center gap-2">
         <MessageCircle className="w-5 h-5 text-primary" />
         <h3 className="font-serif text-lg font-semibold" data-testid="text-comments-title">
-          التعليقات {comments && comments.length > 0 && <span className="text-muted-foreground text-sm font-normal">({comments.length})</span>}
+          التعليقات {totalComments > 0 && <span className="text-muted-foreground text-sm font-normal">({totalComments})</span>}
         </h3>
       </div>
 
@@ -230,13 +234,38 @@ function ProjectCommentsSection({ projectId }: { projectId: number }) {
             <div key={c.id} className="p-3 rounded-lg bg-muted/50 border space-y-1" data-testid={`comment-${c.id}`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium" data-testid={`comment-author-${c.id}`}>{c.author_name}</span>
-                <span className="text-[11px] text-muted-foreground" data-testid={`comment-date-${c.id}`}>
-                  {relativeTime(c.created_at)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground" data-testid={`comment-date-${c.id}`}>
+                    {relativeTime(c.created_at)}
+                  </span>
+                  <button
+                    className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={async () => {
+                      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+                      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+                      await fetch(`/api/project-comments/${c.id}/report`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
+                        body: JSON.stringify({ reason: "إبلاغ من القارئ" }),
+                      });
+                      toast({ title: "تم الإبلاغ عن التعليق" });
+                    }}
+                    data-testid={`button-report-comment-${c.id}`}
+                  >
+                    إبلاغ
+                  </button>
+                </div>
               </div>
               <p className="text-sm leading-relaxed text-foreground/90" data-testid={`comment-content-${c.id}`}>{c.content}</p>
             </div>
           ))}
+          {totalComments > pageSize && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage(p => p - 1)} data-testid="button-comments-prev">السابق</Button>
+              <span className="text-xs text-muted-foreground">{page + 1} / {Math.ceil(totalComments / pageSize)}</span>
+              <Button size="sm" variant="outline" disabled={(page + 1) * pageSize >= totalComments} onClick={() => setPage(p => p + 1)} data-testid="button-comments-next">التالي</Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -763,7 +792,7 @@ export default function SharedProject() {
         <BetaReaderOptIn projectId={project.id} />
       )}
 
-      {project && <ProjectCommentsSection projectId={project.id} />}
+      {project && token && <ProjectCommentsSection shareToken={token} />}
 
       {project && <SharedRelatedWorks projectId={project.id} />}
 
