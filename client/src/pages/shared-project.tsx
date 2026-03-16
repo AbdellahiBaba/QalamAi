@@ -209,12 +209,32 @@ function ProjectCommentsSection({ shareToken }: { shareToken: string }) {
       if (!res.ok) throw new Error(data.error || "فشل الإرسال");
       return data;
     },
-    onSuccess: (data) => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["/api/projects/comments", shareToken, page] });
+      const previous = queryClient.getQueryData<{ data: ProjectCommentData[]; total: number }>(["/api/projects/comments", shareToken, page]);
+      if (previous) {
+        const optimistic: ProjectCommentData = {
+          id: Date.now(),
+          author_name: commentName.trim(),
+          content: commentText.trim(),
+          created_at: new Date().toISOString(),
+        };
+        queryClient.setQueryData(["/api/projects/comments", shareToken, page], {
+          data: [optimistic, ...previous.data],
+          total: previous.total + 1,
+        });
+      }
+      return { previous };
+    },
+    onSuccess: () => {
       setCommentSent(true);
       setCommentText("");
       queryClient.invalidateQueries({ queryKey: ["/api/projects/comments", shareToken] });
     },
-    onError: (err: any) => {
+    onError: (err: any, _vars: unknown, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["/api/projects/comments", shareToken, page], context.previous);
+      }
       toast({ title: err.message || "فشل الإرسال", variant: "destructive" });
     },
   });

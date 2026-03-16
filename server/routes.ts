@@ -9092,7 +9092,8 @@ ${ch.content}
       if (!comment) return res.status(404).json({ error: "التعليق غير موجود" });
       const project = await storage.getProject((comment as any).project_id);
       const isOwner = project && project.userId === userId;
-      const isAdminUser = req.user.claims.metadata?.role === "admin";
+      const dbUser = await storage.getUser(userId);
+      const isAdminUser = dbUser?.role === "admin";
       if (!isOwner && !isAdminUser) return res.status(403).json({ error: "غير مصرّح بحذف هذا التعليق" });
       await storage.deleteProjectComment(commentId);
       res.json({ success: true });
