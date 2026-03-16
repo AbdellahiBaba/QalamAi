@@ -81,12 +81,14 @@ export default function EditorialReview() {
           if (!line.startsWith("data: ")) continue;
           try {
             const event = JSON.parse(line.slice(6));
+            if (event.error) throw new Error(event.error);
             if (event.content) {
               full += event.content;
               setReviewContent(full);
             }
-            if (event.error) throw new Error(event.error);
-          } catch {}
+          } catch (parseErr: any) {
+            if (parseErr.message && parseErr.message !== "Unexpected end of JSON input") throw parseErr;
+          }
         }
       }
     } catch (error: any) {
@@ -173,8 +175,8 @@ export default function EditorialReview() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Badge variant="outline" className="text-xs" data-testid="badge-word-count">
-                  {wordCount} كلمة
+                <Badge variant={wordCount > 5000 ? "destructive" : "outline"} className="text-xs" data-testid="badge-word-count">
+                  {wordCount} كلمة{wordCount > 5000 ? " (الحد الأقصى ~5000)" : ""}
                 </Badge>
               </div>
 

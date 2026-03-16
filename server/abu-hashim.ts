@@ -5810,7 +5810,7 @@ ${criteria}
 - كن صادقاً ومحفّزاً في آن واحد — وازن بين النقد والتشجيع
 - في القسم الأخير "النص المنقّح" أعد النص المحسّن كاملاً`;
 
-  const trimmedText = text.slice(0, 15000);
+  const trimmedText = text.length > 15000 ? text.slice(0, 15000) : text;
 
   const user = `═══ النص المطلوب مراجعته ═══
 نوع العمل: ${typeLabel}

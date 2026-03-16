@@ -6898,11 +6898,16 @@ ${glossaryParagraphs}
         return res.status(400).json({ error: "يرجى إدخال نص لا يقل عن 20 حرفاً" });
       }
 
-      const { system, user: userMsg } = buildEditorialReviewPrompt(text.trim(), project.projectType || "novel");
+      const trimmedText = text.trim();
+      const { system, user: userMsg } = buildEditorialReviewPrompt(trimmedText, project.projectType || "novel");
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
+
+      if (trimmedText.length > 15000) {
+        res.write(`data: ${JSON.stringify({ content: "⚠️ تم اقتصاص النص إلى أول ~5000 كلمة للمراجعة.\n\n" })}\n\n`);
+      }
 
       const stream = await openai.chat.completions.create({
         model: "gpt-5.2",
@@ -6953,11 +6958,16 @@ ${glossaryParagraphs}
       const validTypes = ["novel", "essay", "scenario", "short_story", "khawater", "social_media", "poetry", "memoire"];
       const pType = validTypes.includes(projectType) ? projectType : "novel";
 
-      const { system, user: userMsg } = buildEditorialReviewPrompt(text.trim(), pType);
+      const trimmedText = text.trim();
+      const { system, user: userMsg } = buildEditorialReviewPrompt(trimmedText, pType);
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
+
+      if (trimmedText.length > 15000) {
+        res.write(`data: ${JSON.stringify({ content: "⚠️ تم اقتصاص النص إلى أول ~5000 كلمة للمراجعة.\n\n" })}\n\n`);
+      }
 
       const stream = await openai.chat.completions.create({
         model: "gpt-5.2",
