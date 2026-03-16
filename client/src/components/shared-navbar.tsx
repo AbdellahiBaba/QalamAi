@@ -39,6 +39,7 @@ import {
   Sparkles,
   Tag,
   Phone,
+  FileEdit,
 } from "lucide-react";
 
 const primaryNavLinks = [
@@ -50,6 +51,7 @@ const primaryNavLinks = [
 ];
 
 const moreNavLinks = [
+  { label: "محرر أبو هاشم", href: "/editor", icon: FileEdit },
   { label: "مذكرات التخرج", href: "/memoires", icon: Scroll },
   { label: "من نحن", href: "/about", icon: Info },
   { label: "المميزات", href: "/features", icon: Sparkles },

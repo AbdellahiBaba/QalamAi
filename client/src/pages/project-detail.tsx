@@ -20,7 +20,7 @@ import {
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
   Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Layers,
-  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck, AlertTriangle
+  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck, AlertTriangle, FileEdit
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -407,6 +407,10 @@ export default function ProjectDetail() {
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkChapterId, setBookmarkChapterId] = useState<number | null>(null);
   const [isGeneratingGlossary, setIsGeneratingGlossary] = useState(false);
+  const [editorialReviewChapterId, setEditorialReviewChapterId] = useState<number | null>(null);
+  const [editorialReviewContent, setEditorialReviewContent] = useState("");
+  const [isEditorialReviewing, setIsEditorialReviewing] = useState(false);
+  const editorialAbortRef = useRef<AbortController | null>(null);
   const [isCheckingContinuity, setIsCheckingContinuity] = useState(false);
   const [continuityResult, setContinuityResult] = useState<any>(null);
   const [fixingIssueIndex, setFixingIssueIndex] = useState<number | null>(null);
@@ -4045,6 +4049,73 @@ export default function ProjectDetail() {
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (!chapter.content) return;
+                                      if (editorialAbortRef.current) editorialAbortRef.current.abort();
+                                      const controller = new AbortController();
+                                      editorialAbortRef.current = controller;
+                                      setEditorialReviewChapterId(chapter.id);
+                                      setEditorialReviewContent("");
+                                      setIsEditorialReviewing(true);
+                                      try {
+                                        const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+                                        const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+                                        const res = await fetch(`/api/projects/${projectId}/editorial-review`, {
+                                          method: "POST",
+                                          credentials: "include",
+                                          headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
+                                          body: JSON.stringify({ text: chapter.content }),
+                                          signal: controller.signal,
+                                        });
+                                        if (!res.ok) {
+                                          const err = await res.json().catch(() => null);
+                                          throw new Error(err?.error || "فشل في المراجعة");
+                                        }
+                                        const reader = res.body?.getReader();
+                                        if (!reader) throw new Error("No reader");
+                                        const decoder = new TextDecoder();
+                                        let buffer = "";
+                                        let full = "";
+                                        while (true) {
+                                          const { done, value } = await reader.read();
+                                          if (done) break;
+                                          buffer += decoder.decode(value, { stream: true });
+                                          const lines = buffer.split("\n");
+                                          buffer = lines.pop() || "";
+                                          for (const line of lines) {
+                                            if (!line.startsWith("data: ")) continue;
+                                            try {
+                                              const event = JSON.parse(line.slice(6));
+                                              if (event.error) throw new Error(event.error);
+                                              if (event.content) { full += event.content; setEditorialReviewContent(full); }
+                                            } catch (parseErr: any) {
+                                              if (parseErr.message && parseErr.message !== "Unexpected end of JSON input") throw parseErr;
+                                            }
+                                          }
+                                        }
+                                      } catch (err: any) {
+                                        if (err.name !== "AbortError") {
+                                          toast({ title: err.message || "فشل في المراجعة التحريرية", variant: "destructive" });
+                                        }
+                                      } finally {
+                                        setIsEditorialReviewing(false);
+                                        editorialAbortRef.current = null;
+                                      }
+                                    }}
+                                    disabled={isEditorialReviewing}
+                                    data-testid={`button-editorial-review-${chapter.id}`}
+                                  >
+                                    {isEditorialReviewing && editorialReviewChapterId === chapter.id ? (
+                                      <Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" />
+                                    ) : (
+                                      <FileEdit className="w-3.5 h-3.5 ml-1" />
+                                    )}
+                                    مراجعة تحريرية
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setEditContent(chapter.content || "");
@@ -4055,6 +4126,73 @@ export default function ProjectDetail() {
                                     <Pencil className="w-3.5 h-3.5 ml-1" />
                                     تحرير
                                   </Button>
+                                </div>
+                              )}
+                              {editorialReviewChapterId === chapter.id && (editorialReviewContent || isEditorialReviewing) && (
+                                <div className="border-t p-4 space-y-3 bg-primary/5" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <FileEdit className="w-4 h-4 text-primary" />
+                                      <span className="font-serif font-semibold text-sm">المراجعة التحريرية</span>
+                                      {isEditorialReviewing && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {editorialReviewContent && !isEditorialReviewing && (
+                                        <>
+                                          {(() => {
+                                            const marker = "## النص المنقّح";
+                                            const idx = editorialReviewContent.indexOf(marker);
+                                            if (idx === -1) return null;
+                                            const revised = editorialReviewContent.slice(idx + marker.length).trim();
+                                            if (!revised) return null;
+                                            return (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-xs h-7"
+                                                onClick={() => {
+                                                  setEditContent(revised);
+                                                  setEditingChapter(chapter.id);
+                                                  toast({ title: "تم تحميل النص المنقّح في المحرر" });
+                                                }}
+                                                data-testid={`button-apply-editorial-${chapter.id}`}
+                                              >
+                                                <Pencil className="w-3 h-3 ml-1" />
+                                                فتح المنقّح في المحرر
+                                              </Button>
+                                            );
+                                          })()}
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-xs h-7"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(editorialReviewContent);
+                                              toast({ title: "تم نسخ المراجعة" });
+                                            }}
+                                            data-testid={`button-copy-editorial-${chapter.id}`}
+                                          >
+                                            <Copy className="w-3 h-3 ml-1" />
+                                            نسخ
+                                          </Button>
+                                        </>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => { if (editorialAbortRef.current) editorialAbortRef.current.abort(); setEditorialReviewChapterId(null); setEditorialReviewContent(""); }}
+                                        data-testid={`button-close-editorial-${chapter.id}`}
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <ScrollArea className="max-h-[400px]">
+                                    <div className="font-serif text-sm leading-relaxed whitespace-pre-wrap" dir="rtl">
+                                      {editorialReviewContent}
+                                    </div>
+                                  </ScrollArea>
                                 </div>
                               )}
                               {project.publishedToGallery && chapter.status === "completed" && (
