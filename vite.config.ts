@@ -16,6 +16,10 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 250_000,
         globPatterns: ["**/*.html", "**/*.css", "**/vendor-*.js"],
+        // Never let the service worker intercept auth routes — they involve cross-origin
+        // redirects (Replit OIDC) that fetch() inside a SW cannot handle, producing
+        // a "no-response" error and silently breaking login.
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -28,9 +32,12 @@ export default defineConfig({
             options: { cacheName: "gstatic-fonts-cache", expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
           },
           {
-            urlPattern: /\/api\/.*/i,
-            handler: "NetworkFirst",
-            options: { cacheName: "api-cache", expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 }, networkTimeoutSeconds: 10 },
+            // Pass non-navigation /api/* requests straight to the network with no caching.
+            // Navigation requests to /api/* (e.g. /api/login → cross-origin Replit redirect)
+            // must NOT be matched here — they need to fall through to the browser unintercepted.
+            urlPattern: ({ request, url }: { request: Request; url: URL }) =>
+              url.pathname.startsWith("/api/") && request.destination !== "document",
+            handler: "NetworkOnly",
           },
           {
             urlPattern: /\.(js|css|png|jpg|jpeg|svg|gif|webp|woff2?)$/i,
