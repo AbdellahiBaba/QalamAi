@@ -132,7 +132,27 @@ export async function setupAuth(app: Express) {
   app.get("/api/login", async (req, res, next) => {
     try {
       const domain = req.hostname;
+      console.log("[Auth] Login initiated, domain:", domain, "sessionID:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "NO SESSION");
       await ensureStrategy(domain);
+
+      // Patch res.redirect to explicitly flush the session to the DB BEFORE the browser
+      // is sent to Replit. Without this, express-session saves the session asynchronously
+      // AFTER the 302 response is sent, causing a race: if the Replit round-trip completes
+      // before the DB write finishes, the callback cannot find the OIDC state (nonce /
+      // code_verifier / state) and the auth fails silently.
+      const _origRedirect = res.redirect.bind(res);
+      (res as any).redirect = function (url: string) {
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("[Auth] Session pre-redirect save failed:", saveErr);
+          } else {
+            console.log("[Auth] Session saved before OIDC redirect, sessionID:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "none");
+          }
+          _origRedirect(url);
+        });
+        return res;
+      };
+
       passport.authenticate(`replitauth:${domain}`, {
         prompt: "login consent",
         scope: ["openid", "email", "profile", "offline_access"],
@@ -147,11 +167,12 @@ export async function setupAuth(app: Express) {
     try {
       const domain = req.hostname;
       await ensureStrategy(domain);
+      const sessionKeys = req.session ? Object.keys(req.session).filter(k => k !== "cookie") : [];
       console.log("[Auth] Callback hit, domain:", domain, "query:", JSON.stringify({ state: req.query.state ? "present" : "missing", code: req.query.code ? "present" : "missing", error: req.query.error || "none" }));
-      console.log("[Auth] Session ID at callback:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "NO SESSION");
+      console.log("[Auth] Session ID at callback:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "NO SESSION", "session keys:", sessionKeys);
       passport.authenticate(`replitauth:${domain}`, (err: Error | null, user: Express.User | false, info: object) => {
         if (err) {
-          console.error("[Auth] Callback authentication error:", err.message, "cause:", "cause" in err ? err.cause : "none");
+          console.error("[Auth] Callback authentication error:", err.message, "full:", JSON.stringify({ message: err.message, name: err.name, cause: (err as any).cause }));
           return res.redirect("/login?error=auth_failed");
         }
         if (!user) {
@@ -163,19 +184,21 @@ export async function setupAuth(app: Express) {
             console.error("[Auth] Login after OIDC callback error:", loginErr);
             return res.redirect("/login?error=auth_failed");
           }
-          console.log("[Auth] OIDC login successful for user:", (user as Record<string, any>)?.claims?.sub);
+          const sub = (user as Record<string, any>)?.claims?.sub;
+          console.log("[Auth] OIDC login successful for user:", sub, "sessionID:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "none");
           req.session.save((saveErr) => {
             if (saveErr) {
               console.error("[Auth] Session save error after login:", saveErr);
               return res.redirect("/login?error=auth_failed");
             }
+            console.log("[Auth] Session saved after login, redirecting to /");
             res.redirect("/");
           });
         });
       })(req, res, next);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      const cause = err instanceof Error && "cause" in err ? err.cause : undefined;
+      const cause = err instanceof Error && "cause" in err ? (err as any).cause : undefined;
       console.error("[Auth] OAuth callback error:", message, "cause:", cause || "none");
       res.redirect("/login?error=auth_failed");
     }
