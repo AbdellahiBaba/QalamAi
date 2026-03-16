@@ -711,6 +711,82 @@ export class DatabaseStorage implements IStorage {
     return progress;
   }
 
+  async getUserInProgressReads(userId: string, limit: number = 10): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT rp.project_id as "projectId", rp.last_chapter_id as "lastChapterId",
+        rp.scroll_position as "scrollPosition", rp.updated_at as "updatedAt",
+        np.title, np.cover_image_url as "coverImageUrl", np.project_type as "projectType",
+        np.share_token as "shareToken",
+        (SELECT COUNT(*)::int FROM project_chapters pc WHERE pc.project_id = np.id AND pc.content IS NOT NULL AND pc.content != '') as "totalChapters",
+        (SELECT chapter_number FROM project_chapters pc2 WHERE pc2.id = rp.last_chapter_id) as "lastChapterNumber"
+      FROM reading_progress rp
+      JOIN novel_projects np ON np.id = rp.project_id
+      WHERE rp.user_id = ${userId}
+        AND np.share_token IS NOT NULL
+      ORDER BY rp.updated_at DESC
+      LIMIT ${limit}
+    `)).rows;
+    return rows;
+  }
+
+  async getTrendingProjects(limit: number = 6): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT np.id, np.title, np.cover_image_url as "coverImageUrl", np.share_token as "shareToken",
+        np.project_type as "projectType", np.main_idea as "mainIdea",
+        COALESCE(u.display_name, u.first_name || ' ' || u.last_name, 'كاتب') as "authorName",
+        u.id as "authorId",
+        COALESCE(v.vote_count, 0) as "voteCount",
+        COALESCE(r.read_count, 0) as "readCount",
+        (COALESCE(v.vote_count, 0) + COALESCE(r.read_count, 0)) as "score"
+      FROM novel_projects np
+      LEFT JOIN users u ON u.id = np.user_id
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as vote_count FROM work_votes wv
+        WHERE wv.project_id = np.id AND wv.created_at > NOW() - INTERVAL '7 days'
+      ) v ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as read_count FROM reading_progress rp2
+        WHERE rp2.project_id = np.id AND rp2.updated_at > NOW() - INTERVAL '7 days'
+      ) r ON true
+      WHERE np.published_to_gallery = true
+        AND np.share_token IS NOT NULL
+      ORDER BY (COALESCE(v.vote_count, 0) + COALESCE(r.read_count, 0)) DESC, np.id DESC
+      LIMIT ${limit}
+    `)).rows;
+    return rows;
+  }
+
+  async getSimilarProjects(projectId: number, limit: number = 4): Promise<any[]> {
+    const project = await this.getProject(projectId);
+    if (!project) return [];
+    const tagsArr = (project.tags || []).filter(Boolean);
+    const tagsSql = tagsArr.length > 0
+      ? sql.raw(`ARRAY[${tagsArr.map(t => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`)
+      : sql.raw(`ARRAY[]::text[]`);
+    const rows: any[] = (await db.execute(sql`
+      SELECT np.id, np.title, np.cover_image_url as "coverImageUrl", np.share_token as "shareToken",
+        np.project_type as "projectType",
+        COALESCE(u.display_name, u.first_name || ' ' || u.last_name, 'كاتب') as "authorName",
+        COALESCE(vc.cnt, 0) as "voteCount"
+      FROM novel_projects np
+      LEFT JOIN users u ON u.id = np.user_id
+      LEFT JOIN LATERAL (SELECT COUNT(*)::int as cnt FROM work_votes wv WHERE wv.project_id = np.id) vc ON true
+      WHERE np.id != ${projectId}
+        AND np.published_to_gallery = true
+        AND np.project_type = ${project.projectType || 'novel'}
+        AND (
+          np.tags && ${tagsSql}
+          OR np.user_id = ${project.userId}
+        )
+      ORDER BY
+        CASE WHEN np.tags && ${tagsSql} THEN 0 ELSE 1 END,
+        COALESCE(vc.cnt, 0) DESC,
+        np.id DESC
+      LIMIT ${limit}
+    `)).rows;
+    return rows;
+  }
+
   async createBookmark(data: { userId: string; projectId: number; chapterId: number; note?: string }): Promise<Bookmark> {
     const [created] = await db.insert(bookmarks).values(data).returning();
     return created;

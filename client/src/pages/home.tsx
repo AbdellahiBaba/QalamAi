@@ -102,6 +102,12 @@ export default function Home() {
     staleTime: 60 * 1000,
   });
 
+  const { data: continueReading } = useQuery<any[]>({
+    queryKey: ["/api/reading-progress"],
+    staleTime: 2 * 60 * 1000,
+    enabled: !!user,
+  });
+
   const { data: referralData } = useQuery<{ referralCode: string; referralCount: number; bonusGenerations: number }>({
     queryKey: ["/api/me/referral"],
     staleTime: 5 * 60 * 1000,
@@ -1038,6 +1044,45 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {continueReading && continueReading.length > 0 && (
+          <div className="mb-6" data-testid="section-continue-reading">
+            <div className="flex items-center gap-2 mb-3">
+              <BookMarked className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-sm">واصل القراءة</h3>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+              {continueReading.slice(0, 3).map((item: any) => {
+                const rawPercent = item.totalChapters > 0 && item.lastChapterNumber
+                  ? Math.round((item.lastChapterNumber / item.totalChapters) * 100)
+                  : (item.scrollPosition || 0);
+                const percent = Math.max(0, Math.min(100, rawPercent));
+                return (
+                  <Link key={item.projectId} href={item.lastChapterId ? `/project/${item.projectId}/read/${item.lastChapterId}` : (item.shareToken ? `/shared/${item.shareToken}` : "#")}>
+                    <Card className="min-w-[200px] max-w-[220px] overflow-hidden hover:shadow-md transition-shadow cursor-pointer" data-testid={`card-continue-${item.projectId}`}>
+                      <CardContent className="p-3 flex items-start gap-3">
+                        <div className="relative w-10 h-10 shrink-0">
+                          <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/30" />
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="3" className="text-primary"
+                              strokeDasharray={`${percent} ${100 - percent}`} strokeLinecap="round" />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-primary">{percent}%</span>
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-0.5">
+                          <p className="text-xs font-semibold line-clamp-2 leading-tight">{item.title}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {item.lastChapterNumber ? `الفصل ${item.lastChapterNumber}` : ""} {item.totalChapters ? `من ${item.totalChapters}` : ""}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* Active Challenge Banner */}

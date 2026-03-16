@@ -58,20 +58,21 @@ const REACTION_CONFIG = [
 ] as const;
 
 function SharedRelatedWorks({ projectId }: { projectId: number }) {
-  const { data: related, isLoading } = useQuery<any[]>({
-    queryKey: ["/api/projects", String(projectId), "related"],
-    queryFn: () => fetch(`/api/projects/${projectId}/related`).then(r => r.json()),
+  const { data: similar, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", String(projectId), "similar"],
+    queryFn: () => fetch(`/api/projects/${projectId}/similar`).then(r => r.json()),
   });
 
-  if (isLoading || !related || related.length === 0) return null;
+  const items = Array.isArray(similar) ? similar : [];
+  if (isLoading || items.length === 0) return null;
 
   return (
     <div className="max-w-2xl mx-auto my-6 space-y-3" data-testid="shared-related-works">
       <h3 className="font-serif text-lg font-semibold" data-testid="text-shared-related-title">قد يعجبك أيضاً</h3>
-      <div className="grid grid-cols-3 gap-3">
-        {related.map((r: any) => (
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {items.slice(0, 4).map((r: any) => (
           <Link key={r.id} href={r.shareToken ? `/shared/${r.shareToken}` : `/gallery`}>
-            <div className="group cursor-pointer space-y-1" data-testid={`shared-related-${r.id}`}>
+            <div className="group cursor-pointer space-y-1 min-w-[120px] max-w-[140px]" data-testid={`shared-similar-${r.id}`}>
               {r.coverImageUrl ? (
                 <img src={r.coverImageUrl} alt={r.title} className="w-full aspect-[2/3] rounded-md object-cover group-hover:opacity-80 transition-opacity" loading="lazy" decoding="async" />
               ) : (

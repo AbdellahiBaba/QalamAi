@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Chapter {
   id: number;
@@ -81,6 +82,39 @@ export default function Reader() {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [nextChapter, prevChapter, navigateTo]);
+
+  const progressSent = useRef(false);
+  useEffect(() => {
+    progressSent.current = false;
+  }, [chapterId]);
+
+  useEffect(() => {
+    if (!projectId || !chapterId || !currentChapter) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const handleScroll = () => {
+      if (progressSent.current) return;
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (docHeight <= 0) return;
+      const pct = Math.round((scrollTop / docHeight) * 100);
+      if (pct >= 50) {
+        progressSent.current = true;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          apiRequest("PATCH", "/api/reading-progress", {
+            projectId: Number(projectId),
+            chapterId: Number(chapterId),
+            percentComplete: pct,
+          }).catch(() => {});
+        }, 1500);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (timer) clearTimeout(timer);
+    };
+  }, [projectId, chapterId, currentChapter]);
 
   if (isLoading) {
     return (

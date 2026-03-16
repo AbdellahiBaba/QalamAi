@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck, Bookmark, MessageCircle } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck, Bookmark, MessageCircle, TrendingUp, Flame } from "lucide-react";
 import { SaveToListButton } from "@/components/save-to-list-button";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -189,6 +189,11 @@ export default function Gallery() {
   const [page, setPage] = useState(1);
   const pageLimit = 24;
 
+  const { data: trendingData } = useQuery<any[]>({
+    queryKey: ["/api/public/trending"],
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: galleryData, isLoading } = useQuery<{ data: GalleryProject[]; total: number; page: number; limit: number }>({
     queryKey: ["/api/gallery", page, pageLimit, activeTag, betaFilter, authorIdFilter, activeFilter],
     queryFn: () => {
@@ -332,6 +337,40 @@ export default function Gallery() {
                 {tag}
               </Badge>
             ))}
+          </div>
+        )}
+
+        {trendingData && trendingData.length > 0 && !searchQuery.trim() && activeFilter === "all" && !activeTag && !betaFilter && !authorIdFilter && page === 1 && (
+          <div data-testid="section-trending">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame className="w-5 h-5 text-orange-500" />
+              <h2 className="font-serif font-bold text-lg">الأكثر تفاعلاً هذا الأسبوع</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+              {trendingData.slice(0, 6).map((tp: any) => (
+                <Link key={tp.id} href={tp.shareToken ? `/shared/${tp.shareToken}` : "#"}>
+                  <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" data-testid={`card-trending-${tp.id}`}>
+                    <div className="relative aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden">
+                      {tp.coverImageUrl ? (
+                        <img src={tp.coverImageUrl} alt={tp.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                      ) : (
+                        <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                      )}
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3 text-orange-300" />
+                          <span className="text-[10px] text-white font-medium">{tp.score} تفاعل</span>
+                        </div>
+                      </div>
+                    </div>
+                    <CardContent className="p-2.5 space-y-0.5">
+                      <p className="text-xs font-semibold line-clamp-2 leading-tight">{tp.title}</p>
+                      {tp.authorName && <p className="text-[10px] text-muted-foreground">{tp.authorName}</p>}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 

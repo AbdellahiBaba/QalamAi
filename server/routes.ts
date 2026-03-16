@@ -5758,6 +5758,50 @@ ${glossaryParagraphs}
     }
   });
 
+  app.patch("/api/reading-progress", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { projectId, chapterId, percentComplete } = req.body;
+      if (!projectId) return res.status(400).json({ error: "معرّف المشروع مطلوب" });
+      const scrollPos = typeof percentComplete === "number" ? Math.min(100, Math.max(0, Math.round(percentComplete))) : undefined;
+      const result = await storage.upsertReadingProgress(userId, projectId, chapterId || undefined, scrollPos);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في تحديث التقدم" });
+    }
+  });
+
+  app.get("/api/reading-progress", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+      const reads = await storage.getUserInProgressReads(userId, limit);
+      res.json(reads);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب قائمة القراءة" });
+    }
+  });
+
+  app.get("/api/public/trending", async (_req, res) => {
+    try {
+      const trending = await storage.getTrendingProjects(6);
+      res.json(trending);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الأعمال الرائجة" });
+    }
+  });
+
+  app.get("/api/projects/:id/similar", async (req, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const similar = await storage.getSimilarProjects(projectId, 4);
+      res.json(similar);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الأعمال المشابهة" });
+    }
+  });
+
   app.post("/api/projects/:id/bookmarks", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
