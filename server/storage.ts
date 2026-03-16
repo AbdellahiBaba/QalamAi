@@ -176,6 +176,12 @@ export interface IStorage {
   approveEssayComment(id: number): Promise<void>;
   deleteEssayComment(id: number): Promise<void>;
   getPendingComments(limit?: number, offset?: number): Promise<{ data: import("@shared/schema").EssayComment[]; total: number }>;
+  createProjectComment(data: { projectId: number; authorName: string; content: string; ipHash?: string }): Promise<import("@shared/schema").ProjectComment>;
+  getProjectComments(projectId: number, onlyApproved?: boolean): Promise<import("@shared/schema").ProjectComment[]>;
+  getProjectCommentCount(projectId: number): Promise<number>;
+  approveProjectComment(id: number): Promise<void>;
+  deleteProjectComment(id: number): Promise<void>;
+  getPendingProjectComments(limit?: number, offset?: number): Promise<{ data: any[]; total: number }>;
   createCollection(data: import("@shared/schema").InsertCollection): Promise<import("@shared/schema").Collection>;
   getUserCollections(userId: string): Promise<import("@shared/schema").Collection[]>;
   getCollectionBySlug(slug: string): Promise<(import("@shared/schema").Collection & { items: Array<{ essayId: number | null; projectId: number | null; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; projectType: string | null }> }) | undefined>;
@@ -789,7 +795,8 @@ export class DatabaseStorage implements IStorage {
         p.tags,
         COALESCE(p.seeking_beta_readers, false) as "seekingBetaReaders",
         (SELECT wc.id FROM writing_challenges wc WHERE wc.winner_id = p.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinId",
-        (SELECT wc.title FROM writing_challenges wc WHERE wc.winner_id = p.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinTitle"
+        (SELECT wc.title FROM writing_challenges wc WHERE wc.winner_id = p.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinTitle",
+        (SELECT COUNT(*)::int FROM project_comments pc WHERE pc.project_id = p.id AND pc.approved = true) as "commentCount"
       FROM novel_projects p
       LEFT JOIN users u ON u.id = p.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
@@ -1861,6 +1868,53 @@ export class DatabaseStorage implements IStorage {
     return { data: rows, total: Number(total) };
   }
 
+  async createProjectComment(data: { projectId: number; authorName: string; content: string; ipHash?: string }): Promise<any> {
+    const [row] = await db.execute(sql`
+      INSERT INTO project_comments (project_id, author_name, content, ip_hash, approved)
+      VALUES (${data.projectId}, ${data.authorName}, ${data.content}, ${data.ipHash || null}, true)
+      RETURNING *
+    `).then(r => r.rows);
+    return row;
+  }
+
+  async getProjectComments(projectId: number, onlyApproved: boolean = true): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT * FROM project_comments
+      WHERE project_id = ${projectId}
+        ${onlyApproved ? sql`AND approved = true` : sql``}
+      ORDER BY created_at ASC
+    `)).rows;
+    return rows;
+  }
+
+  async getProjectCommentCount(projectId: number): Promise<number> {
+    const [{ count }]: any[] = (await db.execute(sql`
+      SELECT COUNT(*)::int as count FROM project_comments WHERE project_id = ${projectId} AND approved = true
+    `)).rows;
+    return Number(count);
+  }
+
+  async approveProjectComment(id: number): Promise<void> {
+    await db.execute(sql`UPDATE project_comments SET approved = true WHERE id = ${id}`);
+  }
+
+  async deleteProjectComment(id: number): Promise<void> {
+    await db.execute(sql`DELETE FROM project_comments WHERE id = ${id}`);
+  }
+
+  async getPendingProjectComments(limit: number = 50, offset: number = 0): Promise<{ data: any[]; total: number }> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT pc.*, p.title as "projectTitle"
+      FROM project_comments pc
+      LEFT JOIN novel_projects p ON p.id = pc.project_id
+      WHERE pc.approved = false
+      ORDER BY pc.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+    const [{ total }]: any[] = (await db.execute(sql`SELECT COUNT(*)::int as total FROM project_comments WHERE approved = false`)).rows;
+    return { data: rows, total: Number(total) };
+  }
+
   async createCollection(data: any): Promise<any> {
     const [row] = (await db.execute(sql`
       INSERT INTO collections (user_id, name, slug, description, is_public)
@@ -2538,7 +2592,8 @@ export class DatabaseStorage implements IStorage {
         COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
         COALESCE(u.verified, false) as "authorIsVerified",
         (SELECT wc.id FROM writing_challenges wc WHERE wc.winner_id = np.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinId",
-        (SELECT wc.title FROM writing_challenges wc WHERE wc.winner_id = np.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinTitle"
+        (SELECT wc.title FROM writing_challenges wc WHERE wc.winner_id = np.user_id ORDER BY wc.end_date DESC LIMIT 1) as "challengeWinTitle",
+        (SELECT COUNT(*)::int FROM project_comments pc WHERE pc.project_id = np.id AND pc.approved = true) as "commentCount"
       FROM novel_projects np
       LEFT JOIN users u ON u.id = np.user_id
       LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = np.user_id

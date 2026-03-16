@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck, Bookmark } from "lucide-react";
+import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck, Bookmark, MessageCircle } from "lucide-react";
 import { SaveToListButton } from "@/components/save-to-list-button";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -32,6 +32,7 @@ interface GalleryProject {
   seekingBetaReaders?: boolean;
   challengeWinId?: number | null;
   challengeWinTitle?: string | null;
+  commentCount?: number;
 }
 
 const typeLabels: Record<string, string> = {
@@ -440,6 +441,12 @@ export default function Gallery() {
                         <Trophy className="w-3 h-3" /> فائز بتحدي
                       </Badge>
                     </Link>
+                  )}
+                  {(project.commentCount ?? 0) > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground" data-testid={`comment-count-${project.id}`}>
+                      <MessageCircle className="w-3 h-3" />
+                      <span>{project.commentCount} تعليق</span>
+                    </div>
                   )}
                   {project.mainIdea && (
                     <p

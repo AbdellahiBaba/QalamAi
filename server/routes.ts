@@ -5942,7 +5942,8 @@ ${glossaryParagraphs}
             COALESCE(ar_avg.avg_rating, 0)::float as "authorAverageRating",
             COALESCE(u.verified, false) as "authorIsVerified",
             p.tags,
-            COALESCE(p.seeking_beta_readers, false) as "seekingBetaReaders"
+            COALESCE(p.seeking_beta_readers, false) as "seekingBetaReaders",
+            (SELECT COUNT(*)::int FROM project_comments pc WHERE pc.project_id = p.id AND pc.approved = true) as "commentCount"
           FROM novel_projects p
           LEFT JOIN users u ON u.id = p.user_id
           LEFT JOIN (SELECT author_id, ROUND(AVG(rating)::numeric, 1)::float as avg_rating FROM author_ratings GROUP BY author_id) ar_avg ON ar_avg.author_id = p.user_id
@@ -5982,6 +5983,7 @@ ${glossaryParagraphs}
           seekingBetaReaders: (p as any).seekingBetaReaders || false,
           challengeWinId: (p as any).challengeWinId || null,
           challengeWinTitle: (p as any).challengeWinTitle || null,
+          commentCount: (p as any).commentCount || 0,
         })),
         total: result.total,
         page,
@@ -9010,6 +9012,87 @@ ${ch.content}
   app.delete("/api/admin/comments/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteEssayComment(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف التعليق" });
+    }
+  });
+
+  // ===== Project Comments =====
+  app.post("/api/public/projects/:id/comment", async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { authorName, content } = req.body;
+      if (!authorName?.trim() || !content?.trim()) return res.status(400).json({ error: "الاسم والتعليق مطلوبان" });
+      if (content.length > 1000) return res.status(400).json({ error: "التعليق طويل جداً" });
+      const project = await storage.getProject(projectId);
+      if (!project || !(project as any).shareToken || !(project as any).publishedToGallery) {
+        return res.status(404).json({ error: "العمل غير موجود أو غير منشور" });
+      }
+      const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.ip || "unknown";
+      const ipHash = crypto.createHash("sha256").update(ip + String(projectId)).digest("hex");
+      const existing = await db.execute(dsql`
+        SELECT COUNT(*)::int as cnt FROM project_comments
+        WHERE ip_hash = ${ipHash} AND created_at > NOW() - INTERVAL '1 hour'
+      `);
+      if ((existing.rows[0] as any)?.cnt >= 3) {
+        return res.status(429).json({ error: "عدد التعليقات المسموح به في الساعة تم تجاوزه" });
+      }
+      const comment = await storage.createProjectComment({ projectId, authorName: authorName.trim(), content: content.trim(), ipHash });
+      if (project.userId) {
+        notifyUser(project.userId, "comment", "تعليق جديد على عملك", `علّق ${authorName.trim()} على عملك "${project.title}"`, `/shared/${(project as any).shareToken || ""}`);
+      }
+      res.json({ success: true, comment, message: "تم نشر تعليقك" });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في إرسال التعليق" });
+    }
+  });
+
+  app.get("/api/public/projects/:id/comments", async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: "معرّف غير صالح" });
+      const comments = await storage.getProjectComments(projectId, true);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التعليقات" });
+    }
+  });
+
+  app.get("/api/public/projects/:id/comment-count", async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const count = await storage.getProjectCommentCount(projectId);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب عدد التعليقات" });
+    }
+  });
+
+  app.get("/api/admin/project-comments/pending", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const result = await storage.getPendingProjectComments(limit, offset);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التعليقات المعلقة" });
+    }
+  });
+
+  app.patch("/api/admin/project-comments/:id/approve", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.approveProjectComment(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في الموافقة على التعليق" });
+    }
+  });
+
+  app.delete("/api/admin/project-comments/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteProjectComment(parseInt(req.params.id));
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "فشل في حذف التعليق" });

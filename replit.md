@@ -43,6 +43,7 @@ QalamAI is a React-based Single Page Application (SPA) utilizing Tailwind CSS an
     -   **Writing Challenges:** Admin-created challenges with user entry and winner selection.
     -   **Beta Readers:** Authors can indicate if they are seeking beta readers, with an opt-in request system.
     -   **Related Works:** Displays up to 6 related projects based on type, genre, and tags.
+    -   **Project Comments:** Public commenting system for all published gallery works. `project_comments` table with IP-based rate limiting (3/hr), author notifications via `notifyUser`, comment count badge on gallery cards, full comment section on shared reader page (`/shared/:token`), and admin moderation tab in admin panel.
 -   **Social Marketing AI:** Paid users can access a social marketing advisor. Includes a Super Admin-only Social Media Manager Hub (Abu Hashim Social Media Manager Hub) for generating, scheduling, and analyzing social media posts with DALL-E images across active platforms (Facebook, Instagram, X, TikTok, LinkedIn).
 -   **Author Analytics Dashboard:** Dedicated `/analytics` page with summary stats, growth charts, top works, reading completion rates, tips history, and geographic data.
 -   **Content Reporting System:** A multi-step reporting dialog for public users, categorizing issues by type and severity.

@@ -703,6 +703,23 @@ export const insertEssayCommentSchema = createInsertSchema(essayComments).omit({
 export type InsertEssayComment = z.infer<typeof insertEssayCommentSchema>;
 export type EssayComment = typeof essayComments.$inferSelect;
 
+export const projectComments = pgTable("project_comments", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  authorName: varchar("author_name").notNull(),
+  content: text("content").notNull(),
+  approved: boolean("approved").default(true).notNull(),
+  ipHash: varchar("ip_hash"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_project_comments_project_id").on(table.projectId),
+  index("idx_project_comments_approved").on(table.approved),
+]);
+
+export const insertProjectCommentSchema = createInsertSchema(projectComments).omit({ id: true, approved: true, ipHash: true, createdAt: true });
+export type InsertProjectComment = z.infer<typeof insertProjectCommentSchema>;
+export type ProjectComment = typeof projectComments.$inferSelect;
+
 export const collections = pgTable("collections", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),

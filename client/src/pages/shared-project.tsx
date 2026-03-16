@@ -5,7 +5,9 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard, Bookmark } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard, Bookmark, MessageCircle, Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { SaveToListButton } from "@/components/save-to-list-button";
 import { SiX, SiFacebook, SiWhatsapp, SiTelegram } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -145,6 +147,122 @@ function BetaReaderOptIn({ projectId }: { projectId: number }) {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+interface ProjectCommentData {
+  id: number;
+  author_name: string;
+  content: string;
+  created_at: string;
+}
+
+function ProjectCommentsSection({ projectId }: { projectId: number }) {
+  const { toast } = useToast();
+  const [commentName, setCommentName] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [commentSent, setCommentSent] = useState(false);
+
+  const { data: comments } = useQuery<ProjectCommentData[]>({
+    queryKey: ["/api/public/projects/comments", projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/public/projects/${projectId}/comments`);
+      return res.json();
+    },
+    enabled: !!projectId,
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: async () => {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+      const res = await fetch(`/api/public/projects/${projectId}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
+        body: JSON.stringify({ authorName: commentName, content: commentText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "فشل الإرسال");
+      return data;
+    },
+    onSuccess: () => {
+      setCommentSent(true);
+      setCommentName("");
+      setCommentText("");
+      queryClient.invalidateQueries({ queryKey: ["/api/public/projects/comments", projectId] });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "فشل الإرسال", variant: "destructive" });
+    },
+  });
+
+  return (
+    <div className="max-w-2xl mx-auto my-8 space-y-4" data-testid="project-comments-section">
+      <div className="flex items-center gap-2">
+        <MessageCircle className="w-5 h-5 text-primary" />
+        <h3 className="font-serif text-lg font-semibold" data-testid="text-comments-title">
+          التعليقات {comments && comments.length > 0 && <span className="text-muted-foreground text-sm font-normal">({comments.length})</span>}
+        </h3>
+      </div>
+
+      {comments && comments.length > 0 && (
+        <div className="space-y-3">
+          {comments.map((c) => (
+            <div key={c.id} className="p-3 rounded-lg bg-muted/50 border space-y-1" data-testid={`comment-${c.id}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium" data-testid={`comment-author-${c.id}`}>{c.author_name}</span>
+                <span className="text-[11px] text-muted-foreground" data-testid={`comment-date-${c.id}`}>
+                  {new Date(c.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" })}
+                </span>
+              </div>
+              <p className="text-sm leading-relaxed text-foreground/90" data-testid={`comment-content-${c.id}`}>{c.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {commentSent ? (
+        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 text-center" data-testid="comment-sent-message">
+          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mx-auto mb-1" />
+          <p className="text-sm text-green-700 dark:text-green-300">تم نشر تعليقك بنجاح!</p>
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <Input
+              placeholder="اسمك"
+              value={commentName}
+              onChange={(e) => setCommentName(e.target.value)}
+              maxLength={100}
+              dir="rtl"
+              data-testid="input-comment-name"
+            />
+            <Textarea
+              placeholder="اكتب تعليقك..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              maxLength={1000}
+              rows={3}
+              dir="rtl"
+              data-testid="textarea-comment-content"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">{commentText.length}/1000</span>
+              <Button
+                size="sm"
+                className="gap-1"
+                disabled={!commentName.trim() || !commentText.trim() || commentMutation.isPending}
+                onClick={() => commentMutation.mutate()}
+                data-testid="button-submit-comment"
+              >
+                {commentMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                إرسال تعليق
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -619,6 +737,8 @@ export default function SharedProject() {
       {project?.seekingBetaReaders && (
         <BetaReaderOptIn projectId={project.id} />
       )}
+
+      {project && <ProjectCommentsSection projectId={project.id} />}
 
       {project && <SharedRelatedWorks projectId={project.id} />}
 

@@ -838,7 +838,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "top-voted">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "top-voted" | "comments">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -956,6 +956,24 @@ export default function Admin() {
   });
 
   const [essaySortBy, setEssaySortBy] = useState<"views" | "clicks" | "ctr">("clicks");
+
+  const { data: projectCommentsData, isLoading: projectCommentsLoading, refetch: refetchProjectComments } = useQuery<{ data: any[]; total: number }>({
+    queryKey: ["/api/admin/project-comments/pending"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/project-comments/pending?limit=50");
+      return res.json();
+    },
+    enabled: activeTab === "comments",
+  });
+
+  const { data: essayCommentsData, isLoading: essayCommentsLoading, refetch: refetchEssayComments } = useQuery<{ data: any[]; total: number }>({
+    queryKey: ["/api/admin/comments/pending"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/comments/pending?limit=50");
+      return res.json();
+    },
+    enabled: activeTab === "comments",
+  });
 
   interface MemoireAnalyticsRow { projectId: number; title: string; university: string | null; memoireField: string | null; memoireMethodology: string | null; memoireCountry: string | null; views: number; clicks: number }
 
@@ -1750,6 +1768,7 @@ export default function Admin() {
                 <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">المحتوى</p>
                 {[
                   { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.filter(r => !r.approved).length || 0 },
+                  { key: "comments" as const, icon: MessageSquare, label: "تعليقات الأعمال" },
                   { key: "essays" as const, icon: FileText, label: "المقالات" },
                   { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
                   { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
@@ -1939,6 +1958,7 @@ export default function Admin() {
                       <p className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-2">المحتوى</p>
                       {[
                         { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.filter(r => !r.approved).length || 0 },
+                        { key: "comments" as const, icon: MessageSquare, label: "تعليقات الأعمال" },
                         { key: "essays" as const, icon: FileText, label: "المقالات" },
                         { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
                         { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
@@ -3402,6 +3422,122 @@ export default function Admin() {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "comments" && (
+          <>
+            <h2 className="font-serif text-lg font-bold mb-4 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5" />
+              إدارة التعليقات
+            </h2>
+            {(projectCommentsLoading || essayCommentsLoading) ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">تعليقات الأعمال المعلقة ({projectCommentsData?.total || 0})</h3>
+                  {(!projectCommentsData?.data || projectCommentsData.data.length === 0) ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">لا توجد تعليقات معلقة</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {projectCommentsData.data.map((c: any) => (
+                        <div key={c.id} className="p-3 border rounded-lg flex items-start gap-3" data-testid={`admin-project-comment-${c.id}`}>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">{c.author_name}</span>
+                              {c.projectTitle && <Badge variant="outline" className="text-[10px]">{c.projectTitle}</Badge>}
+                            </div>
+                            <p className="text-sm text-foreground/80 line-clamp-3">{c.content}</p>
+                            <span className="text-[10px] text-muted-foreground">
+                              {c.created_at && new Date(c.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 text-green-600"
+                              onClick={async () => {
+                                await apiRequest("PATCH", `/api/admin/project-comments/${c.id}/approve`);
+                                refetchProjectComments();
+                              }}
+                              data-testid={`button-approve-project-comment-${c.id}`}
+                            >
+                              <Check className="w-3 h-3" /> موافقة
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 text-red-600"
+                              onClick={async () => {
+                                await apiRequest("DELETE", `/api/admin/project-comments/${c.id}`);
+                                refetchProjectComments();
+                              }}
+                              data-testid={`button-delete-project-comment-${c.id}`}
+                            >
+                              <Trash2 className="w-3 h-3" /> حذف
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Separator />
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">تعليقات المقالات المعلقة ({essayCommentsData?.total || 0})</h3>
+                  {(!essayCommentsData?.data || essayCommentsData.data.length === 0) ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">لا توجد تعليقات معلقة</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {essayCommentsData.data.map((c: any) => (
+                        <div key={c.id} className="p-3 border rounded-lg flex items-start gap-3" data-testid={`admin-essay-comment-${c.id}`}>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium">{c.author_name}</span>
+                              {c.essayTitle && <Badge variant="outline" className="text-[10px]">{c.essayTitle}</Badge>}
+                            </div>
+                            <p className="text-sm text-foreground/80 line-clamp-3">{c.content}</p>
+                            <span className="text-[10px] text-muted-foreground">
+                              {c.created_at && new Date(c.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 text-green-600"
+                              onClick={async () => {
+                                await apiRequest("PATCH", `/api/admin/comments/${c.id}/approve`);
+                                refetchEssayComments();
+                              }}
+                              data-testid={`button-approve-essay-comment-${c.id}`}
+                            >
+                              <Check className="w-3 h-3" /> موافقة
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1 text-red-600"
+                              onClick={async () => {
+                                await apiRequest("DELETE", `/api/admin/comments/${c.id}`);
+                                refetchEssayComments();
+                              }}
+                              data-testid={`button-delete-essay-comment-${c.id}`}
+                            >
+                              <Trash2 className="w-3 h-3" /> حذف
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </>
