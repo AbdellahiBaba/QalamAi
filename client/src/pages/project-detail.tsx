@@ -4070,6 +4070,12 @@ export default function ProjectDetail() {
                                         });
                                         if (!res.ok) {
                                           const err = await res.json().catch(() => null);
+                                          if (res.status === 402 && err?.needsUpgrade) {
+                                            setEditorialReviewContent("__LOCKED__");
+                                            setIsEditorialReviewing(false);
+                                            editorialAbortRef.current = null;
+                                            return;
+                                          }
                                           throw new Error(err?.error || "فشل في المراجعة");
                                         }
                                         const reader = res.body?.getReader();
@@ -4128,7 +4134,22 @@ export default function ProjectDetail() {
                                   </Button>
                                 </div>
                               )}
-                              {editorialReviewChapterId === chapter.id && (editorialReviewContent || isEditorialReviewing) && (
+                              {editorialReviewChapterId === chapter.id && editorialReviewContent === "__LOCKED__" && (
+                                <div className="border-t p-4 bg-amber-50 dark:bg-amber-950/30 text-center space-y-2" onClick={(e) => e.stopPropagation()}>
+                                  <Lock className="w-6 h-6 text-amber-600 dark:text-amber-400 mx-auto" />
+                                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">استنفدت الاستخدامات المجانية للمراجعة التحريرية (مراجعتان)</p>
+                                  <p className="text-xs text-amber-600 dark:text-amber-400">ترقَّ للخطة المدفوعة للاستخدام غير المحدود</p>
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => window.location.href = "/pricing"} data-testid={`button-upgrade-editorial-${chapter.id}`}>
+                                      ترقية الخطة
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => { setEditorialReviewChapterId(null); setEditorialReviewContent(""); }} data-testid={`button-close-locked-editorial-${chapter.id}`}>
+                                      <X className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                              {editorialReviewChapterId === chapter.id && editorialReviewContent !== "__LOCKED__" && (editorialReviewContent || isEditorialReviewing) && (
                                 <div className="border-t p-4 space-y-3 bg-primary/5" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
