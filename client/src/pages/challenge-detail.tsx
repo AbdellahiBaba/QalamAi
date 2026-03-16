@@ -10,11 +10,52 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Clock, Users, Crown, Send, Loader2, Feather, Star, Sparkles, ChevronRight } from "lucide-react";
+import { Trophy, Clock, Users, Crown, Send, Loader2, Feather, Star, Sparkles, ChevronRight, Heart } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { SharedFooter } from "@/components/shared-footer";
 import { SharedNavbar } from "@/components/shared-navbar";
 import LtrNum from "@/components/ui/ltr-num";
+
+function EntryVoteButton({ entryId, userId }: { entryId: number; userId: string | undefined }) {
+  const [optimistic, setOptimistic] = useState<{ voted: boolean; voteCount: number } | null>(null);
+  const { data } = useQuery<{ voteCount: number; voted: boolean }>({
+    queryKey: ["/api/challenge-entries", entryId, "vote-count"],
+    queryFn: () => fetch(`/api/challenge-entries/${entryId}/vote-count`).then(r => r.json()),
+  });
+  const voted = optimistic !== null ? optimistic.voted : (data?.voted ?? false);
+  const voteCount = optimistic !== null ? optimistic.voteCount : (data?.voteCount ?? 0);
+
+  const mutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/challenge-entries/${entryId}/vote`),
+    onMutate: () => {
+      const newVoted = !voted;
+      setOptimistic({ voted: newVoted, voteCount: newVoted ? voteCount + 1 : Math.max(0, voteCount - 1) });
+    },
+    onSuccess: async (res) => {
+      const result = await res.json();
+      setOptimistic(result);
+      queryClient.invalidateQueries({ queryKey: ["/api/challenge-entries", entryId, "vote-count"] });
+    },
+    onError: () => setOptimistic(null),
+  });
+
+  return (
+    <button
+      onClick={() => userId && mutation.mutate()}
+      disabled={!userId || mutation.isPending}
+      className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border transition-all ${
+        voted
+          ? "bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400"
+          : "border-border text-muted-foreground hover:border-rose-300 hover:text-rose-500 dark:hover:border-rose-700"
+      } ${!userId ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+      data-testid={`vote-btn-entry-${entryId}`}
+      title={!userId ? "سجّل الدخول للتصويت" : voted ? "إلغاء التصويت" : "تصويت"}
+    >
+      <Heart className={`w-3.5 h-3.5 ${voted ? "fill-rose-500 text-rose-500" : ""}`} />
+      <LtrNum>{voteCount}</LtrNum>
+    </button>
+  );
+}
 
 interface ChallengeEntry {
   id: number;

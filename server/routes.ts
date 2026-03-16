@@ -10729,6 +10729,32 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
+  // ── Challenge Entry Votes ────────────────────────────────────────────────────
+  app.post("/api/challenge-entries/:id/vote", isAuthenticated, async (req: any, res) => {
+    try {
+      const entryId = parseIntParam(req.params.id);
+      if (entryId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const result = await storage.toggleChallengeEntryVote(entryId, userId);
+      res.json(result);
+    } catch (error) {
+      console.error("Challenge entry vote error:", error);
+      res.status(500).json({ error: "فشل في تسجيل التصويت" });
+    }
+  });
+
+  app.get("/api/challenge-entries/:id/vote-count", async (req: any, res) => {
+    try {
+      const entryId = parseIntParam(req.params.id);
+      if (entryId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user?.claims?.sub;
+      const result = await storage.getChallengeEntryVoteCount(entryId, userId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب عدد الأصوات" });
+    }
+  });
+
   app.post("/api/admin/literary-critique", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const schema = z.object({

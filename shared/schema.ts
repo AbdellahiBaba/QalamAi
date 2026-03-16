@@ -1073,3 +1073,17 @@ export const hallOfGloryFeatured = pgTable("hall_of_glory_featured", {
 ]);
 
 export type HallOfGloryFeatured = typeof hallOfGloryFeatured.$inferSelect;
+
+// ── Challenge Entry Votes ──────────────────────────────────────────────────────
+export const challengeEntryVotes = pgTable("challenge_entry_votes", {
+  id: serial("id").primaryKey(),
+  entryId: integer("entry_id").notNull().references(() => challengeEntries.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("uq_challenge_entry_vote").on(table.entryId, table.userId),
+  index("idx_cev_entry").on(table.entryId),
+  index("idx_cev_user").on(table.userId),
+]);
+
+export type ChallengeEntryVote = typeof challengeEntryVotes.$inferSelect;

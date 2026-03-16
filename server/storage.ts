@@ -275,6 +275,8 @@ export interface IStorage {
   getTopVotedProjects(limit?: number): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; alreadyFeatured: boolean }>>;
   featureInHallOfGlory(projectId: number, adminId: string): Promise<HallOfGloryFeatured>;
   getFeaturedHallOfGlory(): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>>;
+  toggleChallengeEntryVote(entryId: number, userId: string): Promise<{ voted: boolean; voteCount: number }>;
+  getChallengeEntryVoteCount(entryId: number, userId?: string): Promise<{ voteCount: number; voted: boolean }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3099,6 +3101,30 @@ export class DatabaseStorage implements IStorage {
       .groupBy(novelProjects.id, users.displayName, users.firstName, users.profileImageUrl, users.id, hallOfGloryFeatured.featuredAt)
       .orderBy(desc(hallOfGloryFeatured.featuredAt));
     return rows.map(r => ({ ...r.project, voteCount: Number(r.voteCount), authorName: r.authorName, authorProfileImage: r.authorProfileImage, authorId: r.authorId ?? r.project.userId, featuredAt: r.featuredAt }));
+  }
+
+  async toggleChallengeEntryVote(entryId: number, userId: string): Promise<{ voted: boolean; voteCount: number }> {
+    const existing = await db.execute(sql`SELECT id FROM challenge_entry_votes WHERE entry_id = ${entryId} AND user_id = ${userId} LIMIT 1`);
+    if (existing.rows.length > 0) {
+      await db.execute(sql`DELETE FROM challenge_entry_votes WHERE entry_id = ${entryId} AND user_id = ${userId}`);
+    } else {
+      await db.execute(sql`INSERT INTO challenge_entry_votes (entry_id, user_id) VALUES (${entryId}, ${userId}) ON CONFLICT DO NOTHING`);
+    }
+    const [countRow] = (await db.execute(sql`SELECT COUNT(*) as cnt FROM challenge_entry_votes WHERE entry_id = ${entryId}`)).rows as any[];
+    const voteCount = Number(countRow?.cnt ?? 0);
+    const voted = existing.rows.length === 0;
+    return { voted, voteCount };
+  }
+
+  async getChallengeEntryVoteCount(entryId: number, userId?: string): Promise<{ voteCount: number; voted: boolean }> {
+    const [countRow] = (await db.execute(sql`SELECT COUNT(*) as cnt FROM challenge_entry_votes WHERE entry_id = ${entryId}`)).rows as any[];
+    const voteCount = Number(countRow?.cnt ?? 0);
+    let voted = false;
+    if (userId) {
+      const existing = await db.execute(sql`SELECT id FROM challenge_entry_votes WHERE entry_id = ${entryId} AND user_id = ${userId} LIMIT 1`);
+      voted = existing.rows.length > 0;
+    }
+    return { voteCount, voted };
   }
 }
 
