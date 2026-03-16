@@ -466,7 +466,7 @@ export async function registerRoutes(
     if (FREE_ACCESS_USER_IDS.includes(userId)) return { allowed: true, used: 0, limit: 999 };
     const user = await storage.getUser(userId);
     if (user?.role === "admin") return { allowed: true, used: 0, limit: 999 };
-    if (user?.plan && user.plan !== "free") return { allowed: true, used: 0, limit: 999 };
+    if (user?.plan && user.plan !== "free" && user.plan !== "trial") return { allowed: true, used: 0, limit: 999 };
     const result = await db.execute(dsql`SELECT COUNT(*) as cnt FROM api_usage_logs WHERE user_id = ${userId} AND feature = 'editorial_review'`);
     const used = parseInt(String((result.rows?.[0] as any)?.cnt || "0"), 10);
     return { allowed: used < EDITORIAL_FREE_LIMIT, used, limit: EDITORIAL_FREE_LIMIT };
