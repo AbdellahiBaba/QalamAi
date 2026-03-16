@@ -79,20 +79,13 @@ async function upsertUser(claims: any) {
   });
 }
 
-function getAuthDomain(reqHostname: string): string {
-  const first = process.env.REPLIT_DOMAINS?.split(",").map(d => d.trim()).filter(Boolean)[0];
-  return first || reqHostname;
-}
-
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const authDomain = getAuthDomain("localhost");
   console.log("[Auth] REPL_ID:", process.env.REPL_ID ? "set" : "MISSING");
-  console.log("[Auth] Canonical auth domain:", authDomain);
 
   getOidcConfig().catch((err) =>
     console.warn("[Auth] Background OIDC pre-discovery failed (will retry on login):", err)
@@ -138,7 +131,7 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/login", async (req, res, next) => {
     try {
-      const domain = getAuthDomain(req.hostname);
+      const domain = req.hostname;
       await ensureStrategy(domain);
       passport.authenticate(`replitauth:${domain}`, {
         prompt: "login consent",
@@ -152,7 +145,7 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/callback", async (req, res, next) => {
     try {
-      const domain = getAuthDomain(req.hostname);
+      const domain = req.hostname;
       await ensureStrategy(domain);
       console.log("[Auth] Callback hit, domain:", domain, "query:", JSON.stringify({ state: req.query.state ? "present" : "missing", code: req.query.code ? "present" : "missing", error: req.query.error || "none" }));
       console.log("[Auth] Session ID at callback:", req.sessionID ? req.sessionID.substring(0, 8) + "..." : "NO SESSION");
@@ -171,7 +164,13 @@ export async function setupAuth(app: Express) {
             return res.redirect("/login?error=auth_failed");
           }
           console.log("[Auth] OIDC login successful for user:", (user as Record<string, any>)?.claims?.sub);
-          res.redirect("/");
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              console.error("[Auth] Session save error after login:", saveErr);
+              return res.redirect("/login?error=auth_failed");
+            }
+            res.redirect("/");
+          });
         });
       })(req, res, next);
     } catch (err) {
@@ -185,7 +184,7 @@ export async function setupAuth(app: Express) {
   app.get("/api/logout", async (req, res) => {
     try {
       const config = await getOidcConfig();
-      const domain = getAuthDomain(req.hostname);
+      const domain = req.hostname;
       req.logout(() => {
         res.redirect(
           client.buildEndSessionUrl(config, {
