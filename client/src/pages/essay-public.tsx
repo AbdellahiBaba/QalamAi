@@ -14,6 +14,8 @@ import StarRating from "@/components/ui/star-rating";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { VoteButton } from "@/components/vote-button";
+import { VoteDonateModal } from "@/components/vote-donate-modal";
 
 interface PublicEssay {
   id: number;
@@ -96,6 +98,7 @@ export default function EssayPublic() {
 
   // Quote highlighting — state only, callback defined AFTER essay query to avoid TDZ
   const [quotePopup, setQuotePopup] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [donateModal, setDonateModal] = useState<{ authorId: string; projectId: number; authorName: string } | null>(null);
   const handleTextSelection = useCallback(() => {
     const sel = window.getSelection();
     const text = sel?.toString().trim();
@@ -527,6 +530,13 @@ export default function EssayPublic() {
               <Heart className="w-4 h-4" />
               <span>{totalReactions > 0 ? totalReactions : ""} إعجاب</span>
             </button>
+            {essay?.id && essay?.authorId && (
+              <VoteButton
+                projectId={essay.id}
+                authorId={essay.authorId}
+                onVoted={(authorId, projectId) => setDonateModal({ authorId, projectId, authorName: essay.authorName || "الكاتب" })}
+              />
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -761,6 +771,16 @@ export default function EssayPublic() {
       </article>
 
       <SharedFooter />
+
+      {donateModal && (
+        <VoteDonateModal
+          open={true}
+          onClose={() => setDonateModal(null)}
+          authorId={donateModal.authorId}
+          authorName={donateModal.authorName}
+          projectId={donateModal.projectId}
+        />
+      )}
     </div>
   );
 }

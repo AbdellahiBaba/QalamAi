@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle, Trophy, BookOpenCheck, Loader2 } from "lucide-react";
+import { VoteButton } from "@/components/vote-button";
+import { VoteDonateModal } from "@/components/vote-donate-modal";
 import { Input } from "@/components/ui/input";
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,7 @@ export default function AuthorProfile() {
   const [emailSubInput, setEmailSubInput] = useState("");
   const [emailSubLoading, setEmailSubLoading] = useState(false);
   const [emailSubDone, setEmailSubDone] = useState(false);
+  const [donateModal, setDonateModal] = useState<{ authorId: string; projectId: number; authorName: string } | null>(null);
   const subscribeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -498,6 +501,13 @@ export default function AuthorProfile() {
                       <h3 className="font-serif font-semibold truncate" data-testid={`text-project-title-${project.id}`}>
                         {project.title}
                       </h3>
+                      <div className="pt-1" onClick={(e) => e.preventDefault()}>
+                        <VoteButton
+                          projectId={project.id}
+                          authorId={author.id}
+                          onVoted={(authorId, projectId) => setDonateModal({ authorId, projectId, authorName: author.displayName || "الكاتب" })}
+                        />
+                      </div>
                     </CardContent>
                   </Card>
                 </Link>
@@ -507,6 +517,16 @@ export default function AuthorProfile() {
         </div>
       </div>
       <SharedFooter />
+
+      {donateModal && (
+        <VoteDonateModal
+          open={true}
+          onClose={() => setDonateModal(null)}
+          authorId={donateModal.authorId}
+          authorName={donateModal.authorName}
+          projectId={donateModal.projectId}
+        />
+      )}
     </div>
   );
 }

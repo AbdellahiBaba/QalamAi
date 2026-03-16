@@ -35,6 +35,8 @@ import {
   newsletterSends, type NewsletterSend,
   collections, type Collection,
   payoutSettings, type PayoutSettings, type InsertPayoutSettings,
+  workVotes, type WorkVote,
+  hallOfGloryFeatured, type HallOfGloryFeatured,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -266,6 +268,13 @@ export interface IStorage {
   getUsersForFollowDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
   getUsersForMonthlyReport(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
   getUsersForChallengeEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
+  addVote(projectId: number, userId: string): Promise<WorkVote>;
+  removeVote(projectId: number, userId: string): Promise<void>;
+  getVoteCount(projectId: number): Promise<number>;
+  getUserVote(projectId: number, userId: string): Promise<WorkVote | undefined>;
+  getTopVotedProjects(limit?: number): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; alreadyFeatured: boolean }>>;
+  featureInHallOfGlory(projectId: number, adminId: string): Promise<HallOfGloryFeatured>;
+  getFeaturedHallOfGlory(): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3006,6 +3015,77 @@ export class DatabaseStorage implements IStorage {
         or(eq(users.emailChallenges, true), isNull(users.emailChallenges))
       ));
     return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
+  }
+
+  async addVote(projectId: number, userId: string): Promise<WorkVote> {
+    const [vote] = await db.insert(workVotes).values({ projectId, userId }).onConflictDoNothing().returning();
+    if (!vote) {
+      const [existing] = await db.select().from(workVotes).where(and(eq(workVotes.projectId, projectId), eq(workVotes.userId, userId)));
+      return existing;
+    }
+    return vote;
+  }
+
+  async removeVote(projectId: number, userId: string): Promise<void> {
+    await db.delete(workVotes).where(and(eq(workVotes.projectId, projectId), eq(workVotes.userId, userId)));
+  }
+
+  async getVoteCount(projectId: number): Promise<number> {
+    const [row] = await db.select({ count: count() }).from(workVotes).where(eq(workVotes.projectId, projectId));
+    return Number(row?.count ?? 0);
+  }
+
+  async getUserVote(projectId: number, userId: string): Promise<WorkVote | undefined> {
+    const [vote] = await db.select().from(workVotes).where(and(eq(workVotes.projectId, projectId), eq(workVotes.userId, userId)));
+    return vote;
+  }
+
+  async getTopVotedProjects(limit = 50): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; alreadyFeatured: boolean }>> {
+    const rows = await db
+      .select({
+        project: novelProjects,
+        voteCount: count(workVotes.id),
+        authorName: sql<string | null>`COALESCE(${users.displayName}, ${users.firstName})`,
+        authorProfileImage: users.profileImageUrl,
+        alreadyFeatured: sql<boolean>`CASE WHEN ${hallOfGloryFeatured.id} IS NOT NULL THEN TRUE ELSE FALSE END`,
+      })
+      .from(novelProjects)
+      .leftJoin(workVotes, eq(workVotes.projectId, novelProjects.id))
+      .leftJoin(users, eq(users.id, novelProjects.userId))
+      .leftJoin(hallOfGloryFeatured, eq(hallOfGloryFeatured.projectId, novelProjects.id))
+      .where(and(
+        eq(novelProjects.publishedToGallery, true)
+      ))
+      .groupBy(novelProjects.id, users.displayName, users.firstName, users.profileImageUrl, hallOfGloryFeatured.id)
+      .orderBy(desc(count(workVotes.id)))
+      .limit(limit);
+    return rows.map(r => ({ ...r.project, voteCount: Number(r.voteCount), authorName: r.authorName, authorProfileImage: r.authorProfileImage, alreadyFeatured: Boolean(r.alreadyFeatured) }));
+  }
+
+  async featureInHallOfGlory(projectId: number, adminId: string): Promise<HallOfGloryFeatured> {
+    const [existing] = await db.select().from(hallOfGloryFeatured).where(eq(hallOfGloryFeatured.projectId, projectId));
+    if (existing) return existing;
+    const [row] = await db.insert(hallOfGloryFeatured).values({ projectId, featuredByAdminId: adminId }).returning();
+    return row;
+  }
+
+  async getFeaturedHallOfGlory(): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>> {
+    const rows = await db
+      .select({
+        project: novelProjects,
+        voteCount: count(workVotes.id),
+        authorName: sql<string | null>`COALESCE(${users.displayName}, ${users.firstName})`,
+        authorProfileImage: users.profileImageUrl,
+        authorId: users.id,
+        featuredAt: hallOfGloryFeatured.featuredAt,
+      })
+      .from(hallOfGloryFeatured)
+      .innerJoin(novelProjects, eq(novelProjects.id, hallOfGloryFeatured.projectId))
+      .leftJoin(users, eq(users.id, novelProjects.userId))
+      .leftJoin(workVotes, eq(workVotes.projectId, novelProjects.id))
+      .groupBy(novelProjects.id, users.displayName, users.firstName, users.profileImageUrl, users.id, hallOfGloryFeatured.featuredAt)
+      .orderBy(desc(hallOfGloryFeatured.featuredAt));
+    return rows.map(r => ({ ...r.project, voteCount: Number(r.voteCount), authorName: r.authorName, authorProfileImage: r.authorProfileImage, authorId: r.authorId ?? r.project.userId, featuredAt: r.featuredAt }));
   }
 }
 

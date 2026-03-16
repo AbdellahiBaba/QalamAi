@@ -747,11 +747,98 @@ function AdminChallengesTab() {
   );
 }
 
+function AdminTopVotedTab() {
+  const { toast } = useToast();
+
+  const { data, isLoading, refetch } = useQuery<{ projects: { id: number; title: string; authorName: string; authorId: string; voteCount: number; shareToken: string | null }[] }>({
+    queryKey: ["/api/admin/top-voted"],
+  });
+
+  const featureMutation = useMutation({
+    mutationFn: (projectId: number) =>
+      apiRequest("POST", "/api/admin/hall-of-glory/feature", { projectId }),
+    onSuccess: () => {
+      toast({ title: "تمّ التمييز", description: "تمّت إضافة العمل إلى قاعة المجد." });
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["/api/hall-of-glory/featured"] });
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "لم يتمكن النظام من تمييز العمل.", variant: "destructive" });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const projects = data?.projects ?? [];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold font-serif mb-1">الأعمال الأكثر تصويتاً</h2>
+        <p className="text-sm text-muted-foreground">ميّز الأعمال الأكثر تصويتاً لتظهر في قاعة المجد.</p>
+      </div>
+
+      {projects.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-10 text-center">لا توجد أعمال مُصوَّت عليها بعد.</p>
+      ) : (
+        <div className="space-y-3">
+          {projects.map((project) => (
+            <div
+              key={project.id}
+              className="flex items-center justify-between gap-4 rounded-xl border p-4 bg-card"
+              data-testid={`card-top-voted-${project.id}`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold truncate" data-testid={`text-voted-title-${project.id}`}>{project.title}</p>
+                <p className="text-sm text-muted-foreground mt-0.5" data-testid={`text-voted-author-${project.id}`}>{project.authorName}</p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-1 text-sm font-medium text-amber-500" data-testid={`text-vote-count-${project.id}`}>
+                  <Star className="w-4 h-4 fill-amber-400" />
+                  {project.voteCount}
+                </div>
+                {project.shareToken && (
+                  <a
+                    href={`/essay/${project.shareToken}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    data-testid={`link-voted-essay-${project.id}`}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => featureMutation.mutate(project.id)}
+                  disabled={featureMutation.isPending}
+                  data-testid={`button-feature-${project.id}`}
+                  className="gap-1.5 text-xs"
+                >
+                  <Crown className="w-3.5 h-3.5" />
+                  تمييز في المجد
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "top-voted">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -1712,6 +1799,7 @@ export default function Admin() {
                   { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                   { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
                   { key: "challenges" as const, icon: Crown, label: "التحديات" },
+                  { key: "top-voted" as const, icon: Star, label: "الأكثر تصويتاً" },
                 ].map((item) => (
                   <button
                     key={item.key}
@@ -1900,6 +1988,7 @@ export default function Admin() {
                         { key: "learning" as const, icon: Brain, label: "التعلم الذاتي" },
                         { key: "webhook" as const, icon: Webhook, label: "Webhook التدريب" },
                         { key: "challenges" as const, icon: Crown, label: "التحديات" },
+                        { key: "top-voted" as const, icon: Star, label: "الأكثر تصويتاً" },
                       ].map((item) => (
                         <button
                           key={item.key}
@@ -5717,6 +5806,10 @@ export default function Admin() {
 
         {activeTab === "challenges" && (
           <AdminChallengesTab />
+        )}
+
+        {activeTab === "top-voted" && (
+          <AdminTopVotedTab />
         )}
 
       </main>

@@ -34,6 +34,19 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   khawater: "خاطرة", memoire: "مذكرة",
 };
 
+interface FeaturedWork {
+  id: number;
+  projectId: number;
+  featuredAt: string;
+  project: {
+    id: number;
+    title: string;
+    shareToken: string | null;
+    authorName: string;
+    authorId: string;
+  };
+}
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString("ar-SA", {
     year: "numeric",
@@ -159,6 +172,12 @@ export default function HallOfGlory() {
     queryKey: ["/api/challenges"],
   });
 
+  const { data: featuredData } = useQuery<{ featured: FeaturedWork[] }>({
+    queryKey: ["/api/hall-of-glory/featured"],
+  });
+
+  const featured = featuredData?.featured ?? [];
+
   const winners = (challenges || []).filter(
     (c) => c.winner_id && c.winner_entry_id && c.winnerName
   ).sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
@@ -224,6 +243,54 @@ export default function HallOfGlory() {
       </section>
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 pb-16 space-y-6">
+
+        {featured.length > 0 && (
+          <section className="space-y-4" data-testid="section-featured-works">
+            <div className="flex items-center gap-3 py-2">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-400 fill-amber-300" />
+                <span className="font-serif text-base font-semibold">أعمال مميزة</span>
+              </div>
+              <div className="h-px flex-1 bg-gradient-to-r from-amber-400/30 to-transparent" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {featured.map((item) => (
+                <article
+                  key={item.id}
+                  className="relative overflow-hidden rounded-xl border border-amber-400/25 bg-gradient-to-br from-amber-950/10 via-yellow-900/5 to-transparent shadow-sm hover:shadow-md transition-shadow"
+                  data-testid={`card-featured-${item.id}`}
+                >
+                  <div className="p-5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-serif font-semibold text-foreground truncate" data-testid={`text-featured-title-${item.id}`}>
+                          {item.project.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5" data-testid={`text-featured-author-${item.id}`}>
+                          {item.project.authorName}
+                        </p>
+                      </div>
+                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25 text-[10px] gap-1 shrink-0">
+                        <Star className="w-2.5 h-2.5 fill-current" /> مميَّز
+                      </Badge>
+                    </div>
+
+                    {item.project.shareToken && (
+                      <Link href={`/essay/${item.project.shareToken}`}>
+                        <Button size="sm" variant="ghost" className="gap-1.5 text-xs px-2 h-7 -mr-2" data-testid={`link-featured-read-${item.id}`}>
+                          <ArrowRight className="w-3 h-3" />
+                          اقرأ العمل
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="h-px bg-gradient-to-r from-transparent via-yellow-500/20 to-transparent" />
+          </section>
+        )}
+
         {isError ? (
           <div className="text-center py-20 space-y-4" data-testid="text-glory-error">
             <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">

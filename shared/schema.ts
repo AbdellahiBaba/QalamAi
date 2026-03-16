@@ -1046,3 +1046,30 @@ export const payoutSettings = pgTable("payout_settings", {
 export const insertPayoutSettingsSchema = createInsertSchema(payoutSettings).omit({ id: true, updatedAt: true });
 export type InsertPayoutSettings = z.infer<typeof insertPayoutSettingsSchema>;
 export type PayoutSettings = typeof payoutSettings.$inferSelect;
+
+// ── Work Votes ────────────────────────────────────────────────────────────────
+export const workVotes = pgTable("work_votes", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique("uq_work_vote").on(table.projectId, table.userId),
+  index("idx_work_votes_project").on(table.projectId),
+  index("idx_work_votes_user").on(table.userId),
+]);
+
+export type WorkVote = typeof workVotes.$inferSelect;
+
+// ── Hall of Glory Featured Works ──────────────────────────────────────────────
+export const hallOfGloryFeatured = pgTable("hall_of_glory_featured", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  featuredByAdminId: varchar("featured_by_admin_id").notNull(),
+  featuredAt: timestamp("featured_at").defaultNow(),
+}, (table) => [
+  unique("uq_hog_project").on(table.projectId),
+  index("idx_hog_featured_at").on(table.featuredAt),
+]);
+
+export type HallOfGloryFeatured = typeof hallOfGloryFeatured.$inferSelect;

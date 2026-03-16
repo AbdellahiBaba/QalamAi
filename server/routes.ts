@@ -9482,6 +9482,90 @@ ${ch.content}
   });
 
 
+  // ── Work Voting ───────────────────────────────────────────────────────────────
+  app.post("/api/projects/:id/vote", isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف غير صالح" });
+      const userId = req.user.claims.sub;
+      const existing = await storage.getUserVote(projectId, userId);
+      if (existing) {
+        await storage.removeVote(projectId, userId);
+        const voteCount = await storage.getVoteCount(projectId);
+        return res.json({ voted: false, voteCount });
+      }
+      await storage.addVote(projectId, userId);
+      const voteCount = await storage.getVoteCount(projectId);
+      res.json({ voted: true, voteCount });
+    } catch (error) {
+      console.error("[Votes] Toggle vote error:", error);
+      res.status(500).json({ error: "فشل في تسجيل التصويت" });
+    }
+  });
+
+  app.get("/api/projects/:id/vote-count", async (req: any, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرف غير صالح" });
+      const voteCount = await storage.getVoteCount(projectId);
+      const userId: string | null = req.user?.claims?.sub ?? null;
+      let voted: boolean | null = null;
+      if (userId) {
+        const v = await storage.getUserVote(projectId, userId);
+        voted = v ? true : false;
+      }
+      res.json({ voteCount, voted });
+    } catch (error) {
+      console.error("[Votes] Vote count error:", error);
+      res.status(500).json({ error: "فشل في جلب عدد الأصوات" });
+    }
+  });
+
+  app.post("/api/votes/donate", async (req: any, res) => {
+    try {
+      const fromUserId: string | null = req.user?.claims?.sub ?? null;
+      const { toAuthorId, projectId, amountCents } = req.body;
+      if (!toAuthorId || !amountCents || Number(amountCents) < 100) return res.status(400).json({ error: "بيانات غير صالحة" });
+      const author = await storage.getUser(toAuthorId);
+      if (!author) return res.status(404).json({ error: "الكاتب غير موجود" });
+      const stripe = await getUncachableStripeClient();
+      const baseUrl = process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://qalamai.net");
+      const authorName = author.displayName || author.firstName || "الكاتب";
+      const returnPath = projectId ? `/author/${toAuthorId}` : `/author/${toAuthorId}`;
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_creation: "if_required",
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            unit_amount: Number(amountCents),
+            product_data: { name: `دعم الكاتب ${authorName} على QalamAI` },
+          },
+          quantity: 1,
+        }],
+        metadata: { type: "author_tip", fromUserId: fromUserId || "anonymous", toAuthorId, projectId: projectId ? String(projectId) : "" },
+        success_url: `${baseUrl}${returnPath}?tip=success`,
+        cancel_url: `${baseUrl}${returnPath}?tip=cancelled`,
+      });
+      await storage.createAuthorTip({ fromUserId: fromUserId ?? undefined, toAuthorId, projectId: projectId ? Number(projectId) : undefined, amountCents: Number(amountCents), stripeSessionId: session.id });
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("[Votes] Donate error:", error);
+      res.status(500).json({ error: "فشل في إنشاء جلسة الدفع" });
+    }
+  });
+
+  app.get("/api/hall-of-glory/featured", async (_req, res) => {
+    try {
+      const featured = await storage.getFeaturedHallOfGlory();
+      res.json(featured);
+    } catch (error) {
+      console.error("[HoG] Featured error:", error);
+      res.status(500).json({ error: "فشل في جلب الأعمال المختارة" });
+    }
+  });
+
   // ── Plagiarism Check ──────────────────────────────────────────────────────────
   app.post("/api/plagiarism-check", isAuthenticated, async (req: any, res) => {
     try {
@@ -10689,6 +10773,31 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error: any) {
       console.error("Delete challenge error:", error);
       res.status(500).json({ error: "فشل في حذف التحدي" });
+    }
+  });
+
+  app.get("/api/admin/top-voted", isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const projects = await storage.getTopVotedProjects(100);
+      res.json(projects);
+    } catch (error) {
+      console.error("[Admin] Top voted error:", error);
+      res.status(500).json({ error: "فشل في جلب الأعمال" });
+    }
+  });
+
+  app.post("/api/admin/hall-of-glory/feature", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { projectId } = req.body;
+      if (!projectId) return res.status(400).json({ error: "معرف المشروع مطلوب" });
+      const adminId = req.user.claims.sub;
+      const project = await storage.getProject(Number(projectId));
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      const featured = await storage.featureInHallOfGlory(Number(projectId), adminId);
+      res.json(featured);
+    } catch (error) {
+      console.error("[Admin] Feature in HoG error:", error);
+      res.status(500).json({ error: "فشل في الإضافة إلى قاعة المجد" });
     }
   });
 
