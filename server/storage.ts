@@ -717,8 +717,8 @@ export class DatabaseStorage implements IStorage {
         rp.scroll_position as "scrollPosition", rp.updated_at as "updatedAt",
         np.title, np.cover_image_url as "coverImageUrl", np.project_type as "projectType",
         np.share_token as "shareToken",
-        (SELECT COUNT(*)::int FROM project_chapters pc WHERE pc.project_id = np.id AND pc.content IS NOT NULL AND pc.content != '') as "totalChapters",
-        (SELECT chapter_number FROM project_chapters pc2 WHERE pc2.id = rp.last_chapter_id) as "lastChapterNumber"
+        (SELECT COUNT(*)::int FROM chapters pc WHERE pc.project_id = np.id AND pc.content IS NOT NULL AND pc.content != '') as "totalChapters",
+        (SELECT chapter_number FROM chapters pc2 WHERE pc2.id = rp.last_chapter_id) as "lastChapterNumber"
       FROM reading_progress rp
       JOIN novel_projects np ON np.id = rp.project_id
       WHERE rp.user_id = ${userId}
