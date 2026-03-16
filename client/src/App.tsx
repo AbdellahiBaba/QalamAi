@@ -65,6 +65,7 @@ const Challenges = lazy(() => import("@/pages/challenges"));
 const ChallengeDetail = lazy(() => import("@/pages/challenge-detail"));
 const HallOfGlory = lazy(() => import("@/pages/hall-of-glory"));
 const EditorialReview = lazy(() => import("@/pages/editorial-review"));
+const MyLibrary = lazy(() => import("@/pages/my-library"));
 
 function LoadingFallback() {
   return (
@@ -116,6 +117,7 @@ function AuthenticatedRouter() {
         <Route path="/memoires" component={MemoireGallery} />
         <Route path="/leaderboard" component={Leaderboard} />
         <Route path="/my-lists" component={MyLists} />
+        <Route path="/my-library" component={MyLibrary} />
         <Route path="/list/:slug" component={CollectionPublic} />
         <Route path="/apply-verified" component={ApplyVerified} />
         <Route path="/series" component={ContentSeries} />

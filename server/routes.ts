@@ -947,6 +947,16 @@ ${allPages.map(p => `  <url>
     }
   });
 
+  app.get("/api/saved-projects", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const saved = await storage.getSavedProjectsEnriched(userId);
+      res.json(saved);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب المحفوظات" });
+    }
+  });
+
   app.post("/api/projects/:id/favorite", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

@@ -915,6 +915,20 @@ export class DatabaseStorage implements IStorage {
     return favs.map(f => f.projectId);
   }
 
+  async getSavedProjectsEnriched(userId: string): Promise<any[]> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT np.id, np.title, np.cover_image_url as "coverImageUrl", np.share_token as "shareToken",
+        np.project_type as "projectType",
+        COALESCE(u.display_name, u.first_name || ' ' || u.last_name, 'كاتب') as "authorName"
+      FROM project_favorites pf
+      JOIN novel_projects np ON np.id = pf.project_id
+      LEFT JOIN users u ON u.id = np.user_id
+      WHERE pf.user_id = ${userId}
+      ORDER BY pf.created_at DESC
+    `)).rows;
+    return rows;
+  }
+
   async createApiUsageLog(data: InsertApiUsageLog): Promise<ApiUsageLog> {
     const [log] = await db.insert(apiUsageLogs).values(data).returning();
     return log;

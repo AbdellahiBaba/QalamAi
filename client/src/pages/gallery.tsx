@@ -346,27 +346,27 @@ export default function Gallery() {
               <Flame className="w-5 h-5 text-orange-500" />
               <h2 className="font-serif font-bold text-lg">الأكثر تفاعلاً هذا الأسبوع</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 mb-8">
               {trendingData.slice(0, 6).map((tp: any) => (
                 <Link key={tp.id} href={tp.shareToken ? `/shared/${tp.shareToken}` : "#"}>
-                  <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" data-testid={`card-trending-${tp.id}`}>
-                    <div className="relative aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden">
+                  <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer border-orange-200/50 dark:border-orange-800/30" data-testid={`card-trending-${tp.id}`}>
+                    <div className="relative aspect-[3/4] bg-muted flex items-center justify-center overflow-hidden">
                       {tp.coverImageUrl ? (
                         <img src={tp.coverImageUrl} alt={tp.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
-                        <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                        <ImageIcon className="w-12 h-12 text-muted-foreground" />
                       )}
-                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                        <div className="flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3 text-orange-300" />
-                          <span className="text-[10px] text-white font-medium">{tp.score} تفاعل</span>
-                        </div>
+                      <div className="absolute top-2 right-2">
+                        <Badge className="bg-orange-500/90 text-white text-[10px] border-0 gap-1">
+                          <TrendingUp className="w-3 h-3" />
+                          {tp.score} تفاعل
+                        </Badge>
+                      </div>
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                        <p className="text-sm font-semibold text-white line-clamp-2 leading-snug">{tp.title}</p>
+                        {tp.authorName && <p className="text-xs text-white/80 mt-0.5">{tp.authorName}</p>}
                       </div>
                     </div>
-                    <CardContent className="p-2.5 space-y-0.5">
-                      <p className="text-xs font-semibold line-clamp-2 leading-tight">{tp.title}</p>
-                      {tp.authorName && <p className="text-[10px] text-muted-foreground">{tp.authorName}</p>}
-                    </CardContent>
                   </Card>
                 </Link>
               ))}

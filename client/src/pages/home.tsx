@@ -1048,9 +1048,17 @@ export default function Home() {
 
         {continueReading && continueReading.length > 0 && (
           <div className="mb-6" data-testid="section-continue-reading">
-            <div className="flex items-center gap-2 mb-3">
-              <BookMarked className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-sm">واصل القراءة</h3>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BookMarked className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-sm">واصل القراءة</h3>
+              </div>
+              <Link href="/my-library">
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" data-testid="link-my-library">
+                  مكتبتي
+                  <ArrowRight className="w-3 h-3 mr-1" />
+                </Button>
+              </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
               {continueReading.slice(0, 3).map((item: any) => {
@@ -1075,6 +1083,7 @@ export default function Home() {
                           <p className="text-[10px] text-muted-foreground">
                             {item.lastChapterNumber ? `الفصل ${item.lastChapterNumber}` : ""} {item.totalChapters ? `من ${item.totalChapters}` : ""}
                           </p>
+                          <span className="text-[10px] text-primary font-medium" data-testid={`btn-continue-home-${item.projectId}`}>تابع القراءة ←</span>
                         </div>
                       </CardContent>
                     </Card>
