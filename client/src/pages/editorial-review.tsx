@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useToast } from "@/hooks/use-toast";
 import { SharedNavbar } from "@/components/shared-navbar";
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Feather, Send, Copy, CheckCircle, Loader2, FileEdit } from "lucide-react";
+import { Feather, Send, Copy, CheckCircle, Loader2, FileEdit, Lock } from "lucide-react";
 
 const projectTypes = [
   { value: "novel", label: "رواية" },
@@ -32,6 +33,13 @@ export default function EditorialReview() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [copied, setCopied] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  const { data: aiUsage } = useQuery<{ used: number; limit: number; remaining: number; exempt?: boolean }>({
+    queryKey: ["/api/ai-usage-status"],
+    enabled: !!user,
+  });
+
+  const isLimitExhausted = aiUsage && !aiUsage.exempt && aiUsage.remaining <= 0;
 
   useEffect(() => {
     if (resultRef.current && reviewContent) {
@@ -189,25 +197,43 @@ export default function EditorialReview() {
                 data-testid="textarea-editor-input"
               />
 
-              <Button
-                onClick={handleSubmit}
-                disabled={isReviewing || text.trim().length < 20}
-                className="w-full"
-                size="lg"
-                data-testid="button-submit-review"
-              >
-                {isReviewing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                    جارٍ المراجعة...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 ml-2" />
-                    راجع النص
-                  </>
-                )}
-              </Button>
+              {isLimitExhausted ? (
+                <div className="w-full p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center space-y-2" data-testid="editorial-limit-exhausted">
+                  <Lock className="w-6 h-6 text-amber-600 dark:text-amber-400 mx-auto" />
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">استنفدت حصتك اليومية من الذكاء الاصطناعي ({aiUsage?.limit} طلب/يوم)</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">ترقَّ للخطة المدفوعة للحصول على استخدام غير محدود</p>
+                  <Button size="sm" variant="outline" className="mt-1" onClick={() => window.location.href = "/pricing"} data-testid="button-upgrade-editorial">
+                    ترقية الخطة
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {aiUsage && !aiUsage.exempt && (
+                    <p className="text-xs text-muted-foreground text-center" data-testid="text-ai-remaining">
+                      متبقي {aiUsage.remaining} من {aiUsage.limit} طلب يومي
+                    </p>
+                  )}
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isReviewing || text.trim().length < 20}
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-submit-review"
+                  >
+                    {isReviewing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                        جارٍ المراجعة...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 ml-2" />
+                        راجع النص
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
