@@ -958,9 +958,9 @@ export default function Admin() {
   const [essaySortBy, setEssaySortBy] = useState<"views" | "clicks" | "ctr">("clicks");
 
   const { data: projectCommentsData, isLoading: projectCommentsLoading, refetch: refetchProjectComments } = useQuery<{ data: any[]; total: number }>({
-    queryKey: ["/api/admin/project-comments/pending"],
+    queryKey: ["/api/admin/project-comments/recent"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/project-comments/pending?limit=50");
+      const res = await fetch("/api/admin/project-comments/recent?limit=50");
       return res.json();
     },
     enabled: activeTab === "comments",
@@ -3440,17 +3440,18 @@ export default function Admin() {
             ) : (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">تعليقات الأعمال المعلقة ({projectCommentsData?.total || 0})</h3>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">تعليقات الأعمال الأخيرة ({projectCommentsData?.total || 0})</h3>
                   {(!projectCommentsData?.data || projectCommentsData.data.length === 0) ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">لا توجد تعليقات معلقة</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">لا توجد تعليقات</p>
                   ) : (
                     <div className="space-y-2">
                       {projectCommentsData.data.map((c: any) => (
-                        <div key={c.id} className="p-3 border rounded-lg flex items-start gap-3" data-testid={`admin-project-comment-${c.id}`}>
+                        <div key={c.id} className={`p-3 border rounded-lg flex items-start gap-3 ${!c.approved ? "border-amber-300 bg-amber-50/30 dark:bg-amber-900/10" : ""}`} data-testid={`admin-project-comment-${c.id}`}>
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-medium">{c.author_name}</span>
                               {c.projectTitle && <Badge variant="outline" className="text-[10px]">{c.projectTitle}</Badge>}
+                              {!c.approved && <Badge variant="secondary" className="text-[10px] text-amber-600">معلّق</Badge>}
                             </div>
                             <p className="text-sm text-foreground/80 line-clamp-3">{c.content}</p>
                             <span className="text-[10px] text-muted-foreground">
@@ -3458,18 +3459,20 @@ export default function Admin() {
                             </span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs gap-1 text-green-600"
-                              onClick={async () => {
-                                await apiRequest("PATCH", `/api/admin/project-comments/${c.id}/approve`);
-                                refetchProjectComments();
-                              }}
-                              data-testid={`button-approve-project-comment-${c.id}`}
-                            >
-                              <Check className="w-3 h-3" /> موافقة
-                            </Button>
+                            {!c.approved && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1 text-green-600"
+                                onClick={async () => {
+                                  await apiRequest("PATCH", `/api/admin/project-comments/${c.id}/approve`);
+                                  refetchProjectComments();
+                                }}
+                                data-testid={`button-approve-project-comment-${c.id}`}
+                              >
+                                <Check className="w-3 h-3" /> موافقة
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"

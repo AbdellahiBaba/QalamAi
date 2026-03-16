@@ -5556,6 +5556,7 @@ ${glossaryParagraphs}
       if (userId && !isAuthor) {
         unlockedIds = await storage.getUnlockedChapterIds(userId, project.id);
       }
+      const commentCount = await storage.getProjectCommentCount(project.id);
       res.json({
         id: project.id,
         title: details.title,
@@ -5564,6 +5565,7 @@ ${glossaryParagraphs}
         coverImageUrl: details.coverImageUrl,
         seekingBetaReaders: !!details.seekingBetaReaders,
         tags: details.tags || [],
+        commentCount,
         chapters: details.chapters
           .filter((ch: any) => ch.content)
           .sort((a: any, b: any) => a.chapterNumber - b.chapterNumber)
@@ -9067,6 +9069,35 @@ ${ch.content}
       res.json({ count });
     } catch (error) {
       res.status(500).json({ error: "فشل في جلب عدد التعليقات" });
+    }
+  });
+
+  app.delete("/api/project-comments/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const commentId = parseInt(req.params.id);
+      if (isNaN(commentId)) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const comment = await storage.getProjectComment(commentId);
+      if (!comment) return res.status(404).json({ error: "التعليق غير موجود" });
+      const project = await storage.getProject((comment as any).project_id);
+      const isOwner = project && project.userId === userId;
+      const isAdminUser = req.user.claims.metadata?.role === "admin";
+      if (!isOwner && !isAdminUser) return res.status(403).json({ error: "غير مصرّح بحذف هذا التعليق" });
+      await storage.deleteProjectComment(commentId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف التعليق" });
+    }
+  });
+
+  app.get("/api/admin/project-comments/recent", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const result = await storage.getRecentProjectComments(limit, offset);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التعليقات" });
     }
   });
 

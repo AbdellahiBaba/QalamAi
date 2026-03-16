@@ -157,11 +157,31 @@ interface ProjectCommentData {
   created_at: string;
 }
 
+function relativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = Math.max(0, now - then);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "الآن";
+  if (minutes < 60) return `منذ ${minutes} ${minutes === 1 ? "دقيقة" : "دقائق"}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `منذ ${hours} ${hours === 1 ? "ساعة" : "ساعات"}`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `منذ ${days} ${days === 1 ? "يوم" : "أيام"}`;
+  return new Date(dateStr).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" });
+}
+
 function ProjectCommentsSection({ projectId }: { projectId: number }) {
   const { toast } = useToast();
+  const { data: authUser } = useQuery<any>({ queryKey: ["/api/auth/user"] });
+  const authName = authUser?.displayName || authUser?.firstName || "";
   const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
   const [commentSent, setCommentSent] = useState(false);
+
+  useEffect(() => {
+    if (authName && !commentName) setCommentName(authName);
+  }, [authName]);
 
   const { data: comments } = useQuery<ProjectCommentData[]>({
     queryKey: ["/api/public/projects/comments", projectId],
@@ -185,9 +205,8 @@ function ProjectCommentsSection({ projectId }: { projectId: number }) {
       if (!res.ok) throw new Error(data.error || "فشل الإرسال");
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setCommentSent(true);
-      setCommentName("");
       setCommentText("");
       queryClient.invalidateQueries({ queryKey: ["/api/public/projects/comments", projectId] });
     },
@@ -212,7 +231,7 @@ function ProjectCommentsSection({ projectId }: { projectId: number }) {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium" data-testid={`comment-author-${c.id}`}>{c.author_name}</span>
                 <span className="text-[11px] text-muted-foreground" data-testid={`comment-date-${c.id}`}>
-                  {new Date(c.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" })}
+                  {relativeTime(c.created_at)}
                 </span>
               </div>
               <p className="text-sm leading-relaxed text-foreground/90" data-testid={`comment-content-${c.id}`}>{c.content}</p>
@@ -527,6 +546,12 @@ export default function SharedProject() {
               <Badge variant="secondary" className="no-default-active-elevate" data-testid="badge-reading-time">
                 <Clock className="w-3 h-3 ml-1" />
                 <LtrNum>{readingTime}</LtrNum> {readingTime === 1 ? "دقيقة" : "دقائق"} للقراءة
+              </Badge>
+            )}
+            {(project as any).commentCount > 0 && (
+              <Badge variant="secondary" className="no-default-active-elevate" data-testid="badge-comment-count">
+                <MessageCircle className="w-3 h-3 ml-1" />
+                <LtrNum>{(project as any).commentCount}</LtrNum> تعليق
               </Badge>
             )}
           </div>

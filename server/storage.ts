@@ -178,10 +178,12 @@ export interface IStorage {
   getPendingComments(limit?: number, offset?: number): Promise<{ data: import("@shared/schema").EssayComment[]; total: number }>;
   createProjectComment(data: { projectId: number; authorName: string; content: string; ipHash?: string }): Promise<import("@shared/schema").ProjectComment>;
   getProjectComments(projectId: number, onlyApproved?: boolean): Promise<import("@shared/schema").ProjectComment[]>;
+  getProjectComment(id: number): Promise<import("@shared/schema").ProjectComment | undefined>;
   getProjectCommentCount(projectId: number): Promise<number>;
   approveProjectComment(id: number): Promise<void>;
   deleteProjectComment(id: number): Promise<void>;
   getPendingProjectComments(limit?: number, offset?: number): Promise<{ data: any[]; total: number }>;
+  getRecentProjectComments(limit?: number, offset?: number): Promise<{ data: any[]; total: number }>;
   createCollection(data: import("@shared/schema").InsertCollection): Promise<import("@shared/schema").Collection>;
   getUserCollections(userId: string): Promise<import("@shared/schema").Collection[]>;
   getCollectionBySlug(slug: string): Promise<(import("@shared/schema").Collection & { items: Array<{ essayId: number | null; projectId: number | null; title: string; coverImageUrl: string | null; shareToken: string | null; authorName: string; projectType: string | null }> }) | undefined>;
@@ -1882,9 +1884,26 @@ export class DatabaseStorage implements IStorage {
       SELECT * FROM project_comments
       WHERE project_id = ${projectId}
         ${onlyApproved ? sql`AND approved = true` : sql``}
-      ORDER BY created_at ASC
+      ORDER BY created_at DESC
     `)).rows;
     return rows;
+  }
+
+  async getProjectComment(id: number): Promise<any> {
+    const [row]: any[] = (await db.execute(sql`SELECT * FROM project_comments WHERE id = ${id}`)).rows;
+    return row;
+  }
+
+  async getRecentProjectComments(limit: number = 50, offset: number = 0): Promise<{ data: any[]; total: number }> {
+    const rows: any[] = (await db.execute(sql`
+      SELECT pc.*, p.title as "projectTitle", p.user_id as "projectOwnerId"
+      FROM project_comments pc
+      LEFT JOIN novel_projects p ON p.id = pc.project_id
+      ORDER BY pc.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+    const [{ total }]: any[] = (await db.execute(sql`SELECT COUNT(*)::int as total FROM project_comments`)).rows;
+    return { data: rows, total: Number(total) };
   }
 
   async getProjectCommentCount(projectId: number): Promise<number> {
