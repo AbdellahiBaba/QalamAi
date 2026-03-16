@@ -460,6 +460,18 @@ export async function registerRoutes(
     return user?.role === "admin";
   }
 
+  const EDITORIAL_FREE_LIMIT = 2;
+
+  async function checkEditorialReviewLimit(userId: string): Promise<{ allowed: boolean; used: number; limit: number }> {
+    if (FREE_ACCESS_USER_IDS.includes(userId)) return { allowed: true, used: 0, limit: 999 };
+    const user = await storage.getUser(userId);
+    if (user?.role === "admin") return { allowed: true, used: 0, limit: 999 };
+    if (user?.plan && user.plan !== "free") return { allowed: true, used: 0, limit: 999 };
+    const result = await db.execute(dsql`SELECT COUNT(*) as cnt FROM api_usage_logs WHERE user_id = ${userId} AND feature = 'editorial_review'`);
+    const used = parseInt(String((result.rows?.[0] as any)?.cnt || "0"), 10);
+    return { allowed: used < EDITORIAL_FREE_LIMIT, used, limit: EDITORIAL_FREE_LIMIT };
+  }
+
   async function checkAiRateLimit(req: any, res: any): Promise<boolean> {
     const userId = req.user?.claims?.sub;
     if (!userId) return false;
@@ -6883,13 +6895,32 @@ ${glossaryParagraphs}
   });
 
   // ===== Editorial Review (project-scoped) =====
+  app.get("/api/editorial-review/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const result = await checkEditorialReviewLimit(userId);
+      res.json({ used: result.used, limit: result.limit, remaining: Math.max(0, result.limit - result.used), unlimited: result.limit >= 999 });
+    } catch {
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
   app.post("/api/projects/:id/editorial-review", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      const userId = req.user.claims.sub;
+      const editorialLimit = await checkEditorialReviewLimit(userId);
+      if (!editorialLimit.allowed) {
+        return res.status(402).json({
+          error: `استنفدت الاستخدامات المجانية للمراجعة التحريرية (${EDITORIAL_FREE_LIMIT} مراجعات). ترقَّ للخطة المدفوعة للاستخدام غير المحدود.`,
+          needsUpgrade: true,
+          used: editorialLimit.used,
+          limit: editorialLimit.limit,
+        });
+      }
       if (!(await checkAiRateLimit(req, res))) return;
       const id = parseIntParam(req.params.id);
       if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
-      const userId = req.user.claims.sub;
       const project = await storage.getProject(id);
       if (!project || project.userId !== userId) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
@@ -6948,8 +6979,17 @@ ${glossaryParagraphs}
   app.post("/api/editorial-review", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      if (!(await checkAiRateLimit(req, res))) return;
       const userId = req.user.claims.sub;
+      const editorialLimit = await checkEditorialReviewLimit(userId);
+      if (!editorialLimit.allowed) {
+        return res.status(402).json({
+          error: `استنفدت الاستخدامات المجانية للمراجعة التحريرية (${EDITORIAL_FREE_LIMIT} مراجعات). ترقَّ للخطة المدفوعة للاستخدام غير المحدود.`,
+          needsUpgrade: true,
+          used: editorialLimit.used,
+          limit: editorialLimit.limit,
+        });
+      }
+      if (!(await checkAiRateLimit(req, res))) return;
 
       const { text, projectType } = req.body;
       if (!text || typeof text !== "string" || text.trim().length < 20) {

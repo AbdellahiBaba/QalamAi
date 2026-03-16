@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { useToast } from "@/hooks/use-toast";
 import { SharedNavbar } from "@/components/shared-navbar";
@@ -34,12 +35,12 @@ export default function EditorialReview() {
   const [copied, setCopied] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
 
-  const { data: aiUsage } = useQuery<{ used: number; limit: number; remaining: number; exempt?: boolean }>({
-    queryKey: ["/api/ai-usage-status"],
+  const { data: editorialUsage } = useQuery<{ used: number; limit: number; remaining: number; unlimited: boolean }>({
+    queryKey: ["/api/editorial-review/status"],
     enabled: !!user,
   });
 
-  const isLimitExhausted = aiUsage && !aiUsage.exempt && aiUsage.remaining <= 0;
+  const isLimitExhausted = editorialUsage && !editorialUsage.unlimited && editorialUsage.remaining <= 0;
 
   useEffect(() => {
     if (resultRef.current && reviewContent) {
@@ -99,6 +100,7 @@ export default function EditorialReview() {
           }
         }
       }
+      queryClient.invalidateQueries({ queryKey: ["/api/editorial-review/status"] });
     } catch (error: any) {
       toast({ title: error.message || "فشل في المراجعة التحريرية", variant: "destructive" });
     } finally {
@@ -200,17 +202,17 @@ export default function EditorialReview() {
               {isLimitExhausted ? (
                 <div className="w-full p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center space-y-2" data-testid="editorial-limit-exhausted">
                   <Lock className="w-6 h-6 text-amber-600 dark:text-amber-400 mx-auto" />
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">استنفدت حصتك اليومية من الذكاء الاصطناعي ({aiUsage?.limit} طلب/يوم)</p>
-                  <p className="text-xs text-amber-600 dark:text-amber-400">ترقَّ للخطة المدفوعة للحصول على استخدام غير محدود</p>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">استنفدت الاستخدامات المجانية للمراجعة التحريرية ({editorialUsage?.used}/{editorialUsage?.limit})</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">ترقَّ للخطة المدفوعة للاستخدام غير المحدود</p>
                   <Button size="sm" variant="outline" className="mt-1" onClick={() => window.location.href = "/pricing"} data-testid="button-upgrade-editorial">
                     ترقية الخطة
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {aiUsage && !aiUsage.exempt && (
-                    <p className="text-xs text-muted-foreground text-center" data-testid="text-ai-remaining">
-                      متبقي {aiUsage.remaining} من {aiUsage.limit} طلب يومي
+                  {editorialUsage && !editorialUsage.unlimited && (
+                    <p className="text-xs text-muted-foreground text-center" data-testid="text-editorial-remaining">
+                      متبقي {editorialUsage.remaining} من {editorialUsage.limit} مراجعات مجانية
                     </p>
                   )}
                   <Button
