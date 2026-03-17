@@ -13180,13 +13180,19 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const userId = req.user.claims.sub;
       const course = await storage.getWritingCourse(courseId);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const userRecord = await storage.getUser(userId);
+      const isOwner = course.authorId === userId;
+      const isAdminUser = userRecord?.role === "admin";
+      if (!course.isPublished && !isOwner && !isAdminUser) return res.status(403).json({ error: "الدورة غير منشورة" });
       const lessons = await storage.getCourseLessons(courseId);
       const lesson = lessons.find(l => l.id === lessonId);
       if (!lesson) return res.status(404).json({ error: "الدرس غير موجود" });
-      // Auto-enroll if not already enrolled (enrollment is free)
-      const existingEnrollment = await storage.getCourseEnrollment(courseId, userId);
-      if (!existingEnrollment) {
-        await storage.enrollInCourse(courseId, userId);
+      // Auto-enroll if not already enrolled (only for published courses)
+      if (course.isPublished) {
+        const existingEnrollment = await storage.getCourseEnrollment(courseId, userId);
+        if (!existingEnrollment) {
+          await storage.enrollInCourse(courseId, userId);
+        }
       }
 
       res.setHeader("Content-Type", "text/event-stream");
@@ -13253,13 +13259,19 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       }
       const course = await storage.getWritingCourse(courseId);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const userRecord = await storage.getUser(userId);
+      const isOwnerFb = course.authorId === userId;
+      const isAdminFb = userRecord?.role === "admin";
+      if (!course.isPublished && !isOwnerFb && !isAdminFb) return res.status(403).json({ error: "الدورة غير منشورة" });
       const lessons = await storage.getCourseLessons(courseId);
       const lesson = lessons.find(l => l.id === lessonId);
       if (!lesson) return res.status(404).json({ error: "الدرس غير موجود" });
-      // Auto-enroll if not already enrolled (enrollment is free)
-      const enrollment = await storage.getCourseEnrollment(courseId, userId);
-      if (!enrollment) {
-        await storage.enrollInCourse(courseId, userId);
+      // Auto-enroll if not already enrolled (only for published courses)
+      if (course.isPublished) {
+        const enrollment = await storage.getCourseEnrollment(courseId, userId);
+        if (!enrollment) {
+          await storage.enrollInCourse(courseId, userId);
+        }
       }
 
       res.setHeader("Content-Type", "text/event-stream");
