@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, GraduationCap, Users, Plus, Star, Flame } from "lucide-react";
+import { BookOpen, GraduationCap, Users, Plus, Star, Flame, Loader2, CheckCircle2 } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const PROJECT_TYPE_LABELS: Record<string, string> = {
   general: "عام",
@@ -37,10 +39,21 @@ const ALL_FILTER = "all";
 export default function CoursesGallery() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [activeFilter, setActiveFilter] = useState<string>(ALL_FILTER);
 
   const { data: courses, isLoading } = useQuery<any[]>({
     queryKey: ["/api/courses"],
+  });
+
+  const enrollMutation = useMutation({
+    mutationFn: (courseId: number) => apiRequest("POST", `/api/courses/${courseId}/enroll`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses/enrolled"] });
+      toast({ title: "تم التسجيل بنجاح!" });
+    },
+    onError: () => toast({ title: "فشل في التسجيل", variant: "destructive" }),
   });
 
   const { data: enrolled } = useQuery<any[]>({
@@ -283,15 +296,31 @@ export default function CoursesGallery() {
                         <span className="text-xs text-muted-foreground">({course.ratingCount})</span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /> {course.lessonCount} درس</span>
                         <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {course.enrollmentCount}</span>
                       </div>
                       {course.enrolled ? (
-                        <Badge variant="secondary" className="text-xs text-green-600 border-green-400">مسجّل</Badge>
+                        <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-xs" data-testid={`badge-enrolled-${course.id}`}>
+                          <CheckCircle2 className="h-3 w-3 ml-1" /> مسجّل
+                        </Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs">مجانية</Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-3"
+                          disabled={enrollMutation.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!user) { setLocation("/login"); return; }
+                            enrollMutation.mutate(course.id);
+                          }}
+                          data-testid={`button-enroll-course-${course.id}`}
+                        >
+                          {enrollMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin ml-1" /> : null}
+                          سجّل مجاناً
+                        </Button>
                       )}
                     </div>
                   </CardContent>

@@ -312,7 +312,7 @@ export default function CourseDetail() {
     );
   }
 
-  const canAccessContent = course.enrolled || course.isOwner || course.priceCents === 0;
+  const canAccessContent = course.enrolled || course.isOwner;
   const selectedLesson = activeLesson !== null ? course.lessons?.find((l: any) => l.id === activeLesson) : null;
 
   return (
@@ -532,7 +532,7 @@ export default function CourseDetail() {
               </Card>
             )}
 
-            {canAccessContent && course.priceCents === 0 && (
+            {canAccessContent && (
               <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/30 dark:bg-violet-950/10">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
