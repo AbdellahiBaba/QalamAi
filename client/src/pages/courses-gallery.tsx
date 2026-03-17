@@ -151,7 +151,6 @@ export default function CoursesGallery() {
                     </div>
                     {course.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{course.description}</p>}
                     <div className="flex items-center gap-2 mb-2">
-                      {course.authorProfileImage && <img src={course.authorProfileImage} alt="" className="w-5 h-5 rounded-full" />}
                       <span className="text-sm text-muted-foreground">{course.authorName}</span>
                     </div>
                     <div className="flex items-center justify-between">

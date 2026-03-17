@@ -9,15 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { GraduationCap, Plus, Trash2, Save, Loader2, ChevronLeft, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
+import { GraduationCap, Plus, Trash2, Save, Loader2, ChevronLeft, ArrowUp, ArrowDown, BookOpen } from "lucide-react";
 
 interface LessonForm {
   id?: number;
   title: string;
   content: string;
   exercisePrompt: string;
+  excerptChapterId?: number | null;
   orderIndex: number;
 }
 
@@ -41,6 +43,11 @@ export default function CourseEditor() {
     enabled: isEditing,
   });
 
+  const { data: authorChapters = [] } = useQuery<{ id: number; title: string; projectTitle: string }[]>({
+    queryKey: ["/api/author/chapters-for-excerpt"],
+    enabled: !!user,
+  });
+
   useEffect(() => {
     if (course && isEditing) {
       setTitle(course.title || "");
@@ -53,6 +60,7 @@ export default function CourseEditor() {
           title: l.title,
           content: l.content || "",
           exercisePrompt: l.exercisePrompt || "",
+          excerptChapterId: l.excerptChapterId || null,
           orderIndex: l.orderIndex,
         })));
       }
@@ -137,7 +145,7 @@ export default function CourseEditor() {
     if (lesson.id) {
       updateLessonMutation.mutate({
         lessonId: lesson.id,
-        data: { title: lesson.title, content: lesson.content, exercisePrompt: lesson.exercisePrompt, orderIndex: lesson.orderIndex },
+        data: { title: lesson.title, content: lesson.content, exercisePrompt: lesson.exercisePrompt, excerptChapterId: lesson.excerptChapterId || undefined, orderIndex: lesson.orderIndex },
       });
     }
   };
@@ -348,6 +356,32 @@ export default function CourseEditor() {
                             data-testid={`input-lesson-exercise-${idx}`}
                           />
                         </div>
+                        {authorChapters.length > 0 && (
+                          <div>
+                            <Label className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /> مقتطف من أعمالك (اختياري)</Label>
+                            <Select
+                              value={lesson.excerptChapterId ? String(lesson.excerptChapterId) : "none"}
+                              onValueChange={(val) => {
+                                const updated = [...lessons];
+                                updated[idx] = { ...updated[idx], excerptChapterId: val === "none" ? null : parseInt(val) };
+                                setLessons(updated);
+                              }}
+                            >
+                              <SelectTrigger data-testid={`select-excerpt-${idx}`}>
+                                <SelectValue placeholder="اختر فصلاً من أعمالك المنشورة" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">بدون مقتطف</SelectItem>
+                                {authorChapters.map((ch: any) => (
+                                  <SelectItem key={ch.id} value={String(ch.id)}>
+                                    {ch.projectTitle} — {ch.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">أضف مقتطفاً من فصولك المنشورة كمثال تطبيقي للدرس</p>
+                          </div>
+                        )}
                         <div className="flex gap-2">
                           <Button size="sm" onClick={() => handleSaveLesson(idx)} disabled={updateLessonMutation.isPending} data-testid={`button-save-lesson-${idx}`}>
                             {updateLessonMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : <Save className="h-4 w-4 ml-1" />}

@@ -12714,7 +12714,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
         const author = await storage.getUser(c.authorId);
         const stats = await storage.getCourseStats(c.id);
         const lessons = await storage.getCourseLessons(c.id);
-        return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", authorProfileImage: (author as any)?.profileImageUrl || null, lessonCount: lessons.length, ...stats };
+        return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", lessonCount: lessons.length, ...stats };
       }));
       enriched.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
       res.json(enriched);
@@ -12812,7 +12812,6 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       res.json({
         ...course,
         authorName: author?.displayName || author?.firstName || "كاتب",
-        authorProfileImage: (author as any)?.profileImageUrl || null,
         authorVerified: author?.verified || false,
         lessons: lessonsData,
         enrolled,
@@ -13142,6 +13141,27 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error) {
       console.error("Error fetching admin courses:", error);
       res.status(500).json({ error: "فشل في تحميل الدورات" });
+    }
+  });
+
+  app.get("/api/author/chapters-for-excerpt", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projects = await storage.getProjectsByUser(userId);
+      const published = projects.filter(p => p.publishedToGallery);
+      const result: { id: number; title: string; projectTitle: string }[] = [];
+      for (const p of published) {
+        const chaps = await storage.getChaptersByProject(p.id);
+        for (const ch of chaps) {
+          if (ch.content) {
+            result.push({ id: ch.id, title: ch.title || `فصل ${ch.chapterNumber}`, projectTitle: p.title });
+          }
+        }
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching author chapters:", error);
+      res.status(500).json({ error: "فشل في تحميل الفصول" });
     }
   });
 
