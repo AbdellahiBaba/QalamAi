@@ -3630,13 +3630,24 @@ ${allPages.map(p => `  <url>
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
       if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
 
-      const { coverImageUrl } = req.body;
-      if (!coverImageUrl || typeof coverImageUrl !== "string" || !coverImageUrl.startsWith("data:image/")) {
+      const applyUser = await storage.getUser(req.user.claims.sub);
+      if (applyUser?.plan === "trial" && applyUser.trialActive) {
+        if (isTrialExpired(applyUser.trialEndsAt)) {
+          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
+        }
+        if (project.coverImageUrl) {
+          return res.status(403).json({ error: "الفترة التجريبية تسمح بتصميم غلاف واحد فقط" });
+        }
+      }
+
+      const { imageUrl } = req.body;
+      if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.startsWith("data:image/")) {
         return res.status(400).json({ error: "بيانات الصورة غير صالحة" });
       }
 
-      await storage.updateProject(id, { coverImageUrl });
-      res.json({ coverImageUrl });
+      await storage.updateProject(id, { coverImageUrl: imageUrl });
+      logImageUsage(req.user.claims.sub, id, "cover_apply");
+      res.json({ coverImageUrl: imageUrl });
     } catch (error) {
       console.error("Error applying cover variant:", error);
       res.status(500).json({ error: "فشل في حفظ الغلاف" });

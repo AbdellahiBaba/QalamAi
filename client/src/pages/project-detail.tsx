@@ -2489,7 +2489,7 @@ export default function ProjectDetail() {
                           if (selectedVariantIndex === null) return;
                           setIsGeneratingCover(true);
                           try {
-                            await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { coverImageUrl: coverVariants[selectedVariantIndex].imageUrl });
+                            await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { imageUrl: coverVariants[selectedVariantIndex].imageUrl });
                             queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                             toast({ title: "تم اعتماد الغلاف بنجاح" });
                             setShowCoverVariantsDialog(false);
@@ -2551,7 +2551,7 @@ export default function ProjectDetail() {
                         onClick={async () => {
                           setIsGeneratingCover(true);
                           try {
-                            await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { coverImageUrl: coverVariants[previewVariantIndex].imageUrl });
+                            await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { imageUrl: coverVariants[previewVariantIndex].imageUrl });
                             queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                             toast({ title: "تم اعتماد الغلاف بنجاح" });
                             setShowCoverVariantsDialog(false);
