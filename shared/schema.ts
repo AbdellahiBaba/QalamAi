@@ -1104,3 +1104,24 @@ export const hallOfGloryFeatured = pgTable("hall_of_glory_featured", {
 ]);
 
 export type HallOfGloryFeatured = typeof hallOfGloryFeatured.$inferSelect;
+
+// ── Writing Sprints ───────────────────────────────────────────────────────────
+export const writingSprints = pgTable("writing_sprints", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  projectId: integer("project_id").references(() => novelProjects.id, { onDelete: "set null" }),
+  durationMinutes: integer("duration_minutes").notNull(),
+  wordsWritten: integer("words_written").notNull().default(0),
+  targetWords: integer("target_words"),
+  status: text("status").notNull().default("completed"),
+  startedAt: timestamp("started_at").notNull(),
+  endedAt: timestamp("ended_at"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_sprints_user_id").on(table.userId),
+  index("idx_sprints_user_created").on(table.userId, table.createdAt),
+]);
+
+export const insertWritingSprintSchema = createInsertSchema(writingSprints).omit({ id: true, createdAt: true });
+export type WritingSprint = typeof writingSprints.$inferSelect;
+export type InsertWritingSprint = z.infer<typeof insertWritingSprintSchema>;

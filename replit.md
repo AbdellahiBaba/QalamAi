@@ -48,6 +48,7 @@ QalamAI is a React-based Single Page Application (SPA) utilizing Tailwind CSS an
 -   **Author Analytics Dashboard:** Dedicated `/analytics` page with summary stats, growth charts, top works, reading completion rates, tips history, and geographic data.
 -   **Content Reporting System:** A multi-step reporting dialog for public users, categorizing issues by type and severity.
 -   **Free Plan:** Offers limited monthly project and chapter generations with upgrade calls to action.
+-   **Writing Sprint Mode:** Timed writing challenges with configurable duration (5–60 min), word-count targets, optional project linking, circular progress timer, pause/resume, completion celebration dialog with WPM stats, and personal-best tracking. Sprint history and aggregate stats (total sprints, best sprint, weekly words) shown on home dashboard. Data persisted in `writing_sprints` table.
 -   **Bug Fixes:** Fixed MonthlyReport flooding by using a 24-hour check interval and fixed author profile visibility in `getPublicAuthor()`.
 
 ## External Dependencies

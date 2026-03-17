@@ -37,6 +37,7 @@ import {
   payoutSettings, type PayoutSettings, type InsertPayoutSettings,
   workVotes, type WorkVote,
   hallOfGloryFeatured, type HallOfGloryFeatured,
+  writingSprints, type WritingSprint, type InsertWritingSprint,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -286,6 +287,9 @@ export interface IStorage {
   getFeaturedHallOfGlory(): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>>;
   toggleChallengeEntryVote(entryId: number, userId: string): Promise<{ voted: boolean; voteCount: number }>;
   getChallengeEntryVoteCount(entryId: number, userId?: string): Promise<{ voteCount: number; voted: boolean }>;
+  createWritingSprint(data: InsertWritingSprint): Promise<WritingSprint>;
+  getWritingSprintsByUser(userId: string, limit?: number): Promise<WritingSprint[]>;
+  getWritingSprintStats(userId: string): Promise<{ totalSprints: number; totalWords: number; totalMinutes: number; avgWordsPerSprint: number; bestSprint: number; thisWeekSprints: number; thisWeekWords: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3303,6 +3307,43 @@ export class DatabaseStorage implements IStorage {
       voted = existing.rows.length > 0;
     }
     return { voteCount, voted };
+  }
+
+  async createWritingSprint(data: InsertWritingSprint): Promise<WritingSprint> {
+    const [sprint] = await db.insert(writingSprints).values(data).returning();
+    return sprint;
+  }
+
+  async getWritingSprintsByUser(userId: string, limit = 20): Promise<WritingSprint[]> {
+    return db.select().from(writingSprints).where(eq(writingSprints.userId, userId)).orderBy(desc(writingSprints.createdAt)).limit(limit);
+  }
+
+  async getWritingSprintStats(userId: string): Promise<{ totalSprints: number; totalWords: number; totalMinutes: number; avgWordsPerSprint: number; bestSprint: number; thisWeekSprints: number; thisWeekWords: number }> {
+    const allTime = await db.select({
+      totalSprints: sql<number>`COUNT(*)::int`,
+      totalWords: sql<number>`COALESCE(SUM(${writingSprints.wordsWritten}), 0)::int`,
+      totalMinutes: sql<number>`COALESCE(SUM(${writingSprints.durationMinutes}), 0)::int`,
+      bestSprint: sql<number>`COALESCE(MAX(${writingSprints.wordsWritten}), 0)::int`,
+    }).from(writingSprints).where(eq(writingSprints.userId, userId));
+
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const thisWeek = await db.select({
+      cnt: sql<number>`COUNT(*)::int`,
+      words: sql<number>`COALESCE(SUM(${writingSprints.wordsWritten}), 0)::int`,
+    }).from(writingSprints).where(and(eq(writingSprints.userId, userId), sql`${writingSprints.createdAt} >= ${weekAgo}`));
+
+    const stats = allTime[0];
+    const week = thisWeek[0];
+    return {
+      totalSprints: stats?.totalSprints ?? 0,
+      totalWords: stats?.totalWords ?? 0,
+      totalMinutes: stats?.totalMinutes ?? 0,
+      avgWordsPerSprint: stats?.totalSprints ? Math.round((stats.totalWords ?? 0) / stats.totalSprints) : 0,
+      bestSprint: stats?.bestSprint ?? 0,
+      thisWeekSprints: week?.cnt ?? 0,
+      thisWeekWords: week?.words ?? 0,
+    };
   }
 }
 

@@ -34,6 +34,7 @@ import { Progress } from "@/components/ui/progress";
 const TrialPromptPopup = lazy(() => import("@/components/trial-prompt-popup").then(m => ({ default: m.TrialPromptPopup })));
 const AbuHashimChat = lazy(() => import("@/components/abu-hashim-chat").then(m => ({ default: m.AbuHashimChat })));
 const WritingStatsPanel = lazy(() => import("@/components/writing-stats-panel"));
+const WritingSprintTimer = lazy(() => import("@/components/writing-sprint-timer"));
 
 interface WritingStreakData {
   streak: number;
@@ -963,6 +964,10 @@ export default function Home() {
             </CardContent>
           </Card>
         )}
+
+        <Suspense fallback={null}>
+          <WritingSprintTimer projects={projects} />
+        </Suspense>
 
         {/* Author Analytics Dashboard */}
         {analyticsData && (analyticsData.totalEssays > 0 || analyticsData.followerCount > 0) && (

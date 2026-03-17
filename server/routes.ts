@@ -11639,5 +11639,64 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
+  // ── Writing Sprint Routes ──────────────────────────────────────────────────
+  const createSprintSchema = z.object({
+    durationMinutes: z.number().int().min(1).max(120),
+    wordsWritten: z.number().int().min(0).max(100000),
+    targetWords: z.number().int().min(0).max(100000).nullable().optional(),
+    projectId: z.number().int().positive().nullable().optional(),
+    startedAt: z.string().datetime().optional(),
+  });
+
+  app.post("/api/writing-sprints", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = createSprintSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
+      const { durationMinutes, wordsWritten, targetWords, projectId, startedAt } = parsed.data;
+
+      if (projectId) {
+        const proj = await storage.getProject(projectId);
+        if (!proj || proj.userId !== userId) return res.status(403).json({ error: "لا يمكنك ربط سباق بمشروع لا يخصك" });
+      }
+
+      const sprint = await storage.createWritingSprint({
+        userId,
+        projectId: projectId ?? null,
+        durationMinutes,
+        wordsWritten,
+        targetWords: targetWords ?? null,
+        status: "completed",
+        startedAt: startedAt ? new Date(startedAt) : new Date(Date.now() - durationMinutes * 60 * 1000),
+        endedAt: new Date(),
+      });
+      res.json(sprint);
+    } catch (error) {
+      console.error("Create sprint error:", error);
+      res.status(500).json({ error: "فشل في حفظ جلسة السباق" });
+    }
+  });
+
+  app.get("/api/writing-sprints", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = parseInt(String(req.query.limit || "20"), 10);
+      const sprints = await storage.getWritingSprintsByUser(userId, Math.min(limit, 50));
+      res.json(sprints);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب جلسات السباق" });
+    }
+  });
+
+  app.get("/api/writing-sprints/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getWritingSprintStats(userId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب إحصائيات السباق" });
+    }
+  });
+
   return httpServer;
 }
