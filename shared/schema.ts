@@ -2,6 +2,7 @@ import { sql, relations } from "drizzle-orm";
 import { pgTable, text, varchar, serial, integer, timestamp, jsonb, boolean, unique, index, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { users } from "./models/auth";
 
 export * from "./models/auth";
 export * from "./models/chat";
@@ -1074,7 +1075,7 @@ export type PayoutSettings = typeof payoutSettings.$inferSelect;
 export const workVotes = pgTable("work_votes", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   unique("uq_work_vote").on(table.projectId, table.userId),
