@@ -343,14 +343,20 @@ export default function HallOfGlory() {
                       </p>
                     )}
 
-                    {item.project.shareToken && (
-                      <Link href={`/essay/${item.project.shareToken}`}>
-                        <Button size="sm" variant="ghost" className="gap-1.5 text-xs px-2 h-7 -mr-2" data-testid={`link-featured-read-${item.id}`}>
-                          <ArrowRight className="w-3 h-3" />
-                          اقرأ العمل
-                        </Button>
-                      </Link>
-                    )}
+                    {item.project.shareToken && (() => {
+                      const essayTypes = ["essay", "khawater", "memoire"];
+                      const href = essayTypes.includes(item.project.projectType || "")
+                        ? `/essay/${item.project.shareToken}`
+                        : `/shared/${item.project.shareToken}`;
+                      return (
+                        <Link href={href}>
+                          <Button size="sm" variant="ghost" className="gap-1.5 text-xs px-2 h-7 -mr-2" data-testid={`link-featured-read-${item.id}`}>
+                            <ArrowRight className="w-3 h-3" />
+                            اقرأ العمل
+                          </Button>
+                        </Link>
+                      );
+                    })()}
                   </div>
                 </article>
               ))}

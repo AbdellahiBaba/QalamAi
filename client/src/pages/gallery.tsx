@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck, Bookmark, MessageCircle, TrendingUp, Flame } from "lucide-react";
 import { VoteButton } from "@/components/vote-button";
+import { VoteDonateModal } from "@/components/vote-donate-modal";
 import { SaveToListButton } from "@/components/save-to-list-button";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -152,6 +153,7 @@ export default function Gallery() {
   const initialBeta = urlParams.get("beta") === "true";
   const authorIdFilter = urlParams.get("authorId") || "";
   const [searchQuery, setSearchQuery] = useState("");
+  const [donateModal, setDonateModal] = useState<{ authorId: string; projectId: number; authorName: string } | null>(null);
   const [reportProjectId, setReportProjectId] = useState<number | null>(null);
   const [reportProjectTitle, setReportProjectTitle] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -503,6 +505,7 @@ export default function Gallery() {
                           projectId={project.id}
                           authorId={project.authorId}
                           size="sm"
+                          onVoted={(authorId, projectId) => setDonateModal({ authorId, projectId, authorName: project.authorName || "الكاتب" })}
                         />
                       </div>
                     )}
@@ -553,6 +556,15 @@ export default function Gallery() {
           projectTitle={reportProjectTitle}
           open={!!reportProjectId}
           onOpenChange={(open) => { if (!open) setReportProjectId(null); }}
+        />
+      )}
+      {donateModal && (
+        <VoteDonateModal
+          open={true}
+          onClose={() => setDonateModal(null)}
+          authorId={donateModal.authorId}
+          authorName={donateModal.authorName}
+          projectId={donateModal.projectId}
         />
       )}
     </div>
