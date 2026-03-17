@@ -796,16 +796,22 @@ export async function registerRoutes(
       const projectId = parseIntParam(req.params.id);
       if (!projectId) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
 
-      const projCheck = await db.execute(dsql`SELECT id FROM novel_projects WHERE id = ${projectId} AND (published_to_gallery = true OR published_to_news = true) LIMIT 1`);
+      const userId = req.user?.claims?.sub || null;
+      const projCheck = await db.execute(dsql`SELECT id, user_id, published_to_gallery, published_to_news, share_token FROM novel_projects WHERE id = ${projectId} LIMIT 1`);
       if (!projCheck.rows || projCheck.rows.length === 0) {
-        return res.status(404).json({ error: "المشروع غير موجود أو غير منشور" });
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const proj = projCheck.rows[0] as any;
+      const isPublic = proj.published_to_gallery || proj.published_to_news || proj.share_token;
+      const isOwner = userId && proj.user_id === userId;
+      if (!isPublic && !isOwner) {
+        return res.status(403).json({ error: "لا يمكنك اقتباس من هذا المشروع" });
       }
 
       const { quoteText, chapterId } = req.body;
       if (!quoteText || typeof quoteText !== "string" || quoteText.trim().length < 5 || quoteText.length > 500) {
         return res.status(400).json({ error: "نص الاقتباس مطلوب (5-500 حرف)" });
       }
-      const userId = req.user?.claims?.sub || null;
       const guestIp = userId ? null : (req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown");
 
       const hourAgo = new Date(Date.now() - 3600_000);
@@ -852,9 +858,16 @@ export async function registerRoutes(
       const projectId = parseIntParam(req.params.id);
       if (!projectId) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
 
-      const projCheck = await db.execute(dsql`SELECT id FROM novel_projects WHERE id = ${projectId} AND (published_to_gallery = true OR published_to_news = true) LIMIT 1`);
+      const projCheck = await db.execute(dsql`SELECT id, user_id, published_to_gallery, published_to_news, share_token FROM novel_projects WHERE id = ${projectId} LIMIT 1`);
       if (!projCheck.rows || projCheck.rows.length === 0) {
-        return res.status(404).json({ error: "المشروع غير موجود أو غير منشور" });
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const projRow = projCheck.rows[0] as any;
+      const reqUserId = req.user?.claims?.sub || null;
+      const isQuotePublic = projRow.published_to_gallery || projRow.published_to_news || projRow.share_token;
+      const isQuoteOwner = reqUserId && projRow.user_id === reqUserId;
+      if (!isQuotePublic && !isQuoteOwner) {
+        return res.status(403).json({ error: "لا يمكنك عرض اقتباسات هذا المشروع" });
       }
 
       const rawLimit = parseInt(req.query.limit || "10", 10);

@@ -975,7 +975,7 @@ export default function Admin() {
     enabled: activeTab === "comments",
   });
 
-  const { data: adminQuotes, isLoading: adminQuotesLoading, refetch: refetchAdminQuotes } = useQuery<any[]>({
+  const { data: adminQuotesData, isLoading: adminQuotesLoading, refetch: refetchAdminQuotes } = useQuery<{ data: any[]; total: number }>({
     queryKey: ["/api/admin/quotes"],
     queryFn: async () => {
       const res = await fetch("/api/admin/quotes?limit=50");
@@ -3583,11 +3583,11 @@ export default function Admin() {
               <div className="space-y-3">
                 {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
               </div>
-            ) : (!adminQuotes || !Array.isArray(adminQuotes) || adminQuotes.length === 0) ? (
+            ) : (!adminQuotesData?.data || adminQuotesData.data.length === 0) ? (
               <p className="text-sm text-muted-foreground text-center py-8">لا توجد اقتباسات بعد</p>
             ) : (
               <div className="space-y-2">
-                {adminQuotes.map((q: any) => (
+                {adminQuotesData.data.map((q: any) => (
                   <div key={q.id} className={`p-3 border rounded-lg flex items-start gap-3 ${q.flagged ? "border-red-300 bg-red-50/30 dark:bg-red-900/10" : ""}`} data-testid={`admin-quote-${q.id}`}>
                     <div className="flex-1 min-w-0 space-y-1">
                       <p className="font-serif text-sm leading-relaxed text-foreground/90" data-testid={`admin-quote-text-${q.id}`}>❝ {q.quote_text} ❞</p>

@@ -20,6 +20,7 @@ import {
   ArrowUpRight,
   Star,
   Layers,
+  Quote,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
@@ -72,6 +73,44 @@ const countryCodeToName: Record<string, string> = {
   NL: "هولندا",
   SE: "السويد",
 };
+
+function AnalyticsTopQuotes({ userId }: { userId?: string }) {
+  const { data: quotes } = useQuery<any[]>({
+    queryKey: ["/api/authors", userId, "top-quotes"],
+    queryFn: () => fetch(`/api/authors/${userId}/top-quotes`).then(r => r.json()),
+    enabled: !!userId,
+    staleTime: 120_000,
+  });
+
+  if (!quotes || !Array.isArray(quotes) || quotes.length === 0) return null;
+
+  return (
+    <Card data-testid="card-analytics-top-quotes">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Quote className="w-5 h-5 text-primary/70" />
+          أبرز اقتباساتك
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {quotes.map((q: any, idx: number) => (
+          <div key={idx} className="relative pr-8 py-2 border-r-2 border-primary/20" data-testid={`analytics-quote-${idx}`}>
+            <span className="absolute right-1 top-2 text-lg text-primary/25 font-serif">❝</span>
+            <p className="font-serif text-sm leading-relaxed text-foreground/90" data-testid={`analytics-quote-text-${idx}`}>{q.quote_text}</p>
+            <div className="flex items-center gap-2 mt-1">
+              {q.project_title && (
+                <span className="text-[11px] text-muted-foreground">— {q.project_title}</span>
+              )}
+              <Badge variant="outline" className="text-[10px]">
+                <LtrNum>{q.save_count}</LtrNum> حفظ
+              </Badge>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Analytics() {
   useDocumentTitle("إحصائياتي — QalamAI", "تابع إحصائيات أعمالك الأدبية: المشاهدات والمتابعين والإكراميات على QalamAI.");
@@ -548,6 +587,7 @@ export default function Analytics() {
             </CardContent>
           </Card>
         </div>
+        <AnalyticsTopQuotes userId={user?.claims?.sub} />
       </div>
     </div>
   );
