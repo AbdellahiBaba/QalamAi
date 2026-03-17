@@ -31,7 +31,9 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
+  const [hoveredChapter, setHoveredChapter] = useState<number | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showActs, setShowActs] = useState(false);
   const [analysisText, setAnalysisText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -41,6 +43,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
   const maxWords = useMemo(() => Math.max(...wordCounts, 1), [wordCounts]);
 
   const isNovel = projectType === "novel";
+
+  const activeChapter = selectedChapter ?? hoveredChapter;
 
   useEffect(() => {
     if (selectedChapter === null) return;
@@ -58,13 +62,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [selectedChapter]);
 
-  const handleBarClick = useCallback((chIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
-    if (selectedChapter === chIdx) {
-      setSelectedChapter(null);
-      setPopoverPos(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
+  const computePopoverPos = useCallback((el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
     const containerRect = scrollRef.current?.getBoundingClientRect();
     if (containerRect) {
       setPopoverPos({
@@ -72,7 +71,42 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
         y: rect.top - containerRect.top - 8,
       });
     }
+  }, []);
+
+  const handleBarClick = useCallback((chIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (selectedChapter === chIdx) {
+      setSelectedChapter(null);
+      setPopoverPos(null);
+      return;
+    }
+    computePopoverPos(e.currentTarget);
     setSelectedChapter(chIdx);
+    setHoveredChapter(null);
+  }, [selectedChapter, computePopoverPos]);
+
+  const handleBarEnter = useCallback((chIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (selectedChapter !== null) return;
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    computePopoverPos(e.currentTarget);
+    setHoveredChapter(chIdx);
+  }, [selectedChapter, computePopoverPos]);
+
+  const handleBarLeave = useCallback(() => {
+    if (selectedChapter !== null) return;
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredChapter(null);
+      setPopoverPos(null);
+    }, 200);
+  }, [selectedChapter]);
+
+  const handlePopoverEnter = useCallback(() => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  }, []);
+
+  const handlePopoverLeave = useCallback(() => {
+    if (selectedChapter !== null) return;
+    setHoveredChapter(null);
+    setPopoverPos(null);
   }, [selectedChapter]);
 
   const runAnalysis = async () => {
@@ -134,8 +168,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
   const act1End = Math.floor(chapters.length * 0.25);
   const act2End = Math.floor(chapters.length * 0.75);
 
-  const selectedCh = selectedChapter !== null ? chapters[selectedChapter] : null;
-  const selectedWc = selectedChapter !== null ? wordCounts[selectedChapter] : 0;
+  const activeCh = activeChapter !== null ? chapters[activeChapter] : null;
+  const activeWc = activeChapter !== null ? wordCounts[activeChapter] : 0;
 
   return (
     <div className="space-y-4" data-testid="story-map-container">
@@ -220,7 +254,7 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
           {chapters.map((ch, idx) => {
             const wc = wordCounts[idx];
             const barH = maxWords > 0 ? Math.max((wc / maxWords) * 140, 8) : 8;
-            const status = ch.paywallEnabled ? "locked" : (ch.status || "draft");
+            const status = ch.status || "draft";
             const colors = STATUS_COLORS[status] || STATUS_COLORS.draft;
             const isSelected = selectedChapter === idx;
             return (
@@ -230,6 +264,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
                 style={{ width: 36 }}
                 data-story-bar
                 onClick={(e) => handleBarClick(idx, e)}
+                onMouseEnter={(e) => handleBarEnter(idx, e)}
+                onMouseLeave={handleBarLeave}
                 data-testid={`story-map-bar-${ch.id}`}
               >
                 <div
@@ -244,7 +280,7 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
           })}
         </div>
 
-        {selectedChapter !== null && selectedCh && popoverPos && (
+        {activeChapter !== null && activeCh && popoverPos && (
           <div
             ref={popoverRef}
             className="absolute z-50 bg-popover border rounded-lg shadow-lg p-3 min-w-[180px]"
@@ -253,19 +289,21 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
               top: popoverPos.y,
               transform: "translate(-50%, -100%)",
             }}
+            onMouseEnter={handlePopoverEnter}
+            onMouseLeave={handlePopoverLeave}
             data-testid="story-map-popover"
           >
             <p className="font-serif font-semibold text-sm mb-1 line-clamp-1" data-testid="popover-title">
-              {selectedCh.title || `فصل ${selectedCh.chapterNumber}`}
+              {activeCh.title || `فصل ${activeCh.chapterNumber}`}
             </p>
             <div className="space-y-0.5 text-[11px] text-muted-foreground">
-              <p>عدد الكلمات: <span className="text-foreground font-medium"><LtrNum>{selectedWc}</LtrNum></span></p>
-              <p>الحالة: <Badge variant="outline" className="text-[10px] px-1 py-0">{(STATUS_COLORS[selectedCh.paywallEnabled ? "locked" : (selectedCh.status || "draft")] || STATUS_COLORS.draft).label}</Badge></p>
-              {selectedCh.updatedAt && (
-                <p>آخر تعديل: {new Date(selectedCh.updatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</p>
+              <p>عدد الكلمات: <span className="text-foreground font-medium"><LtrNum>{activeWc}</LtrNum></span></p>
+              <p>الحالة: <Badge variant="outline" className="text-[10px] px-1 py-0">{(STATUS_COLORS[activeCh.status || "draft"] || STATUS_COLORS.draft).label}</Badge></p>
+              {activeCh.createdAt && (
+                <p>تاريخ الإنشاء: {new Date(activeCh.createdAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</p>
               )}
             </div>
-            <Link href={`/project/${projectId}/read/${selectedCh.id}`}>
+            <Link href={`/project/${projectId}/read/${activeCh.id}`}>
               <span className="inline-flex items-center gap-1 text-[11px] text-primary mt-1.5 cursor-pointer hover:underline" data-testid="popover-open-chapter">
                 <ExternalLink className="w-3 h-3" /> افتح الفصل
               </span>
