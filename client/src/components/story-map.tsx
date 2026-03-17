@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,7 +29,8 @@ function getWordCount(content: string | null | undefined): number {
 export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [hoveredChapter, setHoveredChapter] = useState<number | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [showActs, setShowActs] = useState(false);
   const [analysisText, setAnalysisText] = useState("");
@@ -41,7 +42,28 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
 
   const isNovel = projectType === "novel";
 
-  const handleBarHover = useCallback((chIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
+  useEffect(() => {
+    if (selectedChapter === null) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node) &&
+        !(e.target as HTMLElement).closest("[data-story-bar]")
+      ) {
+        setSelectedChapter(null);
+        setPopoverPos(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [selectedChapter]);
+
+  const handleBarClick = useCallback((chIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (selectedChapter === chIdx) {
+      setSelectedChapter(null);
+      setPopoverPos(null);
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     const containerRect = scrollRef.current?.getBoundingClientRect();
     if (containerRect) {
@@ -50,13 +72,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
         y: rect.top - containerRect.top - 8,
       });
     }
-    setHoveredChapter(chIdx);
-  }, []);
-
-  const handleBarLeave = useCallback(() => {
-    setHoveredChapter(null);
-    setPopoverPos(null);
-  }, []);
+    setSelectedChapter(chIdx);
+  }, [selectedChapter]);
 
   const runAnalysis = async () => {
     if (isAnalyzing) {
@@ -78,8 +95,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error || "فشل التحليل");
+        const errBody: Record<string, string> = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || "فشل التحليل");
       }
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -104,9 +121,10 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
           }
         }
       }
-    } catch (e: any) {
-      if (e.name !== "AbortError") {
-        toast({ title: e.message || "فشل تحليل البنية", variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error("فشل تحليل البنية");
+      if (error.name !== "AbortError") {
+        toast({ title: error.message || "فشل تحليل البنية", variant: "destructive" });
       }
     } finally {
       setIsAnalyzing(false);
@@ -116,8 +134,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
   const act1End = Math.floor(chapters.length * 0.25);
   const act2End = Math.floor(chapters.length * 0.75);
 
-  const hoveredCh = hoveredChapter !== null ? chapters[hoveredChapter] : null;
-  const hoveredWc = hoveredChapter !== null ? wordCounts[hoveredChapter] : 0;
+  const selectedCh = selectedChapter !== null ? chapters[selectedChapter] : null;
+  const selectedWc = selectedChapter !== null ? wordCounts[selectedChapter] : 0;
 
   return (
     <div className="space-y-4" data-testid="story-map-container">
@@ -204,18 +222,18 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
             const barH = maxWords > 0 ? Math.max((wc / maxWords) * 140, 8) : 8;
             const status = ch.paywallEnabled ? "locked" : (ch.status || "draft");
             const colors = STATUS_COLORS[status] || STATUS_COLORS.draft;
+            const isSelected = selectedChapter === idx;
             return (
               <div
                 key={ch.id}
                 className="flex flex-col items-center gap-1 cursor-pointer group"
                 style={{ width: 36 }}
-                onMouseEnter={(e) => handleBarHover(idx, e)}
-                onMouseLeave={handleBarLeave}
-                onClick={(e) => handleBarHover(idx, e)}
+                data-story-bar
+                onClick={(e) => handleBarClick(idx, e)}
                 data-testid={`story-map-bar-${ch.id}`}
               >
                 <div
-                  className={`w-full rounded-t-sm transition-all duration-200 ${colors.bg} group-hover:opacity-80 border ${colors.border}`}
+                  className={`w-full rounded-t-sm transition-all duration-200 ${colors.bg} group-hover:opacity-80 border ${colors.border} ${isSelected ? "ring-2 ring-primary ring-offset-1" : ""}`}
                   style={{ height: barH }}
                 />
                 <span className="text-[9px] text-muted-foreground font-medium leading-none">
@@ -226,9 +244,10 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
           })}
         </div>
 
-        {hoveredChapter !== null && hoveredCh && popoverPos && (
+        {selectedChapter !== null && selectedCh && popoverPos && (
           <div
-            className="absolute z-50 bg-popover border rounded-lg shadow-lg p-3 min-w-[180px] pointer-events-none"
+            ref={popoverRef}
+            className="absolute z-50 bg-popover border rounded-lg shadow-lg p-3 min-w-[180px]"
             style={{
               left: popoverPos.x,
               top: popoverPos.y,
@@ -237,17 +256,17 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
             data-testid="story-map-popover"
           >
             <p className="font-serif font-semibold text-sm mb-1 line-clamp-1" data-testid="popover-title">
-              {hoveredCh.title || `فصل ${hoveredCh.chapterNumber}`}
+              {selectedCh.title || `فصل ${selectedCh.chapterNumber}`}
             </p>
             <div className="space-y-0.5 text-[11px] text-muted-foreground">
-              <p>عدد الكلمات: <span className="text-foreground font-medium"><LtrNum>{hoveredWc}</LtrNum></span></p>
-              <p>الحالة: <Badge variant="outline" className="text-[10px] px-1 py-0">{(STATUS_COLORS[hoveredCh.paywallEnabled ? "locked" : (hoveredCh.status || "draft")] || STATUS_COLORS.draft).label}</Badge></p>
-              {hoveredCh.updatedAt && (
-                <p>آخر تعديل: {new Date(hoveredCh.updatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</p>
+              <p>عدد الكلمات: <span className="text-foreground font-medium"><LtrNum>{selectedWc}</LtrNum></span></p>
+              <p>الحالة: <Badge variant="outline" className="text-[10px] px-1 py-0">{(STATUS_COLORS[selectedCh.paywallEnabled ? "locked" : (selectedCh.status || "draft")] || STATUS_COLORS.draft).label}</Badge></p>
+              {selectedCh.updatedAt && (
+                <p>آخر تعديل: {new Date(selectedCh.updatedAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</p>
               )}
             </div>
-            <Link href={`/project/${projectId}/read/${hoveredCh.id}`}>
-              <span className="inline-flex items-center gap-1 text-[11px] text-primary mt-1.5 pointer-events-auto cursor-pointer hover:underline" data-testid="popover-open-chapter">
+            <Link href={`/project/${projectId}/read/${selectedCh.id}`}>
+              <span className="inline-flex items-center gap-1 text-[11px] text-primary mt-1.5 cursor-pointer hover:underline" data-testid="popover-open-chapter">
                 <ExternalLink className="w-3 h-3" /> افتح الفصل
               </span>
             </Link>
