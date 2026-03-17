@@ -36,6 +36,7 @@ const AbuHashimChat = lazy(() => import("@/components/abu-hashim-chat").then(m =
 const WritingStatsPanel = lazy(() => import("@/components/writing-stats-panel"));
 const WritingSprintTimer = lazy(() => import("@/components/writing-sprint-timer"));
 import { SprintWeekStat } from "@/components/writing-sprint-timer";
+import { MilestoneCardModal } from "@/components/milestone-card-modal";
 
 interface WritingStreakData {
   streak: number;
@@ -239,6 +240,8 @@ export default function Home() {
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [sortBy, setSortBy] = useState("date_desc");
   const [showWritingStats, setShowWritingStats] = useState(false);
+  const [showStreakMilestoneCard, setShowStreakMilestoneCard] = useState(false);
+  const [streakMilestoneDays, setStreakMilestoneDays] = useState(7);
 
   const { data: trialStatus } = useQuery<{ trialActive: boolean; trialUsed: boolean; trialEndsAt: string | null; plan: string }>({
     queryKey: ["/api/trial/status"],
@@ -952,18 +955,20 @@ export default function Home() {
                   const achieved = streakData.streak >= milestone.days;
                   const MilestoneIcon = milestone.icon;
                   return (
-                    <div
+                    <button
                       key={milestone.days}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                         achieved
-                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                          : "bg-muted text-muted-foreground"
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50 cursor-pointer"
+                          : "bg-muted text-muted-foreground cursor-default"
                       }`}
+                      onClick={() => { if (achieved) { setStreakMilestoneDays(milestone.days); setShowStreakMilestoneCard(true); } }}
                       data-testid={`badge-milestone-${milestone.days}`}
                     >
                       <MilestoneIcon className="w-3 h-3" />
                       {milestone.label}
-                    </div>
+                      {achieved && <Share2 className="w-2.5 h-2.5 opacity-60" />}
+                    </button>
                   );
                 })}
                 {sprintStats && sprintStats.thisWeekSprints > 0 && (
@@ -2132,6 +2137,14 @@ export default function Home() {
           trialUsed={trialStatus?.trialUsed ?? true}
         />
       </Suspense>
+
+      <MilestoneCardModal
+        open={showStreakMilestoneCard}
+        onOpenChange={setShowStreakMilestoneCard}
+        type="writing_streak"
+        authorName={user?.username || user?.firstName || "كاتب"}
+        milestone={streakMilestoneDays}
+      />
     </div>
   );
 }

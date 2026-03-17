@@ -5,10 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Crown, Star, Feather, ArrowRight, CalendarDays, ChevronDown, ChevronUp } from "lucide-react";
+import { Trophy, Crown, Star, Feather, ArrowRight, CalendarDays, ChevronDown, ChevronUp, Share2 } from "lucide-react";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
 import { useDocumentTitle } from "@/hooks/use-document-title";
+import { MilestoneCardModal } from "@/components/milestone-card-modal";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Challenge {
   id: number;
@@ -55,7 +57,7 @@ function formatDate(date: string) {
   });
 }
 
-function GloryCard({ challenge }: { challenge: Challenge }) {
+function GloryCard({ challenge, onShare }: { challenge: Challenge; onShare?: (challengeTitle: string, winnerName: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const content = (challenge.winnerEntryContent || "").trim();
   const isLong = content.length > 400;
@@ -152,7 +154,19 @@ function GloryCard({ challenge }: { challenge: Challenge }) {
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          {onShare && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-700"
+              onClick={() => onShare(challenge.title, challenge.winnerName || "كاتب")}
+              data-testid={`button-share-glory-${challenge.id}`}
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              شارك إنجازك
+            </Button>
+          )}
           <Link href={`/challenges/${challenge.id}`}>
             <Button variant="ghost" size="sm" className="text-xs gap-1.5 text-muted-foreground hover:text-primary" data-testid={`link-glory-challenge-${challenge.id}`}>
               <span>استعرض التحدي كاملاً</span>
@@ -167,6 +181,11 @@ function GloryCard({ challenge }: { challenge: Challenge }) {
 
 export default function HallOfGlory() {
   useDocumentTitle("قاعة المجد — قلم AI", "أعمال الفائزين في تحديات QalamAI — شواهد الموهبة والإبداع الأدبي العربي.");
+  const { user } = useAuth();
+
+  const [showGloryCard, setShowGloryCard] = useState(false);
+  const [gloryCardTitle, setGloryCardTitle] = useState("");
+  const [gloryCardAuthor, setGloryCardAuthor] = useState("");
 
   const { data: challenges, isLoading, isError } = useQuery<Challenge[]>({
     queryKey: ["/api/challenges"],
@@ -349,7 +368,15 @@ export default function HallOfGlory() {
             </div>
 
             {winners.map((challenge) => (
-              <GloryCard key={challenge.id} challenge={challenge} />
+              <GloryCard
+                key={challenge.id}
+                challenge={challenge}
+                onShare={user && challenge.winner_id === user.id ? (title, name) => {
+                  setGloryCardTitle(title);
+                  setGloryCardAuthor(name);
+                  setShowGloryCard(true);
+                } : undefined}
+              />
             ))}
           </>
         )}
@@ -365,6 +392,14 @@ export default function HallOfGlory() {
       </main>
 
       <SharedFooter />
+
+      <MilestoneCardModal
+        open={showGloryCard}
+        onOpenChange={setShowGloryCard}
+        type="hall_of_glory"
+        authorName={gloryCardAuthor}
+        projectTitle={gloryCardTitle}
+      />
     </div>
   );
 }

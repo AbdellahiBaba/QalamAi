@@ -517,6 +517,183 @@ export async function registerRoutes(
     return { allowed: used < EDITORIAL_FREE_LIMIT, used, limit: EDITORIAL_FREE_LIMIT };
   }
 
+  app.post("/api/milestone-card", isAuthenticated, async (req: any, res) => {
+    try {
+      const { type, authorName, projectTitle, milestone } = req.body;
+      if (!type || !authorName) {
+        return res.status(400).json({ error: "النوع واسم المؤلف مطلوبان" });
+      }
+
+      const W = 800, H = 800;
+      const canvas = createCanvas(W, H);
+      const ctx = canvas.getContext("2d");
+
+      const gold = "#d4af37";
+      const darkGold = "#b8941e";
+      const sandBg = "#faf6ee";
+      const darkBrown = "#3d2b1f";
+      const lightGold = "#f5e6c8";
+
+      const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+      bgGrad.addColorStop(0, sandBg);
+      bgGrad.addColorStop(0.5, "#f8f0e0");
+      bgGrad.addColorStop(1, "#faf3e5");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 6;
+      ctx.strokeRect(20, 20, W - 40, H - 40);
+
+      ctx.strokeStyle = darkGold;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(32, 32, W - 64, H - 64);
+
+      const cornerSize = 30;
+      const corners = [[36, 36], [W - 36, 36], [36, H - 36], [W - 36, H - 36]];
+      ctx.fillStyle = gold;
+      for (const [cx, cy] of corners) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = gold;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cornerSize / 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      const decoY = 80;
+      ctx.fillStyle = gold;
+      ctx.font = `28px "Amiri"`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.direction = "rtl";
+      ctx.fillText("✦  ❋  ✦", W / 2, decoY);
+
+      ctx.font = `bold 22px "Amiri"`;
+      ctx.fillStyle = darkGold;
+      ctx.fillText("QalamAI  —  قلم", W / 2, H - 80);
+      ctx.font = `14px "Amiri"`;
+      ctx.fillStyle = "#8b7355";
+      ctx.fillText("#QalamAI  |  منصة الكتابة العربية بالذكاء الاصطناعي", W / 2, H - 55);
+
+      let titleText = "";
+      let subtitleText = "";
+      let emojiIcon = "";
+
+      if (type === "project_completion") {
+        emojiIcon = "🏆";
+        titleText = "أتممتُ عملي الأدبي";
+        subtitleText = projectTitle || "مشروع مكتمل";
+      } else if (type === "word_count_goal") {
+        emojiIcon = "🎯";
+        titleText = milestone ? `بلغتُ ${milestone}٪ من هدفي` : "حققتُ هدف الكلمات";
+        subtitleText = projectTitle || "";
+      } else if (type === "writing_streak") {
+        emojiIcon = "🔥";
+        const days = milestone || 7;
+        titleText = `سلسلة كتابة ${days} ${days > 10 ? "يومًا" : "أيام"}`;
+        subtitleText = "التزام يومي بالكتابة الإبداعية";
+      } else if (type === "hall_of_glory") {
+        emojiIcon = "👑";
+        titleText = "مُكرَّم في قاعة المجد";
+        subtitleText = projectTitle || "فائز بتحدي الكتابة";
+      } else if (type === "first_publication") {
+        emojiIcon = "📖";
+        titleText = "نشرتُ عملي الأول";
+        subtitleText = projectTitle || "";
+      } else {
+        return res.status(400).json({ error: "نوع البطاقة غير معروف" });
+      }
+
+      ctx.font = `60px "Amiri"`;
+      ctx.fillStyle = darkBrown;
+      ctx.fillText(emojiIcon, W / 2, 160);
+
+      ctx.font = `bold 48px "Amiri"`;
+      ctx.fillStyle = darkBrown;
+      const titleWords = titleText.split(/\s+/);
+      let titleLines: string[] = [];
+      let currentLine = "";
+      const maxTitleWidth = W - 120;
+      for (const word of titleWords) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        if (ctx.measureText(testLine).width > maxTitleWidth && currentLine) {
+          titleLines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) titleLines.push(currentLine);
+
+      const titleStartY = 250;
+      const titleLineHeight = 68;
+      for (let i = 0; i < titleLines.length; i++) {
+        ctx.fillText(titleLines[i], W / 2, titleStartY + i * titleLineHeight);
+      }
+
+      const afterTitleY = titleStartY + titleLines.length * titleLineHeight + 20;
+
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 - 80, afterTitleY);
+      ctx.lineTo(W / 2 + 80, afterTitleY);
+      ctx.stroke();
+      ctx.fillStyle = gold;
+      ctx.beginPath();
+      ctx.arc(W / 2, afterTitleY, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (subtitleText) {
+        ctx.font = `28px "Amiri"`;
+        ctx.fillStyle = "#6b5b4f";
+        const subWords = subtitleText.split(/\s+/);
+        let subLines: string[] = [];
+        let subLine = "";
+        const maxSubWidth = W - 140;
+        for (const word of subWords) {
+          const testLine = subLine ? `${subLine} ${word}` : word;
+          if (ctx.measureText(testLine).width > maxSubWidth && subLine) {
+            subLines.push(subLine);
+            subLine = word;
+          } else {
+            subLine = testLine;
+          }
+        }
+        if (subLine) subLines.push(subLine);
+        if (subLines.length > 2) subLines = subLines.slice(0, 2);
+
+        const subStartY = afterTitleY + 50;
+        for (let i = 0; i < subLines.length; i++) {
+          ctx.fillText(subLines[i], W / 2, subStartY + i * 40);
+        }
+      }
+
+      ctx.font = `bold 32px "Amiri"`;
+      ctx.fillStyle = darkBrown;
+      ctx.fillText(authorName, W / 2, 580);
+
+      ctx.font = `18px "Amiri"`;
+      ctx.fillStyle = "#8b7355";
+      ctx.fillText("— كاتب على منصة قلم —", W / 2, 620);
+
+      ctx.fillStyle = gold;
+      ctx.font = `24px "Amiri"`;
+      ctx.fillText("✦  ❋  ✦", W / 2, 670);
+
+      const pngBuffer = canvas.toBuffer("image/png");
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Disposition", `inline; filename="qalamai-milestone.png"`);
+      res.send(pngBuffer);
+    } catch (error) {
+      console.error("Error generating milestone card:", error);
+      res.status(500).json({ error: "فشل في إنشاء بطاقة الإنجاز" });
+    }
+  });
+
   async function checkAiRateLimit(req: any, res: any): Promise<boolean> {
     const userId = req.user?.claims?.sub;
     if (!userId) return false;

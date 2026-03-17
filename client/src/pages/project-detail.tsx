@@ -37,6 +37,7 @@ import LtrNum from "@/components/ui/ltr-num";
 import { toArabicOrdinal, estimateReadingTime } from "@shared/utils";
 import { AbuHashimChat } from "@/components/abu-hashim-chat";
 import { WritingSprintTimer } from "@/components/writing-sprint-timer";
+import { MilestoneCardModal } from "@/components/milestone-card-modal";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 interface ProjectData extends NovelProject {
@@ -445,6 +446,9 @@ export default function ProjectDetail() {
   const [activeParagraphIndex, setActiveParagraphIndex] = useState(0);
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [goalInput, setGoalInput] = useState("");
+  const [showMilestoneCard, setShowMilestoneCard] = useState(false);
+  const [milestoneCardType, setMilestoneCardType] = useState<"project_completion" | "word_count_goal" | "first_publication">("project_completion");
+  const [milestoneCardMilestone, setMilestoneCardMilestone] = useState<number | undefined>(undefined);
 
   const handleExportDownload = async (format: "pdf" | "epub" | "docx") => {
     if (downloadingFormat) return;
@@ -2106,6 +2110,12 @@ export default function ProjectDetail() {
                       <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => { setGoalInput(String(goal)); setShowGoalDialog(true); }} data-testid="button-edit-goal">
                         <Pencil className="w-3 h-3" />
                       </Button>
+                      {milestones.includes(100) && (
+                        <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-amber-600 dark:text-amber-400" onClick={() => { setMilestoneCardType("word_count_goal"); setMilestoneCardMilestone(100); setShowMilestoneCard(true); }} data-testid="button-share-goal-complete">
+                          <Share2 className="w-3 h-3 ml-1" />
+                          شارك
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -3774,18 +3784,32 @@ export default function ProjectDetail() {
                           />
                         </div>
                       </div>
-                      {completedCount > 0 && (
-                        <Link href={`/project/${projectId}/read/${project.chapters.find(c => c.status === "completed")?.id}`}>
+                      <div className="flex items-center gap-2">
+                        {completedCount > 0 && (
+                          <Link href={`/project/${projectId}/read/${project.chapters.find(c => c.status === "completed")?.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              data-testid="button-reading-mode"
+                            >
+                              <BookOpen className="w-3.5 h-3.5 ml-1" />
+                              وضع القراءة
+                            </Button>
+                          </Link>
+                        )}
+                        {completedCount === totalCount && totalCount > 0 && (
                           <Button
                             variant="outline"
                             size="sm"
-                            data-testid="button-reading-mode"
+                            className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700"
+                            onClick={() => { setMilestoneCardType("project_completion"); setMilestoneCardMilestone(undefined); setShowMilestoneCard(true); }}
+                            data-testid="button-share-completion"
                           >
-                            <BookOpen className="w-3.5 h-3.5 ml-1" />
-                            وضع القراءة
+                            <Share2 className="w-3.5 h-3.5 ml-1" />
+                            شارك إنجازك
                           </Button>
-                        </Link>
-                      )}
+                        )}
+                      </div>
                       {hasRemaining && !generatingChapter && (
                         <Button
                           size="sm"
@@ -6104,6 +6128,15 @@ export default function ProjectDetail() {
             </div>
           </div>
         )}
+
+        <MilestoneCardModal
+          open={showMilestoneCard}
+          onOpenChange={setShowMilestoneCard}
+          type={milestoneCardType}
+          authorName={authUser?.username || authUser?.firstName || "كاتب"}
+          projectTitle={project?.title}
+          milestone={milestoneCardMilestone}
+        />
       </main>
     </div>
   );
