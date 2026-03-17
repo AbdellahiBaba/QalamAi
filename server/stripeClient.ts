@@ -75,10 +75,16 @@ export async function getStripeSync() {
     const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
 
+    const fmtMsg = (obj: any, msg?: string): string => {
+      const text = msg ?? obj?.msg ?? obj?.message ?? (obj?.error instanceof Error ? obj.error.message : undefined) ?? (typeof obj === "string" ? obj : undefined) ?? "";
+      const extra = [obj?.webhookId, obj?.url].filter(Boolean).join(" ");
+      return extra ? `${text} ${extra}` : text;
+    };
+
     const syncLogger = {
-      info:  (obj: any, msg?: string) => console.log("[stripe-sync]", msg ?? obj),
-      warn:  (obj: any, msg?: string) => console.warn("[stripe-sync]", msg ?? obj, ...(msg && obj?.webhookId ? [`(${obj.webhookId})`] : [])),
-      error: (obj: any, msg?: string) => console.error("[stripe-sync]", msg ?? obj),
+      info:  (obj: any, msg?: string) => console.log("[stripe-sync]", fmtMsg(obj, msg)),
+      warn:  (obj: any, msg?: string) => console.warn("[stripe-sync]", fmtMsg(obj, msg)),
+      error: (obj: any, msg?: string) => console.error("[stripe-sync]", fmtMsg(obj, msg)),
       debug: () => {},
       trace: () => {},
       child: () => syncLogger,
