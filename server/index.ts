@@ -619,6 +619,7 @@ async function runStartupMigrations() {
 
     await pool.query(`ALTER TABLE chapters ADD COLUMN IF NOT EXISTS is_paid BOOLEAN NOT NULL DEFAULT false`);
     await pool.query(`ALTER TABLE chapters ADD COLUMN IF NOT EXISTS price_cents INTEGER NOT NULL DEFAULT 0`);
+    await pool.query(`ALTER TABLE chapters ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS chapter_unlocks (

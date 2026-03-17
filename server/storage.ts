@@ -415,7 +415,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateChapter(id: number, data: Partial<Chapter>): Promise<Chapter> {
-    const [updated] = await db.update(chapters).set(data).where(eq(chapters.id, id)).returning();
+    const [updated] = await db.update(chapters).set({ ...data, updatedAt: new Date() }).where(eq(chapters.id, id)).returning();
     return updated;
   }
 

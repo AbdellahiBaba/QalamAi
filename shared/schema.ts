@@ -244,6 +244,7 @@ export const chapters = pgTable("chapters", {
   isPaid: boolean("is_paid").notNull().default(false),
   priceCents: integer("price_cents").notNull().default(0),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   index("idx_chapters_project_id").on(table.projectId),
 ]);

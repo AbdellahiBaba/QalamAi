@@ -254,7 +254,7 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
           {chapters.map((ch, idx) => {
             const wc = wordCounts[idx];
             const barH = maxWords > 0 ? Math.max((wc / maxWords) * 140, 8) : 8;
-            const status = ch.status || "draft";
+            const status = ch.isPaid ? "locked" : (ch.status === "completed" ? "completed" : "draft");
             const colors = STATUS_COLORS[status] || STATUS_COLORS.draft;
             const isSelected = selectedChapter === idx;
             return (
@@ -299,8 +299,8 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
             <div className="space-y-0.5 text-[11px] text-muted-foreground">
               <p>عدد الكلمات: <span className="text-foreground font-medium"><LtrNum>{activeWc}</LtrNum></span></p>
               <p>الحالة: <Badge variant="outline" className="text-[10px] px-1 py-0">{(STATUS_COLORS[activeCh.status || "draft"] || STATUS_COLORS.draft).label}</Badge></p>
-              {activeCh.createdAt && (
-                <p>تاريخ الإنشاء: {new Date(activeCh.createdAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</p>
+              {(activeCh.updatedAt || activeCh.createdAt) && (
+                <p>آخر تعديل: {new Date((activeCh.updatedAt || activeCh.createdAt)!).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</p>
               )}
             </div>
             <Link href={`/project/${projectId}/read/${activeCh.id}`}>
