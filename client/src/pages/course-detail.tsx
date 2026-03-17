@@ -9,7 +9,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { BookOpen, GraduationCap, Users, Lock, CheckCircle2, CircleDot, ChevronLeft, Loader2, ShoppingCart } from "lucide-react";
+import { BookOpen, GraduationCap, Users, Lock, CheckCircle2, CircleDot, ChevronLeft, Loader2, ShoppingCart, Quote } from "lucide-react";
+
+function ExcerptSection({ chapterId }: { chapterId: number }) {
+  const { data: chapter } = useQuery<any>({
+    queryKey: ["/api/chapters", chapterId],
+  });
+  if (!chapter?.content) return null;
+  const excerpt = chapter.content.length > 1500 ? chapter.content.substring(0, 1500) + "..." : chapter.content;
+  return (
+    <Card className="mt-6 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Quote className="h-4 w-4 text-amber-600" />
+          مقتطف تطبيقي: {chapter.title || `فصل ${chapter.chapterNumber}`}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="prose prose-sm dark:prose-invert max-w-none font-serif leading-relaxed whitespace-pre-wrap text-muted-foreground" dir="rtl" data-testid="text-excerpt-content">
+          {excerpt}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -113,6 +136,10 @@ export default function CourseDetail() {
                     <p>محتوى هذا الدرس مقفل</p>
                     {!user && <p className="text-sm mt-1">سجّل دخولك للتسجيل في الدورة</p>}
                   </div>
+                )}
+
+                {selectedLesson.excerptChapterId && canAccessContent && (
+                  <ExcerptSection chapterId={selectedLesson.excerptChapterId} />
                 )}
 
                 {selectedLesson.exercisePrompt && canAccessContent && (

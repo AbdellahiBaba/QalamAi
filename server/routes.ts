@@ -12832,12 +12832,13 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const course = await storage.getWritingCourse(id);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
-      const { title, description, priceCents, coverImageUrl } = req.body;
+      const { title, description, priceCents, coverImageUrl, isPublished } = req.body;
       const updated = await storage.updateWritingCourse(id, {
         ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
         ...(description !== undefined ? { description: sanitizeText(description).substring(0, 2000) } : {}),
         ...(priceCents !== undefined ? { priceCents: Math.max(0, parseInt(priceCents) || 0) } : {}),
         ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
+        ...(isPublished !== undefined ? { isPublished: !!isPublished } : {}),
       });
       res.json(updated);
     } catch (error) {
@@ -12913,9 +12914,9 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
         courseId,
         orderIndex: orderIndex !== undefined ? parseInt(orderIndex) : existingLessons.length,
         title: sanitizeText(title).substring(0, 200),
-        content: content || undefined,
+        content: content ? sanitizeRichText(content) : undefined,
         excerptChapterId: validExcerptChapterId,
-        exercisePrompt: exercisePrompt || undefined,
+        exercisePrompt: exercisePrompt ? sanitizeText(exercisePrompt) : undefined,
       });
       res.json(lesson);
     } catch (error) {
@@ -12950,9 +12951,9 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       }
       const updated = await storage.updateCourseLesson(lessonId, {
         ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
-        ...(content !== undefined ? { content } : {}),
+        ...(content !== undefined ? { content: sanitizeRichText(content) } : {}),
         ...(validExcerptId !== undefined ? { excerptChapterId: validExcerptId } : {}),
-        ...(exercisePrompt !== undefined ? { exercisePrompt } : {}),
+        ...(exercisePrompt !== undefined ? { exercisePrompt: sanitizeText(exercisePrompt) } : {}),
         ...(orderIndex !== undefined ? { orderIndex: parseInt(orderIndex) } : {}),
       });
       res.json(updated);
@@ -13141,6 +13142,26 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error) {
       console.error("Error fetching admin courses:", error);
       res.status(500).json({ error: "فشل في تحميل الدورات" });
+    }
+  });
+
+  app.get("/api/chapters/:id", async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const chapter = await storage.getChapter(id);
+      if (!chapter) return res.status(404).json({ error: "الفصل غير موجود" });
+      const project = await storage.getProject(chapter.projectId);
+      if (!project?.publishedToGallery) return res.status(404).json({ error: "الفصل غير متاح" });
+      res.json({
+        id: chapter.id,
+        title: chapter.title,
+        chapterNumber: chapter.chapterNumber,
+        content: chapter.content?.substring(0, 2000) || null,
+      });
+    } catch (error) {
+      console.error("Error fetching chapter:", error);
+      res.status(500).json({ error: "فشل في تحميل الفصل" });
     }
   });
 
