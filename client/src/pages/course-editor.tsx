@@ -32,6 +32,7 @@ export default function CourseEditor() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priceCents, setPriceCents] = useState(0);
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [isPublished, setIsPublished] = useState(false);
   const [lessons, setLessons] = useState<LessonForm[]>([]);
   const [activeLessonIdx, setActiveLessonIdx] = useState<number | null>(null);
@@ -46,6 +47,7 @@ export default function CourseEditor() {
       setTitle(course.title || "");
       setDescription(course.description || "");
       setPriceCents(course.priceCents || 0);
+      setCoverImageUrl(course.coverImageUrl || "");
       setIsPublished(course.isPublished || false);
       if (course.lessons) {
         setLessons(course.lessons.map((l: any) => ({
@@ -60,7 +62,7 @@ export default function CourseEditor() {
   }, [course, isEditing]);
 
   const createCourseMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/courses", { title, description, priceCents }),
+    mutationFn: () => apiRequest("POST", "/api/courses", { title, description, priceCents, coverImageUrl: coverImageUrl || undefined }),
     onSuccess: async (res) => {
       const data = await res.json();
       toast({ title: "تم إنشاء الدورة" });
@@ -70,7 +72,7 @@ export default function CourseEditor() {
   });
 
   const updateCourseMutation = useMutation({
-    mutationFn: () => apiRequest("PUT", `/api/courses/${courseId}`, { title, description, priceCents, isPublished }),
+    mutationFn: () => apiRequest("PUT", `/api/courses/${courseId}`, { title, description, priceCents, coverImageUrl: coverImageUrl || undefined, isPublished }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", courseId] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses/my"] });
@@ -212,6 +214,15 @@ export default function CourseEditor() {
             <div>
               <Label>وصف الدورة</Label>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف مختصر عن محتوى الدورة..." className="min-h-[100px]" data-testid="input-course-description" />
+            </div>
+            <div>
+              <Label>صورة غلاف الدورة (رابط)</Label>
+              <Input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} placeholder="https://example.com/cover.jpg" data-testid="input-cover-image" />
+              {coverImageUrl && (
+                <div className="mt-2 rounded-lg overflow-hidden border w-40 h-40">
+                  <img src={coverImageUrl} alt="غلاف الدورة" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                </div>
+              )}
             </div>
             <div>
               <Label>السعر (بالسنت، 0 = مجانية)</Label>

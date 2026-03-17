@@ -145,7 +145,10 @@ export default function CoursesGallery() {
                     )}
                   </CardHeader>
                   <CardContent className="p-4">
-                    <h3 className="font-bold text-lg line-clamp-1 mb-1">{course.title}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-lg line-clamp-1">{course.title}</h3>
+                      {course.isFeatured && <Badge variant="outline" className="border-amber-500 text-amber-600 text-xs shrink-0"><Star className="h-3 w-3 ml-1 fill-amber-500" />مميزة</Badge>}
+                    </div>
                     {course.description && <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{course.description}</p>}
                     <div className="flex items-center gap-2 mb-2">
                       {course.authorProfileImage && <img src={course.authorProfileImage} alt="" className="w-5 h-5 rounded-full" />}

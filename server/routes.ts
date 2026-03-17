@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq, and, or, gte, lt, desc, sql as dsql, count, isNotNull } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, giftSubscriptions, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS, projectQuotes } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, giftSubscriptions, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS, projectQuotes, writingCourses } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt, buildLiteraryCritiquePrompt, buildEditorialReviewPrompt } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
@@ -12716,6 +12716,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
         const lessons = await storage.getCourseLessons(c.id);
         return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", authorProfileImage: (author as any)?.profileImageUrl || null, lessonCount: lessons.length, ...stats };
       }));
+      enriched.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
       res.json(enriched);
     } catch (error) {
       console.error("Error fetching courses:", error);
@@ -12897,12 +12898,20 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       if (!title?.trim()) return res.status(400).json({ error: "عنوان الدرس مطلوب" });
       const existingLessons = await storage.getCourseLessons(courseId);
       if (existingLessons.length >= 20) return res.status(400).json({ error: "الحد الأقصى 20 درساً لكل دورة" });
+      let validExcerptChapterId: number | undefined;
+      if (excerptChapterId) {
+        const chapter = await storage.getChapter(parseInt(excerptChapterId));
+        if (!chapter) return res.status(400).json({ error: "الفصل المختار غير موجود" });
+        const project = await storage.getProject(chapter.projectId);
+        if (!project || project.userId !== userId) return res.status(400).json({ error: "لا يمكن استخدام فصل لا يخصك" });
+        validExcerptChapterId = chapter.id;
+      }
       const lesson = await storage.createCourseLesson({
         courseId,
         orderIndex: orderIndex !== undefined ? parseInt(orderIndex) : existingLessons.length,
         title: sanitizeText(title).substring(0, 200),
         content: content || undefined,
-        excerptChapterId: excerptChapterId ? parseInt(excerptChapterId) : undefined,
+        excerptChapterId: validExcerptChapterId,
         exercisePrompt: exercisePrompt || undefined,
       });
       res.json(lesson);
@@ -12924,10 +12933,22 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const lessons = await storage.getCourseLessons(courseId);
       if (!lessons.some(l => l.id === lessonId)) return res.status(404).json({ error: "الدرس لا ينتمي لهذه الدورة" });
       const { title, content, excerptChapterId, exercisePrompt, orderIndex } = req.body;
+      let validExcerptId: number | null | undefined = undefined;
+      if (excerptChapterId !== undefined) {
+        if (excerptChapterId) {
+          const chapter = await storage.getChapter(parseInt(excerptChapterId));
+          if (!chapter) return res.status(400).json({ error: "الفصل المختار غير موجود" });
+          const project = await storage.getProject(chapter.projectId);
+          if (!project || project.userId !== userId) return res.status(400).json({ error: "لا يمكن استخدام فصل لا يخصك" });
+          validExcerptId = chapter.id;
+        } else {
+          validExcerptId = null;
+        }
+      }
       const updated = await storage.updateCourseLesson(lessonId, {
         ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
         ...(content !== undefined ? { content } : {}),
-        ...(excerptChapterId !== undefined ? { excerptChapterId: excerptChapterId ? parseInt(excerptChapterId) : null } : {}),
+        ...(validExcerptId !== undefined ? { excerptChapterId: validExcerptId } : {}),
         ...(exercisePrompt !== undefined ? { exercisePrompt } : {}),
         ...(orderIndex !== undefined ? { orderIndex: parseInt(orderIndex) } : {}),
       });
@@ -13035,8 +13056,13 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const lessonId = parseIntParam(req.params.lessonId);
       if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       const enrollment = await storage.getCourseEnrollment(courseId, userId);
-      if (!enrollment) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      if (!enrollment && course.priceCents > 0 && course.authorId !== userId) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      if (!enrollment && course.priceCents === 0) {
+        await storage.enrollInCourse(courseId, userId);
+      }
       const lessons = await storage.getCourseLessons(courseId);
       if (!lessons.some(l => l.id === lessonId)) return res.status(404).json({ error: "الدرس لا ينتمي لهذه الدورة" });
       const { exerciseResponse } = req.body;
@@ -13066,6 +13092,50 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error) {
       console.error("Error fetching course stats:", error);
       res.status(500).json({ error: "فشل في تحميل الإحصائيات" });
+    }
+  });
+
+  app.post("/api/admin/courses/:id/feature", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const course = await storage.getWritingCourse(id);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const updated = await storage.updateWritingCourse(id, { isFeatured: !course.isFeatured });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error featuring course:", error);
+      res.status(500).json({ error: "فشل في تحديث حالة التمييز" });
+    }
+  });
+
+  app.post("/api/admin/courses/:id/publish", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const course = await storage.getWritingCourse(id);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const updated = await storage.updateWritingCourse(id, { isPublished: !course.isPublished });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error toggling course publish:", error);
+      res.status(500).json({ error: "فشل في تحديث حالة النشر" });
+    }
+  });
+
+  app.get("/api/admin/courses", isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const allCourses = await db.select().from(writingCourses).orderBy(desc(writingCourses.createdAt));
+      const enriched = await Promise.all(allCourses.map(async (c) => {
+        const author = await storage.getUser(c.authorId);
+        const stats = await storage.getCourseStats(c.id);
+        const lessons = await storage.getCourseLessons(c.id);
+        return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", lessonCount: lessons.length, ...stats };
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching admin courses:", error);
+      res.status(500).json({ error: "فشل في تحميل الدورات" });
     }
   });
 
