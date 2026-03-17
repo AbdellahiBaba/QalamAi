@@ -32,8 +32,8 @@ export function MilestoneCardModal({ open, onOpenChange, type, authorName, proje
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       setImageUrl(url);
-    } catch (e: any) {
-      setError(e.message || "حدث خطأ");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
       setLoading(false);
     }

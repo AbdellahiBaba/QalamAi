@@ -977,6 +977,22 @@ export default function Home() {
                     <LtrNum>{sprintStats.thisWeekSprints}</LtrNum> {sprintStats.thisWeekSprints === 1 ? "سباق" : "سباقات"} هذا الأسبوع
                   </div>
                 )}
+                {streakData.streak >= 3 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700"
+                    onClick={() => {
+                      const highest = STREAK_MILESTONES.filter(m => streakData.streak >= m.days).pop();
+                      setStreakMilestoneDays(highest?.days ?? streakData.streak);
+                      setShowStreakMilestoneCard(true);
+                    }}
+                    data-testid="button-share-streak"
+                  >
+                    <Share2 className="w-3 h-3" />
+                    شارك إنجازك
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
