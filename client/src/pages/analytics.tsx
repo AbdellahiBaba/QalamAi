@@ -596,11 +596,10 @@ export default function Analytics() {
 }
 
 function AnalyticsCourseStats() {
-  const { data: stats } = useQuery<{ totalCourses: number; totalEnrollments: number; totalRevenue: number }>({
+  const { data: stats } = useQuery<{ totalCourses: number; totalEnrollments: number; totalRevenue: number; courses: { id: number; title: string; isPublished: boolean; enrollmentCount: number; revenue: number }[] }>({
     queryKey: ["/api/author/course-stats"],
     staleTime: 120_000,
   });
-  const { data: myCourses } = useQuery<any[]>({ queryKey: ["/api/courses/my"] });
 
   if (!stats || stats.totalCourses === 0) return null;
 
@@ -627,13 +626,16 @@ function AnalyticsCourseStats() {
             <p className="text-xs text-muted-foreground">إيرادات</p>
           </div>
         </div>
-        {myCourses && myCourses.length > 0 && (
+        {stats.courses && stats.courses.length > 0 && (
           <div className="space-y-2">
-            {myCourses.slice(0, 5).map((c: any) => (
+            {stats.courses.map((c) => (
               <div key={c.id} className="flex items-center justify-between text-sm" data-testid={`analytics-course-${c.id}`}>
                 <span className="font-medium truncate flex-1">{c.title}</span>
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <span><LtrNum>{c.enrollmentCount}</LtrNum> طالب</span>
+                  {c.revenue > 0 && (
+                    <span className="text-green-600 font-medium"><LtrNum>${(c.revenue / 100).toFixed(0)}</LtrNum></span>
+                  )}
                   <Badge variant={c.isPublished ? "default" : "secondary"} className="text-[10px]">
                     {c.isPublished ? "منشورة" : "مسودة"}
                   </Badge>

@@ -13189,8 +13189,18 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
   app.get("/api/author/course-stats", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const stats = await storage.getAuthorCourseStats(userId);
-      res.json(stats);
+      const courses = await storage.getCoursesByAuthor(userId);
+      let totalEnrollments = 0;
+      let totalRevenue = 0;
+      const perCourse = await Promise.all(courses.map(async (c) => {
+        const stats = await storage.getCourseStats(c.id);
+        const courseEnrollCount = stats.enrollmentCount || 0;
+        const courseRevenue = Math.round(courseEnrollCount * (c.priceCents || 0) * 0.8);
+        totalEnrollments += courseEnrollCount;
+        totalRevenue += courseRevenue;
+        return { id: c.id, title: c.title, isPublished: c.isPublished, enrollmentCount: courseEnrollCount, revenue: courseRevenue };
+      }));
+      res.json({ totalCourses: courses.length, totalEnrollments, totalRevenue, courses: perCourse });
     } catch (error) {
       console.error("Error fetching author course stats:", error);
       res.status(500).json({ error: "فشل في تحميل إحصائيات الدورات" });
