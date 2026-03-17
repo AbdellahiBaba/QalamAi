@@ -82,7 +82,11 @@ function ChapterDiscussion({ clubId, chapterIndex, isUnlocked }: { clubId: numbe
 
   const { data: commentsResult, isLoading } = useQuery<{ data: CommentData[]; total: number }>({
     queryKey: ["/api/clubs", String(clubId), "comments", String(chapterIndex)],
-    queryFn: () => fetch(`/api/clubs/${clubId}/comments/${chapterIndex}`).then(r => r.json()),
+    queryFn: async () => {
+      const r = await fetch(`/api/clubs/${clubId}/comments/${chapterIndex}`);
+      if (!r.ok) throw new Error("فشل في جلب التعليقات");
+      return r.json();
+    },
     enabled: isUnlocked,
     staleTime: 30_000,
   });

@@ -52,6 +52,49 @@ const STREAK_MILESTONES = [
   { days: 30, label: "شهر", icon: Crown },
 ];
 
+function MyReadingClubs() {
+  const { data: clubs, isLoading } = useQuery<any[]>({ queryKey: ["/api/my-clubs"] });
+  if (isLoading || !clubs || clubs.length === 0) return null;
+  const PACE_LABELS: Record<string, string> = { daily: "يومي", weekly: "أسبوعي", biweekly: "كل أسبوعين" };
+  return (
+    <Card className="mb-6" data-testid="card-my-clubs">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Users className="w-4 h-4 text-primary" />
+          <h3 className="font-semibold text-sm">نوادي القراءة النشطة</h3>
+        </div>
+        <div className="space-y-2">
+          {clubs.slice(0, 5).map((club: any) => (
+            <Link key={club.id} href={`/clubs/${club.id}`}>
+              <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" data-testid={`home-club-${club.id}`}>
+                {club.projectCoverUrl ? (
+                  <img src={club.projectCoverUrl} alt="" className="w-10 h-14 rounded object-cover shrink-0" loading="lazy" />
+                ) : (
+                  <div className="w-10 h-14 rounded bg-muted flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate" data-testid={`home-club-name-${club.id}`}>{club.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{club.projectTitle}</p>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                    <span><LtrNum>{club.memberCount}</LtrNum> عضو</span>
+                    <span>·</span>
+                    <span>{PACE_LABELS[club.pace] || club.pace}</span>
+                    <span>·</span>
+                    <span>ف. <LtrNum>{club.currentChapterIndex + 1}</LtrNum>/<LtrNum>{club.totalChapters}</LtrNum></span>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Home() {
   useDocumentTitle("مشاريعي — قلم AI", "أدر مشاريعك الأدبية على منصة QalamAI: روايات ومقالات وسيناريوهات وخواطر.");
   const { user, logout } = useAuth();
@@ -1001,6 +1044,8 @@ export default function Home() {
         <Suspense fallback={null}>
           <WritingSprintTimer projects={projects} />
         </Suspense>
+
+        <MyReadingClubs />
 
         {/* Author Analytics Dashboard */}
         {analyticsData && (analyticsData.totalEssays > 0 || analyticsData.followerCount > 0) && (

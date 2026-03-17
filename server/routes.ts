@@ -12420,9 +12420,15 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
       const club = await storage.getReadingClub(clubId);
       if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      if (club.isPrivate) {
+        const userId = req.user?.claims?.sub;
+        if (!userId) return res.status(403).json({ error: "هذا نادٍ خاص" });
+        const isMember = await storage.isClubMember(clubId, userId);
+        if (!isMember) return res.status(403).json({ error: "هذا نادٍ خاص" });
+      }
       const members = await storage.getClubMembers(clubId);
       const memberCount = members.length;
-      const project = await storage.getProjectWithDetails(clubId > 0 ? club.projectId : 0);
+      const project = await storage.getProjectWithDetails(club.projectId);
       const admin = await storage.getUser(club.adminUserId);
       const chapters = project?.chapters?.sort((a, b) => a.chapterNumber - b.chapterNumber) || [];
       res.json({
@@ -12544,7 +12550,15 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     try {
       const clubId = parseIntParam(req.params.id);
       const chapterIndex = parseIntParam(req.params.chapterIndex);
-      if (clubId === null || chapterIndex === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      if (clubId === null || chapterIndex === null || chapterIndex < 0) return res.status(400).json({ error: "معرّف غير صالح" });
+      const club = await storage.getReadingClub(clubId);
+      if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      if (club.isPrivate) {
+        const userId = req.user?.claims?.sub;
+        if (!userId) return res.status(403).json({ error: "هذا نادٍ خاص" });
+        const isMember = await storage.isClubMember(clubId, userId);
+        if (!isMember) return res.status(403).json({ error: "هذا نادٍ خاص" });
+      }
       const limit = parseInt(String(req.query.limit || "50"), 10);
       const offset = parseInt(String(req.query.offset || "0"), 10);
       const result = await storage.getClubComments(clubId, chapterIndex, Math.min(limit, 100), offset);
@@ -12559,8 +12573,9 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const userId = req.user.claims.sub;
       const clubId = parseIntParam(req.params.id);
       if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
-      const { chapterIndex, content } = req.body;
-      if (chapterIndex === undefined || !content?.trim()) return res.status(400).json({ error: "محتوى التعليق مطلوب" });
+      const { content } = req.body;
+      const chapterIndex = typeof req.body.chapterIndex === "number" ? Math.floor(req.body.chapterIndex) : parseInt(req.body.chapterIndex, 10);
+      if (isNaN(chapterIndex) || chapterIndex < 0 || !content?.trim()) return res.status(400).json({ error: "محتوى التعليق ومعرّف الفصل مطلوبان" });
       const club = await storage.getReadingClub(clubId);
       if (!club) return res.status(404).json({ error: "النادي غير موجود" });
       const isMember = await storage.isClubMember(clubId, userId);
