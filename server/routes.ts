@@ -12788,7 +12788,9 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       const userId = req.user?.claims?.sub;
       const isOwner = userId === course.authorId;
-      if (!course.isPublished && !isOwner) return res.status(404).json({ error: "الدورة غير موجودة" });
+      let isAdminViewer = false;
+      if (userId) { const u = await storage.getUser(userId); isAdminViewer = u?.isAdmin === true; }
+      if (!course.isPublished && !isOwner && !isAdminViewer) return res.status(404).json({ error: "الدورة غير موجودة" });
       const author = await storage.getUser(course.authorId);
       const lessons = await storage.getCourseLessons(id);
       const stats = await storage.getCourseStats(id);
@@ -12831,13 +12833,12 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const course = await storage.getWritingCourse(id);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
-      const { title, description, priceCents, coverImageUrl, isPublished } = req.body;
+      const { title, description, priceCents, coverImageUrl } = req.body;
       const updated = await storage.updateWritingCourse(id, {
         ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
         ...(description !== undefined ? { description: sanitizeText(description).substring(0, 2000) } : {}),
         ...(priceCents !== undefined ? { priceCents: Math.max(0, parseInt(priceCents) || 0) } : {}),
         ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
-        ...(isPublished !== undefined ? { isPublished: !!isPublished } : {}),
       });
       res.json(updated);
     } catch (error) {
@@ -12870,9 +12871,12 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const course = await storage.getWritingCourse(courseId);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       const isOwner = course.authorId === userId;
+      const userRecord = await storage.getUser(userId);
+      const isAdminUser = userRecord?.isAdmin === true;
+      if (!course.isPublished && !isOwner && !isAdminUser) return res.status(403).json({ error: "الدورة غير منشورة" });
       const enrollment = await storage.getCourseEnrollment(courseId, userId);
       const isFree = course.priceCents === 0;
-      if (!isOwner && !enrollment && !isFree) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      if (!isOwner && !isAdminUser && !enrollment && !isFree) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
       const lessons = await storage.getCourseLessons(courseId);
       const completions = enrollment ? await storage.getLessonCompletions(courseId, userId) : [];
       const lessonsData = lessons.map(l => ({
@@ -13031,6 +13035,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const userId = req.user.claims.sub;
       const course = await storage.getWritingCourse(courseId);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (!course.isPublished) return res.status(403).json({ error: "الدورة غير منشورة بعد" });
       if (course.priceCents > 0 && course.authorId !== userId && !FREE_ACCESS_USER_IDS.includes(userId)) {
         const { sessionId } = req.body;
         if (!sessionId) return res.status(400).json({ error: "يجب إتمام عملية الدفع أولاً" });
@@ -13058,9 +13063,10 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const userId = req.user.claims.sub;
       const course = await storage.getWritingCourse(courseId);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (!course.isPublished && course.authorId !== userId) return res.status(403).json({ error: "الدورة غير منشورة" });
       const enrollment = await storage.getCourseEnrollment(courseId, userId);
       if (!enrollment && course.priceCents > 0 && course.authorId !== userId) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
-      if (!enrollment && course.priceCents === 0) {
+      if (!enrollment) {
         await storage.enrollInCourse(courseId, userId);
       }
       const lessons = await storage.getCourseLessons(courseId);

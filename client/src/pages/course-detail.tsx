@@ -106,9 +106,7 @@ export default function CourseDetail() {
                 </Button>
                 <h2 className="text-2xl font-bold font-serif mb-4" data-testid="text-lesson-title">{selectedLesson.title}</h2>
                 {selectedLesson.content ? (
-                  <div className="prose prose-lg dark:prose-invert max-w-none font-serif leading-relaxed whitespace-pre-wrap mb-6" data-testid="text-lesson-content">
-                    {selectedLesson.content}
-                  </div>
+                  <div className="prose prose-lg dark:prose-invert max-w-none font-serif leading-relaxed mb-6" dir="rtl" data-testid="text-lesson-content" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
                     <Lock className="h-12 w-12 mx-auto mb-3 opacity-30" />
