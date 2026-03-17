@@ -5772,7 +5772,8 @@ ${glossaryParagraphs}
     try {
       const userId = req.user.claims.sub;
       const { projectId, chapterId, percentComplete } = req.body;
-      if (!projectId) return res.status(400).json({ error: "معرّف المشروع مطلوب" });
+      if (!projectId || typeof projectId !== "number") return res.status(400).json({ error: "معرّف المشروع مطلوب" });
+      if (chapterId && typeof chapterId !== "number") return res.status(400).json({ error: "معرّف الفصل غير صالح" });
       const scrollPos = typeof percentComplete === "number" ? Math.min(100, Math.max(0, Math.round(percentComplete))) : undefined;
       const result = await storage.upsertReadingProgress(userId, projectId, chapterId || undefined, scrollPos);
       res.json(result);
