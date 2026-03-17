@@ -454,6 +454,51 @@ export async function registerRoutes(
     }
   }
 
+  const MILESTONE_THRESHOLDS = [25, 50, 75, 100];
+  const MILESTONE_MESSAGES: Record<number, string> = {
+    25: "وصلت إلى ربع الطريق! 🎉",
+    50: "أحسنت! أنجزت نصف الهدف! 🔥",
+    75: "رائع! ثلاثة أرباع الطريق! 💪",
+    100: "مبروك! أكملت هدف الكلمات بالكامل! 🏆",
+  };
+
+  async function checkWordCountMilestones(projectId: number, userId: string) {
+    try {
+      const project = await storage.getProject(projectId);
+      if (!project || !project.wordCountGoal || project.wordCountGoal <= 0) return;
+
+      const chaptersList = await storage.getChaptersByProject(projectId);
+      const totalWords = chaptersList.reduce((sum, ch) => {
+        const words = ch.content ? ch.content.split(/\s+/).filter((w: string) => w.length > 0).length : 0;
+        return sum + words;
+      }, 0);
+
+      const percentComplete = Math.min((totalWords / project.wordCountGoal) * 100, 100);
+      const currentMilestones: number[] = [...((project.milestonesReached as number[]) || [])];
+      let changed = false;
+
+      for (const threshold of MILESTONE_THRESHOLDS) {
+        if (percentComplete >= threshold && !currentMilestones.includes(threshold)) {
+          currentMilestones.push(threshold);
+          changed = true;
+          await notifyUser(
+            userId,
+            "milestone",
+            MILESTONE_MESSAGES[threshold],
+            `مشروع "${project.title}" — ${totalWords.toLocaleString("ar-EG")} / ${project.wordCountGoal.toLocaleString("ar-EG")} كلمة`,
+            `/project/${projectId}`
+          );
+        }
+      }
+
+      if (changed) {
+        await storage.updateProject(projectId, { milestonesReached: currentMilestones });
+      }
+    } catch (e) {
+      console.error("Error checking word count milestones:", e);
+    }
+  }
+
   async function isUserSuperAdmin(userId: string): Promise<boolean> {
     if (FREE_ACCESS_USER_IDS.includes(userId)) return true;
     const user = await storage.getUser(userId);
@@ -2322,6 +2367,7 @@ ${allPages.map(p => `  <url>
       }
 
       updateWritingStreak(req.user.claims.sub).catch((e) => console.warn("Failed to update writing streak:", e));
+      checkWordCountMilestones(projectId, req.user.claims.sub).catch((e) => console.warn("Failed to check milestones:", e));
 
       if (chapterUser?.plan === "free" && !isFreeUser) {
         storage.incrementFreeMonthlyUsage(req.user.claims.sub, "generation").catch((e) => console.warn("Failed to increment free monthly usage:", e));
@@ -2444,6 +2490,7 @@ ${allPages.map(p => `  <url>
       }
 
       updateWritingStreak(req.user.claims.sub).catch((e) => console.warn("Failed to update writing streak:", e));
+      checkWordCountMilestones(projectId, req.user.claims.sub).catch((e) => console.warn("Failed to check milestones:", e));
 
       res.json(updated);
     } catch (error) {
@@ -4237,6 +4284,26 @@ ${glossaryParagraphs}
     } catch (error) {
       console.error("Error updating target word count:", error);
       res.status(500).json({ error: "فشل في تحديث هدف الكلمات" });
+    }
+  });
+
+  app.patch("/api/projects/:id/goal", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const project = await storage.getProject(id);
+      if (!project || project.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+      const { wordCountGoal } = req.body;
+      if (wordCountGoal !== null && wordCountGoal !== undefined && (typeof wordCountGoal !== "number" || wordCountGoal < 0 || wordCountGoal > 10000000)) {
+        return res.status(400).json({ error: "هدف الكلمات يجب أن يكون رقماً موجباً" });
+      }
+      await storage.updateProject(id, { wordCountGoal: wordCountGoal || null, milestonesReached: [] });
+      res.json({ success: true, wordCountGoal });
+    } catch (error) {
+      console.error("Error updating word count goal:", error);
+      res.status(500).json({ error: "فشل في تحديث الهدف" });
     }
   });
 

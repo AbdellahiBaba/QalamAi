@@ -1616,6 +1616,24 @@ export default function Home() {
                               ? "مرحلة المسودة"
                               : "في الانتظار"}
                     </div>
+                    {(project as any).wordCountGoal && (project as any).wordCountGoal > 0 && (() => {
+                      const currentWords = projectStats?.[project.id]?.realWordCount ?? project.usedWords;
+                      const goalPct = Math.min((currentWords / (project as any).wordCountGoal) * 100, 100);
+                      return (
+                        <div className="mt-2 space-y-1" data-testid={`goal-progress-${project.id}`}>
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span><LtrNum>{currentWords.toLocaleString("ar-EG")}</LtrNum> / <LtrNum>{((project as any).wordCountGoal as number).toLocaleString("ar-EG")}</LtrNum></span>
+                            <span><LtrNum>{Math.round(goalPct)}</LtrNum>٪</span>
+                          </div>
+                          <div className="h-1 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${goalPct >= 100 ? "bg-green-500" : "bg-primary"}`}
+                              style={{ width: `${goalPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Link>
               </Card>

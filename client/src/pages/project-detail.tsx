@@ -443,6 +443,8 @@ export default function ProjectDetail() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fullscreenTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [activeParagraphIndex, setActiveParagraphIndex] = useState(0);
+  const [showGoalDialog, setShowGoalDialog] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
 
   const handleExportDownload = async (format: "pdf" | "epub" | "docx") => {
     if (downloadingFormat) return;
@@ -815,6 +817,21 @@ export default function ProjectDetail() {
     },
     onError: () => {
       toast({ title: "فشل في حذف المشروع", variant: "destructive" });
+    },
+  });
+
+  const setGoalMutation = useMutation({
+    mutationFn: async (wordCountGoal: number | null) => {
+      const res = await apiRequest("PATCH", `/api/projects/${projectId}/goal`, { wordCountGoal });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      setShowGoalDialog(false);
+      toast({ title: "تم تحديث الهدف بنجاح" });
+    },
+    onError: () => {
+      toast({ title: "فشل في تحديث الهدف", variant: "destructive" });
     },
   });
 
@@ -2060,6 +2077,105 @@ export default function ProjectDetail() {
       </ErrorBoundary>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {(() => {
+          const totalWords = project.chapters?.reduce((sum: number, ch: Chapter) => {
+            const wc = ch.content ? ch.content.split(/\s+/).filter((w: string) => w.length > 0).length : 0;
+            return sum + wc;
+          }, 0) ?? 0;
+          const goal = (project as any).wordCountGoal as number | null | undefined;
+          const milestones = ((project as any).milestonesReached as number[] | null) ?? [];
+          const pct = goal && goal > 0 ? Math.min((totalWords / goal) * 100, 100) : 0;
+
+          return (
+            <div className="mb-6">
+              {goal && goal > 0 ? (
+                <div className="space-y-2" data-testid="section-word-goal-progress">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-primary" />
+                      <span className="font-medium" data-testid="text-word-goal-numbers">
+                        <LtrNum>{totalWords.toLocaleString("ar-EG")}</LtrNum> / <LtrNum>{goal.toLocaleString("ar-EG")}</LtrNum> كلمة — <LtrNum>{Math.round(pct)}</LtrNum>٪
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {milestones.map((m: number) => (
+                        <span key={m} className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" data-testid={`badge-milestone-${m}`}>
+                          {m}%
+                        </span>
+                      ))}
+                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => { setGoalInput(String(goal)); setShowGoalDialog(true); }} data-testid="button-edit-goal">
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${pct >= 100 ? "bg-green-500" : pct >= 75 ? "bg-blue-500" : pct >= 50 ? "bg-amber-500" : "bg-primary"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => { setGoalInput(""); setShowGoalDialog(true); }} data-testid="button-set-goal">
+                  <Target className="w-3.5 h-3.5" />
+                  تعيين الهدف
+                </Button>
+              )}
+            </div>
+          );
+        })()}
+
+        <Dialog open={showGoalDialog} onOpenChange={setShowGoalDialog}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>تعيين هدف الكلمات</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm mb-1.5 block">عدد الكلمات المستهدف</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={10000000}
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  placeholder="مثلاً: 80000"
+                  className="text-left"
+                  dir="ltr"
+                  data-testid="input-word-count-goal"
+                />
+                <p className="text-xs text-muted-foreground mt-1">أدخل عدد الكلمات المتوقع لمشروعك</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const val = parseInt(goalInput);
+                    if (!val || val <= 0) return;
+                    setGoalMutation.mutate(val);
+                  }}
+                  disabled={setGoalMutation.isPending || !goalInput || parseInt(goalInput) <= 0}
+                  data-testid="button-save-goal"
+                >
+                  {setGoalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <Target className="w-4 h-4 ml-1" />}
+                  حفظ الهدف
+                </Button>
+                {(project as any).wordCountGoal && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setGoalMutation.mutate(null)}
+                    disabled={setGoalMutation.isPending}
+                    data-testid="button-remove-goal"
+                  >
+                    إزالة
+                  </Button>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {!hasAccess && (
           <Card className="mb-6 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
             <CardContent className="p-6">

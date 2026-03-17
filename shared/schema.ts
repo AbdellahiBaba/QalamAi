@@ -197,6 +197,8 @@ export const novelProjects = pgTable("novel_projects", {
   memoireUserData: text("memoire_user_data"),
   tags: text("tags").array(),
   seekingBetaReaders: boolean("seeking_beta_readers").default(false),
+  wordCountGoal: integer("word_count_goal"),
+  milestonesReached: integer("milestones_reached").array(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
