@@ -2001,6 +2001,13 @@ export default function ProjectDetail() {
                             if (checked) {
                               await apiRequest("POST", `/api/projects/${projectId}/publish-to-gallery`);
                               toast({ title: project.projectType === "memoire" ? "تم نشر المذكرة في صفحة المذكرات الأكاديمية" : "تم نشر المشروع في المعرض" });
+                              const publishKey = `qalamai_first_pub_shared_${authUser?.id}`;
+                              if (!localStorage.getItem(publishKey)) {
+                                localStorage.setItem(publishKey, "1");
+                                setMilestoneCardType("first_publication");
+                                setMilestoneCardMilestone(undefined);
+                                setShowMilestoneCard(true);
+                              }
                             } else {
                               await apiRequest("DELETE", `/api/projects/${projectId}/publish-to-gallery`);
                               toast({ title: project.projectType === "memoire" ? "تم إلغاء النشر من صفحة المذكرات" : "تم إلغاء النشر من المعرض" });
