@@ -41,6 +41,15 @@ interface ProjectData {
   chapters: Chapter[];
 }
 
+interface SimilarWork {
+  id: number;
+  title: string;
+  coverImageUrl?: string | null;
+  shareToken?: string | null;
+  projectType?: string;
+  authorName?: string;
+}
+
 type FontSize = "sm" | "base" | "lg";
 type FontFamily = "naskh" | "scheherazade";
 
@@ -142,7 +151,7 @@ export default function Reader() {
 
   const readingTime = useMemo(() => getReadingTime(currentChapter?.content ?? null), [currentChapter?.content]);
 
-  const { data: similarWorks } = useQuery<any[]>({
+  const { data: similarWorks } = useQuery<SimilarWork[]>({
     queryKey: ["/api/projects", projectId, "similar"],
     queryFn: () => fetch(`/api/projects/${projectId}/similar`).then(r => r.json()),
     enabled: !!projectId && isLastChapter,
@@ -171,9 +180,20 @@ export default function Reader() {
   );
 
   useEffect(() => {
-    window.scrollTo({ top: 0 });
     setShowEndScreen(false);
-  }, [chapterId]);
+    const savedKey = `reader-scroll-${projectId}-${chapterId}`;
+    const savedPos = localStorage.getItem(savedKey);
+    if (savedPos) {
+      const pos = parseInt(savedPos, 10);
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          window.scrollTo({ top: pos, behavior: "instant" as ScrollBehavior });
+        }, 100);
+      });
+    } else {
+      window.scrollTo({ top: 0 });
+    }
+  }, [chapterId, projectId]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -222,6 +242,28 @@ export default function Reader() {
     };
   }, [projectId, chapterId, currentChapter, isLastChapter]);
 
+  useEffect(() => {
+    if (!projectId || !chapterId) return;
+    const savedKey = `reader-scroll-${projectId}-${chapterId}`;
+    let raf = 0;
+    let lastSaved = 0;
+    const saveScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const now = Date.now();
+        if (now - lastSaved < 2000) return;
+        lastSaved = now;
+        localStorage.setItem(savedKey, String(Math.round(window.scrollY)));
+      });
+    };
+    window.addEventListener("scroll", saveScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", saveScroll);
+      cancelAnimationFrame(raf);
+      localStorage.setItem(savedKey, String(Math.round(window.scrollY)));
+    };
+  }, [projectId, chapterId]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#FFFDF5] dark:bg-[#1a1510]" dir="rtl">
@@ -259,7 +301,7 @@ export default function Reader() {
     .split("\n")
     .filter((p) => p.trim());
 
-  const similarItems = Array.isArray(similarWorks) ? similarWorks.slice(0, 3) : [];
+  const similarItems: SimilarWork[] = Array.isArray(similarWorks) ? similarWorks.slice(0, 3) : [];
 
   return (
     <div className="min-h-screen bg-[#FFFDF5] dark:bg-[#1a1510] text-[#2C1810] dark:text-[#E8DCC8]" dir="rtl">
@@ -499,7 +541,7 @@ export default function Reader() {
                 <div className="space-y-3 pt-4">
                   <h3 className="font-serif text-base font-semibold">قد يعجبك أيضاً</h3>
                   <div className="flex justify-center gap-4">
-                    {similarItems.map((w: any) => (
+                    {similarItems.map((w) => (
                       <Link key={w.id} href={w.shareToken ? `/shared/${w.shareToken}` : "#"}>
                         <Card className="w-28 overflow-hidden hover:shadow-md transition-shadow cursor-pointer" data-testid={`end-similar-${w.id}`}>
                           <div className="aspect-[2/3] bg-muted flex items-center justify-center overflow-hidden">
