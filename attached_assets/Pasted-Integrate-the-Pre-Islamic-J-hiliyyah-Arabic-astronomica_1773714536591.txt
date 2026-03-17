@@ -1,0 +1,32 @@
+Integrate the Pre‑Islamic (Jāhiliyyah) Arabic astronomical lexicon into all Arabic literary‑writing tasks. 
+This integration must work harmoniously with all existing QalamAI features, without overriding or disrupting 
+current capabilities. The Abu Hashimi model should apply this lexicon correctly, consistently, and in context.
+
+Writing Style Requirements:
+- Use the linguistic style of Pre‑Islamic Arabia (Jāhiliyyah): elevated diction, strong imagery, concise yet 
+  profound expressions, and metaphors rooted in desert life, night travel, and celestial observation.
+- Maintain the tone and spirit of poets such as Imru’ al‑Qays, Zuhayr, and ʿAntarah.
+
+Astronomical Lexicon Requirements:
+Use only authentic ancient Arabic names and terms for stars, constellations, and celestial phenomena, as found in:
+- Classical Arabic lexicons (Lisān al‑ʿArab, Tahdhīb al‑Lughah, Kitāb al‑ʿAyn)
+- Pre‑Islamic star lore and Arab anwa’ traditions
+- Early Arab astronomical terminology
+
+Examples of required terminology:
+- Stars & Constellations: Aldebaran (al‑Dabarān), al‑Thurayyā, Suhayl, al‑Jawzā’, al‑ʿAyyūq, al‑Simāk al‑Rāmiḥ,
+  Banāt Naʿsh, al‑Furqadān, al‑Nasr al‑Wāqiʿ, al‑Nasr al‑Ṭā’ir.
+- Planets: al‑Zuhara (Venus), ʿUṭārid (Mercury), Kawkab al‑Ṣubḥ, Kawkab al‑ʿAshā’.
+- Astronomical Concepts: al‑Anwā’, al‑Falk, al‑Burūj, al‑Samṭ, al‑Awj (apogee), al‑Ḥaḍīḍ (perigee),
+  Manāzil al‑Qamar (lunar mansions).
+
+Model Behavior Requirements:
+1. The Abu Hashimi model must apply these terms accurately and naturally within literary contexts.
+2. Avoid modern scientific terminology unless explicitly requested.
+3. When needed, provide brief clarifications in a classical, literary tone without breaking stylistic immersion.
+4. Preserve all existing QalamAI features (creativity, coherence, stylistic control, contextual awareness).
+5. Ensure the integration enhances literary richness rather than constraining expression.
+
+Objective:
+Produce high‑quality Arabic literary texts that embody the spirit of Jāhiliyyah poetry while using authentic 
+ancient astronomical terminology with precision and elegance.

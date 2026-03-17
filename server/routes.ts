@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq, and, or, gte, lt, desc, sql as dsql, count, isNotNull } from "drizzle-orm";
 import { storage } from "./storage";
 import { db } from "./db";
-import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, giftSubscriptions, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS } from "@shared/schema";
+import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, giftSubscriptions, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS, projectQuotes } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt, buildLiteraryCritiquePrompt, buildEditorialReviewPrompt } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
@@ -787,6 +787,266 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error generating milestone card:", error);
       res.status(500).json({ error: "فشل في إنشاء بطاقة الإنجاز" });
+    }
+  });
+
+  // ── Quote endpoints (الاقتباسات) ──────────────────────────────────────────
+  app.post("/api/projects/:id/quotes", async (req: any, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
+
+      const projCheck = await db.execute(dsql`SELECT id FROM novel_projects WHERE id = ${projectId} AND (published_to_gallery = true OR published_to_news = true) LIMIT 1`);
+      if (!projCheck.rows || projCheck.rows.length === 0) {
+        return res.status(404).json({ error: "المشروع غير موجود أو غير منشور" });
+      }
+
+      const { quoteText, chapterId } = req.body;
+      if (!quoteText || typeof quoteText !== "string" || quoteText.trim().length < 5 || quoteText.length > 500) {
+        return res.status(400).json({ error: "نص الاقتباس مطلوب (5-500 حرف)" });
+      }
+      const userId = req.user?.claims?.sub || null;
+      const guestIp = userId ? null : (req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown");
+
+      const hourAgo = new Date(Date.now() - 3600_000);
+      if (!userId && guestIp) {
+        const [{ cnt }] = await db.select({ cnt: count() }).from(projectQuotes)
+          .where(and(eq(projectQuotes.guestIp, guestIp), gte(projectQuotes.createdAt, hourAgo)));
+        if (Number(cnt) >= 5) {
+          return res.status(429).json({ error: "تجاوزت الحد الأقصى للاقتباسات (5 في الساعة). حاول لاحقاً" });
+        }
+      } else if (userId) {
+        const [{ cnt }] = await db.select({ cnt: count() }).from(projectQuotes)
+          .where(and(eq(projectQuotes.userId, userId), gte(projectQuotes.createdAt, hourAgo)));
+        if (Number(cnt) >= 30) {
+          return res.status(429).json({ error: "تجاوزت الحد الأقصى للاقتباسات (30 في الساعة). حاول لاحقاً" });
+        }
+      }
+
+      const existing = await db.select({ id: projectQuotes.id }).from(projectQuotes)
+        .where(and(
+          eq(projectQuotes.projectId, projectId),
+          eq(projectQuotes.quoteText, quoteText.trim()),
+          userId ? eq(projectQuotes.userId, userId) : (guestIp ? eq(projectQuotes.guestIp, guestIp) : dsql`false`)
+        )).limit(1);
+      if (existing.length > 0) {
+        return res.json({ success: true, duplicate: true });
+      }
+
+      await db.insert(projectQuotes).values({
+        projectId,
+        chapterId: chapterId ? Number(chapterId) : null,
+        userId,
+        guestIp,
+        quoteText: quoteText.trim(),
+      });
+      res.json({ success: true });
+    } catch (e: unknown) {
+      console.error("Error saving quote:", e);
+      res.status(500).json({ error: "فشل في حفظ الاقتباس" });
+    }
+  });
+
+  app.get("/api/projects/:id/quotes", async (req: any, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
+
+      const projCheck = await db.execute(dsql`SELECT id FROM novel_projects WHERE id = ${projectId} AND (published_to_gallery = true OR published_to_news = true) LIMIT 1`);
+      if (!projCheck.rows || projCheck.rows.length === 0) {
+        return res.status(404).json({ error: "المشروع غير موجود أو غير منشور" });
+      }
+
+      const rawLimit = parseInt(req.query.limit || "10", 10);
+      const rawOffset = parseInt(req.query.offset || "0", 10);
+      const limit = Math.max(1, Math.min(isNaN(rawLimit) ? 10 : rawLimit, 50));
+      const offset = Math.max(0, isNaN(rawOffset) ? 0 : rawOffset);
+
+      const rows = await db.execute(dsql`
+        SELECT MIN(pq.id) as id, pq.quote_text, MIN(pq.chapter_id) as chapter_id,
+          MIN(pq.created_at) as created_at, COUNT(*) as save_count
+        FROM project_quotes pq
+        WHERE pq.project_id = ${projectId} AND (pq.flagged IS NULL OR pq.flagged = false)
+        GROUP BY pq.quote_text
+        ORDER BY save_count DESC, MIN(pq.created_at) DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `);
+      const totalRows = await db.execute(dsql`
+        SELECT COUNT(DISTINCT quote_text) as cnt FROM project_quotes
+        WHERE project_id = ${projectId} AND (flagged IS NULL OR flagged = false)
+      `);
+      res.json({ data: rows.rows, total: Number((totalRows.rows[0] as any)?.cnt || 0) });
+    } catch (e: unknown) {
+      console.error("Error fetching quotes:", e);
+      res.status(500).json({ error: "فشل في جلب الاقتباسات" });
+    }
+  });
+
+  app.get("/api/authors/:id/top-quotes", async (req: any, res) => {
+    try {
+      const authorId = req.params.id;
+      if (!authorId) return res.status(400).json({ error: "معرّف المؤلف مطلوب" });
+      const rows = await db.execute(dsql`
+        SELECT pq.quote_text, np.title as project_title, np.share_token,
+          COUNT(*) as save_count
+        FROM project_quotes pq
+        JOIN novel_projects np ON np.id = pq.project_id
+        WHERE np.user_id = ${authorId}
+          AND (np.published_to_gallery = true OR np.published_to_news = true)
+          AND (pq.flagged IS NULL OR pq.flagged = false)
+        GROUP BY pq.quote_text, np.title, np.share_token
+        ORDER BY save_count DESC, MAX(pq.created_at) DESC
+        LIMIT 3
+      `);
+      res.json(rows.rows);
+    } catch (e: unknown) {
+      console.error("Error fetching author top quotes:", e);
+      res.status(500).json({ error: "فشل في جلب الاقتباسات" });
+    }
+  });
+
+  const quoteCardLimiter: Record<string, number[]> = {};
+  app.post("/api/quote-card", async (req: any, res) => {
+    try {
+      const clientIp = (req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown");
+      const now = Date.now();
+      const windowMs = 600_000;
+      if (!quoteCardLimiter[clientIp]) quoteCardLimiter[clientIp] = [];
+      quoteCardLimiter[clientIp] = quoteCardLimiter[clientIp].filter(t => now - t < windowMs);
+      if (quoteCardLimiter[clientIp].length >= 10) {
+        return res.status(429).json({ error: "حاول مرة أخرى لاحقاً" });
+      }
+      quoteCardLimiter[clientIp].push(now);
+
+      const { quoteText, projectTitle } = req.body;
+      if (!quoteText || typeof quoteText !== "string" || quoteText.length < 3 || quoteText.length > 500) {
+        return res.status(400).json({ error: "نص الاقتباس مطلوب" });
+      }
+      const safeQuote = quoteText.slice(0, 400);
+      const safeTitle = projectTitle ? String(projectTitle).slice(0, 150) : "";
+
+      const W = 800, H = 500;
+      const canvas = createCanvas(W, H);
+      const ctx = canvas.getContext("2d");
+
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, "#faf6ee");
+      bg.addColorStop(0.5, "#f5ead0");
+      bg.addColorStop(1, "#f0e4c8");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.strokeStyle = "#d4af37";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(14, 14, W - 28, H - 28);
+      ctx.strokeStyle = "rgba(212, 175, 55, 0.3)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(24, 24, W - 48, H - 48);
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.direction = "rtl";
+
+      ctx.font = `80px "Amiri"`;
+      ctx.fillStyle = "rgba(212, 175, 55, 0.25)";
+      ctx.fillText("❝", 120, 80);
+      ctx.fillText("❞", W - 120, H - 80);
+
+      ctx.font = `bold 28px "Amiri"`;
+      ctx.fillStyle = "#3d2b1f";
+      const words = safeQuote.split(/\s+/);
+      const lines: string[] = [];
+      let line = "";
+      const maxW = W - 120;
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (ctx.measureText(test).width > maxW && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      const displayLines = lines.slice(0, 6);
+
+      const lineH = 44;
+      const startY = (H / 2) - ((displayLines.length * lineH) / 2) - 20;
+      for (let i = 0; i < displayLines.length; i++) {
+        ctx.fillText(displayLines[i], W / 2, startY + i * lineH);
+      }
+
+      if (safeTitle) {
+        ctx.strokeStyle = "#d4af37";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - 60, H - 100);
+        ctx.lineTo(W / 2 + 60, H - 100);
+        ctx.stroke();
+        ctx.font = `18px "Amiri"`;
+        ctx.fillStyle = "#8b7355";
+        ctx.fillText(`— ${safeTitle} —`, W / 2, H - 75);
+      }
+
+      ctx.font = `bold 16px "Amiri"`;
+      ctx.fillStyle = "#d4af37";
+      ctx.fillText("QalamAI  —  قلم", W / 2, H - 40);
+
+      const pngBuffer = canvas.toBuffer("image/png");
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Disposition", `inline; filename="qalamai-quote.png"`);
+      res.send(pngBuffer);
+    } catch (e: unknown) {
+      console.error("Error generating quote card:", e);
+      res.status(500).json({ error: "فشل في إنشاء بطاقة الاقتباس" });
+    }
+  });
+
+  app.get("/api/admin/quotes", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isUserSuperAdmin(userId))) return res.status(403).json({ error: "غير مصرّح" });
+      const limit = Math.min(parseInt(req.query.limit || "50", 10), 200);
+      const offset = parseInt(req.query.offset || "0", 10);
+      const rows = await db.execute(dsql`
+        SELECT pq.id, pq.project_id, pq.quote_text, pq.user_id, pq.guest_ip, pq.flagged, pq.created_at,
+          np.title as project_title
+        FROM project_quotes pq
+        LEFT JOIN novel_projects np ON np.id = pq.project_id
+        ORDER BY pq.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `);
+      const [totalRow] = await db.select({ cnt: count() }).from(projectQuotes);
+      res.json({ data: rows.rows, total: Number(totalRow.cnt) });
+    } catch (e: unknown) {
+      console.error("Error fetching admin quotes:", e);
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
+  app.patch("/api/admin/quotes/:id/flag", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isUserSuperAdmin(userId))) return res.status(403).json({ error: "غير مصرّح" });
+      const quoteId = parseIntParam(req.params.id);
+      if (!quoteId) return res.status(400).json({ error: "معرّف غير صالح" });
+      await db.update(projectQuotes).set({ flagged: true }).where(eq(projectQuotes.id, quoteId));
+      res.json({ success: true });
+    } catch (e: unknown) {
+      res.status(500).json({ error: "خطأ في الخادم" });
+    }
+  });
+
+  app.delete("/api/admin/quotes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isUserSuperAdmin(userId))) return res.status(403).json({ error: "غير مصرّح" });
+      const quoteId = parseIntParam(req.params.id);
+      if (!quoteId) return res.status(400).json({ error: "معرّف غير صالح" });
+      await db.delete(projectQuotes).where(eq(projectQuotes.id, quoteId));
+      res.json({ success: true });
+    } catch (e: unknown) {
+      res.status(500).json({ error: "خطأ في الخادم" });
     }
   });
 

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle, Trophy, BookOpenCheck, Loader2 } from "lucide-react";
+import { User, Image as ImageIcon, ArrowRight, BadgeCheck, UserPlus, UserMinus, Users, Rss, Globe, Coffee, Mail, CheckCircle, Trophy, BookOpenCheck, Loader2, Quote } from "lucide-react";
 import { VoteButton } from "@/components/vote-button";
 import { VoteDonateModal } from "@/components/vote-donate-modal";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,41 @@ const typeLabels: Record<string, string> = {
   poetry: "قصيدة",
   memoire: "مذكرة تخرج",
 };
+
+function AuthorTopQuotes({ authorId }: { authorId: string }) {
+  const { data: quotes } = useQuery<any[]>({
+    queryKey: ["/api/authors", authorId, "top-quotes"],
+    queryFn: () => fetch(`/api/authors/${authorId}/top-quotes`).then(r => r.json()),
+    enabled: !!authorId,
+    staleTime: 120_000,
+  });
+
+  if (!quotes || !Array.isArray(quotes) || quotes.length === 0) return null;
+
+  return (
+    <div className="space-y-3" data-testid="section-author-top-quotes">
+      <div className="flex items-center gap-2">
+        <Quote className="w-5 h-5 text-primary/70" />
+        <h2 className="text-xl font-serif font-semibold" data-testid="text-author-quotes-heading">أبرز اقتباساتي</h2>
+      </div>
+      <div className="space-y-3">
+        {quotes.map((q: any, idx: number) => (
+          <Card key={idx} className="overflow-hidden" data-testid={`author-quote-${idx}`}>
+            <CardContent className="p-4 relative pr-10">
+              <span className="absolute right-3 top-3 text-2xl text-primary/20 font-serif">❝</span>
+              <p className="font-serif text-sm leading-relaxed text-foreground/90" data-testid={`author-quote-text-${idx}`}>{q.quote_text}</p>
+              {q.project_title && (
+                <p className="text-xs text-muted-foreground mt-2" data-testid={`author-quote-source-${idx}`}>
+                  — {q.project_title}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AuthorProfile() {
   const { id } = useParams<{ id: string }>();
@@ -466,6 +501,8 @@ export default function AuthorProfile() {
             </div>
           </div>
         )}
+
+        <AuthorTopQuotes authorId={id!} />
 
         <div>
           <h2 className="text-xl font-serif font-semibold mb-4" data-testid="text-projects-heading">المشاريع المشتركة</h2>

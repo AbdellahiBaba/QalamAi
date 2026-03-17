@@ -5,7 +5,7 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard, Bookmark, MessageCircle, Send } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard, Bookmark, MessageCircle, Send, Share2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveToListButton } from "@/components/save-to-list-button";
@@ -17,6 +17,7 @@ import { ttqTrack } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { Progress } from "@/components/ui/progress";
 import { ReportDialog } from "@/components/report-dialog";
+import { QuoteSelectionToolbar } from "@/components/quote-selection-toolbar";
 
 interface SharedChapter {
   chapterNumber: number;
@@ -330,6 +331,107 @@ function ProjectCommentsSection({ shareToken }: { shareToken: string }) {
             </div>
           </CardContent>
         </Card>
+      )}
+    </div>
+  );
+}
+
+function TopQuotesSection({ projectId, projectTitle }: { projectId: number; projectTitle: string }) {
+  const { toast } = useToast();
+  const { data: quotesResult } = useQuery<{ data: any[]; total: number }>({
+    queryKey: ["/api/projects", String(projectId), "quotes"],
+    queryFn: () => fetch(`/api/projects/${projectId}/quotes?limit=5`).then(r => r.json()),
+    enabled: !!projectId,
+    staleTime: 60_000,
+  });
+
+  const [sharingQuote, setSharingQuote] = useState<string | null>(null);
+  const [shareImg, setShareImg] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+
+  const quotes = quotesResult?.data || [];
+  if (quotes.length === 0) return null;
+
+  const handleShareQuote = async (text: string) => {
+    setSharingQuote(text);
+    setShareLoading(true);
+    try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+      const res = await fetch("/api/quote-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfVal },
+        body: JSON.stringify({ quoteText: text, projectTitle }),
+      });
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      setShareImg(URL.createObjectURL(blob));
+    } catch {
+      toast({ title: "فشل في إنشاء بطاقة الاقتباس", variant: "destructive" });
+      setSharingQuote(null);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto my-8 space-y-4" data-testid="top-quotes-section">
+      <div className="flex items-center gap-2">
+        <span className="text-2xl text-primary/60">❝</span>
+        <h3 className="font-serif text-lg font-semibold" data-testid="text-top-quotes-title">أبرز الاقتباسات</h3>
+      </div>
+      <div className="space-y-3">
+        {quotes.map((q: any) => (
+          <div key={q.id} className="relative pr-8 py-3 border-r-2 border-primary/20" data-testid={`quote-${q.id}`}>
+            <span className="absolute right-1 top-3 text-xl text-primary/30 font-serif">❝</span>
+            <p className="font-serif text-base leading-relaxed text-foreground/90" data-testid={`quote-text-${q.id}`}>{q.quote_text}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 gap-1 text-muted-foreground hover:text-primary"
+                onClick={() => handleShareQuote(q.quote_text)}
+                data-testid={`button-share-quote-${q.id}`}
+              >
+                <Share2 className="w-3 h-3" />
+                شارك
+              </Button>
+              {Number(q.save_count) > 1 && (
+                <span className="text-[11px] text-muted-foreground" data-testid={`quote-count-${q.id}`}>
+                  {q.save_count} حفظ
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {sharingQuote && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setSharingQuote(null); if (shareImg) URL.revokeObjectURL(shareImg); setShareImg(null); }}>
+          <div className="bg-background rounded-xl shadow-2xl p-4 max-w-[90vw] space-y-3" onClick={(e) => e.stopPropagation()} dir="rtl" data-testid="quote-card-modal">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif font-semibold text-sm">بطاقة الاقتباس</h3>
+              <button onClick={() => { setSharingQuote(null); if (shareImg) URL.revokeObjectURL(shareImg); setShareImg(null); }}>✕</button>
+            </div>
+            {shareLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : shareImg ? (
+              <>
+                <img src={shareImg} alt="بطاقة الاقتباس" className="rounded-lg max-w-full" data-testid="img-shared-quote-card" />
+                <a
+                  href={shareImg}
+                  download="qalamai-quote.png"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                  data-testid="button-download-shared-quote-card"
+                >
+                  تحميل البطاقة
+                </a>
+              </>
+            ) : null}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -813,9 +915,18 @@ export default function SharedProject() {
         <BetaReaderOptIn projectId={project.id} />
       )}
 
+      {project && <TopQuotesSection projectId={project.id} projectTitle={project.title} />}
+
       {project && token && <ProjectCommentsSection shareToken={token} />}
 
       {project && <SharedRelatedWorks projectId={project.id} />}
+
+      {project && (
+        <QuoteSelectionToolbar
+          projectId={project.id}
+          projectTitle={project.title}
+        />
+      )}
 
       {project && (
         <ReportDialog projectId={project.id} projectTitle={project.title} open={reportOpen} onOpenChange={setReportOpen} />

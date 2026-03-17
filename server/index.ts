@@ -726,6 +726,22 @@ async function runStartupMigrations() {
     await pool.query(`ALTER TABLE challenge_entries ADD COLUMN IF NOT EXISTS admin_notes TEXT`);
     await pool.query(`ALTER TABLE payout_settings ADD COLUMN IF NOT EXISTS kast_wallet_id TEXT`);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS project_quotes (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL REFERENCES novel_projects(id) ON DELETE CASCADE,
+        chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL,
+        user_id VARCHAR,
+        guest_ip VARCHAR,
+        quote_text TEXT NOT NULL,
+        flagged BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pq_project ON project_quotes(project_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pq_user ON project_quotes(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_pq_created ON project_quotes(created_at)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

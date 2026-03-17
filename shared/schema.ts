@@ -1124,3 +1124,23 @@ export const writingSprints = pgTable("writing_sprints", {
 export const insertWritingSprintSchema = createInsertSchema(writingSprints).omit({ id: true });
 export type WritingSprint = typeof writingSprints.$inferSelect;
 export type InsertWritingSprint = z.infer<typeof insertWritingSprintSchema>;
+
+// ── Project Quotes (الاقتباسات) ──────────────────────────────────────────────
+export const projectQuotes = pgTable("project_quotes", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  chapterId: integer("chapter_id").references(() => chapters.id, { onDelete: "set null" }),
+  userId: varchar("user_id"),
+  guestIp: varchar("guest_ip"),
+  quoteText: text("quote_text").notNull(),
+  flagged: boolean("flagged").default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_pq_project").on(table.projectId),
+  index("idx_pq_user").on(table.userId),
+  index("idx_pq_created").on(table.createdAt),
+]);
+
+export const insertProjectQuoteSchema = createInsertSchema(projectQuotes).omit({ id: true, createdAt: true, flagged: true });
+export type ProjectQuote = typeof projectQuotes.$inferSelect;
+export type InsertProjectQuote = z.infer<typeof insertProjectQuoteSchema>;

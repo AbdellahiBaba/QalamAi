@@ -49,6 +49,7 @@ QalamAI is a React-based Single Page Application (SPA) utilizing Tailwind CSS an
 -   **Content Reporting System:** A multi-step reporting dialog for public users, categorizing issues by type and severity.
 -   **Free Plan:** Offers limited monthly project and chapter generations with upgrade calls to action.
 -   **Writing Sprint Mode:** Timed writing challenges with configurable duration (5–60 min), word-count targets, optional project linking, circular progress timer, pause/resume, completion celebration dialog with WPM stats, and personal-best tracking. Sprint history and aggregate stats (total sprints, best sprint, weekly words) shown on home dashboard. Data persisted in `writing_sprints` table.
+-   **In-Reader Quote System (الاقتباسات):** Readers can select text passages in the reader (`/project/:id/read/:chapterId`) or shared project page (`/shared/:token`) and save them as quotes. Floating selection toolbar appears on text selection with "اقتبس", "نسخ", and "شارك" buttons. Quotes stored in `project_quotes` table with IP rate limiting for guests (5/hr). Shared project page displays "أبرز الاقتباسات" section with top quotes and share card generation. Author profile shows "أبرز اقتباساتي" section with top 3 most-quoted lines. Admin can view/flag/delete quotes via `/api/admin/quotes`. Quote share cards generated as 800×500 PNG with warm Arabic calligraphy styling.
 -   **Bug Fixes:** Fixed MonthlyReport flooding by using a 24-hour check interval and fixed author profile visibility in `getPublicAuthor()`.
 
 ## External Dependencies

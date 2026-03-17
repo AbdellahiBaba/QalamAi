@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { apiRequest } from "@/lib/queryClient";
 import { VoteButton } from "@/components/vote-button";
 import StarRating from "@/components/ui/star-rating";
+import { QuoteSelectionToolbar } from "@/components/quote-selection-toolbar";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -645,6 +646,12 @@ export default function Reader() {
           </div>
         </footer>
       )}
+
+      <QuoteSelectionToolbar
+        projectId={Number(projectId)}
+        chapterId={currentChapter?.id}
+        projectTitle={project?.title}
+      />
     </div>
   );
 }
