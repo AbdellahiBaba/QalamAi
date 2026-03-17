@@ -905,7 +905,7 @@ export async function registerRoutes(
         FROM project_quotes pq
         JOIN novel_projects np ON np.id = pq.project_id
         WHERE np.user_id = ${authorId}
-          AND (np.published_to_gallery = true OR np.published_to_news = true)
+          AND (np.published_to_gallery = true OR np.published_to_news = true OR np.share_token IS NOT NULL)
           AND (pq.flagged IS NULL OR pq.flagged = false)
         GROUP BY pq.quote_text, np.title, np.share_token
         ORDER BY save_count DESC, MAX(pq.created_at) DESC
