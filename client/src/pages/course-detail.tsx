@@ -35,6 +35,104 @@ function ExcerptSection({ chapterId }: { chapterId: number }) {
   );
 }
 
+function AbuHashimExercisePrompt({ courseId, lessonId }: { courseId: string; lessonId: number }) {
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [started, setStarted] = useState(false);
+  const { toast } = useToast();
+  const abortRef = useRef<AbortController | null>(null);
+
+  const generateExercise = async () => {
+    setLoading(true);
+    setStarted(true);
+    setPrompt("");
+    abortRef.current = new AbortController();
+    try {
+      const response = await fetch(`/api/courses/${courseId}/lessons/${lessonId}/exercise`, {
+        credentials: "include",
+        signal: abortRef.current.signal,
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "فشل في توليد التمرين");
+      }
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("No reader");
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) setPrompt(prev => prev + parsed.content);
+              if (parsed.error) throw new Error(parsed.error);
+            } catch (_) { /* ignore */ }
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        toast({ title: err.message || "فشل في توليد التمرين", variant: "destructive" });
+        setStarted(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={generateExercise}
+        disabled={loading}
+        className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-950/30"
+        data-testid="button-generate-exercise"
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+        {loading ? "أبو هاشم يصيغ التمرين..." : "اجعل أبو هاشم يصيغ تمريناً لك"}
+      </Button>
+      {started && (
+        <Card className="border-violet-200 dark:border-violet-800 bg-gradient-to-b from-violet-50/80 to-transparent dark:from-violet-950/30">
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm flex items-center gap-2 text-violet-700 dark:text-violet-400">
+              <Sparkles className="h-4 w-4" />
+              تمرين من أبو هاشم
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading && !prompt ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap font-serif" dir="rtl" data-testid="text-abu-hashim-exercise">
+                {prompt}
+                {loading && <span className="animate-pulse">|</span>}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 function AbuHashimFeedback({ courseId, lessonId, exerciseResponse, exercisePrompt }: {
   courseId: string;
   lessonId: number;
@@ -272,15 +370,20 @@ export default function CourseDetail() {
                   <ExcerptSection chapterId={selectedLesson.excerptChapterId} />
                 )}
 
-                {selectedLesson.exercisePrompt && canAccessContent && (
+                {canAccessContent && (
                   <Card className="mt-6">
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
-                        تمرين
+                        <Brain className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                        تمرين الدرس
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-muted-foreground font-serif">{selectedLesson.exercisePrompt}</p>
+                    <CardContent className="space-y-4">
+                      {selectedLesson.exercisePrompt ? (
+                        <p className="text-muted-foreground font-serif" data-testid="text-exercise-prompt">{selectedLesson.exercisePrompt}</p>
+                      ) : (
+                        <AbuHashimExercisePrompt courseId={id} lessonId={selectedLesson.id} />
+                      )}
                       <Textarea
                         placeholder="اكتب إجابتك هنا..."
                         value={exerciseText}
@@ -297,7 +400,7 @@ export default function CourseDetail() {
                           courseId={id}
                           lessonId={selectedLesson.id}
                           exerciseResponse={exerciseText}
-                          exercisePrompt={selectedLesson.exercisePrompt}
+                          exercisePrompt={selectedLesson.exercisePrompt || ""}
                         />
                       )}
                     </CardContent>
@@ -337,6 +440,18 @@ export default function CourseDetail() {
                       {course.authorProfileImage && <img src={course.authorProfileImage} alt="" className="w-6 h-6 rounded-full" />}
                       <span>{course.authorName}</span>
                       {course.authorVerified && <Badge variant="secondary" className="text-xs">موثّق</Badge>}
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap mb-2">
+                      {course.projectType && course.projectType !== "general" && (
+                        <Badge variant="outline" className="text-xs" data-testid="badge-course-type">
+                          {{ novel: "رواية", short_story: "قصة قصيرة", essay: "مقالة", poetry: "شعر", scenario: "سيناريو", khawater: "خواطر", memoire: "مذكرة تخرج" }[course.projectType as string] || course.projectType}
+                        </Badge>
+                      )}
+                      {course.difficulty && (
+                        <Badge variant="outline" className={`text-xs ${{ beginner: "border-green-400 text-green-600", intermediate: "border-amber-400 text-amber-600", advanced: "border-red-400 text-red-600" }[course.difficulty as string] || ""}`} data-testid="badge-course-difficulty">
+                          {{ beginner: "مبتدئ", intermediate: "متوسط", advanced: "متقدم" }[course.difficulty as string] || course.difficulty}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1"><BookOpen className="h-4 w-4" /> {course.lessons?.length || 0} درس</span>

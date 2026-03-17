@@ -13160,6 +13160,75 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
+  // SSE endpoint: streams the exercise prompt/question for a lesson (Abu Hashim generates the exercise task)
+  app.get("/api/courses/:courseId/lessons/:lessonId/exercise", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.courseId);
+      const lessonId = parseIntParam(req.params.lessonId);
+      if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const lessons = await storage.getCourseLessons(courseId);
+      const lesson = lessons.find(l => l.id === lessonId);
+      if (!lesson) return res.status(404).json({ error: "الدرس غير موجود" });
+      const enrollment = await storage.getCourseEnrollment(courseId, userId);
+      if (!enrollment && course.priceCents > 0 && course.authorId !== userId) {
+        return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      }
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const systemPrompt = `أنت أبو هاشم، المرشد الأدبي الحكيم في مدرسة الكتابة. مهمتك صياغة تمرين كتابي إبداعي وواضح بناءً على موضوع الدرس.
+أسلوبك: مشجع، واضح، مبدع. اكتب التمرين باللغة العربية الفصحى.
+اجعل التمرين محدداً وقابلاً للتطبيق في 10-15 دقيقة.`;
+
+      const lessonContext = lesson.exercisePrompt
+        ? `التمرين المحدد للدرس: ${lesson.exercisePrompt}`
+        : `الدرس: "${lesson.title}"\n${lesson.content ? `محتوى الدرس: ${lesson.content.substring(0, 300)}` : ""}`;
+
+      const userPrompt = `${lessonContext}
+
+صِغ تمريناً كتابياً تفاعلياً يساعد الطالب على تطبيق ما تعلمه في هذا الدرس. التمرين يجب أن يكون:
+- واضح التعليمات
+- محدد الهدف
+- مناسب للتطبيق الفوري
+- مشوق ومحفز للإبداع
+
+اكتب التمرين في 80-120 كلمة.`;
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        stream: true,
+        max_tokens: 350,
+        temperature: 0.75,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+    } catch (error) {
+      console.error("Error generating exercise prompt:", error);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "فشل في توليد التمرين" })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({ error: "فشل في توليد التمرين" });
+      }
+    }
+  });
+
   app.post("/api/courses/:courseId/lessons/:lessonId/exercise-feedback", isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseIntParam(req.params.courseId);
@@ -13227,23 +13296,10 @@ ${exerciseResponse.trim()}
     }
   });
 
-  app.get("/api/admin/courses", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/courses", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
-      const courses = await storage.getAllAdminCourses();
-      res.json(courses);
-    } catch (error) {
-      console.error("Error fetching admin courses:", error);
-      res.status(500).json({ error: "فشل في تحميل الدورات" });
-    }
-  });
-
-  app.post("/api/admin/courses", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
-      const { title, description, coverImageUrl } = req.body;
+      const { title, description, coverImageUrl, projectType, difficulty } = req.body;
       if (!title || typeof title !== "string" || title.trim().length < 3) {
         return res.status(400).json({ error: "عنوان الدورة مطلوب" });
       }
@@ -13253,6 +13309,8 @@ ${exerciseResponse.trim()}
         description: description?.trim() || null,
         priceCents: 0,
         coverImageUrl: coverImageUrl || null,
+        projectType: projectType || "general",
+        difficulty: difficulty || "beginner",
       });
       res.json(course);
     } catch (error) {
@@ -13261,13 +13319,11 @@ ${exerciseResponse.trim()}
     }
   });
 
-  app.put("/api/admin/courses/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/admin/courses/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
       const courseId = parseIntParam(req.params.id);
       if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
-      const { title, description, coverImageUrl, isPublished, isFeatured } = req.body;
+      const { title, description, coverImageUrl, isPublished, isFeatured, projectType, difficulty } = req.body;
       const course = await storage.getWritingCourse(courseId);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       const updated = await storage.updateWritingCourse(courseId, {
@@ -13276,6 +13332,8 @@ ${exerciseResponse.trim()}
         ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
         ...(isPublished !== undefined ? { isPublished } : {}),
         ...(isFeatured !== undefined ? { isFeatured } : {}),
+        ...(projectType !== undefined ? { projectType } : {}),
+        ...(difficulty !== undefined ? { difficulty } : {}),
       });
       res.json(updated);
     } catch (error) {
@@ -13284,10 +13342,8 @@ ${exerciseResponse.trim()}
     }
   });
 
-  app.delete("/api/admin/courses/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/admin/courses/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
       const courseId = parseIntParam(req.params.id);
       if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       await storage.deleteWritingCourse(courseId);
@@ -13298,10 +13354,8 @@ ${exerciseResponse.trim()}
     }
   });
 
-  app.post("/api/admin/courses/:id/lessons", isAuthenticated, async (req: any, res) => {
+  app.post("/api/admin/courses/:id/lessons", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
       const courseId = parseIntParam(req.params.id);
       if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
       const { title, content, exercisePrompt, orderIndex } = req.body;
@@ -13322,10 +13376,8 @@ ${exerciseResponse.trim()}
     }
   });
 
-  app.put("/api/admin/courses/:courseId/lessons/:lessonId", isAuthenticated, async (req: any, res) => {
+  app.put("/api/admin/courses/:courseId/lessons/:lessonId", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
       const courseId = parseIntParam(req.params.courseId);
       const lessonId = parseIntParam(req.params.lessonId);
       if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
@@ -13343,10 +13395,8 @@ ${exerciseResponse.trim()}
     }
   });
 
-  app.delete("/api/admin/courses/:courseId/lessons/:lessonId", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/admin/courses/:courseId/lessons/:lessonId", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
       const courseId = parseIntParam(req.params.courseId);
       const lessonId = parseIntParam(req.params.lessonId);
       if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });

@@ -844,6 +844,14 @@ async function runStartupMigrations() {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_ratings_course ON course_ratings(course_id)`);
 
+    // Add new columns to writing_courses if they don't exist
+    await pool.query(`ALTER TABLE writing_courses ADD COLUMN IF NOT EXISTS project_type VARCHAR(50) DEFAULT 'general'`);
+    await pool.query(`ALTER TABLE writing_courses ADD COLUMN IF NOT EXISTS difficulty VARCHAR(20) DEFAULT 'beginner'`);
+
+    // Add new columns to course_enrollments if they don't exist
+    await pool.query(`ALTER TABLE course_enrollments ADD COLUMN IF NOT EXISTS completed_lessons INTEGER[] NOT NULL DEFAULT '{}'`);
+    await pool.query(`ALTER TABLE course_enrollments ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

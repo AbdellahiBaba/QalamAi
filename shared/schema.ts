@@ -1188,6 +1188,8 @@ export const writingCourses = pgTable("writing_courses", {
   authorId: varchar("author_id").notNull(),
   title: text("title").notNull(),
   description: text("description"),
+  projectType: varchar("project_type", { length: 50 }).default("general"),
+  difficulty: varchar("difficulty", { length: 20 }).default("beginner"),
   priceCents: integer("price_cents").notNull().default(0),
   coverImageUrl: text("cover_image_url"),
   isPublished: boolean("is_published").notNull().default(false),
@@ -1216,6 +1218,8 @@ export const courseEnrollments = pgTable("course_enrollments", {
   courseId: integer("course_id").notNull().references(() => writingCourses.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull(),
   stripeSessionId: text("stripe_session_id"),
+  completedLessons: integer("completed_lessons").array().default([]).notNull(),
+  completedAt: timestamp("completed_at"),
   purchasedAt: timestamp("purchased_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 }, (table) => [
   unique("uq_enrollment").on(table.courseId, table.userId),

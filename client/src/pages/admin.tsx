@@ -837,7 +837,7 @@ function AdminTopVotedTab() {
 function AdminCoursesTab() {
   const { toast } = useToast();
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
-  const [newCourse, setNewCourse] = useState({ title: "", description: "", coverImageUrl: "" });
+  const [newCourse, setNewCourse] = useState({ title: "", description: "", coverImageUrl: "", projectType: "general", difficulty: "beginner" });
   const [showNewCourseForm, setShowNewCourseForm] = useState(false);
   const [newLesson, setNewLesson] = useState({ title: "", content: "", exercisePrompt: "" });
   const [showNewLessonForm, setShowNewLessonForm] = useState(false);
@@ -869,7 +869,7 @@ function AdminCoursesTab() {
     onSuccess: () => {
       toast({ title: "تم إنشاء الدورة" });
       setShowNewCourseForm(false);
-      setNewCourse({ title: "", description: "", coverImageUrl: "" });
+      setNewCourse({ title: "", description: "", coverImageUrl: "", projectType: "general", difficulty: "beginner" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
       refetch();
     },
@@ -1207,6 +1207,39 @@ function AdminCoursesTab() {
               dir="ltr"
               data-testid="input-new-course-cover"
             />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">نوع المحتوى</Label>
+                <Select value={newCourse.projectType} onValueChange={v => setNewCourse(c => ({ ...c, projectType: v }))} dir="rtl">
+                  <SelectTrigger className="h-8 text-sm" data-testid="select-course-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="general">عام</SelectItem>
+                    <SelectItem value="novel">رواية</SelectItem>
+                    <SelectItem value="short_story">قصة قصيرة</SelectItem>
+                    <SelectItem value="essay">مقالة</SelectItem>
+                    <SelectItem value="poetry">شعر</SelectItem>
+                    <SelectItem value="scenario">سيناريو</SelectItem>
+                    <SelectItem value="khawater">خواطر</SelectItem>
+                    <SelectItem value="memoire">مذكرة تخرج</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">المستوى</Label>
+                <Select value={newCourse.difficulty} onValueChange={v => setNewCourse(c => ({ ...c, difficulty: v }))} dir="rtl">
+                  <SelectTrigger className="h-8 text-sm" data-testid="select-course-difficulty">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value="beginner">مبتدئ</SelectItem>
+                    <SelectItem value="intermediate">متوسط</SelectItem>
+                    <SelectItem value="advanced">متقدم</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -1241,7 +1274,7 @@ function AdminCoursesTab() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <p className="font-semibold text-sm truncate" data-testid={`text-admin-course-title-${course.id}`}>{course.title}</p>
                       <Badge variant={course.isPublished ? "default" : "secondary"} className="text-xs shrink-0">
                         {course.isPublished ? "منشورة" : "مسودة"}
@@ -1251,6 +1284,17 @@ function AdminCoursesTab() {
                     {course.description && (
                       <p className="text-xs text-muted-foreground truncate">{course.description}</p>
                     )}
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {course.projectType && course.projectType !== "general" && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5">{({ novel: "رواية", short_story: "قصة قصيرة", essay: "مقالة", poetry: "شعر", scenario: "سيناريو", khawater: "خواطر", memoire: "مذكرة" } as Record<string, string>)[course.projectType] || course.projectType}</Badge>
+                      )}
+                      {course.difficulty && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${{ beginner: "bg-green-100 text-green-700", intermediate: "bg-amber-100 text-amber-700", advanced: "bg-red-100 text-red-700" }[course.difficulty as string] || "bg-muted text-muted-foreground"}`}>
+                          {({ beginner: "مبتدئ", intermediate: "متوسط", advanced: "متقدم" } as Record<string, string>)[course.difficulty] || course.difficulty}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-muted-foreground">{course.lessonCount} درس · {course.enrollmentCount} طالب</span>
+                    </div>
                   </div>
                   <ChevronLeft className="w-4 h-4 text-muted-foreground shrink-0" />
                 </div>
