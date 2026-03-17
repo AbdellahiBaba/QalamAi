@@ -273,7 +273,7 @@ export default function HallOfGlory() {
             <div className="flex items-center gap-3 py-2">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-amber-400 fill-amber-300" />
-                <span className="font-serif text-base font-semibold">أعمال مميزة</span>
+                <span className="font-serif text-base font-semibold">أعمال مختارة</span>
               </div>
               <div className="h-px flex-1 bg-gradient-to-r from-amber-400/30 to-transparent" />
             </div>
