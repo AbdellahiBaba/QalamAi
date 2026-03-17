@@ -40,6 +40,8 @@ import {
   writingSprints, type WritingSprint, type InsertWritingSprint,
   readingClubs, readingClubMembers, type ReadingClub, type InsertReadingClub, type ReadingClubMember,
   projectComments,
+  writingCourses, courseLessons, courseEnrollments, lessonCompletions,
+  type WritingCourse, type InsertWritingCourse, type CourseLesson, type CourseEnrollment, type LessonCompletion,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -305,6 +307,25 @@ export interface IStorage {
   deleteReadingClub(id: number): Promise<void>;
   getClubComments(clubId: number, chapterIndex: number, limit?: number, offset?: number): Promise<{ data: any[]; total: number }>;
   createClubComment(data: { projectId: number; clubId: number; chapterIndex: number; authorName: string; content: string; ipHash?: string }): Promise<any>;
+
+  createWritingCourse(data: InsertWritingCourse): Promise<WritingCourse>;
+  getWritingCourse(id: number): Promise<WritingCourse | undefined>;
+  updateWritingCourse(id: number, data: Partial<WritingCourse>): Promise<WritingCourse>;
+  deleteWritingCourse(id: number): Promise<void>;
+  getPublishedCourses(): Promise<WritingCourse[]>;
+  getCoursesByAuthor(authorId: string): Promise<WritingCourse[]>;
+  getCourseLessons(courseId: number): Promise<CourseLesson[]>;
+  createCourseLesson(data: { courseId: number; orderIndex: number; title: string; content?: string; excerptChapterId?: number; exercisePrompt?: string }): Promise<CourseLesson>;
+  updateCourseLesson(id: number, data: Partial<CourseLesson>): Promise<CourseLesson>;
+  deleteCourseLesson(id: number): Promise<void>;
+  enrollInCourse(courseId: number, userId: string, stripeSessionId?: string): Promise<CourseEnrollment>;
+  getCourseEnrollment(courseId: number, userId: string): Promise<CourseEnrollment | undefined>;
+  getCourseEnrollments(courseId: number): Promise<CourseEnrollment[]>;
+  getUserEnrollments(userId: string): Promise<CourseEnrollment[]>;
+  completeCourseLesson(lessonId: number, userId: string, exerciseResponse?: string): Promise<LessonCompletion>;
+  getLessonCompletions(courseId: number, userId: string): Promise<LessonCompletion[]>;
+  getCourseStats(courseId: number): Promise<{ enrollmentCount: number; completionRate: number }>;
+  getAuthorCourseStats(authorId: string): Promise<{ totalCourses: number; totalEnrollments: number; totalRevenue: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3472,6 +3493,117 @@ export class DatabaseStorage implements IStorage {
       approved: true,
     }).returning();
     return comment;
+  }
+
+  async createWritingCourse(data: InsertWritingCourse): Promise<WritingCourse> {
+    const [course] = await db.insert(writingCourses).values(data).returning();
+    return course;
+  }
+
+  async getWritingCourse(id: number): Promise<WritingCourse | undefined> {
+    const [course] = await db.select().from(writingCourses).where(eq(writingCourses.id, id));
+    return course;
+  }
+
+  async updateWritingCourse(id: number, data: Partial<WritingCourse>): Promise<WritingCourse> {
+    const [updated] = await db.update(writingCourses).set({ ...data, updatedAt: new Date() }).where(eq(writingCourses.id, id)).returning();
+    return updated;
+  }
+
+  async deleteWritingCourse(id: number): Promise<void> {
+    await db.delete(writingCourses).where(eq(writingCourses.id, id));
+  }
+
+  async getPublishedCourses(): Promise<WritingCourse[]> {
+    return db.select().from(writingCourses).where(eq(writingCourses.isPublished, true)).orderBy(desc(writingCourses.createdAt));
+  }
+
+  async getCoursesByAuthor(authorId: string): Promise<WritingCourse[]> {
+    return db.select().from(writingCourses).where(eq(writingCourses.authorId, authorId)).orderBy(desc(writingCourses.createdAt));
+  }
+
+  async getCourseLessons(courseId: number): Promise<CourseLesson[]> {
+    return db.select().from(courseLessons).where(eq(courseLessons.courseId, courseId)).orderBy(asc(courseLessons.orderIndex));
+  }
+
+  async createCourseLesson(data: { courseId: number; orderIndex: number; title: string; content?: string; excerptChapterId?: number; exercisePrompt?: string }): Promise<CourseLesson> {
+    const [lesson] = await db.insert(courseLessons).values(data).returning();
+    return lesson;
+  }
+
+  async updateCourseLesson(id: number, data: Partial<CourseLesson>): Promise<CourseLesson> {
+    const [updated] = await db.update(courseLessons).set(data).where(eq(courseLessons.id, id)).returning();
+    return updated;
+  }
+
+  async deleteCourseLesson(id: number): Promise<void> {
+    await db.delete(courseLessons).where(eq(courseLessons.id, id));
+  }
+
+  async enrollInCourse(courseId: number, userId: string, stripeSessionId?: string): Promise<CourseEnrollment> {
+    const [enrollment] = await db.insert(courseEnrollments).values({ courseId, userId, stripeSessionId }).onConflictDoNothing().returning();
+    if (!enrollment) {
+      const [existing] = await db.select().from(courseEnrollments).where(and(eq(courseEnrollments.courseId, courseId), eq(courseEnrollments.userId, userId)));
+      return existing;
+    }
+    return enrollment;
+  }
+
+  async getCourseEnrollment(courseId: number, userId: string): Promise<CourseEnrollment | undefined> {
+    const [enrollment] = await db.select().from(courseEnrollments).where(and(eq(courseEnrollments.courseId, courseId), eq(courseEnrollments.userId, userId)));
+    return enrollment;
+  }
+
+  async getCourseEnrollments(courseId: number): Promise<CourseEnrollment[]> {
+    return db.select().from(courseEnrollments).where(eq(courseEnrollments.courseId, courseId)).orderBy(desc(courseEnrollments.purchasedAt));
+  }
+
+  async getUserEnrollments(userId: string): Promise<CourseEnrollment[]> {
+    return db.select().from(courseEnrollments).where(eq(courseEnrollments.userId, userId)).orderBy(desc(courseEnrollments.purchasedAt));
+  }
+
+  async completeCourseLesson(lessonId: number, userId: string, exerciseResponse?: string): Promise<LessonCompletion> {
+    const [completion] = await db.insert(lessonCompletions).values({ lessonId, userId, exerciseResponse }).onConflictDoNothing().returning();
+    if (!completion) {
+      const [existing] = await db.select().from(lessonCompletions).where(and(eq(lessonCompletions.lessonId, lessonId), eq(lessonCompletions.userId, userId)));
+      return existing;
+    }
+    return completion;
+  }
+
+  async getLessonCompletions(courseId: number, userId: string): Promise<LessonCompletion[]> {
+    const lessons = await db.select({ id: courseLessons.id }).from(courseLessons).where(eq(courseLessons.courseId, courseId));
+    if (lessons.length === 0) return [];
+    const lessonIds = lessons.map(l => l.id);
+    return db.select().from(lessonCompletions).where(and(inArray(lessonCompletions.lessonId, lessonIds), eq(lessonCompletions.userId, userId)));
+  }
+
+  async getCourseStats(courseId: number): Promise<{ enrollmentCount: number; completionRate: number }> {
+    const [enrollResult] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(courseEnrollments).where(eq(courseEnrollments.courseId, courseId));
+    const enrollmentCount = enrollResult?.cnt ?? 0;
+    if (enrollmentCount === 0) return { enrollmentCount: 0, completionRate: 0 };
+    const lessons = await db.select({ id: courseLessons.id }).from(courseLessons).where(eq(courseLessons.courseId, courseId));
+    if (lessons.length === 0) return { enrollmentCount, completionRate: 0 };
+    const lessonIds = lessons.map(l => l.id);
+    const [completionResult] = await db.select({ cnt: sql<number>`COUNT(DISTINCT user_id)::int` }).from(lessonCompletions)
+      .where(inArray(lessonCompletions.lessonId, lessonIds));
+    const completedAll = completionResult?.cnt ?? 0;
+    return { enrollmentCount, completionRate: Math.round((completedAll / enrollmentCount) * 100) };
+  }
+
+  async getAuthorCourseStats(authorId: string): Promise<{ totalCourses: number; totalEnrollments: number; totalRevenue: number }> {
+    const courses = await db.select().from(writingCourses).where(eq(writingCourses.authorId, authorId));
+    const totalCourses = courses.length;
+    if (totalCourses === 0) return { totalCourses: 0, totalEnrollments: 0, totalRevenue: 0 };
+    const courseIds = courses.map(c => c.id);
+    const enrollments = await db.select().from(courseEnrollments).where(inArray(courseEnrollments.courseId, courseIds));
+    const totalEnrollments = enrollments.length;
+    let totalRevenue = 0;
+    for (const e of enrollments) {
+      const course = courses.find(c => c.id === e.courseId);
+      if (course) totalRevenue += (course.priceCents || 0) * 0.8;
+    }
+    return { totalCourses, totalEnrollments, totalRevenue: Math.round(totalRevenue) };
   }
 }
 

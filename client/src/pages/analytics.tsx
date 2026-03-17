@@ -21,6 +21,7 @@ import {
   Star,
   Layers,
   Quote,
+  GraduationCap,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
@@ -588,7 +589,60 @@ export default function Analytics() {
           </Card>
         </div>
         <AnalyticsTopQuotes userId={user?.claims?.sub} />
+        <AnalyticsCourseStats />
       </div>
     </div>
+  );
+}
+
+function AnalyticsCourseStats() {
+  const { data: stats } = useQuery<{ totalCourses: number; totalEnrollments: number; totalRevenue: number }>({
+    queryKey: ["/api/author/course-stats"],
+    staleTime: 120_000,
+  });
+  const { data: myCourses } = useQuery<any[]>({ queryKey: ["/api/courses/my"] });
+
+  if (!stats || stats.totalCourses === 0) return null;
+
+  return (
+    <Card data-testid="card-analytics-courses">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <GraduationCap className="w-5 h-5 text-primary/70" />
+          دوراتي التعليمية
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold"><LtrNum>{stats.totalCourses}</LtrNum></p>
+            <p className="text-xs text-muted-foreground">دورة</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold"><LtrNum>{stats.totalEnrollments}</LtrNum></p>
+            <p className="text-xs text-muted-foreground">طالب</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-green-600"><LtrNum>${(stats.totalRevenue / 100).toFixed(0)}</LtrNum></p>
+            <p className="text-xs text-muted-foreground">إيرادات</p>
+          </div>
+        </div>
+        {myCourses && myCourses.length > 0 && (
+          <div className="space-y-2">
+            {myCourses.slice(0, 5).map((c: any) => (
+              <div key={c.id} className="flex items-center justify-between text-sm" data-testid={`analytics-course-${c.id}`}>
+                <span className="font-medium truncate flex-1">{c.title}</span>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <span><LtrNum>{c.enrollmentCount}</LtrNum> طالب</span>
+                  <Badge variant={c.isPublished ? "default" : "secondary"} className="text-[10px]">
+                    {c.isPublished ? "منشورة" : "مسودة"}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

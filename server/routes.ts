@@ -12706,5 +12706,354 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
+  // ── Writing Courses (مدرسة الكتابة) ─────────────────────────────────────────
+  app.get("/api/courses", async (_req: any, res) => {
+    try {
+      const courses = await storage.getPublishedCourses();
+      const enriched = await Promise.all(courses.map(async (c) => {
+        const author = await storage.getUser(c.authorId);
+        const stats = await storage.getCourseStats(c.id);
+        const lessons = await storage.getCourseLessons(c.id);
+        return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", authorProfileImage: (author as any)?.profileImageUrl || null, lessonCount: lessons.length, ...stats };
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching courses:", error);
+      res.status(500).json({ error: "فشل في تحميل الدورات" });
+    }
+  });
+
+  app.get("/api/courses/my", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const courses = await storage.getCoursesByAuthor(userId);
+      const enriched = await Promise.all(courses.map(async (c) => {
+        const stats = await storage.getCourseStats(c.id);
+        const lessons = await storage.getCourseLessons(c.id);
+        return { ...c, lessonCount: lessons.length, ...stats };
+      }));
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching my courses:", error);
+      res.status(500).json({ error: "فشل في تحميل دوراتي" });
+    }
+  });
+
+  app.get("/api/courses/enrolled", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const enrollments = await storage.getUserEnrollments(userId);
+      const enriched = await Promise.all(enrollments.map(async (e) => {
+        const course = await storage.getWritingCourse(e.courseId);
+        if (!course) return null;
+        const lessons = await storage.getCourseLessons(e.courseId);
+        const completions = await storage.getLessonCompletions(e.courseId, userId);
+        const author = await storage.getUser(course.authorId);
+        return { ...course, authorName: author?.displayName || author?.firstName || "كاتب", lessonCount: lessons.length, completedLessons: completions.length, enrolledAt: e.purchasedAt };
+      }));
+      res.json(enriched.filter(Boolean));
+    } catch (error) {
+      console.error("Error fetching enrolled courses:", error);
+      res.status(500).json({ error: "فشل في تحميل الدورات المسجلة" });
+    }
+  });
+
+  app.post("/api/courses", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.verified) return res.status(403).json({ error: "يجب أن تكون كاتباً موثقاً لإنشاء دورات" });
+      const { title, description, priceCents, coverImageUrl } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "عنوان الدورة مطلوب" });
+      const course = await storage.createWritingCourse({
+        authorId: userId,
+        title: sanitizeText(title).substring(0, 200),
+        description: description ? sanitizeText(description).substring(0, 2000) : null,
+        priceCents: Math.max(0, parseInt(priceCents) || 0),
+        coverImageUrl: coverImageUrl || null,
+      });
+      res.json(course);
+    } catch (error) {
+      console.error("Error creating course:", error);
+      res.status(500).json({ error: "فشل في إنشاء الدورة" });
+    }
+  });
+
+  app.get("/api/courses/:id", async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const course = await storage.getWritingCourse(id);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const userId = req.user?.claims?.sub;
+      const isOwner = userId === course.authorId;
+      if (!course.isPublished && !isOwner) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const author = await storage.getUser(course.authorId);
+      const lessons = await storage.getCourseLessons(id);
+      const stats = await storage.getCourseStats(id);
+      let enrolled = false;
+      let completions: any[] = [];
+      if (userId) {
+        const enrollment = await storage.getCourseEnrollment(id, userId);
+        enrolled = !!enrollment;
+        if (enrolled) {
+          completions = await storage.getLessonCompletions(id, userId);
+        }
+      }
+      const canAccessContent = enrolled || isOwner || course.priceCents === 0;
+      const lessonsData = lessons.map((l, idx) => ({
+        ...l,
+        content: canAccessContent ? l.content : (idx === 0 ? l.content : null),
+        completed: completions.some((c: any) => c.lessonId === l.id),
+      }));
+      res.json({
+        ...course,
+        authorName: author?.displayName || author?.firstName || "كاتب",
+        authorProfileImage: (author as any)?.profileImageUrl || null,
+        authorVerified: author?.verified || false,
+        lessons: lessonsData,
+        enrolled,
+        isOwner,
+        ...stats,
+      });
+    } catch (error) {
+      console.error("Error fetching course:", error);
+      res.status(500).json({ error: "فشل في تحميل الدورة" });
+    }
+  });
+
+  app.put("/api/courses/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(id);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
+      const { title, description, priceCents, coverImageUrl, isPublished } = req.body;
+      const updated = await storage.updateWritingCourse(id, {
+        ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
+        ...(description !== undefined ? { description: sanitizeText(description).substring(0, 2000) } : {}),
+        ...(priceCents !== undefined ? { priceCents: Math.max(0, parseInt(priceCents) || 0) } : {}),
+        ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
+        ...(isPublished !== undefined ? { isPublished: !!isPublished } : {}),
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating course:", error);
+      res.status(500).json({ error: "فشل في تحديث الدورة" });
+    }
+  });
+
+  app.delete("/api/courses/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(id);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
+      await storage.deleteWritingCourse(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting course:", error);
+      res.status(500).json({ error: "فشل في حذف الدورة" });
+    }
+  });
+
+  app.post("/api/courses/:id/lessons", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
+      const { title, content, excerptChapterId, exercisePrompt, orderIndex } = req.body;
+      if (!title?.trim()) return res.status(400).json({ error: "عنوان الدرس مطلوب" });
+      const existingLessons = await storage.getCourseLessons(courseId);
+      const lesson = await storage.createCourseLesson({
+        courseId,
+        orderIndex: orderIndex !== undefined ? parseInt(orderIndex) : existingLessons.length,
+        title: sanitizeText(title).substring(0, 200),
+        content: content || undefined,
+        excerptChapterId: excerptChapterId ? parseInt(excerptChapterId) : undefined,
+        exercisePrompt: exercisePrompt || undefined,
+      });
+      res.json(lesson);
+    } catch (error) {
+      console.error("Error creating lesson:", error);
+      res.status(500).json({ error: "فشل في إنشاء الدرس" });
+    }
+  });
+
+  app.put("/api/courses/:courseId/lessons/:lessonId", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.courseId);
+      const lessonId = parseIntParam(req.params.lessonId);
+      if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
+      const lessons = await storage.getCourseLessons(courseId);
+      if (!lessons.some(l => l.id === lessonId)) return res.status(404).json({ error: "الدرس لا ينتمي لهذه الدورة" });
+      const { title, content, excerptChapterId, exercisePrompt, orderIndex } = req.body;
+      const updated = await storage.updateCourseLesson(lessonId, {
+        ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
+        ...(content !== undefined ? { content } : {}),
+        ...(excerptChapterId !== undefined ? { excerptChapterId: excerptChapterId ? parseInt(excerptChapterId) : null } : {}),
+        ...(exercisePrompt !== undefined ? { exercisePrompt } : {}),
+        ...(orderIndex !== undefined ? { orderIndex: parseInt(orderIndex) } : {}),
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating lesson:", error);
+      res.status(500).json({ error: "فشل في تحديث الدرس" });
+    }
+  });
+
+  app.delete("/api/courses/:courseId/lessons/:lessonId", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.courseId);
+      const lessonId = parseIntParam(req.params.lessonId);
+      if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
+      const lessons = await storage.getCourseLessons(courseId);
+      if (!lessons.some(l => l.id === lessonId)) return res.status(404).json({ error: "الدرس لا ينتمي لهذه الدورة" });
+      await storage.deleteCourseLesson(lessonId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting lesson:", error);
+      res.status(500).json({ error: "فشل في حذف الدرس" });
+    }
+  });
+
+  app.post("/api/courses/:id/checkout", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (!course.isPublished) return res.status(400).json({ error: "الدورة غير منشورة" });
+      const existing = await storage.getCourseEnrollment(courseId, userId);
+      if (existing) return res.json({ alreadyEnrolled: true });
+      if (course.priceCents === 0 || course.authorId === userId || FREE_ACCESS_USER_IDS.includes(userId)) {
+        await storage.enrollInCourse(courseId, userId);
+        return res.json({ alreadyEnrolled: true });
+      }
+      const stripe = await getUncachableStripeClient();
+      const user = await storage.getUser(userId);
+      let customerId = user?.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({ email: user?.email || undefined, metadata: { userId } });
+        customerId = customer.id;
+        await storage.updateUserStripeCustomerId(userId, customer.id);
+      }
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            unit_amount: course.priceCents,
+            product_data: { name: `دورة: ${course.title}`, description: "دورة تعليمية في الكتابة الإبداعية" },
+          },
+          quantity: 1,
+        }],
+        mode: "payment",
+        success_url: `${baseUrl}/courses/${courseId}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/courses/${courseId}?payment=cancelled`,
+        metadata: { courseId: courseId.toString(), userId, type: "course_purchase" },
+      });
+      res.json({ checkoutUrl: session.url });
+    } catch (error) {
+      console.error("Error creating course checkout:", error);
+      res.status(500).json({ error: "فشل في إنشاء عملية الدفع" });
+    }
+  });
+
+  app.post("/api/courses/:id/enroll", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (course.priceCents > 0 && course.authorId !== userId && !FREE_ACCESS_USER_IDS.includes(userId)) {
+        const { sessionId } = req.body;
+        if (!sessionId) return res.status(400).json({ error: "يجب إتمام عملية الدفع أولاً" });
+        const stripe = await getUncachableStripeClient();
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== "paid") return res.status(400).json({ error: "الدفع لم يكتمل" });
+        if (session.metadata?.courseId !== String(courseId) || session.metadata?.userId !== userId) {
+          return res.status(400).json({ error: "جلسة دفع غير صالحة" });
+        }
+      }
+      const enrollment = await storage.enrollInCourse(courseId, userId, req.body?.sessionId);
+      await notifyUser(course.authorId, "enrollment", "تسجيل جديد في دورتك", `سجّل طالب جديد في دورة "${course.title}"`, `/courses/${courseId}`);
+      res.json(enrollment);
+    } catch (error) {
+      console.error("Error enrolling in course:", error);
+      res.status(500).json({ error: "فشل في التسجيل" });
+    }
+  });
+
+  app.post("/api/courses/:courseId/lessons/:lessonId/complete", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.courseId);
+      const lessonId = parseIntParam(req.params.lessonId);
+      if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const enrollment = await storage.getCourseEnrollment(courseId, userId);
+      if (!enrollment) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      const lessons = await storage.getCourseLessons(courseId);
+      if (!lessons.some(l => l.id === lessonId)) return res.status(404).json({ error: "الدرس لا ينتمي لهذه الدورة" });
+      const { exerciseResponse } = req.body;
+      const completion = await storage.completeCourseLesson(lessonId, userId, exerciseResponse);
+      res.json(completion);
+    } catch (error) {
+      console.error("Error completing lesson:", error);
+      res.status(500).json({ error: "فشل في تسجيل الإكمال" });
+    }
+  });
+
+  app.get("/api/courses/:id/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(id);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
+      const stats = await storage.getCourseStats(id);
+      const enrollments = await storage.getCourseEnrollments(id);
+      const enrolledUsers = await Promise.all(enrollments.map(async (e) => {
+        const u = await storage.getUser(e.userId);
+        return { userId: e.userId, displayName: u?.displayName || u?.firstName || "طالب", enrolledAt: e.purchasedAt };
+      }));
+      res.json({ ...stats, enrollments: enrolledUsers });
+    } catch (error) {
+      console.error("Error fetching course stats:", error);
+      res.status(500).json({ error: "فشل في تحميل الإحصائيات" });
+    }
+  });
+
+  app.get("/api/author/course-stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getAuthorCourseStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching author course stats:", error);
+      res.status(500).json({ error: "فشل في تحميل إحصائيات الدورات" });
+    }
+  });
+
   return httpServer;
 }

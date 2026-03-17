@@ -776,6 +776,61 @@ async function runStartupMigrations() {
     await pool.query(`ALTER TABLE project_comments ADD COLUMN IF NOT EXISTS chapter_index INTEGER`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_project_comments_club ON project_comments(club_id)`);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS writing_courses (
+        id SERIAL PRIMARY KEY,
+        author_id VARCHAR NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        price_cents INTEGER NOT NULL DEFAULT 0,
+        cover_image_url TEXT,
+        is_published BOOLEAN NOT NULL DEFAULT FALSE,
+        is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_courses_author ON writing_courses(author_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_courses_published ON writing_courses(is_published)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS course_lessons (
+        id SERIAL PRIMARY KEY,
+        course_id INTEGER NOT NULL REFERENCES writing_courses(id) ON DELETE CASCADE,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        title TEXT NOT NULL,
+        content TEXT,
+        excerpt_chapter_id INTEGER,
+        exercise_prompt TEXT
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_lessons_course ON course_lessons(course_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS course_enrollments (
+        id SERIAL PRIMARY KEY,
+        course_id INTEGER NOT NULL REFERENCES writing_courses(id) ON DELETE CASCADE,
+        user_id VARCHAR NOT NULL,
+        stripe_session_id TEXT,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT uq_enrollment UNIQUE (course_id, user_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_enrollments_user ON course_enrollments(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_enrollments_course ON course_enrollments(course_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lesson_completions (
+        id SERIAL PRIMARY KEY,
+        lesson_id INTEGER NOT NULL REFERENCES course_lessons(id) ON DELETE CASCADE,
+        user_id VARCHAR NOT NULL,
+        exercise_response TEXT,
+        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT uq_lesson_completion UNIQUE (lesson_id, user_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_completions_user ON lesson_completions(user_id)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

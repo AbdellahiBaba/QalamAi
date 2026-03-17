@@ -67,6 +67,9 @@ const HallOfGlory = lazy(() => import("@/pages/hall-of-glory"));
 const EditorialReview = lazy(() => import("@/pages/editorial-review"));
 const MyLibrary = lazy(() => import("@/pages/my-library"));
 const ClubDetail = lazy(() => import("@/pages/club-detail"));
+const CoursesGallery = lazy(() => import("@/pages/courses-gallery"));
+const CourseDetail = lazy(() => import("@/pages/course-detail"));
+const CourseEditor = lazy(() => import("@/pages/course-editor"));
 
 function LoadingFallback() {
   return (
@@ -133,6 +136,10 @@ function AuthenticatedRouter() {
         <Route path="/challenges/:id" component={ChallengeDetail} />
         <Route path="/hall-of-glory" component={HallOfGlory} />
         <Route path="/clubs/:id" component={ClubDetail} />
+        <Route path="/courses" component={CoursesGallery} />
+        <Route path="/courses/new" component={CourseEditor} />
+        <Route path="/courses/:id/edit" component={CourseEditor} />
+        <Route path="/courses/:id" component={CourseDetail} />
         <Route path="/editor" component={EditorialReview} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
@@ -181,6 +188,8 @@ function PublicRouter() {
         <Route path="/challenges/:id" component={ChallengeDetail} />
         <Route path="/hall-of-glory" component={HallOfGlory} />
         <Route path="/clubs/:id" component={ClubDetail} />
+        <Route path="/courses" component={CoursesGallery} />
+        <Route path="/courses/:id" component={CourseDetail} />
         <Route path="/editor" component={EditorialReview} />
         <Route path="/project/:id" component={ProjectDetail} />
         <Route path="/privacy" component={Privacy} />

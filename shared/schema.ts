@@ -1181,3 +1181,62 @@ export const insertReadingClubSchema = createInsertSchema(readingClubs).omit({ i
 export type ReadingClub = typeof readingClubs.$inferSelect;
 export type InsertReadingClub = z.infer<typeof insertReadingClubSchema>;
 export type ReadingClubMember = typeof readingClubMembers.$inferSelect;
+
+// ── Writing Courses (مدرسة الكتابة) ──────────────────────────────────────────
+export const writingCourses = pgTable("writing_courses", {
+  id: serial("id").primaryKey(),
+  authorId: varchar("author_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  priceCents: integer("price_cents").notNull().default(0),
+  coverImageUrl: text("cover_image_url"),
+  isPublished: boolean("is_published").notNull().default(false),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_courses_author").on(table.authorId),
+  index("idx_courses_published").on(table.isPublished),
+]);
+
+export const courseLessons = pgTable("course_lessons", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id").notNull().references(() => writingCourses.id, { onDelete: "cascade" }),
+  orderIndex: integer("order_index").notNull().default(0),
+  title: text("title").notNull(),
+  content: text("content"),
+  excerptChapterId: integer("excerpt_chapter_id"),
+  exercisePrompt: text("exercise_prompt"),
+}, (table) => [
+  index("idx_lessons_course").on(table.courseId),
+]);
+
+export const courseEnrollments = pgTable("course_enrollments", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id").notNull().references(() => writingCourses.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  stripeSessionId: text("stripe_session_id"),
+  purchasedAt: timestamp("purchased_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  unique("uq_enrollment").on(table.courseId, table.userId),
+  index("idx_enrollments_user").on(table.userId),
+  index("idx_enrollments_course").on(table.courseId),
+]);
+
+export const lessonCompletions = pgTable("lesson_completions", {
+  id: serial("id").primaryKey(),
+  lessonId: integer("lesson_id").notNull().references(() => courseLessons.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  exerciseResponse: text("exercise_response"),
+  completedAt: timestamp("completed_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  unique("uq_lesson_completion").on(table.lessonId, table.userId),
+  index("idx_completions_user").on(table.userId),
+]);
+
+export const insertWritingCourseSchema = createInsertSchema(writingCourses).omit({ id: true, createdAt: true, updatedAt: true, isPublished: true, isFeatured: true });
+export type WritingCourse = typeof writingCourses.$inferSelect;
+export type InsertWritingCourse = z.infer<typeof insertWritingCourseSchema>;
+export type CourseLesson = typeof courseLessons.$inferSelect;
+export type CourseEnrollment = typeof courseEnrollments.$inferSelect;
+export type LessonCompletion = typeof lessonCompletions.$inferSelect;
