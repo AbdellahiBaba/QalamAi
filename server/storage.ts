@@ -40,8 +40,8 @@ import {
   writingSprints, type WritingSprint, type InsertWritingSprint,
   readingClubs, readingClubMembers, type ReadingClub, type InsertReadingClub, type ReadingClubMember,
   projectComments,
-  writingCourses, courseLessons, courseEnrollments, lessonCompletions,
-  type WritingCourse, type InsertWritingCourse, type CourseLesson, type CourseEnrollment, type LessonCompletion,
+  writingCourses, courseLessons, courseEnrollments, lessonCompletions, courseRatings,
+  type WritingCourse, type InsertWritingCourse, type CourseLesson, type CourseEnrollment, type LessonCompletion, type CourseRating,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -326,6 +326,9 @@ export interface IStorage {
   getLessonCompletions(courseId: number, userId: string): Promise<LessonCompletion[]>;
   getCourseStats(courseId: number): Promise<{ enrollmentCount: number; completionRate: number }>;
   getAuthorCourseStats(authorId: string): Promise<{ totalCourses: number; totalEnrollments: number; totalRevenue: number }>;
+  rateCourse(courseId: number, userId: string, rating: number, review?: string): Promise<any>;
+  getCourseRatings(courseId: number): Promise<any[]>;
+  getCourseAverageRating(courseId: number): Promise<{ avgRating: number; ratingCount: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3604,6 +3607,25 @@ export class DatabaseStorage implements IStorage {
       if (course) totalRevenue += (course.priceCents || 0) * 0.8;
     }
     return { totalCourses, totalEnrollments, totalRevenue: Math.round(totalRevenue) };
+  }
+
+  async rateCourse(courseId: number, userId: string, rating: number, review?: string): Promise<any> {
+    const existing = await db.select().from(courseRatings).where(and(eq(courseRatings.courseId, courseId), eq(courseRatings.userId, userId)));
+    if (existing.length > 0) {
+      const [updated] = await db.update(courseRatings).set({ rating, review: review || null }).where(eq(courseRatings.id, existing[0].id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(courseRatings).values({ courseId, userId, rating, review: review || undefined }).returning();
+    return created;
+  }
+
+  async getCourseRatings(courseId: number): Promise<any[]> {
+    return db.select().from(courseRatings).where(eq(courseRatings.courseId, courseId)).orderBy(desc(courseRatings.createdAt));
+  }
+
+  async getCourseAverageRating(courseId: number): Promise<{ avgRating: number; ratingCount: number }> {
+    const result = await db.select({ avgRating: avg(courseRatings.rating), ratingCount: count() }).from(courseRatings).where(eq(courseRatings.courseId, courseId));
+    return { avgRating: parseFloat(result[0]?.avgRating || "0"), ratingCount: result[0]?.ratingCount || 0 };
   }
 }
 

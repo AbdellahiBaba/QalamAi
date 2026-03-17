@@ -831,6 +831,19 @@ async function runStartupMigrations() {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_completions_user ON lesson_completions(user_id)`);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS course_ratings (
+        id SERIAL PRIMARY KEY,
+        course_id INTEGER NOT NULL REFERENCES writing_courses(id) ON DELETE CASCADE,
+        user_id VARCHAR NOT NULL,
+        rating INTEGER NOT NULL,
+        review TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT uq_course_rating UNIQUE (course_id, user_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_ratings_course ON course_ratings(course_id)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

@@ -12714,7 +12714,8 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
         const author = await storage.getUser(c.authorId);
         const stats = await storage.getCourseStats(c.id);
         const lessons = await storage.getCourseLessons(c.id);
-        return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", lessonCount: lessons.length, ...stats };
+        const ratingData = await storage.getCourseAverageRating(c.id);
+        return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", lessonCount: lessons.length, ...stats, ...ratingData };
       }));
       enriched.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
       res.json(enriched);
@@ -12832,13 +12833,12 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const course = await storage.getWritingCourse(id);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
-      const { title, description, priceCents, coverImageUrl, isPublished } = req.body;
+      const { title, description, priceCents, coverImageUrl } = req.body;
       const updated = await storage.updateWritingCourse(id, {
         ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
         ...(description !== undefined ? { description: sanitizeText(description).substring(0, 2000) } : {}),
         ...(priceCents !== undefined ? { priceCents: Math.max(0, parseInt(priceCents) || 0) } : {}),
         ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
-        ...(isPublished !== undefined ? { isPublished: !!isPublished } : {}),
       });
       res.json(updated);
     } catch (error) {
@@ -13142,6 +13142,40 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error) {
       console.error("Error fetching admin courses:", error);
       res.status(500).json({ error: "فشل في تحميل الدورات" });
+    }
+  });
+
+  app.post("/api/courses/:id/rate", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const { rating, review } = req.body;
+      if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: "التقييم يجب أن يكون بين 1 و 5" });
+      const enrollment = await storage.getCourseEnrollment(courseId, userId);
+      if (!enrollment) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً لتقييمها" });
+      const result = await storage.rateCourse(courseId, userId, Math.round(rating), review ? sanitizeText(review).substring(0, 500) : undefined);
+      res.json(result);
+    } catch (error) {
+      console.error("Error rating course:", error);
+      res.status(500).json({ error: "فشل في حفظ التقييم" });
+    }
+  });
+
+  app.get("/api/courses/:id/ratings", async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const ratings = await storage.getCourseRatings(courseId);
+      const avg = await storage.getCourseAverageRating(courseId);
+      const enrichedRatings = await Promise.all(ratings.map(async (r: any) => {
+        const user = await storage.getUser(r.userId);
+        return { ...r, userName: user?.displayName || user?.firstName || "طالب" };
+      }));
+      res.json({ ...avg, ratings: enrichedRatings });
+    } catch (error) {
+      console.error("Error fetching ratings:", error);
+      res.status(500).json({ error: "فشل في تحميل التقييمات" });
     }
   });
 

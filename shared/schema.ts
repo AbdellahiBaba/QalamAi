@@ -1234,9 +1234,22 @@ export const lessonCompletions = pgTable("lesson_completions", {
   index("idx_completions_user").on(table.userId),
 ]);
 
+export const courseRatings = pgTable("course_ratings", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id").notNull().references(() => writingCourses.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  rating: integer("rating").notNull(),
+  review: text("review"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  unique("uq_course_rating").on(table.courseId, table.userId),
+  index("idx_ratings_course").on(table.courseId),
+]);
+
 export const insertWritingCourseSchema = createInsertSchema(writingCourses).omit({ id: true, createdAt: true, updatedAt: true, isPublished: true, isFeatured: true });
 export type WritingCourse = typeof writingCourses.$inferSelect;
 export type InsertWritingCourse = z.infer<typeof insertWritingCourseSchema>;
 export type CourseLesson = typeof courseLessons.$inferSelect;
 export type CourseEnrollment = typeof courseEnrollments.$inferSelect;
 export type LessonCompletion = typeof lessonCompletions.$inferSelect;
+export type CourseRating = typeof courseRatings.$inferSelect;

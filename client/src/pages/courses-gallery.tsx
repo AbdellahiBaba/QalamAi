@@ -153,6 +153,16 @@ export default function CoursesGallery() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm text-muted-foreground">{course.authorName}</span>
                     </div>
+                    {course.ratingCount > 0 && (
+                      <div className="flex items-center gap-1 mb-2">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star key={s} className={`h-3.5 w-3.5 ${s <= Math.round(course.avgRating) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
+                          ))}
+                        </div>
+                        <span className="text-xs text-muted-foreground">({course.ratingCount})</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /> {course.lessonCount} درس</span>
