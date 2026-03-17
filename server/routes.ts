@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { characterRelationships, getProjectPrice, getProjectPriceByType, VALID_PAGE_COUNTS, userPlanCoversType, getPlanPrice, PLAN_PRICES, novelProjects, users, bookmarks, chapters, giftSubscriptions, ANALYSIS_UNLOCK_PRICE, getRemainingAnalysisUses, TRIAL_MAX_PROJECTS, TRIAL_MAX_CHAPTERS, TRIAL_MAX_COVERS, TRIAL_MAX_CONTINUITY, TRIAL_MAX_STYLE, TRIAL_DURATION_HOURS, TRIAL_CHARGE_AMOUNT, isTrialExpired, type NovelProject, insertSocialMediaLinkSchema, FREE_MONTHLY_PROJECTS, FREE_MONTHLY_GENERATIONS, projectQuotes, writingCourses } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
-import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt, buildLiteraryCritiquePrompt, buildEditorialReviewPrompt } from "./abu-hashim";
+import { buildOutlinePrompt, buildChapterPrompt, buildTitleSuggestionPrompt, buildCharacterSuggestionPrompt, buildCoverPrompt, buildCoverVariantPrompt, COVER_VARIANT_STYLES, calculateNovelStructure, buildEssayOutlinePrompt, buildEssaySectionPrompt, calculateEssayStructure, buildScenarioOutlinePrompt, buildScenePrompt, calculateScenarioStructure, buildShortStoryOutlinePrompt, buildShortStorySectionPrompt, calculateShortStoryStructure, buildRewritePrompt, buildOriginalityCheckPrompt, buildGlossaryPrompt, buildOriginalityEnhancePrompt, buildTechniqueSuggestionPrompt, buildFormatSuggestionPrompt, buildFullProjectSuggestionPrompt, buildStyleAnalysisPrompt, buildMemoireStyleAnalysisPrompt, buildMemoireGlossaryPrompt, buildKhawaterPrompt, buildSocialMediaPrompt, buildPoetryPrompt, buildProjectChatPrompt, buildGeneralChatPrompt, buildChapterSummaryPrompt, buildMemoireOutlinePrompt, calculateMemoireStructure, buildMemoireSectionPrompt, NARRATIVE_TECHNIQUE_MAP, MEMOIRE_SYSTEM_PROMPT, enhanceWithKnowledge, buildMarketingChatPrompt, buildAuthorSocialMarketingPrompt, buildLiteraryCritiquePrompt, buildEditorialReviewPrompt } from "./abu-hashim";
 import * as prosodyData from "./arabic-prosody";
 import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
@@ -3562,6 +3562,60 @@ ${allPages.map(p => `  <url>
       }
 
       res.json({ variants, style: styleConfig.label });
+    } catch (error) {
+      console.error("Error generating cover variants:", error);
+      res.status(500).json({ error: "فشل في إنشاء تنويعات الغلاف" });
+    }
+  });
+
+  app.post("/api/projects/:id/generate-cover-variants", isAuthenticated, async (req: any, res) => {
+    try {
+      if (await checkApiSuspension(req.user.claims.sub, res)) return;
+      if (!(await checkAiRateLimit(req, res))) return;
+      const id = parseIntParam(req.params.id);
+      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const project = await storage.getProject(id);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
+
+      const genUser = await storage.getUser(req.user.claims.sub);
+      if (genUser?.plan === "trial" && genUser.trialActive) {
+        if (isTrialExpired(genUser.trialEndsAt)) {
+          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
+        }
+        if (project.coverImageUrl) {
+          return res.status(403).json({ error: "الفترة التجريبية تسمح بتصميم غلاف واحد فقط" });
+        }
+      }
+
+      const variantPromises = COVER_VARIANT_STYLES.map((styleConfig) =>
+        openai.images.generate({
+          model: "gpt-image-1",
+          prompt: buildCoverVariantPrompt(project, styleConfig.id),
+          size: "1024x1024",
+        }).then(async (response) => {
+          const b64 = response.data[0]?.b64_json;
+          if (!b64) return null;
+          const composited = await overlayTitleOnCover(b64, project.title);
+          return { style: styleConfig.id, label: styleConfig.label, imageUrl: `data:image/png;base64,${composited}` };
+        }).catch((err) => {
+          console.error(`Cover variant generation error for style ${styleConfig.id}:`, err);
+          return null;
+        })
+      );
+
+      const results = await Promise.all(variantPromises);
+      const variants = results.filter(Boolean);
+
+      for (let i = 0; i < variants.length; i++) {
+        logImageUsage(req.user.claims.sub, id, "cover_variant");
+      }
+
+      if (variants.length === 0) {
+        return res.status(500).json({ error: "فشل في إنشاء جميع التنويعات" });
+      }
+
+      res.json({ variants });
     } catch (error) {
       console.error("Error generating cover variants:", error);
       res.status(500).json({ error: "فشل في إنشاء تنويعات الغلاف" });

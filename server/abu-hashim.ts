@@ -3205,6 +3205,32 @@ Style guidelines:
 - Do NOT include any text, letters, words, or writing on the cover`;
 }
 
+export const COVER_VARIANT_STYLES = [
+  {
+    id: "classic-arabic",
+    label: "كلاسيكي عربي",
+    prefix: "Classic Arabic heritage art style — rich arabesque patterns, Islamic geometric tilework, flowing Arabic calligraphic ornaments, gold and deep jewel tones (cobalt, crimson, emerald) on aged parchment or dark velvet backgrounds. Inspired by Andalusian manuscripts and Mamluk bookbinding traditions.",
+  },
+  {
+    id: "modern-minimal",
+    label: "حديث",
+    prefix: "Modern minimalist contemporary design — clean geometric composition, bold typography space, flat color blocks with a single strong accent color, generous negative space, subtle texture. Inspired by award-winning European and Arabic literary press covers (Banipal, Dar al-Saqi modern editions).",
+  },
+  {
+    id: "illustrated",
+    label: "مصوّر",
+    prefix: "Rich illustrated storytelling style — detailed figurative illustration combining Arabic miniature painting with contemporary editorial art, vibrant saturated colors, narrative scene from the story, painterly brushwork with watercolor and gouache textures. Characters or symbolic objects depicted in a cinematic composition.",
+  },
+] as const;
+
+export type CoverVariantStyleId = (typeof COVER_VARIANT_STYLES)[number]["id"];
+
+export function buildCoverVariantPrompt(project: NovelProject, style: CoverVariantStyleId): string {
+  const styleConfig = COVER_VARIANT_STYLES.find(s => s.id === style)!;
+  const basePrompt = buildCoverPrompt(project);
+  return `${styleConfig.prefix}\n\n${basePrompt}`;
+}
+
 export function buildFormatSuggestionPrompt(data: {
   title?: string;
   mainIdea: string;
