@@ -298,7 +298,7 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
             </p>
             <div className="space-y-0.5 text-[11px] text-muted-foreground">
               <p>عدد الكلمات: <span className="text-foreground font-medium"><LtrNum>{activeWc}</LtrNum></span></p>
-              <p>الحالة: <Badge variant="outline" className="text-[10px] px-1 py-0">{(STATUS_COLORS[activeCh.status || "draft"] || STATUS_COLORS.draft).label}</Badge></p>
+              <p>الحالة: <Badge variant="outline" className="text-[10px] px-1 py-0">{(STATUS_COLORS[activeCh.isPaid ? "locked" : (activeCh.status === "completed" ? "completed" : "draft")] || STATUS_COLORS.draft).label}</Badge></p>
               {(activeCh.updatedAt || activeCh.createdAt) && (
                 <p>آخر تعديل: {new Date((activeCh.updatedAt || activeCh.createdAt)!).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}</p>
               )}

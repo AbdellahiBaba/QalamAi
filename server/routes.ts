@@ -1084,7 +1084,7 @@ export async function registerRoutes(
         .sort((a, b) => a.chapterNumber - b.chapterNumber)
         .map(ch => {
           const wc = ch.content ? ch.content.split(/\s+/).filter((w: string) => w.length > 0).length : 0;
-          return `الفصل ${ch.chapterNumber} "${ch.title || "بدون عنوان"}": ${wc} كلمة، الحالة: ${ch.status === "completed" ? "مكتمل" : "مسودة"}${ch.paywallEnabled ? " (مقفل)" : ""}`;
+          return `الفصل ${ch.chapterNumber} "${ch.title || "بدون عنوان"}": ${wc} كلمة، الحالة: ${ch.status === "completed" ? "مكتمل" : "مسودة"}${ch.isPaid ? " (مقفل)" : ""}`;
         }).join("\n");
 
       const totalWords = (project.chapters || []).reduce((sum, ch) => {
