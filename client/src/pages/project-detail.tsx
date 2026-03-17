@@ -2386,12 +2386,10 @@ export default function ProjectDetail() {
                 <FileText className="w-4 h-4 ml-1.5" />
                 {labels.chaptersLabel}
               </TabsTrigger>
-              {project.chapters && project.chapters.length > 1 && (
-                <TabsTrigger value="story-map" data-testid="tab-story-map" className="flex-shrink-0">
-                  <Layers className="w-4 h-4 ml-1.5" />
-                  خريطة المشروع
-                </TabsTrigger>
-              )}
+              <TabsTrigger value="story-map" data-testid="tab-story-map" className="flex-shrink-0">
+                <Layers className="w-4 h-4 ml-1.5" />
+                خريطة المشروع
+              </TabsTrigger>
               {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
                 <TabsTrigger value="glossary" data-testid="tab-glossary" className="flex-shrink-0">
                   <List className="w-4 h-4 ml-1.5" />

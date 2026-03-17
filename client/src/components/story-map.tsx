@@ -39,7 +39,7 @@ export function StoryMap({ projectId, chapters, projectType }: StoryMapProps) {
   const wordCounts = useMemo(() => chapters.map(ch => getWordCount(ch.content)), [chapters]);
   const maxWords = useMemo(() => Math.max(...wordCounts, 1), [wordCounts]);
 
-  const isNovel = projectType === "novel" || projectType === "scenario" || projectType === "memoire";
+  const isNovel = projectType === "novel";
 
   const handleBarHover = useCallback((chIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
