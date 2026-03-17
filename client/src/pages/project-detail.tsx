@@ -395,7 +395,6 @@ export default function ProjectDetail() {
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const [showCoverVariantsDialog, setShowCoverVariantsDialog] = useState(false);
   const [coverVariants, setCoverVariants] = useState<Array<{ style: string; label: string; imageUrl: string }>>([]);
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
   const [previewVariantIndex, setPreviewVariantIndex] = useState<number | null>(null);
   const [confirmRegenerateCover, setConfirmRegenerateCover] = useState(false);
   const [rewriteChapterId, setRewriteChapterId] = useState<number | null>(null);
