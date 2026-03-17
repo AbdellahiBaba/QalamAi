@@ -1082,6 +1082,8 @@ export const workVotes = pgTable("work_votes", {
   index("idx_work_votes_user").on(table.userId),
 ]);
 
+export const insertWorkVoteSchema = createInsertSchema(workVotes).omit({ id: true, createdAt: true });
+export type InsertWorkVote = z.infer<typeof insertWorkVoteSchema>;
 export type WorkVote = typeof workVotes.$inferSelect;
 
 // ── Challenge Entry Votes ─────────────────────────────────────────────────────
@@ -1096,6 +1098,8 @@ export const challengeEntryVotes = pgTable("challenge_entry_votes", {
   index("idx_cev_user").on(table.userId),
 ]);
 
+export const insertChallengeEntryVoteSchema = createInsertSchema(challengeEntryVotes).omit({ id: true, createdAt: true });
+export type InsertChallengeEntryVote = z.infer<typeof insertChallengeEntryVoteSchema>;
 export type ChallengeEntryVote = typeof challengeEntryVotes.$inferSelect;
 
 // ── Hall of Glory Featured Works ──────────────────────────────────────────────
@@ -1109,6 +1113,8 @@ export const hallOfGloryFeatured = pgTable("hall_of_glory_featured", {
   index("idx_hog_featured_at").on(table.featuredAt),
 ]);
 
+export const insertHallOfGloryFeaturedSchema = createInsertSchema(hallOfGloryFeatured).omit({ id: true, featuredAt: true });
+export type InsertHallOfGloryFeatured = z.infer<typeof insertHallOfGloryFeaturedSchema>;
 export type HallOfGloryFeatured = typeof hallOfGloryFeatured.$inferSelect;
 
 // ── Writing Sprints ───────────────────────────────────────────────────────────

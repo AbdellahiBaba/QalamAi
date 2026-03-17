@@ -750,7 +750,7 @@ function AdminChallengesTab() {
 function AdminTopVotedTab() {
   const { toast } = useToast();
 
-  const { data, isLoading, refetch } = useQuery<{ projects: { id: number; title: string; authorName: string; authorId: string; voteCount: number; shareToken: string | null; alreadyFeatured: boolean }[] }>({
+  const { data, isLoading, refetch } = useQuery<{ projects: { id: number; title: string; projectType: string | null; authorName: string; authorId: string; voteCount: number; shareToken: string | null; alreadyFeatured: boolean }[] }>({
     queryKey: ["/api/admin/top-voted"],
   });
 
@@ -795,7 +795,14 @@ function AdminTopVotedTab() {
               data-testid={`card-top-voted-${project.id}`}
             >
               <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate" data-testid={`text-voted-title-${project.id}`}>{project.title}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold truncate" data-testid={`text-voted-title-${project.id}`}>{project.title}</p>
+                  {project.projectType && (
+                    <Badge variant="outline" className="text-[10px] shrink-0" data-testid={`badge-type-voted-${project.id}`}>
+                      {PROJECT_TYPE_LABELS[project.projectType] ?? project.projectType}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground mt-0.5" data-testid={`text-voted-author-${project.id}`}>{project.authorName}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0">

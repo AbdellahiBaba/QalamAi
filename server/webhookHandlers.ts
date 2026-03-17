@@ -80,7 +80,7 @@ export class WebhookHandlers {
       await WebhookHandlers.activatePlan(userId, planType);
     } else if (type === 'project_payment' && userId && projectId) {
       await WebhookHandlers.activateProject(userId, parseInt(projectId));
-    } else if (type === 'author_tip') {
+    } else if (type === 'author_tip' || type === 'vote_donation') {
       await WebhookHandlers.handleTipCompleted(session);
     } else if (type === 'course_purchase' && userId && session.metadata?.courseId) {
       await WebhookHandlers.handleCourseEnrollment(userId, parseInt(session.metadata.courseId), session.id);

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Image as ImageIcon, BookOpen, ArrowRight, Flag, BadgeCheck, Tag, UserCheck, Loader2, Trophy, BookOpenCheck, Bookmark, MessageCircle, TrendingUp, Flame } from "lucide-react";
+import { VoteButton } from "@/components/vote-button";
 import { SaveToListButton } from "@/components/save-to-list-button";
 import { Button } from "@/components/ui/button";
 import StarRating from "@/components/ui/star-rating";
@@ -495,13 +496,24 @@ export default function Gallery() {
                       {project.mainIdea}
                     </p>
                   )}
-                  <button
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors mt-1"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(project.id); setReportProjectTitle(project.title); }}
-                    data-testid={`button-report-gallery-${project.id}`}
-                  >
-                    <Flag className="w-3 h-3" /> إبلاغ
-                  </button>
+                  <div className="flex items-center justify-between mt-1">
+                    {project.authorId && (
+                      <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                        <VoteButton
+                          projectId={project.id}
+                          authorId={project.authorId}
+                          size="sm"
+                        />
+                      </div>
+                    )}
+                    <button
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-red-500 transition-colors"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportProjectId(project.id); setReportProjectTitle(project.title); }}
+                      data-testid={`button-report-gallery-${project.id}`}
+                    >
+                      <Flag className="w-3 h-3" /> إبلاغ
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
               </LazyCard>

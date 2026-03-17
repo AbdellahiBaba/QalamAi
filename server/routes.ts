@@ -10606,6 +10606,11 @@ ${ch.content}
       const projectId = parseIntParam(req.params.id);
       if (!projectId) return res.status(400).json({ error: "معرف غير صالح" });
       const userId = req.user.claims.sub;
+      const project = await storage.getProject(projectId);
+      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
+      if (!project.publishedToGallery && project.userId !== userId) {
+        return res.status(403).json({ error: "لا يمكن التصويت على هذا العمل" });
+      }
       const existing = await storage.getUserVote(projectId, userId);
       if (existing) {
         await storage.removeVote(projectId, userId);
@@ -10625,6 +10630,13 @@ ${ch.content}
     try {
       const projectId = parseIntParam(req.params.id);
       if (!projectId) return res.status(400).json({ error: "معرف غير صالح" });
+      const project = await storage.getProject(projectId);
+      if (!project || !project.publishedToGallery) {
+        const userId: string | null = req.user?.claims?.sub ?? null;
+        if (!project || (project.userId !== userId)) {
+          return res.json({ voteCount: 0, voted: null });
+        }
+      }
       const voteCount = await storage.getVoteCount(projectId);
       const userId: string | null = req.user?.claims?.sub ?? null;
       let voted: boolean | null = null;
@@ -10662,7 +10674,7 @@ ${ch.content}
           },
           quantity: 1,
         }],
-        metadata: { type: "author_tip", fromUserId: fromUserId || "anonymous", toAuthorId, projectId: projectId ? String(projectId) : "" },
+        metadata: { type: "vote_donation", fromUserId: fromUserId || "anonymous", toAuthorId, projectId: projectId ? String(projectId) : "" },
         success_url: `${baseUrl}${returnPath}?tip=success`,
         cancel_url: `${baseUrl}${returnPath}?tip=cancelled`,
       });
@@ -10681,12 +10693,17 @@ ${ch.content}
         id: idx + 1,
         projectId: f.id,
         featuredAt: f.featuredAt ? f.featuredAt.toISOString() : new Date().toISOString(),
+        voteCount: f.voteCount,
         project: {
           id: f.id,
           title: f.title,
           shareToken: f.shareToken ?? null,
           authorName: f.authorName ?? null,
           authorId: f.authorId,
+          coverImageUrl: f.coverImageUrl ?? null,
+          projectType: f.projectType ?? null,
+          mainIdea: f.mainIdea ?? null,
+          authorProfileImage: f.authorProfileImage ?? null,
         },
       }));
       res.json({ featured: mapped });
@@ -11940,6 +11957,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const projects = raw.map(p => ({
         id: p.id,
         title: p.title,
+        projectType: p.projectType,
         authorName: p.authorName,
         authorId: p.userId,
         voteCount: p.voteCount,

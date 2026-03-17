@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Crown, Star, Feather, ArrowRight, CalendarDays, ChevronDown, ChevronUp, Share2 } from "lucide-react";
+import { Trophy, Crown, Star, Feather, ArrowRight, CalendarDays, ChevronDown, ChevronUp, Share2, Heart, Image as ImageIcon } from "lucide-react";
 import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -40,12 +40,17 @@ interface FeaturedWork {
   id: number;
   projectId: number;
   featuredAt: string;
+  voteCount: number;
   project: {
     id: number;
     title: string;
     shareToken: string | null;
-    authorName: string;
+    authorName: string | null;
     authorId: string;
+    coverImageUrl: string | null;
+    projectType: string | null;
+    mainIdea: string | null;
+    authorProfileImage: string | null;
   };
 }
 
@@ -279,20 +284,64 @@ export default function HallOfGlory() {
                   className="relative overflow-hidden rounded-xl border border-amber-400/25 bg-gradient-to-br from-amber-950/10 via-yellow-900/5 to-transparent shadow-sm hover:shadow-md transition-shadow"
                   data-testid={`card-featured-${item.id}`}
                 >
-                  <div className="p-5 space-y-2">
+                  {item.project.coverImageUrl && (
+                    <div className="aspect-[16/7] overflow-hidden">
+                      <img
+                        src={item.project.coverImageUrl}
+                        alt={item.project.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        data-testid={`img-featured-cover-${item.id}`}
+                      />
+                    </div>
+                  )}
+                  {!item.project.coverImageUrl && (
+                    <div className="aspect-[16/7] bg-amber-50/30 dark:bg-amber-900/10 flex items-center justify-center">
+                      <ImageIcon className="w-10 h-10 text-amber-300/50" />
+                    </div>
+                  )}
+                  <div className="p-4 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          {item.project.projectType && (
+                            <Badge variant="outline" className="text-[10px]" data-testid={`badge-featured-type-${item.id}`}>
+                              {PROJECT_TYPE_LABELS[item.project.projectType] ?? item.project.projectType}
+                            </Badge>
+                          )}
+                          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25 text-[10px] gap-1 shrink-0">
+                            <Star className="w-2.5 h-2.5 fill-current" /> مميَّز
+                          </Badge>
+                        </div>
                         <h3 className="font-serif font-semibold text-foreground truncate" data-testid={`text-featured-title-${item.id}`}>
                           {item.project.title}
                         </h3>
-                        <p className="text-xs text-muted-foreground mt-0.5" data-testid={`text-featured-author-${item.id}`}>
-                          {item.project.authorName}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Avatar className="w-5 h-5 shrink-0">
+                            <AvatarImage src={item.project.authorProfileImage || undefined} alt={item.project.authorName || "مؤلف"} />
+                            <AvatarFallback className="text-[8px]">{(item.project.authorName || "؟")[0]}</AvatarFallback>
+                          </Avatar>
+                          <Link href={`/author/${item.project.authorId}`}>
+                            <p className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer" data-testid={`text-featured-author-${item.id}`}>
+                              {item.project.authorName}
+                            </p>
+                          </Link>
+                          {item.voteCount > 0 && (
+                            <span className="flex items-center gap-0.5 text-xs text-red-400" data-testid={`text-featured-votes-${item.id}`}>
+                              <Heart className="w-3 h-3 fill-current" />
+                              {item.voteCount}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25 text-[10px] gap-1 shrink-0">
-                        <Star className="w-2.5 h-2.5 fill-current" /> مميَّز
-                      </Badge>
                     </div>
+
+                    {item.project.mainIdea && (
+                      <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`text-featured-idea-${item.id}`}>
+                        {item.project.mainIdea}
+                      </p>
+                    )}
 
                     {item.project.shareToken && (
                       <Link href={`/essay/${item.project.shareToken}`}>
