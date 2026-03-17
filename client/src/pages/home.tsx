@@ -1616,13 +1616,22 @@ export default function Home() {
                               ? "مرحلة المسودة"
                               : "في الانتظار"}
                     </div>
-                    {(project as any).wordCountGoal && (project as any).wordCountGoal > 0 && (() => {
+                    {project.wordCountGoal && project.wordCountGoal > 0 && (() => {
                       const currentWords = projectStats?.[project.id]?.realWordCount ?? project.usedWords;
-                      const goalPct = Math.min((currentWords / (project as any).wordCountGoal) * 100, 100);
+                      const goalPct = Math.min((currentWords / project.wordCountGoal) * 100, 100);
+                      const reachedMilestones = (project.milestonesReached as number[] | null) ?? [];
+                      const highestMilestone = reachedMilestones.length > 0 ? Math.max(...reachedMilestones) : null;
                       return (
                         <div className="mt-2 space-y-1" data-testid={`goal-progress-${project.id}`}>
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                            <span><LtrNum>{currentWords.toLocaleString("ar-EG")}</LtrNum> / <LtrNum>{((project as any).wordCountGoal as number).toLocaleString("ar-EG")}</LtrNum></span>
+                            <span className="flex items-center gap-1">
+                              <LtrNum>{currentWords.toLocaleString("ar-EG")}</LtrNum> / <LtrNum>{project.wordCountGoal.toLocaleString("ar-EG")}</LtrNum>
+                              {highestMilestone !== null && (
+                                <span className={`px-1 py-0.5 rounded-full text-[9px] font-medium ${highestMilestone >= 100 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"}`} data-testid={`badge-milestone-${project.id}`}>
+                                  {highestMilestone >= 100 ? "🏆" : `${highestMilestone}%`}
+                                </span>
+                              )}
+                            </span>
                             <span><LtrNum>{Math.round(goalPct)}</LtrNum>٪</span>
                           </div>
                           <div className="h-1 bg-muted rounded-full overflow-hidden">

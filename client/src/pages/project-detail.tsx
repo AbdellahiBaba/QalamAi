@@ -2082,8 +2082,8 @@ export default function ProjectDetail() {
             const wc = ch.content ? ch.content.split(/\s+/).filter((w: string) => w.length > 0).length : 0;
             return sum + wc;
           }, 0) ?? 0;
-          const goal = (project as any).wordCountGoal as number | null | undefined;
-          const milestones = ((project as any).milestonesReached as number[] | null) ?? [];
+          const goal = project.wordCountGoal;
+          const milestones = (project.milestonesReached as number[] | null) ?? [];
           const pct = goal && goal > 0 ? Math.min((totalWords / goal) * 100, 100) : 0;
 
           return (
@@ -2160,7 +2160,7 @@ export default function ProjectDetail() {
                   {setGoalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <Target className="w-4 h-4 ml-1" />}
                   حفظ الهدف
                 </Button>
-                {(project as any).wordCountGoal && (
+                {project.wordCountGoal && (
                   <Button
                     variant="destructive"
                     size="sm"

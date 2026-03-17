@@ -963,6 +963,8 @@ ${allPages.map(p => `  <url>
         pageCount: p.pageCount,
         targetWordCount: p.targetWordCount,
         narrativePov: p.narrativePov,
+        wordCountGoal: p.wordCountGoal,
+        milestonesReached: p.milestonesReached,
       }));
       const entry = apiCache.set(cacheKey, trimmed, 30);
       res.setHeader("ETag", entry.etag);
