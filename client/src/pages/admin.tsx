@@ -838,7 +838,7 @@ export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "top-voted" | "comments">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "top-voted" | "comments" | "quotes">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -973,6 +973,15 @@ export default function Admin() {
       return res.json();
     },
     enabled: activeTab === "comments",
+  });
+
+  const { data: adminQuotes, isLoading: adminQuotesLoading, refetch: refetchAdminQuotes } = useQuery<any[]>({
+    queryKey: ["/api/admin/quotes"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/quotes?limit=50");
+      return res.json();
+    },
+    enabled: activeTab === "quotes",
   });
 
   interface MemoireAnalyticsRow { projectId: number; title: string; university: string | null; memoireField: string | null; memoireMethodology: string | null; memoireCountry: string | null; views: number; clicks: number }
@@ -1769,6 +1778,7 @@ export default function Admin() {
                 {[
                   { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.filter(r => !r.approved).length || 0 },
                   { key: "comments" as const, icon: MessageSquare, label: "تعليقات الأعمال" },
+                  { key: "quotes" as const, icon: MessageSquare, label: "الاقتباسات" },
                   { key: "essays" as const, icon: FileText, label: "المقالات" },
                   { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
                   { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
@@ -1959,6 +1969,7 @@ export default function Admin() {
                       {[
                         { key: "reviews" as const, icon: MessageSquare, label: "المراجعات", badge: pendingReviews?.filter(r => !r.approved).length || 0 },
                         { key: "comments" as const, icon: MessageSquare, label: "تعليقات الأعمال" },
+                        { key: "quotes" as const, icon: MessageSquare, label: "الاقتباسات" },
                         { key: "essays" as const, icon: FileText, label: "المقالات" },
                         { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
                         { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
@@ -3557,6 +3568,72 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "quotes" && (
+          <>
+            <h2 className="font-serif text-lg font-bold mb-4 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5" />
+              إدارة الاقتباسات
+            </h2>
+            {adminQuotesLoading ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+              </div>
+            ) : (!adminQuotes || !Array.isArray(adminQuotes) || adminQuotes.length === 0) ? (
+              <p className="text-sm text-muted-foreground text-center py-8">لا توجد اقتباسات بعد</p>
+            ) : (
+              <div className="space-y-2">
+                {adminQuotes.map((q: any) => (
+                  <div key={q.id} className={`p-3 border rounded-lg flex items-start gap-3 ${q.flagged ? "border-red-300 bg-red-50/30 dark:bg-red-900/10" : ""}`} data-testid={`admin-quote-${q.id}`}>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <p className="font-serif text-sm leading-relaxed text-foreground/90" data-testid={`admin-quote-text-${q.id}`}>❝ {q.quote_text} ❞</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {q.project_title && <Badge variant="outline" className="text-[10px]">{q.project_title}</Badge>}
+                        {q.flagged && <Badge variant="destructive" className="text-[10px]">مُبلَّغ</Badge>}
+                        <span className="text-[10px] text-muted-foreground">
+                          {q.user_id ? `مستخدم: ${q.user_id.slice(0, 8)}...` : `زائر: ${q.guest_ip || "غير معروف"}`}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {q.created_at && new Date(q.created_at).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!q.flagged && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1 text-amber-600"
+                          onClick={async () => {
+                            await apiRequest("PATCH", `/api/admin/quotes/${q.id}/flag`);
+                            refetchAdminQuotes();
+                            toast({ title: "تم الإبلاغ عن الاقتباس" });
+                          }}
+                          data-testid={`button-flag-quote-${q.id}`}
+                        >
+                          <Flag className="w-3 h-3" /> إبلاغ
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1 text-red-600"
+                        onClick={async () => {
+                          await apiRequest("DELETE", `/api/admin/quotes/${q.id}`);
+                          refetchAdminQuotes();
+                          toast({ title: "تم حذف الاقتباس" });
+                        }}
+                        data-testid={`button-delete-quote-${q.id}`}
+                      >
+                        <Trash2 className="w-3 h-3" /> حذف
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>

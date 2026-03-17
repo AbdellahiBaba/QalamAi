@@ -915,9 +915,9 @@ export default function SharedProject() {
         <BetaReaderOptIn projectId={project.id} />
       )}
 
-      {project && <TopQuotesSection projectId={project.id} projectTitle={project.title} />}
-
       {project && token && <ProjectCommentsSection shareToken={token} />}
+
+      {project && <TopQuotesSection projectId={project.id} projectTitle={project.title} />}
 
       {project && <SharedRelatedWorks projectId={project.id} />}
 
