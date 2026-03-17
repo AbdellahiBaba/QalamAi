@@ -2460,17 +2460,11 @@ export default function ProjectDetail() {
                       {coverVariants.map((variant, idx) => (
                         <button
                           key={idx}
-                          onClick={() => setSelectedVariantIndex(idx === selectedVariantIndex ? null : idx)}
-                          onDoubleClick={() => setPreviewVariantIndex(idx)}
-                          className={`relative rounded-lg overflow-hidden border-2 transition-all hover:shadow-lg group ${selectedVariantIndex === idx ? "border-primary ring-2 ring-primary/30 shadow-md" : "border-muted hover:border-primary/40"}`}
+                          onClick={() => setPreviewVariantIndex(idx)}
+                          className="relative rounded-lg overflow-hidden border-2 border-muted hover:border-primary/60 transition-all hover:shadow-lg group"
                           data-testid={`button-select-variant-${idx}`}
                         >
                           <img src={variant.imageUrl} alt={variant.label} className="w-full aspect-[2/3] object-cover" />
-                          {selectedVariantIndex === idx && (
-                            <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1">
-                              <CheckCircle className="w-4 h-4" />
-                            </div>
-                          )}
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
                             <Maximize2 className="w-6 h-6 text-white drop-shadow" />
                           </div>
@@ -2480,35 +2474,12 @@ export default function ProjectDetail() {
                         </button>
                       ))}
                     </div>
-                    <p className="text-xs text-center text-muted-foreground">انقر مرتين على الصورة لمعاينتها بالحجم الكامل</p>
+                    <p className="text-xs text-center text-muted-foreground">انقر على الصورة لمعاينتها بالحجم الكامل</p>
                     <div className="flex gap-2">
-                      <Button
-                        className="flex-1"
-                        disabled={selectedVariantIndex === null || isGeneratingCover}
-                        onClick={async () => {
-                          if (selectedVariantIndex === null) return;
-                          setIsGeneratingCover(true);
-                          try {
-                            await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { imageUrl: coverVariants[selectedVariantIndex].imageUrl });
-                            queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                            toast({ title: "تم اعتماد الغلاف بنجاح" });
-                            setShowCoverVariantsDialog(false);
-                            setCoverVariants([]);
-                            setSelectedVariantIndex(null);
-                          } catch {
-                            toast({ title: "فشل في حفظ الغلاف", variant: "destructive" });
-                          } finally {
-                            setIsGeneratingCover(false);
-                          }
-                        }}
-                        data-testid="button-apply-variant"
-                      >
-                        <CheckCircle className="w-4 h-4 ml-2" />
-                        اعتماد هذا الغلاف
-                      </Button>
                       <Button
                         variant="outline"
                         disabled={isGeneratingCover}
+                        className="flex-1"
                         onClick={async () => {
                           setCoverVariants([]);
                           setSelectedVariantIndex(null);

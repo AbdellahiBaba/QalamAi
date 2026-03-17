@@ -3483,91 +3483,6 @@ ${allPages.map(p => `  <url>
     }
   });
 
-  const COVER_STYLE_PROMPTS: Record<string, { label: string; prefix: string }> = {
-    calligraphy: {
-      label: "خط عربي",
-      prefix: "Arabic calligraphy-forward art style — the composition is dominated by elegant Arabic calligraphic strokes, flowing ink patterns, and naskh/thuluth letterforms used as abstract visual elements. Gold leaf accents on deep indigo or burgundy backgrounds. The calligraphy sweeps across the cover as an artistic motif, NOT as readable text.",
-    },
-    artistic: {
-      label: "رسم فني",
-      prefix: "Hand-painted artistic illustration style — watercolor and oil painting textures, expressive brushwork, rich saturated colors. The cover looks like a fine art painting with visible brushstrokes, layered pigments, and artistic impasto effects. Inspired by Arabic miniature painting traditions merged with modern illustration.",
-    },
-    cinematic: {
-      label: "سينمائي",
-      prefix: "Cinematic dramatic movie-poster style — high contrast lighting with deep shadows and golden highlights, atmospheric depth of field, volumetric fog or dust particles in light beams. Epic sense of scale and drama. Color grading resembles a Hollywood or Arabic cinema production with teal-orange or moody blue-amber palettes.",
-    },
-    abstract: {
-      label: "تجريدي",
-      prefix: "Abstract geometric modern design — bold geometric shapes inspired by Islamic geometric patterns (arabesque, tessellations, star polygons), intersecting with contemporary minimalist design. Limited color palette with striking contrast. Clean lines, mathematical precision, and symbolic abstraction.",
-    },
-  };
-
-  const coverVariantsSchema = z.object({
-    style: z.enum(["calligraphy", "artistic", "cinematic", "abstract"]),
-  });
-
-  app.post("/api/projects/:id/cover-variants", isAuthenticated, async (req: any, res) => {
-    try {
-      if (await checkApiSuspension(req.user.claims.sub, res)) return;
-      if (!(await checkAiRateLimit(req, res))) return;
-      const id = parseIntParam(req.params.id);
-      if (id === null) return res.status(400).json({ error: "معرّف غير صالح" });
-      const project = await storage.getProject(id);
-      if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
-      if (project.userId !== req.user.claims.sub) return res.status(403).json({ error: "غير مصرّح بالوصول" });
-
-      const variantUser = await storage.getUser(req.user.claims.sub);
-      if (variantUser?.plan === "trial" && variantUser.trialActive) {
-        if (isTrialExpired(variantUser.trialEndsAt)) {
-          return res.status(403).json({ error: "انتهت الفترة التجريبية" });
-        }
-        if (project.coverImageUrl) {
-          return res.status(403).json({ error: "الفترة التجريبية تسمح بتصميم غلاف واحد فقط" });
-        }
-      }
-
-      const parsed = coverVariantsSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
-
-      const { style } = parsed.data;
-      const styleConfig = COVER_STYLE_PROMPTS[style];
-      const basePrompt = buildCoverPrompt(project);
-      const styledPrompt = `${styleConfig.prefix}\n\n${basePrompt}`;
-
-      const variantPromises = Array.from({ length: 3 }, () =>
-        openai.images.generate({
-          model: "gpt-image-1",
-          prompt: styledPrompt,
-          size: "1024x1024",
-        }).then(async (response) => {
-          const b64 = response.data[0]?.b64_json;
-          if (!b64) return null;
-          const composited = await overlayTitleOnCover(b64, project.title);
-          return `data:image/png;base64,${composited}`;
-        }).catch((err) => {
-          console.error("Cover variant generation error:", err);
-          return null;
-        })
-      );
-
-      const results = await Promise.all(variantPromises);
-      const variants = results.filter(Boolean);
-
-      for (let i = 0; i < variants.length; i++) {
-        logImageUsage(req.user.claims.sub, id, "cover_variant");
-      }
-
-      if (variants.length === 0) {
-        return res.status(500).json({ error: "فشل في إنشاء جميع التنويعات" });
-      }
-
-      res.json({ variants, style: styleConfig.label });
-    } catch (error) {
-      console.error("Error generating cover variants:", error);
-      res.status(500).json({ error: "فشل في إنشاء تنويعات الغلاف" });
-    }
-  });
-
   app.post("/api/projects/:id/generate-cover-variants", isAuthenticated, async (req: any, res) => {
     try {
       if (await checkApiSuspension(req.user.claims.sub, res)) return;
@@ -3607,12 +3522,12 @@ ${allPages.map(p => `  <url>
       const results = await Promise.all(variantPromises);
       const variants = results.filter(Boolean);
 
-      for (let i = 0; i < variants.length; i++) {
-        logImageUsage(req.user.claims.sub, id, "cover_variant");
+      if (variants.length < COVER_VARIANT_STYLES.length) {
+        return res.status(500).json({ error: "فشل في إنشاء جميع التنويعات الثلاث — حاول مرة أخرى" });
       }
 
-      if (variants.length === 0) {
-        return res.status(500).json({ error: "فشل في إنشاء جميع التنويعات" });
+      for (let i = 0; i < variants.length; i++) {
+        logImageUsage(req.user.claims.sub, id, "cover_variant");
       }
 
       res.json({ variants });
