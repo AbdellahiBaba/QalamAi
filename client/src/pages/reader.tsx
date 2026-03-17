@@ -283,13 +283,35 @@ export default function Reader() {
             العودة
           </Button>
 
-          <div className="flex-1 text-center min-w-0">
-            <h1 className="font-serif text-base font-semibold truncate" data-testid="text-chapter-title">
-              {currentChapter.title}
-            </h1>
-            <span className="text-[10px] text-[#2C1810]/50 dark:text-[#E8DCC8]/50" data-testid="text-chapter-progress">
-              {sectionLabel} {toArabicNumerals(currentIndex + 1)} من {toArabicNumerals(sortedChapters.length)}
-            </span>
+          <div className="flex items-center gap-1 flex-1 justify-center min-w-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!prevChapter}
+              onClick={() => navigateTo(prevChapter)}
+              className="text-[#2C1810] dark:text-[#E8DCC8] h-8 px-1.5 shrink-0"
+              data-testid="button-top-prev"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <div className="text-center min-w-0">
+              <h1 className="font-serif text-sm font-semibold truncate" data-testid="text-chapter-title">
+                {currentChapter.title}
+              </h1>
+              <span className="text-[10px] text-[#2C1810]/50 dark:text-[#E8DCC8]/50" data-testid="text-chapter-progress">
+                {sectionLabel} {toArabicNumerals(currentIndex + 1)} من {toArabicNumerals(sortedChapters.length)}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!nextChapter}
+              onClick={() => navigateTo(nextChapter)}
+              className="text-[#2C1810] dark:text-[#E8DCC8] h-8 px-1.5 shrink-0"
+              data-testid="button-top-next"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
           </div>
 
           <div className="flex items-center gap-1">
