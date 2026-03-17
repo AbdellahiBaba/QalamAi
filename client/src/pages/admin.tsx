@@ -750,7 +750,7 @@ function AdminChallengesTab() {
 function AdminTopVotedTab() {
   const { toast } = useToast();
 
-  const { data, isLoading, refetch } = useQuery<{ projects: { id: number; title: string; authorName: string; authorId: string; voteCount: number; shareToken: string | null }[] }>({
+  const { data, isLoading, refetch } = useQuery<{ projects: { id: number; title: string; authorName: string; authorId: string; voteCount: number; shareToken: string | null; alreadyFeatured: boolean }[] }>({
     queryKey: ["/api/admin/top-voted"],
   });
 
@@ -814,17 +814,23 @@ function AdminTopVotedTab() {
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => featureMutation.mutate(project.id)}
-                  disabled={featureMutation.isPending}
-                  data-testid={`button-feature-${project.id}`}
-                  className="gap-1.5 text-xs"
-                >
-                  <Crown className="w-3.5 h-3.5" />
-                  تمييز في المجد
-                </Button>
+                {project.alreadyFeatured ? (
+                  <Badge className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1" data-testid={`badge-featured-${project.id}`}>
+                    <Crown className="w-3 h-3" /> في المجد
+                  </Badge>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => featureMutation.mutate(project.id)}
+                    disabled={featureMutation.isPending}
+                    data-testid={`button-feature-${project.id}`}
+                    className="gap-1.5 text-xs"
+                  >
+                    <Crown className="w-3.5 h-3.5" />
+                    تمييز في المجد
+                  </Button>
+                )}
               </div>
             </div>
           ))}

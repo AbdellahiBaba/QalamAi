@@ -10677,7 +10677,19 @@ ${ch.content}
   app.get("/api/hall-of-glory/featured", async (_req, res) => {
     try {
       const featured = await storage.getFeaturedHallOfGlory();
-      res.json(featured);
+      const mapped = featured.map((f, idx) => ({
+        id: idx + 1,
+        projectId: f.id,
+        featuredAt: f.featuredAt ? f.featuredAt.toISOString() : new Date().toISOString(),
+        project: {
+          id: f.id,
+          title: f.title,
+          shareToken: f.shareToken ?? null,
+          authorName: f.authorName ?? null,
+          authorId: f.authorId,
+        },
+      }));
+      res.json({ featured: mapped });
     } catch (error) {
       console.error("[HoG] Featured error:", error);
       res.status(500).json({ error: "فشل في جلب الأعمال المختارة" });
@@ -11924,8 +11936,17 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
 
   app.get("/api/admin/top-voted", isAuthenticated, isAdmin, async (_req, res) => {
     try {
-      const projects = await storage.getTopVotedProjects(100);
-      res.json(projects);
+      const raw = await storage.getTopVotedProjects(100);
+      const projects = raw.map(p => ({
+        id: p.id,
+        title: p.title,
+        authorName: p.authorName,
+        authorId: p.userId,
+        voteCount: p.voteCount,
+        shareToken: p.shareToken ?? null,
+        alreadyFeatured: p.alreadyFeatured,
+      }));
+      res.json({ projects });
     } catch (error) {
       console.error("[Admin] Top voted error:", error);
       res.status(500).json({ error: "فشل في جلب الأعمال" });
