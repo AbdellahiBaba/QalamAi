@@ -3,10 +3,10 @@ import { build as viteBuild } from "vite";
 import { rm, cp, mkdir, access } from "fs/promises";
 import path from "path";
 
-// @napi-rs/canvas JS code is bundled directly into the output.
-// The platform-specific packages are kept external because:
-//  - only one platform binary is used at runtime (selected via NAPI_RS_NATIVE_LIBRARY_PATH)
-//  - we copy the correct .node binary directly into dist/ so no node_modules are needed
+// @napi-rs/canvas-* platform packages are kept external (not bundled) because only
+// the platform-specific binary for the host is needed. Both the main JS package and the
+// linux-x64-gnu platform package are copied to dist/node_modules/ so the deployed
+// container can resolve them (root node_modules/ is excluded by .dockerignore).
 const MUST_KEEP_EXTERNAL = [
   "@napi-rs/canvas-*",
 ];
@@ -42,24 +42,39 @@ async function buildAll() {
     }),
   ]);
 
-  // Copy the native .node binary directly into dist/ so the server can load it
-  // via NAPI_RS_NATIVE_LIBRARY_PATH without needing any node_modules directory.
-  console.log("copying @napi-rs/canvas native binary to dist/...");
-  let copied = false;
-  for (const { pkg, file } of NAPI_BINARY_CANDIDATES) {
-    const src = `node_modules/${pkg}/${file}`;
+  // Copy @napi-rs/canvas packages to dist/node_modules/ so they can be resolved
+  // at runtime in the deployed container (root node_modules/ is excluded by .dockerignore).
+  console.log("copying @napi-rs/canvas packages to dist/node_modules/...");
+  await mkdir("dist/node_modules/@napi-rs", { recursive: true });
+
+  // Always copy the main @napi-rs/canvas JS package
+  try {
+    await access("node_modules/@napi-rs/canvas");
+    await cp("node_modules/@napi-rs/canvas", "dist/node_modules/@napi-rs/canvas", { recursive: true });
+    console.log("  copied @napi-rs/canvas");
+  } catch {
+    console.warn("  WARNING: node_modules/@napi-rs/canvas not found");
+  }
+
+  // Copy the linux-x64-gnu platform package (skip musl — not used on this host)
+  let nativeCopied = false;
+  for (const { pkg } of NAPI_BINARY_CANDIDATES) {
+    if (pkg.includes("musl")) {
+      console.log(`  skipped ${pkg} (musl not needed)`);
+      continue;
+    }
     try {
-      await access(src);
-      await cp(src, `dist/${file}`);
-      console.log(`  copied ${file} (from ${pkg})`);
-      copied = true;
+      await access(`node_modules/${pkg}`);
+      await cp(`node_modules/${pkg}`, `dist/node_modules/${pkg}`, { recursive: true });
+      console.log(`  copied ${pkg}`);
+      nativeCopied = true;
       break;
     } catch {
       console.log(`  skipped ${pkg} (not installed on this platform)`);
     }
   }
-  if (!copied) {
-    console.warn("  WARNING: no @napi-rs/canvas binary found — canvas features will be unavailable");
+  if (!nativeCopied) {
+    console.warn("  WARNING: no @napi-rs/canvas-linux-x64-gnu binary found — canvas features will be unavailable");
   }
 
   console.log("copying stripe-replit-sync migrations to dist/migrations/...");
