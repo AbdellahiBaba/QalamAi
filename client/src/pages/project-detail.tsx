@@ -393,7 +393,6 @@ export default function ProjectDetail() {
   const [suggestedChars, setSuggestedChars] = useState<Array<{ name: string; role: string; background: string; traits: string }>>([]);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
-  const [showRegenerateCoverConfirm, setShowRegenerateCoverConfirm] = useState(false);
   const [coverStyle, setCoverStyle] = useState<string>("calligraphy");
   const [coverVariants, setCoverVariants] = useState<string[]>([]);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
