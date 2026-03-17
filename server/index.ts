@@ -571,6 +571,8 @@ async function runStartupMigrations() {
 
     await pool.query(`ALTER TABLE novel_projects ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
     await pool.query(`ALTER TABLE novel_projects ADD COLUMN IF NOT EXISTS seeking_beta_readers BOOLEAN DEFAULT false`);
+    await pool.query(`ALTER TABLE novel_projects ADD COLUMN IF NOT EXISTS word_count_goal INTEGER`);
+    await pool.query(`ALTER TABLE novel_projects ADD COLUMN IF NOT EXISTS milestones_reached INTEGER[] DEFAULT '{}'`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS writing_challenges (
