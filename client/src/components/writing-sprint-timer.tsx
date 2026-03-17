@@ -244,10 +244,6 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
     autoFinish(finalWords);
   };
 
-  const manualFinish = () => {
-    autoFinish(wordsWritten);
-  };
-
   const formatTime = (totalSeconds: number) => {
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
@@ -275,7 +271,7 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
             </Select>
             <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={startSprint} data-testid="button-start-sprint-editor">
               <Timer className="w-3.5 h-3.5" />
-              سباق الكتابة
+              ابدأ جلسة كتابة
             </Button>
           </div>
         )}
@@ -522,33 +518,6 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
             </div>
           )}
 
-          {phase === "completed" && (
-            <div className="space-y-3">
-              <div className="text-center py-3">
-                <Trophy className="w-10 h-10 mx-auto text-amber-500 mb-2" />
-                <p className="font-bold text-lg">انتهى الوقت!</p>
-                <p className="text-sm text-muted-foreground">أدخل عدد الكلمات التي كتبتها</p>
-              </div>
-
-              <div>
-                <Label className="text-xs mb-1 block">الكلمات المكتوبة</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={wordsWritten}
-                  onChange={(e) => setWordsWritten(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="text-center text-2xl font-bold"
-                  dir="ltr"
-                  data-testid="input-sprint-final-words"
-                />
-              </div>
-
-              <Button onClick={manualFinish} className="w-full gap-2" disabled={saveSprint.isPending} data-testid="button-save-sprint">
-                <Award className="w-4 h-4" />
-                {saveSprint.isPending ? "جاري الحفظ..." : "حفظ النتيجة"}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -639,7 +608,7 @@ export function SprintWeekStat() {
     staleTime: 60 * 1000,
   });
 
-  if (!sprintStats || sprintStats.thisWeekSprints === 0) return null;
+  if (!sprintStats) return null;
 
   return (
     <div className="bg-muted/50 rounded-lg p-3 text-center" data-testid="stat-sprint-week">
