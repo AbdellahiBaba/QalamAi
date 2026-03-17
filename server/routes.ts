@@ -517,172 +517,268 @@ export async function registerRoutes(
     return { allowed: used < EDITORIAL_FREE_LIMIT, used, limit: EDITORIAL_FREE_LIMIT };
   }
 
+  function wrapText(ctx: any, text: string, maxWidth: number): string[] {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let line = "";
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawCardFooter(ctx: any, W: number, H: number, gold: string) {
+    ctx.font = `bold 20px "Amiri"`;
+    ctx.fillStyle = gold;
+    ctx.textAlign = "center";
+    ctx.fillText("QalamAI  —  قلم", W / 2, H - 65);
+    ctx.font = `13px "Amiri"`;
+    ctx.fillStyle = "#8b7355";
+    ctx.fillText("#QalamAI  |  منصة الكتابة العربية بالذكاء الاصطناعي", W / 2, H - 42);
+  }
+
+  function renderCompletionCard(ctx: any, W: number, H: number, authorName: string, projectTitle: string) {
+    const gold = "#d4af37", darkBrown = "#3d2b1f";
+
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#faf6ee");
+    bg.addColorStop(1, "#f5ead0");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = gold;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(20, 20, W - 40, H - 40);
+    ctx.strokeStyle = "#b8941e";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(32, 32, W - 64, H - 64);
+
+    const corners = [[36, 36], [W - 36, 36], [36, H - 36], [W - 36, H - 36]];
+    ctx.fillStyle = gold;
+    for (const [cx, cy] of corners) {
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = gold; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.direction = "rtl";
+
+    ctx.fillStyle = gold;
+    ctx.font = `28px "Amiri"`;
+    ctx.fillText("✦  ❋  ✦", W / 2, 80);
+
+    const trophyR = 70;
+    ctx.fillStyle = "rgba(212, 175, 55, 0.12)";
+    ctx.beginPath(); ctx.arc(W / 2, 200, trophyR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(212, 175, 55, 0.3)";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(W / 2, 200, trophyR, 0, Math.PI * 2); ctx.stroke();
+    ctx.font = `72px "Amiri"`;
+    ctx.fillStyle = darkBrown;
+    ctx.fillText("🏆", W / 2, 205);
+
+    ctx.font = `bold 44px "Amiri"`;
+    ctx.fillStyle = darkBrown;
+    ctx.fillText("أتممتُ عملي الأدبي", W / 2, 330);
+
+    ctx.strokeStyle = gold; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(W / 2 - 100, 370); ctx.lineTo(W / 2 + 100, 370); ctx.stroke();
+    ctx.fillStyle = gold; ctx.beginPath(); ctx.arc(W / 2, 370, 4, 0, Math.PI * 2); ctx.fill();
+
+    ctx.font = `28px "Amiri"`;
+    ctx.fillStyle = "#6b5b4f";
+    const titleLines = wrapText(ctx, projectTitle, W - 140).slice(0, 2);
+    for (let i = 0; i < titleLines.length; i++) {
+      ctx.fillText(titleLines[i], W / 2, 420 + i * 40);
+    }
+
+    const nameY = 420 + titleLines.length * 40 + 60;
+    ctx.fillStyle = "rgba(212, 175, 55, 0.08)";
+    ctx.beginPath(); ctx.roundRect(W / 2 - 200, nameY - 30, 400, 70, 12); ctx.fill();
+    ctx.strokeStyle = "rgba(212, 175, 55, 0.25)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(W / 2 - 200, nameY - 30, 400, 70, 12); ctx.stroke();
+    ctx.font = `bold 32px "Amiri"`;
+    ctx.fillStyle = darkBrown;
+    ctx.fillText(authorName.slice(0, 40), W / 2, nameY + 5);
+
+    ctx.font = `16px "Amiri"`;
+    ctx.fillStyle = "#8b7355";
+    ctx.fillText("— كاتب على منصة قلم —", W / 2, nameY + 50);
+
+    ctx.fillStyle = gold; ctx.font = `24px "Amiri"`;
+    ctx.fillText("✦  ❋  ✦", W / 2, H - 100);
+
+    drawCardFooter(ctx, W, H, gold);
+  }
+
+  function renderStreakCard(ctx: any, W: number, H: number, authorName: string, days: number) {
+    const flame = "#e65100", warmOrange = "#ff8f00", darkBrown = "#3d2b1f", gold = "#d4af37";
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#2d1b0e");
+    bg.addColorStop(0.4, "#3e1f0a");
+    bg.addColorStop(1, "#1a0f06");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = warmOrange;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(16, 16, W - 32, H - 32);
+    ctx.strokeStyle = "rgba(255, 143, 0, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(28, 28, W - 56, H - 56);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.direction = "rtl";
+
+    for (let i = 0; i < 5; i++) {
+      const sx = 100 + i * 150;
+      ctx.fillStyle = `rgba(255, 100, 0, ${0.04 + i * 0.01})`;
+      ctx.beginPath(); ctx.arc(sx, 700, 60 + i * 15, 0, Math.PI * 2); ctx.fill();
+    }
+
+    ctx.font = `80px "Amiri"`;
+    ctx.fillStyle = "#fff";
+    ctx.fillText("🔥", W / 2, 150);
+
+    const dayStr = String(days);
+    ctx.font = `bold 120px "Amiri"`;
+    ctx.fillStyle = warmOrange;
+    ctx.fillText(dayStr, W / 2, 300);
+
+    ctx.font = `bold 36px "Amiri"`;
+    ctx.fillStyle = "#f5e6c8";
+    ctx.fillText(days > 10 ? "يومًا متواصلاً" : "أيام متواصلة", W / 2, 380);
+
+    ctx.font = `28px "Amiri"`;
+    ctx.fillStyle = "rgba(245, 230, 200, 0.7)";
+    ctx.fillText("سلسلة كتابة يومية", W / 2, 440);
+
+    const barY = 490;
+    ctx.fillStyle = "rgba(255, 143, 0, 0.15)";
+    ctx.beginPath(); ctx.roundRect(80, barY, W - 160, 60, 30); ctx.fill();
+    const streakBarWidth = Math.min((days / 30) * (W - 160), W - 160);
+    const barGrad = ctx.createLinearGradient(80, barY, 80 + streakBarWidth, barY);
+    barGrad.addColorStop(0, flame);
+    barGrad.addColorStop(1, warmOrange);
+    ctx.fillStyle = barGrad;
+    ctx.beginPath(); ctx.roundRect(80, barY, streakBarWidth, 60, 30); ctx.fill();
+    ctx.font = `bold 22px "Amiri"`;
+    ctx.fillStyle = "#fff";
+    ctx.fillText(`${days} / 30`, W / 2, barY + 30);
+
+    ctx.font = `bold 32px "Amiri"`;
+    ctx.fillStyle = "#f5e6c8";
+    ctx.fillText(authorName.slice(0, 40), W / 2, 610);
+
+    ctx.font = `16px "Amiri"`;
+    ctx.fillStyle = "rgba(245, 230, 200, 0.5)";
+    ctx.fillText("— التزام يومي بالكتابة الإبداعية —", W / 2, 650);
+
+    drawCardFooter(ctx, W, H, warmOrange);
+  }
+
+  function renderWordGoalCard(ctx: any, W: number, H: number, authorName: string, projectTitle: string, milestone: number) {
+    const gold = "#d4af37", teal = "#0d7377", darkTeal = "#064e52", darkBrown = "#3d2b1f";
+
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#f0faf9");
+    bg.addColorStop(0.5, "#e8f5f3");
+    bg.addColorStop(1, "#e0f0ed");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = teal;
+    ctx.lineWidth = 5;
+    ctx.strokeRect(18, 18, W - 36, H - 36);
+    ctx.strokeStyle = "rgba(13, 115, 119, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(30, 30, W - 60, H - 60);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.direction = "rtl";
+
+    const ringCx = W / 2, ringCy = 220, ringR = 100;
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = "rgba(13, 115, 119, 0.15)";
+    ctx.beginPath(); ctx.arc(ringCx, ringCy, ringR, 0, Math.PI * 2); ctx.stroke();
+    const pct = Math.min(milestone || 100, 100) / 100;
+    const startAngle = -Math.PI / 2;
+    const endAngle = startAngle + pct * Math.PI * 2;
+    ctx.strokeStyle = teal;
+    ctx.lineWidth = 12;
+    ctx.lineCap = "round";
+    ctx.beginPath(); ctx.arc(ringCx, ringCy, ringR, startAngle, endAngle); ctx.stroke();
+    ctx.lineCap = "butt";
+
+    ctx.font = `bold 56px "Amiri"`;
+    ctx.fillStyle = darkTeal;
+    ctx.fillText(`${milestone || 100}٪`, ringCx, ringCy);
+
+    ctx.font = `bold 40px "Amiri"`;
+    ctx.fillStyle = darkBrown;
+    ctx.fillText(milestone >= 100 ? "حققتُ هدف الكلمات" : `بلغتُ ${milestone}٪ من هدفي`, W / 2, 370);
+
+    ctx.strokeStyle = teal; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(W / 2 - 80, 410); ctx.lineTo(W / 2 + 80, 410); ctx.stroke();
+
+    if (projectTitle) {
+      ctx.font = `26px "Amiri"`;
+      ctx.fillStyle = "#4a6b6e";
+      const lines = wrapText(ctx, projectTitle, W - 140).slice(0, 2);
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], W / 2, 455 + i * 38);
+      }
+    }
+
+    ctx.font = `bold 32px "Amiri"`;
+    ctx.fillStyle = darkBrown;
+    ctx.fillText(authorName.slice(0, 40), W / 2, 570);
+
+    ctx.font = `16px "Amiri"`;
+    ctx.fillStyle = "#4a6b6e";
+    ctx.fillText("— كاتب على منصة قلم —", W / 2, 610);
+
+    ctx.fillStyle = teal; ctx.font = `24px "Amiri"`;
+    ctx.fillText("✦  ❋  ✦", W / 2, H - 100);
+
+    drawCardFooter(ctx, W, H, teal);
+  }
+
   app.post("/api/milestone-card", isAuthenticated, async (req: any, res) => {
     try {
       const { type, authorName, projectTitle, milestone } = req.body;
-      if (!type || !authorName) {
+      if (!type || !authorName || authorName.length > 100) {
         return res.status(400).json({ error: "النوع واسم المؤلف مطلوبان" });
       }
+      const safeAuthor = String(authorName).slice(0, 80);
+      const safeTitle = projectTitle ? String(projectTitle).slice(0, 200) : "";
+      const safeMilestone = milestone ? Math.min(Math.max(Number(milestone) || 0, 0), 10000) : undefined;
 
       const W = 800, H = 800;
       const canvas = createCanvas(W, H);
       const ctx = canvas.getContext("2d");
 
-      const gold = "#d4af37";
-      const darkGold = "#b8941e";
-      const sandBg = "#faf6ee";
-      const darkBrown = "#3d2b1f";
-      const lightGold = "#f5e6c8";
-
-      const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-      bgGrad.addColorStop(0, sandBg);
-      bgGrad.addColorStop(0.5, "#f8f0e0");
-      bgGrad.addColorStop(1, "#faf3e5");
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, W, H);
-
-      ctx.strokeStyle = gold;
-      ctx.lineWidth = 6;
-      ctx.strokeRect(20, 20, W - 40, H - 40);
-
-      ctx.strokeStyle = darkGold;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(32, 32, W - 64, H - 64);
-
-      const cornerSize = 30;
-      const corners = [[36, 36], [W - 36, 36], [36, H - 36], [W - 36, H - 36]];
-      ctx.fillStyle = gold;
-      for (const [cx, cy] of corners) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = gold;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(cx, cy, cornerSize / 2, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      const decoY = 80;
-      ctx.fillStyle = gold;
-      ctx.font = `28px "Amiri"`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.direction = "rtl";
-      ctx.fillText("✦  ❋  ✦", W / 2, decoY);
-
-      ctx.font = `bold 22px "Amiri"`;
-      ctx.fillStyle = darkGold;
-      ctx.fillText("QalamAI  —  قلم", W / 2, H - 80);
-      ctx.font = `14px "Amiri"`;
-      ctx.fillStyle = "#8b7355";
-      ctx.fillText("#QalamAI  |  منصة الكتابة العربية بالذكاء الاصطناعي", W / 2, H - 55);
-
-      let titleText = "";
-      let subtitleText = "";
-      let emojiIcon = "";
-
-      if (type === "project_completion") {
-        emojiIcon = "🏆";
-        titleText = "أتممتُ عملي الأدبي";
-        subtitleText = projectTitle || "مشروع مكتمل";
-      } else if (type === "word_count_goal") {
-        emojiIcon = "🎯";
-        titleText = milestone ? `بلغتُ ${milestone}٪ من هدفي` : "حققتُ هدف الكلمات";
-        subtitleText = projectTitle || "";
+      if (type === "project_completion" || type === "first_publication" || type === "hall_of_glory") {
+        renderCompletionCard(ctx, W, H, safeAuthor, safeTitle || (type === "hall_of_glory" ? "فائز بتحدي الكتابة" : type === "first_publication" ? "نشرتُ عملي الأول" : "مشروع مكتمل"));
       } else if (type === "writing_streak") {
-        emojiIcon = "🔥";
-        const days = milestone || 7;
-        titleText = `سلسلة كتابة ${days} ${days > 10 ? "يومًا" : "أيام"}`;
-        subtitleText = "التزام يومي بالكتابة الإبداعية";
-      } else if (type === "hall_of_glory") {
-        emojiIcon = "👑";
-        titleText = "مُكرَّم في قاعة المجد";
-        subtitleText = projectTitle || "فائز بتحدي الكتابة";
-      } else if (type === "first_publication") {
-        emojiIcon = "📖";
-        titleText = "نشرتُ عملي الأول";
-        subtitleText = projectTitle || "";
+        renderStreakCard(ctx, W, H, safeAuthor, safeMilestone || 7);
+      } else if (type === "word_count_goal") {
+        renderWordGoalCard(ctx, W, H, safeAuthor, safeTitle, safeMilestone || 100);
       } else {
         return res.status(400).json({ error: "نوع البطاقة غير معروف" });
       }
-
-      ctx.font = `60px "Amiri"`;
-      ctx.fillStyle = darkBrown;
-      ctx.fillText(emojiIcon, W / 2, 160);
-
-      ctx.font = `bold 48px "Amiri"`;
-      ctx.fillStyle = darkBrown;
-      const titleWords = titleText.split(/\s+/);
-      let titleLines: string[] = [];
-      let currentLine = "";
-      const maxTitleWidth = W - 120;
-      for (const word of titleWords) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word;
-        if (ctx.measureText(testLine).width > maxTitleWidth && currentLine) {
-          titleLines.push(currentLine);
-          currentLine = word;
-        } else {
-          currentLine = testLine;
-        }
-      }
-      if (currentLine) titleLines.push(currentLine);
-
-      const titleStartY = 250;
-      const titleLineHeight = 68;
-      for (let i = 0; i < titleLines.length; i++) {
-        ctx.fillText(titleLines[i], W / 2, titleStartY + i * titleLineHeight);
-      }
-
-      const afterTitleY = titleStartY + titleLines.length * titleLineHeight + 20;
-
-      ctx.strokeStyle = gold;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(W / 2 - 80, afterTitleY);
-      ctx.lineTo(W / 2 + 80, afterTitleY);
-      ctx.stroke();
-      ctx.fillStyle = gold;
-      ctx.beginPath();
-      ctx.arc(W / 2, afterTitleY, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      if (subtitleText) {
-        ctx.font = `28px "Amiri"`;
-        ctx.fillStyle = "#6b5b4f";
-        const subWords = subtitleText.split(/\s+/);
-        let subLines: string[] = [];
-        let subLine = "";
-        const maxSubWidth = W - 140;
-        for (const word of subWords) {
-          const testLine = subLine ? `${subLine} ${word}` : word;
-          if (ctx.measureText(testLine).width > maxSubWidth && subLine) {
-            subLines.push(subLine);
-            subLine = word;
-          } else {
-            subLine = testLine;
-          }
-        }
-        if (subLine) subLines.push(subLine);
-        if (subLines.length > 2) subLines = subLines.slice(0, 2);
-
-        const subStartY = afterTitleY + 50;
-        for (let i = 0; i < subLines.length; i++) {
-          ctx.fillText(subLines[i], W / 2, subStartY + i * 40);
-        }
-      }
-
-      ctx.font = `bold 32px "Amiri"`;
-      ctx.fillStyle = darkBrown;
-      ctx.fillText(authorName, W / 2, 580);
-
-      ctx.font = `18px "Amiri"`;
-      ctx.fillStyle = "#8b7355";
-      ctx.fillText("— كاتب على منصة قلم —", W / 2, 620);
-
-      ctx.fillStyle = gold;
-      ctx.font = `24px "Amiri"`;
-      ctx.fillText("✦  ❋  ✦", W / 2, 670);
 
       const pngBuffer = canvas.toBuffer("image/png");
       res.setHeader("Content-Type", "image/png");
