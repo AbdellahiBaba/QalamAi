@@ -313,6 +313,7 @@ export interface IStorage {
   updateWritingCourse(id: number, data: Partial<WritingCourse>): Promise<WritingCourse>;
   deleteWritingCourse(id: number): Promise<void>;
   getPublishedCourses(): Promise<WritingCourse[]>;
+  getAllAdminCourses(): Promise<WritingCourse[]>;
   getCoursesByAuthor(authorId: string): Promise<WritingCourse[]>;
   getCourseLessons(courseId: number): Promise<CourseLesson[]>;
   createCourseLesson(data: { courseId: number; orderIndex: number; title: string; content?: string; excerptChapterId?: number; exercisePrompt?: string }): Promise<CourseLesson>;
@@ -3519,6 +3520,10 @@ export class DatabaseStorage implements IStorage {
 
   async getPublishedCourses(): Promise<WritingCourse[]> {
     return db.select().from(writingCourses).where(eq(writingCourses.isPublished, true)).orderBy(desc(writingCourses.createdAt));
+  }
+
+  async getAllAdminCourses(): Promise<WritingCourse[]> {
+    return db.select().from(writingCourses).orderBy(desc(writingCourses.createdAt));
   }
 
   async getCoursesByAuthor(authorId: string): Promise<WritingCourse[]> {

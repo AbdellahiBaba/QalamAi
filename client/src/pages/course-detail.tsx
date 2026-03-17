@@ -1,15 +1,16 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useParams, useLocation, useSearch } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { BookOpen, GraduationCap, Users, Lock, CheckCircle2, CircleDot, ChevronLeft, Loader2, ShoppingCart, Quote } from "lucide-react";
+import { BookOpen, GraduationCap, Users, Lock, CheckCircle2, CircleDot, ChevronLeft, Loader2, ShoppingCart, Quote, Sparkles, Brain } from "lucide-react";
 
 function ExcerptSection({ chapterId }: { chapterId: number }) {
   const { data: chapter } = useQuery<any>({
@@ -34,6 +35,129 @@ function ExcerptSection({ chapterId }: { chapterId: number }) {
   );
 }
 
+function AbuHashimFeedback({ courseId, lessonId, exerciseResponse, exercisePrompt }: {
+  courseId: string;
+  lessonId: number;
+  exerciseResponse: string;
+  exercisePrompt: string;
+}) {
+  const [feedback, setFeedback] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [started, setStarted] = useState(false);
+  const { toast } = useToast();
+  const abortRef = useRef<AbortController | null>(null);
+
+  const requestFeedback = async () => {
+    if (exerciseResponse.trim().length < 10) {
+      toast({ title: "يرجى كتابة إجابة أولاً (10 أحرف على الأقل)", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    setStarted(true);
+    setFeedback("");
+    abortRef.current = new AbortController();
+
+    try {
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+      const csrfVal = csrfMatch ? decodeURIComponent(csrfMatch[1]) : "";
+
+      const response = await fetch(`/api/courses/${courseId}/lessons/${lessonId}/exercise-feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfVal,
+        },
+        credentials: "include",
+        body: JSON.stringify({ exerciseResponse }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "فشل في الحصول على التغذية الراجعة");
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("No reader");
+
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) setFeedback(prev => prev + parsed.content);
+              if (parsed.error) throw new Error(parsed.error);
+            } catch (e) { /* ignore parse errors */ }
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        toast({ title: err.message || "فشل في الحصول على التغذية الراجعة", variant: "destructive" });
+        setStarted(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
+
+  return (
+    <div className="mt-4 space-y-3">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={requestFeedback}
+        disabled={loading}
+        className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-950/30"
+        data-testid="button-abu-hashim-feedback"
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+        {loading ? "أبو هاشم يقرأ إجابتك..." : "اطلب رأي أبو هاشم"}
+      </Button>
+
+      {started && (
+        <Card className="border-violet-200 dark:border-violet-800 bg-gradient-to-b from-violet-50/80 to-transparent dark:from-violet-950/30">
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-sm flex items-center gap-2 text-violet-700 dark:text-violet-400">
+              <Sparkles className="h-4 w-4" />
+              أبو هاشم — المرشد الأدبي
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading && !feedback ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/6" />
+              </div>
+            ) : (
+              <ScrollArea className="max-h-64">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap font-serif" dir="rtl" data-testid="text-abu-hashim-feedback">
+                  {feedback}
+                  {loading && <span className="animate-pulse">|</span>}
+                </p>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -42,6 +166,7 @@ export default function CourseDetail() {
   const { toast } = useToast();
   const [activeLesson, setActiveLesson] = useState<number | null>(null);
   const [exerciseText, setExerciseText] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const { data: course, isLoading } = useQuery<any>({
     queryKey: ["/api/courses", id],
@@ -87,6 +212,11 @@ export default function CourseDetail() {
       enrollMutation.mutate(sessionId);
     }
   }, [search, user]);
+
+  useEffect(() => {
+    setExerciseText("");
+    setShowFeedback(false);
+  }, [activeLesson]);
 
   if (isLoading) {
     return (
@@ -145,18 +275,31 @@ export default function CourseDetail() {
                 {selectedLesson.exercisePrompt && canAccessContent && (
                   <Card className="mt-6">
                     <CardHeader>
-                      <CardTitle className="text-lg">تمرين</CardTitle>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        تمرين
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <p className="text-muted-foreground">{selectedLesson.exercisePrompt}</p>
+                      <p className="text-muted-foreground font-serif">{selectedLesson.exercisePrompt}</p>
                       <Textarea
                         placeholder="اكتب إجابتك هنا..."
                         value={exerciseText}
-                        onChange={(e) => setExerciseText(e.target.value)}
+                        onChange={(e) => {
+                          setExerciseText(e.target.value);
+                          setShowFeedback(false);
+                        }}
                         className="min-h-[120px] font-serif"
                         dir="rtl"
                         data-testid="input-exercise-response"
                       />
+                      {user && exerciseText.trim().length >= 10 && (
+                        <AbuHashimFeedback
+                          courseId={id}
+                          lessonId={selectedLesson.id}
+                          exerciseResponse={exerciseText}
+                          exercisePrompt={selectedLesson.exercisePrompt}
+                        />
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -228,7 +371,14 @@ export default function CourseDetail() {
                             )}
                             <div>
                               <p className="font-medium">{lesson.title}</p>
-                              {lesson.exercisePrompt && <Badge variant="outline" className="text-xs mt-1">يتضمن تمرين</Badge>}
+                              {lesson.exercisePrompt && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Badge variant="outline" className="text-xs">يتضمن تمرين</Badge>
+                                  <Badge variant="outline" className="text-xs border-violet-300 text-violet-600 dark:border-violet-700 dark:text-violet-400">
+                                    <Brain className="h-2.5 w-2.5 ml-1" />أبو هاشم
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <span className="text-sm text-muted-foreground">الدرس {idx + 1}</span>
@@ -261,7 +411,7 @@ export default function CourseDetail() {
                     onClick={() => {
                       if (!user) return setLocation("/login");
                       if (course.priceCents === 0) {
-                        enrollMutation.mutate();
+                        enrollMutation.mutate(undefined);
                       } else {
                         checkoutMutation.mutate();
                       }
@@ -293,6 +443,18 @@ export default function CourseDetail() {
                   <p className="text-xs text-muted-foreground mt-1">
                     {course.lessons.filter((l: any) => l.completed).length}/{course.lessons.length} درس
                   </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {canAccessContent && course.priceCents === 0 && (
+              <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/30 dark:bg-violet-950/10">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Brain className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    <p className="text-sm font-medium text-violet-700 dark:text-violet-300">مدعوم بأبو هاشم</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">تمارين الدروس تحظى بتغذية راجعة فورية من مرشدك الأدبي الذكي</p>
                 </CardContent>
               </Card>
             )}

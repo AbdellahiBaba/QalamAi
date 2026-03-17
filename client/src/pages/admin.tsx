@@ -834,11 +834,448 @@ function AdminTopVotedTab() {
   );
 }
 
+function AdminCoursesTab() {
+  const { toast } = useToast();
+  const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
+  const [newCourse, setNewCourse] = useState({ title: "", description: "", coverImageUrl: "" });
+  const [showNewCourseForm, setShowNewCourseForm] = useState(false);
+  const [newLesson, setNewLesson] = useState({ title: "", content: "", exercisePrompt: "" });
+  const [showNewLessonForm, setShowNewLessonForm] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<any | null>(null);
+
+  const { data: courses, isLoading, refetch } = useQuery<any[]>({
+    queryKey: ["/api/admin/courses"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/courses", { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const { data: courseLessons, refetch: refetchLessons } = useQuery<any[]>({
+    queryKey: ["/api/courses", selectedCourse?.id, "lessons"],
+    queryFn: async () => {
+      if (!selectedCourse) return [];
+      const res = await fetch(`/api/courses/${selectedCourse.id}/lessons`, { credentials: "include" });
+      return res.json();
+    },
+    enabled: !!selectedCourse,
+  });
+
+  const createCourseMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/admin/courses", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم إنشاء الدورة" });
+      setShowNewCourseForm(false);
+      setNewCourse({ title: "", description: "", coverImageUrl: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      refetch();
+    },
+    onError: () => toast({ title: "فشل في إنشاء الدورة", variant: "destructive" }),
+  });
+
+  const updateCourseMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PUT", `/api/admin/courses/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث الدورة" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      refetch();
+    },
+    onError: () => toast({ title: "فشل في تحديث الدورة", variant: "destructive" }),
+  });
+
+  const deleteCourseMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/courses/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم حذف الدورة" });
+      setSelectedCourse(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/courses"] });
+      refetch();
+    },
+    onError: () => toast({ title: "فشل في حذف الدورة", variant: "destructive" }),
+  });
+
+  const createLessonMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", `/api/admin/courses/${selectedCourse.id}/lessons`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم إنشاء الدرس" });
+      setShowNewLessonForm(false);
+      setNewLesson({ title: "", content: "", exercisePrompt: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse?.id, "lessons"] });
+      refetchLessons();
+    },
+    onError: () => toast({ title: "فشل في إنشاء الدرس", variant: "destructive" }),
+  });
+
+  const updateLessonMutation = useMutation({
+    mutationFn: async ({ lessonId, data }: { lessonId: number; data: any }) => {
+      const res = await apiRequest("PUT", `/api/admin/courses/${selectedCourse.id}/lessons/${lessonId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم تحديث الدرس" });
+      setEditingLesson(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse?.id, "lessons"] });
+      refetchLessons();
+    },
+    onError: () => toast({ title: "فشل في تحديث الدرس", variant: "destructive" }),
+  });
+
+  const deleteLessonMutation = useMutation({
+    mutationFn: async (lessonId: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/courses/${selectedCourse.id}/lessons/${lessonId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "تم حذف الدرس" });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse?.id, "lessons"] });
+      refetchLessons();
+    },
+    onError: () => toast({ title: "فشل في حذف الدرس", variant: "destructive" }),
+  });
+
+  if (selectedCourse) {
+    return (
+      <div className="space-y-6" dir="rtl">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setSelectedCourse(null)} data-testid="button-back-courses-list">
+            <ChevronRight className="w-4 h-4 ml-1" />
+            العودة للدورات
+          </Button>
+          <h2 className="font-serif text-lg font-bold flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary" />
+            {selectedCourse.title}
+          </h2>
+        </div>
+
+        <Card>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm">إعدادات الدورة</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={!!selectedCourse.isPublished}
+                    onCheckedChange={(v) => {
+                      updateCourseMutation.mutate({ id: selectedCourse.id, data: { isPublished: v } });
+                      setSelectedCourse((c: any) => ({ ...c, isPublished: v }));
+                    }}
+                    data-testid="switch-course-published"
+                  />
+                  <Label className="text-xs">{selectedCourse.isPublished ? "منشورة" : "مسودة"}</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={!!selectedCourse.isFeatured}
+                    onCheckedChange={(v) => {
+                      updateCourseMutation.mutate({ id: selectedCourse.id, data: { isFeatured: v } });
+                      setSelectedCourse((c: any) => ({ ...c, isFeatured: v }));
+                    }}
+                    data-testid="switch-course-featured"
+                  />
+                  <Label className="text-xs">مميزة</Label>
+                </div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 text-xs gap-1"
+                  disabled={deleteCourseMutation.isPending}
+                  onClick={() => {
+                    if (confirm("هل أنت متأكد من حذف هذه الدورة؟")) {
+                      deleteCourseMutation.mutate(selectedCourse.id);
+                    }
+                  }}
+                  data-testid="button-delete-course"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> حذف الدورة
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <PlayCircle className="w-4 h-4 text-primary" />
+              دروس الدورة (<LtrNum>{courseLessons?.length || 0}</LtrNum>)
+            </h3>
+            <Button size="sm" variant="outline" className="gap-1 text-xs h-8" onClick={() => setShowNewLessonForm(true)} data-testid="button-add-lesson">
+              <Plus className="w-3.5 h-3.5" /> إضافة درس
+            </Button>
+          </div>
+
+          {showNewLessonForm && (
+            <Card className="mb-4 border-primary/30">
+              <CardContent className="p-4 space-y-3">
+                <h4 className="font-medium text-sm">درس جديد</h4>
+                <Input
+                  placeholder="عنوان الدرس"
+                  value={newLesson.title}
+                  onChange={e => setNewLesson(l => ({ ...l, title: e.target.value }))}
+                  dir="rtl"
+                  data-testid="input-new-lesson-title"
+                />
+                <Textarea
+                  placeholder="محتوى الدرس (يدعم HTML)"
+                  value={newLesson.content}
+                  onChange={e => setNewLesson(l => ({ ...l, content: e.target.value }))}
+                  rows={4}
+                  dir="rtl"
+                  className="text-sm"
+                  data-testid="input-new-lesson-content"
+                />
+                <Textarea
+                  placeholder="تمرين الدرس (سيحصل على تغذية راجعة من أبو هاشم)"
+                  value={newLesson.exercisePrompt}
+                  onChange={e => setNewLesson(l => ({ ...l, exercisePrompt: e.target.value }))}
+                  rows={2}
+                  dir="rtl"
+                  className="text-sm"
+                  data-testid="input-new-lesson-exercise"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => createLessonMutation.mutate({ ...newLesson, orderIndex: (courseLessons?.length || 0) })}
+                    disabled={createLessonMutation.isPending || !newLesson.title.trim()}
+                    data-testid="button-save-new-lesson"
+                  >
+                    {createLessonMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <Check className="w-3.5 h-3.5 ml-1" />}
+                    حفظ
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowNewLessonForm(false)} data-testid="button-cancel-new-lesson">إلغاء</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="space-y-2">
+            {courseLessons?.map((lesson: any, idx: number) => (
+              <Card key={lesson.id} data-testid={`admin-lesson-${lesson.id}`}>
+                <CardContent className="p-3">
+                  {editingLesson?.id === lesson.id ? (
+                    <div className="space-y-3">
+                      <Input
+                        value={editingLesson.title}
+                        onChange={e => setEditingLesson((l: any) => ({ ...l, title: e.target.value }))}
+                        dir="rtl"
+                        data-testid={`input-edit-lesson-title-${lesson.id}`}
+                      />
+                      <Textarea
+                        placeholder="محتوى الدرس"
+                        value={editingLesson.content || ""}
+                        onChange={e => setEditingLesson((l: any) => ({ ...l, content: e.target.value }))}
+                        rows={4}
+                        dir="rtl"
+                        className="text-sm"
+                        data-testid={`input-edit-lesson-content-${lesson.id}`}
+                      />
+                      <Textarea
+                        placeholder="تمرين الدرس"
+                        value={editingLesson.exercisePrompt || ""}
+                        onChange={e => setEditingLesson((l: any) => ({ ...l, exercisePrompt: e.target.value }))}
+                        rows={2}
+                        dir="rtl"
+                        className="text-sm"
+                        data-testid={`input-edit-lesson-exercise-${lesson.id}`}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => updateLessonMutation.mutate({ lessonId: lesson.id, data: { title: editingLesson.title, content: editingLesson.content, exercisePrompt: editingLesson.exercisePrompt } })}
+                          disabled={updateLessonMutation.isPending}
+                          data-testid={`button-save-lesson-${lesson.id}`}
+                        >
+                          {updateLessonMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <Check className="w-3.5 h-3.5 ml-1" />}
+                          حفظ
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingLesson(null)} data-testid={`button-cancel-lesson-${lesson.id}`}>إلغاء</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-bold text-primary">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm" data-testid={`text-lesson-title-${lesson.id}`}>{lesson.title}</p>
+                        {lesson.exercisePrompt && (
+                          <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5 truncate">
+                            📝 {lesson.exercisePrompt}
+                          </p>
+                        )}
+                        {lesson.content && (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {lesson.content.replace(/<[^>]*>/g, "").slice(0, 80)}...
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setEditingLesson({ ...lesson })}
+                          data-testid={`button-edit-lesson-${lesson.id}`}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                          disabled={deleteLessonMutation.isPending}
+                          onClick={() => {
+                            if (confirm("حذف هذا الدرس؟")) {
+                              deleteLessonMutation.mutate(lesson.id);
+                            }
+                          }}
+                          data-testid={`button-delete-lesson-${lesson.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+
+            {(!courseLessons || courseLessons.length === 0) && !showNewLessonForm && (
+              <div className="text-center py-10 text-muted-foreground">
+                <PlayCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">لا توجد دروس بعد</p>
+                <Button size="sm" variant="outline" className="mt-3 text-xs gap-1" onClick={() => setShowNewLessonForm(true)} data-testid="button-add-first-lesson">
+                  <Plus className="w-3.5 h-3.5" /> أضف أول درس
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      <div className="flex items-center justify-between">
+        <h2 className="font-serif text-lg font-bold flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-primary" />
+          مدرسة الكتابة — إدارة الدورات
+        </h2>
+        <Button size="sm" onClick={() => setShowNewCourseForm(true)} className="gap-1" data-testid="button-new-course">
+          <Plus className="w-4 h-4" /> دورة جديدة
+        </Button>
+      </div>
+
+      {showNewCourseForm && (
+        <Card className="border-primary/30">
+          <CardContent className="p-4 space-y-3">
+            <h3 className="font-semibold text-sm">دورة جديدة</h3>
+            <Input
+              placeholder="عنوان الدورة"
+              value={newCourse.title}
+              onChange={e => setNewCourse(c => ({ ...c, title: e.target.value }))}
+              dir="rtl"
+              data-testid="input-new-course-title"
+            />
+            <Textarea
+              placeholder="وصف الدورة"
+              value={newCourse.description}
+              onChange={e => setNewCourse(c => ({ ...c, description: e.target.value }))}
+              rows={3}
+              dir="rtl"
+              className="text-sm"
+              data-testid="input-new-course-description"
+            />
+            <Input
+              placeholder="رابط صورة الغلاف (اختياري)"
+              value={newCourse.coverImageUrl}
+              onChange={e => setNewCourse(c => ({ ...c, coverImageUrl: e.target.value }))}
+              dir="ltr"
+              data-testid="input-new-course-cover"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => createCourseMutation.mutate(newCourse)}
+                disabled={createCourseMutation.isPending || !newCourse.title.trim()}
+                data-testid="button-save-new-course"
+              >
+                {createCourseMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" /> : <Check className="w-3.5 h-3.5 ml-1" />}
+                إنشاء الدورة
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowNewCourseForm(false)} data-testid="button-cancel-new-course">إلغاء</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
+        </div>
+      ) : courses && courses.length > 0 ? (
+        <div className="space-y-3">
+          {courses.map((course: any) => (
+            <Card key={course.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setSelectedCourse(course)} data-testid={`admin-course-${course.id}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  {course.coverImageUrl ? (
+                    <img src={course.coverImageUrl} alt="" className="w-14 h-14 rounded object-cover shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-6 h-6 text-primary/40" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-sm truncate" data-testid={`text-admin-course-title-${course.id}`}>{course.title}</p>
+                      <Badge variant={course.isPublished ? "default" : "secondary"} className="text-xs shrink-0">
+                        {course.isPublished ? "منشورة" : "مسودة"}
+                      </Badge>
+                      {course.isFeatured && <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 shrink-0">مميزة</Badge>}
+                    </div>
+                    {course.description && (
+                      <p className="text-xs text-muted-foreground truncate">{course.description}</p>
+                    )}
+                  </div>
+                  <ChevronLeft className="w-4 h-4 text-muted-foreground shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16">
+          <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+          <p className="text-muted-foreground">لا توجد دورات بعد</p>
+          <Button size="sm" variant="outline" className="mt-3 gap-1" onClick={() => setShowNewCourseForm(true)} data-testid="button-add-first-course">
+            <Plus className="w-4 h-4" /> أنشئ أول دورة
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   useDocumentTitle("لوحة الإدارة — قلم AI");
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "top-voted" | "comments" | "quotes">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "users" | "analytics" | "promos" | "api-usage" | "reviews" | "tracking" | "essays" | "memoires" | "social" | "features" | "reports" | "learning" | "webhook" | "verified" | "challenges" | "revenue" | "top-voted" | "comments" | "quotes" | "courses">("tickets");
   const [reportFilter, setReportFilter] = useState("all");
   const [reportActionNotes, setReportActionNotes] = useState<Record<number, string>>({});
   const [reportSearch, setReportSearch] = useState("");
@@ -1781,6 +2218,7 @@ export default function Admin() {
                   { key: "quotes" as const, icon: MessageSquare, label: "الاقتباسات" },
                   { key: "essays" as const, icon: FileText, label: "المقالات" },
                   { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
+                  { key: "courses" as const, icon: BookOpen, label: "مدرسة الكتابة" },
                   { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
                 ].map((item) => (
                   <button
@@ -1972,6 +2410,7 @@ export default function Admin() {
                         { key: "quotes" as const, icon: MessageSquare, label: "الاقتباسات" },
                         { key: "essays" as const, icon: FileText, label: "المقالات" },
                         { key: "memoires" as const, icon: GraduationCap, label: "المذكرات" },
+                        { key: "courses" as const, icon: BookOpen, label: "مدرسة الكتابة" },
                         { key: "social" as const, icon: Share2, label: "وسائل التواصل" },
                       ].map((item) => (
                         <button
@@ -6042,6 +6481,10 @@ export default function Admin() {
 
         {activeTab === "top-voted" && (
           <AdminTopVotedTab />
+        )}
+
+        {activeTab === "courses" && (
+          <AdminCoursesTab />
         )}
 
       </main>

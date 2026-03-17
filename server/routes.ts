@@ -13160,6 +13160,204 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
+  app.post("/api/courses/:courseId/lessons/:lessonId/exercise-feedback", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.courseId);
+      const lessonId = parseIntParam(req.params.lessonId);
+      if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const { exerciseResponse } = req.body;
+      if (!exerciseResponse || typeof exerciseResponse !== "string" || exerciseResponse.trim().length < 10) {
+        return res.status(400).json({ error: "يرجى كتابة إجابة للتمرين أولاً (10 أحرف على الأقل)" });
+      }
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const lessons = await storage.getCourseLessons(courseId);
+      const lesson = lessons.find(l => l.id === lessonId);
+      if (!lesson) return res.status(404).json({ error: "الدرس غير موجود" });
+      const enrollment = await storage.getCourseEnrollment(courseId, userId);
+      if (!enrollment && course.priceCents > 0 && course.authorId !== userId) {
+        return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      }
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const systemPrompt = `أنت أبو هاشم، المرشد الأدبي الحكيم في مدرسة الكتابة. مهمتك تقديم تغذية راجعة بنّاءة وتشجيعية على تمارين الكتابة.
+أسلوبك: حكيم، دافئ، تشجيعي لكنه صادق ومفيد.
+قدّم ملاحظاتك باللغة العربية الفصحى مع لمسة إنسانية.
+ابدأ بما يميز الكتابة، ثم اقترح التحسينات، واختتم بكلمة تشجيع.`;
+
+      const userPrompt = `درس: "${lesson.title}"
+${lesson.exercisePrompt ? `التمرين: ${lesson.exercisePrompt}` : ""}
+
+إجابة الطالب:
+${exerciseResponse.trim()}
+
+قدّم تغذية راجعة شاملة ومفيدة في 200-300 كلمة.`;
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        stream: true,
+        max_tokens: 600,
+        temperature: 0.7,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+    } catch (error) {
+      console.error("Error generating exercise feedback:", error);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "فشل في توليد التغذية الراجعة" })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({ error: "فشل في توليد التغذية الراجعة" });
+      }
+    }
+  });
+
+  app.get("/api/admin/courses", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
+      const courses = await storage.getAllAdminCourses();
+      res.json(courses);
+    } catch (error) {
+      console.error("Error fetching admin courses:", error);
+      res.status(500).json({ error: "فشل في تحميل الدورات" });
+    }
+  });
+
+  app.post("/api/admin/courses", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
+      const { title, description, coverImageUrl } = req.body;
+      if (!title || typeof title !== "string" || title.trim().length < 3) {
+        return res.status(400).json({ error: "عنوان الدورة مطلوب" });
+      }
+      const course = await storage.createWritingCourse({
+        authorId: userId,
+        title: title.trim(),
+        description: description?.trim() || null,
+        priceCents: 0,
+        coverImageUrl: coverImageUrl || null,
+      });
+      res.json(course);
+    } catch (error) {
+      console.error("Error creating admin course:", error);
+      res.status(500).json({ error: "فشل في إنشاء الدورة" });
+    }
+  });
+
+  app.put("/api/admin/courses/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { title, description, coverImageUrl, isPublished, isFeatured } = req.body;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const updated = await storage.updateWritingCourse(courseId, {
+        ...(title !== undefined ? { title: title.trim() } : {}),
+        ...(description !== undefined ? { description: description?.trim() || null } : {}),
+        ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
+        ...(isPublished !== undefined ? { isPublished } : {}),
+        ...(isFeatured !== undefined ? { isFeatured } : {}),
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating admin course:", error);
+      res.status(500).json({ error: "فشل في تحديث الدورة" });
+    }
+  });
+
+  app.delete("/api/admin/courses/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      await storage.deleteWritingCourse(courseId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting admin course:", error);
+      res.status(500).json({ error: "فشل في حذف الدورة" });
+    }
+  });
+
+  app.post("/api/admin/courses/:id/lessons", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { title, content, exercisePrompt, orderIndex } = req.body;
+      if (!title || typeof title !== "string" || title.trim().length < 2) {
+        return res.status(400).json({ error: "عنوان الدرس مطلوب" });
+      }
+      const lesson = await storage.createCourseLesson({
+        courseId,
+        title: title.trim(),
+        content: content?.trim() || null,
+        exercisePrompt: exercisePrompt?.trim() || null,
+        orderIndex: orderIndex ?? 0,
+      });
+      res.json(lesson);
+    } catch (error) {
+      console.error("Error creating admin lesson:", error);
+      res.status(500).json({ error: "فشل في إنشاء الدرس" });
+    }
+  });
+
+  app.put("/api/admin/courses/:courseId/lessons/:lessonId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
+      const courseId = parseIntParam(req.params.courseId);
+      const lessonId = parseIntParam(req.params.lessonId);
+      if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { title, content, exercisePrompt, orderIndex } = req.body;
+      const updated = await storage.updateCourseLesson(lessonId, {
+        ...(title !== undefined ? { title: title.trim() } : {}),
+        ...(content !== undefined ? { content: content?.trim() || null } : {}),
+        ...(exercisePrompt !== undefined ? { exercisePrompt: exercisePrompt?.trim() || null } : {}),
+        ...(orderIndex !== undefined ? { orderIndex } : {}),
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating admin lesson:", error);
+      res.status(500).json({ error: "فشل في تحديث الدرس" });
+    }
+  });
+
+  app.delete("/api/admin/courses/:courseId/lessons/:lessonId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!SUPER_ADMIN_IDS.includes(userId)) return res.status(403).json({ error: "غير مصرح" });
+      const courseId = parseIntParam(req.params.courseId);
+      const lessonId = parseIntParam(req.params.lessonId);
+      if (courseId === null || lessonId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      await storage.deleteCourseLesson(lessonId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting admin lesson:", error);
+      res.status(500).json({ error: "فشل في حذف الدرس" });
+    }
+  });
+
   app.get("/api/chapters/:id", async (req: any, res) => {
     try {
       const id = parseIntParam(req.params.id);

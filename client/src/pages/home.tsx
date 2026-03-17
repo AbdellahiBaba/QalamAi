@@ -498,6 +498,12 @@ export default function Home() {
                 المقالات
               </Button>
             </Link>
+            <Link href="/courses">
+              <Button variant="ghost" size="sm" data-testid="link-courses">
+                <GraduationCap className="w-4 h-4 ml-1" />
+                مدرسة الكتابة
+              </Button>
+            </Link>
             <Popover open={desktopNotifOpen} onOpenChange={setDesktopNotifOpen}>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications" aria-label="الإشعارات">
@@ -680,6 +686,12 @@ export default function Home() {
                       <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-essays-mobile">
                         <Newspaper className="w-4 h-4" />
                         المقالات
+                      </Button>
+                    </Link>
+                    <Link href="/courses" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-courses-mobile">
+                        <GraduationCap className="w-4 h-4" />
+                        مدرسة الكتابة
                       </Button>
                     </Link>
                     <Link href="/reviews" onClick={() => setMobileMenuOpen(false)}>
