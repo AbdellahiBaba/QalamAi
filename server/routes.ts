@@ -10608,8 +10608,8 @@ ${ch.content}
       const userId = req.user.claims.sub;
       const project = await storage.getProject(projectId);
       if (!project) return res.status(404).json({ error: "المشروع غير موجود" });
-      const isPublic = project.publishedToGallery || project.shareToken;
-      if (!isPublic && project.userId !== userId) {
+      const isPublished = project.publishedToGallery || project.shareToken;
+      if (!isPublished) {
         return res.status(403).json({ error: "لا يمكن التصويت على هذا العمل" });
       }
       const existing = await storage.getUserVote(projectId, userId);

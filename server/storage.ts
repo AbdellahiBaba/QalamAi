@@ -3290,8 +3290,9 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(workVotes, eq(workVotes.projectId, novelProjects.id))
       .leftJoin(users, eq(users.id, novelProjects.userId))
       .leftJoin(hallOfGloryFeatured, eq(hallOfGloryFeatured.projectId, novelProjects.id))
-      .where(and(
-        eq(novelProjects.publishedToGallery, true)
+      .where(or(
+        eq(novelProjects.publishedToGallery, true),
+        isNotNull(novelProjects.shareToken)
       ))
       .groupBy(novelProjects.id, users.displayName, users.firstName, users.profileImageUrl, hallOfGloryFeatured.id)
       .orderBy(desc(count(workVotes.id)))
