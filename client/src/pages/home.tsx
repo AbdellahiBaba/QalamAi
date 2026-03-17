@@ -1628,7 +1628,7 @@ export default function Home() {
                               <LtrNum>{currentWords.toLocaleString("ar-EG")}</LtrNum> / <LtrNum>{project.wordCountGoal.toLocaleString("ar-EG")}</LtrNum>
                               {highestMilestone !== null && (
                                 <span className={`px-1 py-0.5 rounded-full text-[9px] font-medium ${highestMilestone >= 100 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"}`} data-testid={`badge-milestone-${project.id}`}>
-                                  {highestMilestone >= 100 ? "🏆" : `${highestMilestone}%`}
+                                  {highestMilestone >= 100 ? "🏆" : <><LtrNum>{highestMilestone}</LtrNum>٪</>}
                                 </span>
                               )}
                             </span>

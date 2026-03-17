@@ -2100,7 +2100,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-1">
                       {milestones.map((m: number) => (
                         <span key={m} className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" data-testid={`badge-milestone-${m}`}>
-                          {m}%
+                          <LtrNum>{m}</LtrNum>٪
                         </span>
                       ))}
                       <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => { setGoalInput(String(goal)); setShowGoalDialog(true); }} data-testid="button-edit-goal">
