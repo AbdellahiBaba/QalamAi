@@ -35,6 +35,7 @@ const TrialPromptPopup = lazy(() => import("@/components/trial-prompt-popup").th
 const AbuHashimChat = lazy(() => import("@/components/abu-hashim-chat").then(m => ({ default: m.AbuHashimChat })));
 const WritingStatsPanel = lazy(() => import("@/components/writing-stats-panel"));
 const WritingSprintTimer = lazy(() => import("@/components/writing-sprint-timer"));
+import { SprintWeekStat } from "@/components/writing-sprint-timer";
 
 interface WritingStreakData {
   streak: number;
@@ -988,7 +989,7 @@ export default function Home() {
                 <TrendingUp className="w-4 h-4 text-primary" />
                 <h3 className="font-semibold text-sm">إحصائيات المحتوى</h3>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
                 <div className="bg-muted/50 rounded-lg p-3 text-center" data-testid="stat-total-views">
                   <div className="text-xl font-bold">{analyticsData.totalViews.toLocaleString("ar-EG")}</div>
                   <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5"><Eye className="w-3 h-3" />مشاهدة</div>
@@ -1005,6 +1006,7 @@ export default function Home() {
                   <div className="text-xl font-bold text-primary">{analyticsData.viewsThisMonth.toLocaleString("ar-EG")}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">مشاهدة هذا الشهر</div>
                 </div>
+                <SprintWeekStat />
               </div>
               {analyticsData.topEssays.length > 0 && (
                 <div>

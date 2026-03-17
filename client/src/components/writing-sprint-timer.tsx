@@ -148,6 +148,48 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
     };
   }, []);
 
+  const autoFinish = useCallback((finalWords: number) => {
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
+    const elapsedMinutes = elapsedSeconds / 60;
+    const wpm = elapsedMinutes > 0 ? Math.round(finalWords / elapsedMinutes) : 0;
+    const quote = ABU_HASHIM_QUOTES[Math.floor(Math.random() * ABU_HASHIM_QUOTES.length)];
+
+    const completedData = {
+      wordsWritten: finalWords,
+      durationSeconds: elapsedSeconds,
+      targetWords,
+      wpm,
+      quote,
+    };
+
+    const resolvedProjectId = fixedProjectId || (projectId && projectId !== "none" ? parseInt(projectId) : undefined);
+
+    saveSprint.mutate({
+      durationSeconds: elapsedSeconds,
+      wordsWritten: finalWords,
+      targetWords,
+      projectId: resolvedProjectId && !isNaN(resolvedProjectId) ? resolvedProjectId : undefined,
+    }, {
+      onSuccess: () => {
+        setLastCompletedSprint(completedData);
+        setShowCompletion(true);
+        setPhase("setup");
+        setSecondsLeft(0);
+        setWordsWritten(0);
+        onSprintStateChange?.(false);
+      },
+      onError: () => {
+        setLastCompletedSprint(completedData);
+        setShowCompletion(true);
+        setPhase("setup");
+        setSecondsLeft(0);
+        setWordsWritten(0);
+        onSprintStateChange?.(false);
+        toast({ title: "خطأ", description: "فشل في حفظ نتيجة السباق.", variant: "destructive" });
+      },
+    });
+  }, [fixedProjectId, projectId, targetWords, saveSprint, onSprintStateChange, toast]);
+
   const startSprint = () => {
     const totalSeconds = duration * 60;
     setSecondsLeft(totalSeconds);
@@ -160,13 +202,10 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           if (intervalRef.current) clearInterval(intervalRef.current);
-          setPhase("completed");
           playCompletionSound();
           stopAmbient();
-          if (getWordCount) {
-            const delta = Math.max(0, getWordCount() - startWordCountRef.current);
-            setWordsWritten(delta);
-          }
+          const finalWords = getWordCount ? Math.max(0, getWordCount() - startWordCountRef.current) : 0;
+          setTimeout(() => autoFinish(finalWords), 100);
           return 0;
         }
         return prev - 1;
@@ -187,13 +226,10 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           if (intervalRef.current) clearInterval(intervalRef.current);
-          setPhase("completed");
           playCompletionSound();
           stopAmbient();
-          if (getWordCount) {
-            const delta = Math.max(0, getWordCount() - startWordCountRef.current);
-            setWordsWritten(delta);
-          }
+          const finalWords = getWordCount ? Math.max(0, getWordCount() - startWordCountRef.current) : 0;
+          setTimeout(() => autoFinish(finalWords), 100);
           return 0;
         }
         return prev - 1;
@@ -201,50 +237,15 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
     }, 1000);
   };
 
-  const stopSprint = () => {
+  const stopSprintEarly = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     stopAmbient();
-    if (getWordCount) {
-      const delta = Math.max(0, getWordCount() - startWordCountRef.current);
-      setWordsWritten(delta);
-    }
-    setPhase("completed");
+    const finalWords = getWordCount ? Math.max(0, getWordCount() - startWordCountRef.current) : wordsWritten;
+    autoFinish(finalWords);
   };
 
-  const finishSprint = () => {
-    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
-    const elapsedMinutes = elapsedSeconds / 60;
-    const wpm = elapsedMinutes > 0 ? Math.round(wordsWritten / elapsedMinutes) : 0;
-    const quote = ABU_HASHIM_QUOTES[Math.floor(Math.random() * ABU_HASHIM_QUOTES.length)];
-
-    const completedData = {
-      wordsWritten,
-      durationSeconds: elapsedSeconds,
-      targetWords,
-      wpm,
-      quote,
-    };
-
-    const resolvedProjectId = fixedProjectId || (projectId && projectId !== "none" ? parseInt(projectId) : undefined);
-
-    saveSprint.mutate({
-      durationSeconds: elapsedSeconds,
-      wordsWritten,
-      targetWords,
-      projectId: resolvedProjectId && !isNaN(resolvedProjectId) ? resolvedProjectId : undefined,
-    }, {
-      onSuccess: () => {
-        setLastCompletedSprint(completedData);
-        setShowCompletion(true);
-        setPhase("setup");
-        setSecondsLeft(0);
-        setWordsWritten(0);
-        onSprintStateChange?.(false);
-      },
-      onError: () => {
-        toast({ title: "خطأ", description: "فشل في حفظ نتيجة السباق. حاول مرة أخرى.", variant: "destructive" });
-      },
-    });
+  const manualFinish = () => {
+    autoFinish(wordsWritten);
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -254,7 +255,8 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
   };
 
   const progressPercent = duration > 0 ? ((duration * 60 - secondsLeft) / (duration * 60)) * 100 : 0;
-  const wordProgressPercent = targetWords > 0 ? Math.min((wordsWritten / targetWords) * 100, 100) : 0;
+  const liveWordDelta = getWordCount ? Math.max(0, getWordCount() - startWordCountRef.current) : wordsWritten;
+  const wordProgressPercent = targetWords > 0 ? Math.min((liveWordDelta / targetWords) * 100, 100) : 0;
 
   if (editorMode) {
     return (
@@ -279,50 +281,51 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
         )}
 
         {(phase === "running" || phase === "paused") && (
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-mono tabular-nums ${phase === "paused" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30 dark:text-yellow-400" : "bg-orange-500/10 text-orange-600 border-orange-500/30 dark:text-orange-400"}`}>
-              <Timer className="w-3 h-3" />
-              <span dir="ltr" data-testid="text-sprint-timer-editor">{formatTime(secondsLeft)}</span>
+          <div className="fixed bottom-4 left-4 z-50" data-testid="sprint-floating-ring">
+            <div className="relative bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-3 flex flex-col items-center gap-2 w-[120px]">
+              <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/20" />
+                <circle
+                  cx="40" cy="40" r="34"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeDasharray={`${2 * Math.PI * 34}`}
+                  strokeDashoffset={`${2 * Math.PI * 34 * (1 - progressPercent / 100)}`}
+                  strokeLinecap="round"
+                  className={`transition-all duration-1000 ${phase === "paused" ? "text-yellow-500" : "text-orange-500"}`}
+                />
+              </svg>
+              <div className="absolute top-3 left-0 right-0 flex items-center justify-center" style={{ height: "80px" }}>
+                <div className="text-center">
+                  <div className="text-lg font-mono font-bold tabular-nums" dir="ltr" data-testid="text-sprint-timer-editor">
+                    {formatTime(secondsLeft)}
+                  </div>
+                  {getWordCount && (
+                    <div className="text-[10px] text-green-600 dark:text-green-400 font-medium">
+                      +<LtrNum>{liveWordDelta}</LtrNum>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={ambientPlaying ? stopAmbient : startAmbient} data-testid="button-toggle-ambient-sprint">
+                  {ambientPlaying ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                </Button>
+                {phase === "running" ? (
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={pauseSprint} data-testid="button-pause-sprint-editor">
+                    <Pause className="w-3 h-3" />
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={resumeSprint} data-testid="button-resume-sprint-editor">
+                    <Play className="w-3 h-3" />
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={stopSprintEarly} data-testid="button-stop-sprint-editor">
+                  <Square className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
-            {getWordCount && (
-              <span className="text-[10px] text-green-600 dark:text-green-400">
-                +<LtrNum>{Math.max(0, (getWordCount() - startWordCountRef.current))}</LtrNum>
-              </span>
-            )}
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={ambientPlaying ? stopAmbient : startAmbient} data-testid="button-toggle-ambient-sprint">
-              {ambientPlaying ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-            </Button>
-            {phase === "running" ? (
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={pauseSprint} data-testid="button-pause-sprint-editor">
-                <Pause className="w-3 h-3" />
-              </Button>
-            ) : (
-              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={resumeSprint} data-testid="button-resume-sprint-editor">
-                <Play className="w-3 h-3" />
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={stopSprint} data-testid="button-stop-sprint-editor">
-              <Square className="w-3 h-3" />
-            </Button>
-          </div>
-        )}
-
-        {phase === "completed" && (
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min={0}
-              value={wordsWritten}
-              onChange={(e) => setWordsWritten(Math.max(0, parseInt(e.target.value) || 0))}
-              className="h-7 w-[80px] text-xs text-center"
-              dir="ltr"
-              data-testid="input-sprint-words-editor"
-            />
-            <span className="text-[10px] text-muted-foreground">كلمة</span>
-            <Button size="sm" className="h-7 px-2 text-xs gap-1" onClick={finishSprint} disabled={saveSprint.isPending} data-testid="button-save-sprint-editor">
-              <Award className="w-3 h-3" />
-              حفظ
-            </Button>
           </div>
         )}
 
@@ -511,7 +514,7 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
                     استئناف
                   </Button>
                 )}
-                <Button variant="destructive" onClick={stopSprint} className="flex-1 gap-2" data-testid="button-stop-sprint">
+                <Button variant="destructive" onClick={stopSprintEarly} className="flex-1 gap-2" data-testid="button-stop-sprint">
                   <Square className="w-4 h-4" />
                   إنهاء
                 </Button>
@@ -540,7 +543,7 @@ export function WritingSprintTimer({ projects, editorMode, projectId: fixedProje
                 />
               </div>
 
-              <Button onClick={finishSprint} className="w-full gap-2" disabled={saveSprint.isPending} data-testid="button-save-sprint">
+              <Button onClick={manualFinish} className="w-full gap-2" disabled={saveSprint.isPending} data-testid="button-save-sprint">
                 <Award className="w-4 h-4" />
                 {saveSprint.isPending ? "جاري الحفظ..." : "حفظ النتيجة"}
               </Button>
@@ -626,6 +629,27 @@ function SprintCompletionContent({ sprint, sprintStats, onClose }: {
       <Button onClick={onClose} variant="outline" className="w-full" data-testid="button-close-completion">
         إغلاق
       </Button>
+    </div>
+  );
+}
+
+export function SprintWeekStat() {
+  const { data: sprintStats } = useQuery<SprintStats>({
+    queryKey: ["/api/writing-sprints/stats"],
+    staleTime: 60 * 1000,
+  });
+
+  if (!sprintStats || sprintStats.thisWeekSprints === 0) return null;
+
+  return (
+    <div className="bg-muted/50 rounded-lg p-3 text-center" data-testid="stat-sprint-week">
+      <div className="text-xl font-bold">
+        <LtrNum>{sprintStats.thisWeekSprints}</LtrNum>
+      </div>
+      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
+        <Timer className="w-3 h-3" />
+        الجلسات هذا الأسبوع
+      </div>
     </div>
   );
 }
