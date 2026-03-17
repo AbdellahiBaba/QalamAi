@@ -918,6 +918,15 @@ function AdminCoursesTab() {
     onError: () => toast({ title: "فشل في إنشاء الدرس", variant: "destructive" }),
   });
 
+  const reorderLessonMutation = useMutation({
+    mutationFn: async ({ lessonId, orderIndex }: { lessonId: number; orderIndex: number }) => {
+      const res = await apiRequest("PUT", `/api/admin/courses/${selectedCourse.id}/lessons/${lessonId}`, { orderIndex });
+      return res.json();
+    },
+    onSuccess: () => { refetchLessons(); },
+    onError: () => toast({ title: "فشل في إعادة الترتيب", variant: "destructive" }),
+  });
+
   const updateLessonMutation = useMutation({
     mutationFn: async ({ lessonId, data }: { lessonId: number; data: any }) => {
       const res = await apiRequest("PUT", `/api/admin/courses/${selectedCourse.id}/lessons/${lessonId}`, data);
@@ -1123,6 +1132,36 @@ function AdminCoursesTab() {
                         )}
                       </div>
                       <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          disabled={idx === 0 || reorderLessonMutation.isPending}
+                          onClick={() => {
+                            const prev = courseLessons[idx - 1];
+                            reorderLessonMutation.mutate({ lessonId: lesson.id, orderIndex: prev.orderIndex });
+                            reorderLessonMutation.mutate({ lessonId: prev.id, orderIndex: lesson.orderIndex });
+                          }}
+                          data-testid={`button-move-up-lesson-${lesson.id}`}
+                          title="تحريك لأعلى"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          disabled={idx === (courseLessons?.length ?? 0) - 1 || reorderLessonMutation.isPending}
+                          onClick={() => {
+                            const next = courseLessons[idx + 1];
+                            reorderLessonMutation.mutate({ lessonId: lesson.id, orderIndex: next.orderIndex });
+                            reorderLessonMutation.mutate({ lessonId: next.id, orderIndex: lesson.orderIndex });
+                          }}
+                          data-testid={`button-move-down-lesson-${lesson.id}`}
+                          title="تحريك لأسفل"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
