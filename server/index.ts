@@ -743,6 +743,39 @@ async function runStartupMigrations() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_pq_user ON project_quotes(user_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_pq_created ON project_quotes(created_at)`);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reading_clubs (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        project_id INTEGER NOT NULL REFERENCES novel_projects(id) ON DELETE CASCADE,
+        admin_user_id VARCHAR NOT NULL,
+        pace TEXT NOT NULL DEFAULT 'weekly',
+        is_private BOOLEAN NOT NULL DEFAULT false,
+        current_chapter_index INTEGER NOT NULL DEFAULT 0,
+        max_members INTEGER NOT NULL DEFAULT 50,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_clubs_project ON reading_clubs(project_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_clubs_admin ON reading_clubs(admin_user_id)`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reading_club_members (
+        id SERIAL PRIMARY KEY,
+        club_id INTEGER NOT NULL REFERENCES reading_clubs(id) ON DELETE CASCADE,
+        user_id VARCHAR NOT NULL,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT uq_club_member UNIQUE (club_id, user_id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_club_members_user ON reading_club_members(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_club_members_club ON reading_club_members(club_id)`);
+
+    await pool.query(`ALTER TABLE project_comments ADD COLUMN IF NOT EXISTS club_id INTEGER`);
+    await pool.query(`ALTER TABLE project_comments ADD COLUMN IF NOT EXISTS chapter_index INTEGER`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_project_comments_club ON project_comments(club_id)`);
+
     console.log("[startup] All tables and columns ensured");
   } catch (e) {
     console.warn("[startup] Migration warning:", e);

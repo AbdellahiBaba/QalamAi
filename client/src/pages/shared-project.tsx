@@ -5,7 +5,7 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard, Bookmark, MessageCircle, Send, Share2 } from "lucide-react";
+import { BookOpen, FileText, CheckCircle, Link2, Check, ThumbsUp, Heart, Lightbulb, Brain, Clock, Image as ImageIcon, ArrowRight, Feather, Flag, UserCheck, Loader2, Tag, Lock, CreditCard, Bookmark, MessageCircle, Send, Share2, Users, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveToListButton } from "@/components/save-to-list-button";
@@ -332,6 +332,102 @@ function ProjectCommentsSection({ shareToken }: { shareToken: string }) {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function ProjectClubsSection({ projectId }: { projectId: number }) {
+  const { data: clubs, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/projects", String(projectId), "clubs"],
+  });
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newPace, setNewPace] = useState("weekly");
+  const { toast } = useToast();
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/clubs", { name: newName, description: newDesc || null, projectId, pace: newPace });
+      return res.json();
+    },
+    onSuccess: (club: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", String(projectId), "clubs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-clubs"] });
+      setShowCreate(false);
+      setNewName("");
+      setNewDesc("");
+      toast({ title: "تم إنشاء النادي!" });
+      window.location.href = `/clubs/${club.id}`;
+    },
+    onError: (err: Error) => toast({ title: err.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return null;
+  const PACE_LABELS: Record<string, string> = { daily: "يومي", weekly: "أسبوعي", biweekly: "كل أسبوعين" };
+
+  return (
+    <div className="max-w-2xl mx-auto my-8 space-y-4" data-testid="project-clubs-section">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="w-5 h-5 text-primary" />
+          <h3 className="font-serif text-lg font-semibold" data-testid="text-clubs-title">
+            نوادي القراءة {clubs && clubs.length > 0 && <span className="text-muted-foreground text-sm font-normal">({clubs.length})</span>}
+          </h3>
+        </div>
+        <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setShowCreate(!showCreate)} data-testid="button-create-club">
+          <Plus className="w-3.5 h-3.5" />
+          أنشئ نادياً
+        </Button>
+      </div>
+
+      {showCreate && (
+        <Card data-testid="create-club-form">
+          <CardContent className="p-4 space-y-3">
+            <Input placeholder="اسم النادي" value={newName} onChange={e => setNewName(e.target.value)} maxLength={100} dir="rtl" data-testid="input-club-name" />
+            <Input placeholder="وصف مختصر (اختياري)" value={newDesc} onChange={e => setNewDesc(e.target.value)} maxLength={500} dir="rtl" data-testid="input-club-desc" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">وتيرة القراءة:</span>
+              {(["daily", "weekly", "biweekly"] as const).map(p => (
+                <Button key={p} variant={newPace === p ? "default" : "outline"} size="sm" className="text-xs" onClick={() => setNewPace(p)} data-testid={`button-pace-${p}`}>
+                  {PACE_LABELS[p]}
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" disabled={!newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="gap-1" data-testid="button-submit-club">
+                {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                إنشاء
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowCreate(false)} data-testid="button-cancel-club">إلغاء</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {clubs && clubs.length > 0 ? (
+        <div className="space-y-2">
+          {clubs.map((club: any) => (
+            <Link key={club.id} href={`/clubs/${club.id}`}>
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer" data-testid={`club-card-${club.id}`}>
+                <CardContent className="p-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm" data-testid={`text-club-name-${club.id}`}>{club.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <Users className="w-3 h-3 inline ml-0.5" />
+                      <LtrNum>{club.memberCount}</LtrNum> عضو · {PACE_LABELS[club.pace] || club.pace} · أنشأه {club.adminName}
+                    </p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : !showCreate ? (
+        <p className="text-sm text-muted-foreground text-center py-4" data-testid="text-no-clubs">لا توجد أندية قراءة بعد. كن أول من ينشئ نادياً!</p>
+      ) : null}
     </div>
   );
 }
@@ -914,6 +1010,8 @@ export default function SharedProject() {
       {project?.seekingBetaReaders && (
         <BetaReaderOptIn projectId={project.id} />
       )}
+
+      {project && <ProjectClubsSection projectId={project.id} />}
 
       {project && token && <ProjectCommentsSection shareToken={token} />}
 

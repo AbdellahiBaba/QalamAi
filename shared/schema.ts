@@ -713,10 +713,13 @@ export const projectComments = pgTable("project_comments", {
   content: text("content").notNull(),
   approved: boolean("approved").default(true).notNull(),
   ipHash: varchar("ip_hash"),
+  clubId: integer("club_id"),
+  chapterIndex: integer("chapter_index"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_project_comments_project_id").on(table.projectId),
   index("idx_project_comments_approved").on(table.approved),
+  index("idx_project_comments_club").on(table.clubId),
 ]);
 
 export const insertProjectCommentSchema = createInsertSchema(projectComments).omit({ id: true, approved: true, ipHash: true, createdAt: true });
@@ -1145,3 +1148,36 @@ export const projectQuotes = pgTable("project_quotes", {
 export const insertProjectQuoteSchema = createInsertSchema(projectQuotes).omit({ id: true, createdAt: true, flagged: true });
 export type ProjectQuote = typeof projectQuotes.$inferSelect;
 export type InsertProjectQuote = z.infer<typeof insertProjectQuoteSchema>;
+
+// ── Reading Clubs (نوادي القراءة) ─────────────────────────────────────────────
+export const readingClubs = pgTable("reading_clubs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  projectId: integer("project_id").notNull().references(() => novelProjects.id, { onDelete: "cascade" }),
+  adminUserId: varchar("admin_user_id").notNull(),
+  pace: text("pace").notNull().default("weekly"),
+  isPrivate: boolean("is_private").notNull().default(false),
+  currentChapterIndex: integer("current_chapter_index").notNull().default(0),
+  maxMembers: integer("max_members").notNull().default(50),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  index("idx_clubs_project").on(table.projectId),
+  index("idx_clubs_admin").on(table.adminUserId),
+]);
+
+export const readingClubMembers = pgTable("reading_club_members", {
+  id: serial("id").primaryKey(),
+  clubId: integer("club_id").notNull().references(() => readingClubs.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull(),
+  joinedAt: timestamp("joined_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => [
+  unique("uq_club_member").on(table.clubId, table.userId),
+  index("idx_club_members_user").on(table.userId),
+  index("idx_club_members_club").on(table.clubId),
+]);
+
+export const insertReadingClubSchema = createInsertSchema(readingClubs).omit({ id: true, createdAt: true, currentChapterIndex: true });
+export type ReadingClub = typeof readingClubs.$inferSelect;
+export type InsertReadingClub = z.infer<typeof insertReadingClubSchema>;
+export type ReadingClubMember = typeof readingClubMembers.$inferSelect;

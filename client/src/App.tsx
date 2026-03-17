@@ -66,6 +66,7 @@ const ChallengeDetail = lazy(() => import("@/pages/challenge-detail"));
 const HallOfGlory = lazy(() => import("@/pages/hall-of-glory"));
 const EditorialReview = lazy(() => import("@/pages/editorial-review"));
 const MyLibrary = lazy(() => import("@/pages/my-library"));
+const ClubDetail = lazy(() => import("@/pages/club-detail"));
 
 function LoadingFallback() {
   return (
@@ -131,6 +132,7 @@ function AuthenticatedRouter() {
         <Route path="/challenges" component={Challenges} />
         <Route path="/challenges/:id" component={ChallengeDetail} />
         <Route path="/hall-of-glory" component={HallOfGlory} />
+        <Route path="/clubs/:id" component={ClubDetail} />
         <Route path="/editor" component={EditorialReview} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
@@ -178,6 +180,7 @@ function PublicRouter() {
         <Route path="/challenges" component={Challenges} />
         <Route path="/challenges/:id" component={ChallengeDetail} />
         <Route path="/hall-of-glory" component={HallOfGlory} />
+        <Route path="/clubs/:id" component={ClubDetail} />
         <Route path="/editor" component={EditorialReview} />
         <Route path="/project/:id" component={ProjectDetail} />
         <Route path="/privacy" component={Privacy} />

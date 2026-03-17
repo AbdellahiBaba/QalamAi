@@ -38,6 +38,8 @@ import {
   workVotes, type WorkVote,
   hallOfGloryFeatured, type HallOfGloryFeatured,
   writingSprints, type WritingSprint, type InsertWritingSprint,
+  readingClubs, readingClubMembers, type ReadingClub, type InsertReadingClub, type ReadingClubMember,
+  projectComments,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, asc, desc, sql, count, isNotNull, isNull, avg, lt, inArray, like, or } from "drizzle-orm";
@@ -290,6 +292,19 @@ export interface IStorage {
   createWritingSprint(data: InsertWritingSprint): Promise<WritingSprint>;
   getWritingSprintsByUser(userId: string, limit?: number): Promise<WritingSprint[]>;
   getWritingSprintStats(userId: string): Promise<{ totalSprints: number; totalWords: number; totalMinutes: number; avgWordsPerSprint: number; bestSprint: number; thisWeekSprints: number; thisWeekWords: number; thisWeekMinutes: number }>;
+  createReadingClub(data: InsertReadingClub): Promise<ReadingClub>;
+  getReadingClub(id: number): Promise<ReadingClub | undefined>;
+  getClubsByProject(projectId: number): Promise<(ReadingClub & { memberCount: number; adminName: string })[]>;
+  getClubsByUser(userId: string): Promise<(ReadingClub & { memberCount: number; projectTitle: string; projectCoverUrl: string | null; totalChapters: number })[]>;
+  joinClub(clubId: number, userId: string): Promise<void>;
+  leaveClub(clubId: number, userId: string): Promise<void>;
+  getClubMembers(clubId: number): Promise<{ userId: string; displayName: string; profileImageUrl: string | null; joinedAt: Date }[]>;
+  getClubMemberCount(clubId: number): Promise<number>;
+  isClubMember(clubId: number, userId: string): Promise<boolean>;
+  advanceClub(clubId: number): Promise<ReadingClub>;
+  deleteReadingClub(id: number): Promise<void>;
+  getClubComments(clubId: number, chapterIndex: number, limit?: number, offset?: number): Promise<{ data: any[]; total: number }>;
+  createClubComment(data: { projectId: number; clubId: number; chapterIndex: number; authorName: string; content: string; ipHash?: string }): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3346,6 +3361,117 @@ export class DatabaseStorage implements IStorage {
       thisWeekWords: week?.words ?? 0,
       thisWeekMinutes: Math.round((week?.seconds ?? 0) / 60),
     };
+  }
+
+  async createReadingClub(data: InsertReadingClub): Promise<ReadingClub> {
+    const [club] = await db.insert(readingClubs).values(data).returning();
+    await db.insert(readingClubMembers).values({ clubId: club.id, userId: data.adminUserId });
+    return club;
+  }
+
+  async getReadingClub(id: number): Promise<ReadingClub | undefined> {
+    const [club] = await db.select().from(readingClubs).where(eq(readingClubs.id, id));
+    return club;
+  }
+
+  async getClubsByProject(projectId: number): Promise<(ReadingClub & { memberCount: number; adminName: string })[]> {
+    const clubs = await db.select().from(readingClubs).where(eq(readingClubs.projectId, projectId)).orderBy(desc(readingClubs.createdAt));
+    const results: (ReadingClub & { memberCount: number; adminName: string })[] = [];
+    for (const club of clubs) {
+      const [countResult] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(readingClubMembers).where(eq(readingClubMembers.clubId, club.id));
+      const admin = await this.getUser(club.adminUserId);
+      results.push({ ...club, memberCount: countResult?.cnt ?? 0, adminName: admin?.displayName || admin?.firstName || "مجهول" });
+    }
+    return results;
+  }
+
+  async getClubsByUser(userId: string): Promise<(ReadingClub & { memberCount: number; projectTitle: string; projectCoverUrl: string | null; totalChapters: number })[]> {
+    const memberships = await db.select({ clubId: readingClubMembers.clubId }).from(readingClubMembers).where(eq(readingClubMembers.userId, userId));
+    if (memberships.length === 0) return [];
+    const clubIds = memberships.map(m => m.clubId);
+    const clubs = await db.select().from(readingClubs).where(inArray(readingClubs.id, clubIds)).orderBy(desc(readingClubs.createdAt));
+    const results: (ReadingClub & { memberCount: number; projectTitle: string; projectCoverUrl: string | null; totalChapters: number })[] = [];
+    for (const club of clubs) {
+      const [countResult] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(readingClubMembers).where(eq(readingClubMembers.clubId, club.id));
+      const project = await this.getProject(club.projectId);
+      const chapterList = await this.getChaptersByProject(club.projectId);
+      results.push({
+        ...club,
+        memberCount: countResult?.cnt ?? 0,
+        projectTitle: project?.title || "غير معروف",
+        projectCoverUrl: project?.coverImageUrl || null,
+        totalChapters: chapterList.length,
+      });
+    }
+    return results;
+  }
+
+  async joinClub(clubId: number, userId: string): Promise<void> {
+    await db.insert(readingClubMembers).values({ clubId, userId }).onConflictDoNothing();
+  }
+
+  async leaveClub(clubId: number, userId: string): Promise<void> {
+    await db.delete(readingClubMembers).where(and(eq(readingClubMembers.clubId, clubId), eq(readingClubMembers.userId, userId)));
+  }
+
+  async getClubMembers(clubId: number): Promise<{ userId: string; displayName: string; profileImageUrl: string | null; joinedAt: Date }[]> {
+    const members = await db.select().from(readingClubMembers).where(eq(readingClubMembers.clubId, clubId)).orderBy(asc(readingClubMembers.joinedAt));
+    const results: { userId: string; displayName: string; profileImageUrl: string | null; joinedAt: Date }[] = [];
+    for (const m of members) {
+      const user = await this.getUser(m.userId);
+      results.push({
+        userId: m.userId,
+        displayName: user?.displayName || user?.firstName || "مجهول",
+        profileImageUrl: (user as any)?.profileImageUrl || null,
+        joinedAt: m.joinedAt,
+      });
+    }
+    return results;
+  }
+
+  async getClubMemberCount(clubId: number): Promise<number> {
+    const [result] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(readingClubMembers).where(eq(readingClubMembers.clubId, clubId));
+    return result?.cnt ?? 0;
+  }
+
+  async isClubMember(clubId: number, userId: string): Promise<boolean> {
+    const [member] = await db.select().from(readingClubMembers).where(and(eq(readingClubMembers.clubId, clubId), eq(readingClubMembers.userId, userId)));
+    return !!member;
+  }
+
+  async advanceClub(clubId: number): Promise<ReadingClub> {
+    const [updated] = await db.update(readingClubs)
+      .set({ currentChapterIndex: sql`${readingClubs.currentChapterIndex} + 1` })
+      .where(eq(readingClubs.id, clubId))
+      .returning();
+    return updated;
+  }
+
+  async deleteReadingClub(id: number): Promise<void> {
+    await db.delete(readingClubs).where(eq(readingClubs.id, id));
+  }
+
+  async getClubComments(clubId: number, chapterIndex: number, limit = 50, offset = 0): Promise<{ data: any[]; total: number }> {
+    const [totalResult] = await db.select({ cnt: sql<number>`COUNT(*)::int` }).from(projectComments)
+      .where(and(eq(projectComments.clubId, clubId), eq(projectComments.chapterIndex, chapterIndex), eq(projectComments.approved, true)));
+    const data = await db.select().from(projectComments)
+      .where(and(eq(projectComments.clubId, clubId), eq(projectComments.chapterIndex, chapterIndex), eq(projectComments.approved, true)))
+      .orderBy(desc(projectComments.createdAt))
+      .limit(limit).offset(offset);
+    return { data, total: totalResult?.cnt ?? 0 };
+  }
+
+  async createClubComment(data: { projectId: number; clubId: number; chapterIndex: number; authorName: string; content: string; ipHash?: string }): Promise<any> {
+    const [comment] = await db.insert(projectComments).values({
+      projectId: data.projectId,
+      clubId: data.clubId,
+      chapterIndex: data.chapterIndex,
+      authorName: data.authorName,
+      content: data.content,
+      ipHash: data.ipHash,
+      approved: true,
+    }).returning();
+    return comment;
   }
 }
 

@@ -12387,5 +12387,203 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
+  // ── Reading Clubs (نوادي القراءة) ─────────────────────────────────────────
+  app.post("/api/clubs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, description, projectId, pace, isPrivate } = req.body;
+      if (!name || !projectId) return res.status(400).json({ error: "الاسم والمشروع مطلوبان" });
+      const project = await storage.getProject(projectId);
+      if (!project || !project.shareToken) return res.status(404).json({ error: "المشروع غير موجود أو غير منشور" });
+      const existingClubs = await storage.getClubsByProject(projectId);
+      const userClubCount = existingClubs.filter(c => c.adminUserId === userId).length;
+      if (userClubCount >= 3) return res.status(400).json({ error: "يمكنك إنشاء 3 أندية كحد أقصى لكل مشروع" });
+      const club = await storage.createReadingClub({
+        name: sanitizeText(name).substring(0, 100),
+        description: description ? sanitizeText(description).substring(0, 500) : null,
+        projectId,
+        adminUserId: userId,
+        pace: ["daily", "weekly", "biweekly"].includes(pace) ? pace : "weekly",
+        isPrivate: !!isPrivate,
+        maxMembers: isPrivate ? 999 : 50,
+      });
+      res.json(club);
+    } catch (error) {
+      console.error("Error creating club:", error);
+      res.status(500).json({ error: "فشل في إنشاء النادي" });
+    }
+  });
+
+  app.get("/api/clubs/:id", async (req: any, res) => {
+    try {
+      const clubId = parseIntParam(req.params.id);
+      if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const club = await storage.getReadingClub(clubId);
+      if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      const members = await storage.getClubMembers(clubId);
+      const memberCount = members.length;
+      const project = await storage.getProjectWithDetails(clubId > 0 ? club.projectId : 0);
+      const admin = await storage.getUser(club.adminUserId);
+      const chapters = project?.chapters?.sort((a, b) => a.chapterNumber - b.chapterNumber) || [];
+      res.json({
+        ...club,
+        memberCount,
+        members: members.slice(0, 50),
+        adminName: admin?.displayName || admin?.firstName || "مجهول",
+        projectTitle: project?.title || "",
+        projectCoverUrl: project?.coverImageUrl || null,
+        chapters: chapters.map(ch => ({ id: ch.id, chapterNumber: ch.chapterNumber, title: ch.title })),
+        totalChapters: chapters.length,
+      });
+    } catch (error) {
+      console.error("Error getting club:", error);
+      res.status(500).json({ error: "فشل في جلب النادي" });
+    }
+  });
+
+  app.get("/api/projects/:id/clubs", async (req: any, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const clubs = await storage.getClubsByProject(projectId);
+      const publicClubs = clubs.filter(c => !c.isPrivate);
+      res.json(publicClubs);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب الأندية" });
+    }
+  });
+
+  app.get("/api/my-clubs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clubs = await storage.getClubsByUser(userId);
+      res.json(clubs);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب أنديتك" });
+    }
+  });
+
+  app.post("/api/clubs/:id/join", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clubId = parseIntParam(req.params.id);
+      if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const club = await storage.getReadingClub(clubId);
+      if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      if (club.isPrivate) return res.status(403).json({ error: "هذا نادٍ خاص" });
+      const memberCount = await storage.getClubMemberCount(clubId);
+      if (memberCount >= club.maxMembers) return res.status(400).json({ error: "النادي ممتلئ" });
+      const alreadyMember = await storage.isClubMember(clubId, userId);
+      if (alreadyMember) return res.status(400).json({ error: "أنت عضو بالفعل" });
+      await storage.joinClub(clubId, userId);
+      const user = await storage.getUser(userId);
+      const memberName = user?.displayName || user?.firstName || "عضو جديد";
+      await notifyUser(club.adminUserId, "club", "عضو جديد في ناديك", `انضم ${memberName} إلى نادي "${club.name}"`, `/clubs/${clubId}`);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في الانضمام" });
+    }
+  });
+
+  app.delete("/api/clubs/:id/leave", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clubId = parseIntParam(req.params.id);
+      if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const club = await storage.getReadingClub(clubId);
+      if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      if (club.adminUserId === userId) return res.status(400).json({ error: "لا يمكن للمؤسس مغادرة النادي" });
+      await storage.leaveClub(clubId, userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في المغادرة" });
+    }
+  });
+
+  app.post("/api/clubs/:id/advance", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clubId = parseIntParam(req.params.id);
+      if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const club = await storage.getReadingClub(clubId);
+      if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      if (club.adminUserId !== userId) return res.status(403).json({ error: "فقط مؤسس النادي يمكنه التقدم" });
+      const chapters = await storage.getChaptersByProject(club.projectId);
+      if (club.currentChapterIndex >= chapters.length - 1) return res.status(400).json({ error: "وصلتم إلى آخر فصل" });
+      const updated = await storage.advanceClub(clubId);
+      const members = await storage.getClubMembers(clubId);
+      const nextChapterNum = updated.currentChapterIndex + 1;
+      for (const m of members) {
+        if (m.userId !== userId) {
+          await notifyUser(m.userId, "club", "فصل جديد في النادي", `تم فتح الفصل ${nextChapterNum} في نادي "${club.name}"`, `/clubs/${clubId}`);
+        }
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error advancing club:", error);
+      res.status(500).json({ error: "فشل في التقدم" });
+    }
+  });
+
+  app.delete("/api/clubs/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clubId = parseIntParam(req.params.id);
+      if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const club = await storage.getReadingClub(clubId);
+      if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      if (club.adminUserId !== userId) return res.status(403).json({ error: "فقط المؤسس يمكنه حذف النادي" });
+      await storage.deleteReadingClub(clubId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "فشل في حذف النادي" });
+    }
+  });
+
+  app.get("/api/clubs/:id/comments/:chapterIndex", async (req: any, res) => {
+    try {
+      const clubId = parseIntParam(req.params.id);
+      const chapterIndex = parseIntParam(req.params.chapterIndex);
+      if (clubId === null || chapterIndex === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const limit = parseInt(String(req.query.limit || "50"), 10);
+      const offset = parseInt(String(req.query.offset || "0"), 10);
+      const result = await storage.getClubComments(clubId, chapterIndex, Math.min(limit, 100), offset);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "فشل في جلب التعليقات" });
+    }
+  });
+
+  app.post("/api/clubs/:id/comments", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clubId = parseIntParam(req.params.id);
+      if (!clubId) return res.status(400).json({ error: "معرّف غير صالح" });
+      const { chapterIndex, content } = req.body;
+      if (chapterIndex === undefined || !content?.trim()) return res.status(400).json({ error: "محتوى التعليق مطلوب" });
+      const club = await storage.getReadingClub(clubId);
+      if (!club) return res.status(404).json({ error: "النادي غير موجود" });
+      const isMember = await storage.isClubMember(clubId, userId);
+      if (!isMember) return res.status(403).json({ error: "يجب أن تكون عضواً في النادي" });
+      if (chapterIndex > club.currentChapterIndex) return res.status(400).json({ error: "هذا الفصل لم يُفتح بعد" });
+      const user = await storage.getUser(userId);
+      const authorName = user?.displayName || user?.firstName || "عضو";
+      const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "");
+      const ipHash = ip ? require("crypto").createHash("sha256").update(ip).digest("hex").substring(0, 16) : undefined;
+      const comment = await storage.createClubComment({
+        projectId: club.projectId,
+        clubId,
+        chapterIndex,
+        authorName: sanitizeText(authorName).substring(0, 100),
+        content: sanitizeText(content).substring(0, 2000),
+        ipHash,
+      });
+      res.json(comment);
+    } catch (error) {
+      console.error("Error creating club comment:", error);
+      res.status(500).json({ error: "فشل في إضافة التعليق" });
+    }
+  });
+
   return httpServer;
 }
