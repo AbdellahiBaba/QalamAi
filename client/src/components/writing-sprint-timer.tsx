@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Timer, Play, Pause, Square, Trophy, Flame, Target, Clock, Zap, TrendingUp, Award } from "lucide-react";
+import { Timer, Play, Pause, Square, Trophy, Flame, Target, Clock, Zap, TrendingUp, Award, Volume2, VolumeX } from "lucide-react";
 import LtrNum from "@/components/ui/ltr-num";
 import type { NovelProject } from "@shared/schema";
 
@@ -20,9 +20,23 @@ interface SprintStats {
   bestSprint: number;
   thisWeekSprints: number;
   thisWeekWords: number;
+  thisWeekMinutes: number;
 }
 
 type SprintPhase = "setup" | "running" | "paused" | "completed";
+
+const ABU_HASHIM_QUOTES = [
+  "أحسنت يا صديقي! الكلمات تتراقص على أناملك كأنّها تعرف طريقها.",
+  "ما شاء الله! هكذا يُصنع الأدب — كلمة بعد كلمة، بصبرٍ وشغف.",
+  "لقد أثبتّ أنّ القلم أقوى من الزمن. واصل!",
+  "كل سباق كتابة هو خطوة نحو روايتك الخالدة.",
+  "أبو هاشم فخور بك! الكاتب الحقيقي يكتب حتى حين لا يشعر بالإلهام.",
+  "هذا هو إيقاع الكتّاب العظام — لا تتوقف!",
+  "بوركت يداك! الحبر الذي يسيل اليوم يصبح تاريخاً غداً.",
+  "رائع! لقد حوّلت الدقائق إلى كنوز أدبية.",
+  "الكتابة المنتظمة هي سرّ كل كاتب عظيم. أنت على الطريق الصحيح.",
+  "تذكّر: كل كلمة كتبتها اليوم هي بذرة لعمل أدبي عظيم.",
+];
 
 const DURATION_OPTIONS = [
   { value: 5, label: "٥ دقائق" },
@@ -35,26 +49,38 @@ const DURATION_OPTIONS = [
   { value: 60, label: "ساعة" },
 ];
 
-export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) {
+interface WritingSprintTimerProps {
+  projects?: NovelProject[];
+  editorMode?: boolean;
+  projectId?: number;
+  getWordCount?: () => number;
+  onSprintStateChange?: (isRunning: boolean) => void;
+}
+
+export function WritingSprintTimer({ projects, editorMode, projectId: fixedProjectId, getWordCount, onSprintStateChange }: WritingSprintTimerProps) {
   const { toast } = useToast();
   const [phase, setPhase] = useState<SprintPhase>("setup");
-  const [duration, setDuration] = useState(15);
+  const [duration, setDuration] = useState(25);
   const [targetWords, setTargetWords] = useState(300);
-  const [projectId, setProjectId] = useState<string>("");
+  const [projectId, setProjectId] = useState<string>(fixedProjectId ? String(fixedProjectId) : "");
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [wordsWritten, setWordsWritten] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
-  const [lastCompletedSprint, setLastCompletedSprint] = useState<{ wordsWritten: number; duration: number; targetWords: number; wpm: number } | null>(null);
-  const startTimeRef = useRef<Date | null>(null);
+  const [lastCompletedSprint, setLastCompletedSprint] = useState<{ wordsWritten: number; durationSeconds: number; targetWords: number; wpm: number; quote: string } | null>(null);
+  const [ambientPlaying, setAmbientPlaying] = useState(false);
+  const startTimeRef = useRef<number>(0);
+  const startWordCountRef = useRef<number>(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
+  const ambientOscRef = useRef<OscillatorNode | null>(null);
+  const ambientGainRef = useRef<GainNode | null>(null);
 
   const { data: sprintStats } = useQuery<SprintStats>({
     queryKey: ["/api/writing-sprints/stats"],
   });
 
   const saveSprint = useMutation({
-    mutationFn: async (data: { durationMinutes: number; wordsWritten: number; targetWords: number; projectId?: string; startedAt: string }) => {
+    mutationFn: async (data: { durationSeconds: number; wordsWritten: number; targetWords?: number; projectId?: number }) => {
       const res = await apiRequest("POST", "/api/writing-sprints", data);
       return res.json();
     },
@@ -83,22 +109,64 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
     } catch {}
   }, []);
 
+  const startAmbient = useCallback(() => {
+    try {
+      if (!audioRef.current) audioRef.current = new AudioContext();
+      const ctx = audioRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(60, ctx.currentTime);
+      gain.gain.setValueAtTime(0.02, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      ambientOscRef.current = osc;
+      ambientGainRef.current = gain;
+      setAmbientPlaying(true);
+    } catch {}
+  }, []);
+
+  const stopAmbient = useCallback(() => {
+    try {
+      if (ambientGainRef.current) {
+        ambientGainRef.current.gain.exponentialRampToValueAtTime(0.001, (audioRef.current?.currentTime ?? 0) + 0.3);
+      }
+      setTimeout(() => {
+        try { ambientOscRef.current?.stop(); } catch {}
+        ambientOscRef.current = null;
+        ambientGainRef.current = null;
+      }, 400);
+      setAmbientPlaying(false);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      try { ambientOscRef.current?.stop(); } catch {}
     };
   }, []);
 
   const startSprint = () => {
-    setSecondsLeft(duration * 60);
+    const totalSeconds = duration * 60;
+    setSecondsLeft(totalSeconds);
     setPhase("running");
-    startTimeRef.current = new Date();
+    startTimeRef.current = Date.now();
+    startWordCountRef.current = getWordCount ? getWordCount() : 0;
+    onSprintStateChange?.(true);
+    startAmbient();
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           if (intervalRef.current) clearInterval(intervalRef.current);
           setPhase("completed");
           playCompletionSound();
+          stopAmbient();
+          if (getWordCount) {
+            const delta = Math.max(0, getWordCount() - startWordCountRef.current);
+            setWordsWritten(delta);
+          }
           return 0;
         }
         return prev - 1;
@@ -109,16 +177,23 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
   const pauseSprint = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setPhase("paused");
+    stopAmbient();
   };
 
   const resumeSprint = () => {
     setPhase("running");
+    startAmbient();
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           if (intervalRef.current) clearInterval(intervalRef.current);
           setPhase("completed");
           playCompletionSound();
+          stopAmbient();
+          if (getWordCount) {
+            const delta = Math.max(0, getWordCount() - startWordCountRef.current);
+            setWordsWritten(delta);
+          }
           return 0;
         }
         return prev - 1;
@@ -128,30 +203,35 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
 
   const stopSprint = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    stopAmbient();
+    if (getWordCount) {
+      const delta = Math.max(0, getWordCount() - startWordCountRef.current);
+      setWordsWritten(delta);
+    }
     setPhase("completed");
   };
 
   const finishSprint = () => {
-    const actualMinutes = startTimeRef.current
-      ? Math.max(1, Math.round((Date.now() - startTimeRef.current.getTime()) / 60000))
-      : duration;
-    const wpm = actualMinutes > 0 ? Math.round(wordsWritten / actualMinutes) : 0;
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
+    const elapsedMinutes = elapsedSeconds / 60;
+    const wpm = elapsedMinutes > 0 ? Math.round(wordsWritten / elapsedMinutes) : 0;
+    const quote = ABU_HASHIM_QUOTES[Math.floor(Math.random() * ABU_HASHIM_QUOTES.length)];
 
     const completedData = {
       wordsWritten,
-      duration: actualMinutes,
+      durationSeconds: elapsedSeconds,
       targetWords,
       wpm,
+      quote,
     };
 
-    const parsedProjectId = projectId && projectId !== "none" ? parseInt(projectId) : undefined;
+    const resolvedProjectId = fixedProjectId || (projectId && projectId !== "none" ? parseInt(projectId) : undefined);
 
     saveSprint.mutate({
-      durationMinutes: actualMinutes,
+      durationSeconds: elapsedSeconds,
       wordsWritten,
       targetWords,
-      projectId: !isNaN(parsedProjectId as number) ? parsedProjectId : undefined,
-      startedAt: startTimeRef.current?.toISOString() || new Date().toISOString(),
+      projectId: resolvedProjectId && !isNaN(resolvedProjectId) ? resolvedProjectId : undefined,
     }, {
       onSuccess: () => {
         setLastCompletedSprint(completedData);
@@ -159,6 +239,7 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
         setPhase("setup");
         setSecondsLeft(0);
         setWordsWritten(0);
+        onSprintStateChange?.(false);
       },
       onError: () => {
         toast({ title: "خطأ", description: "فشل في حفظ نتيجة السباق. حاول مرة أخرى.", variant: "destructive" });
@@ -174,6 +255,95 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
 
   const progressPercent = duration > 0 ? ((duration * 60 - secondsLeft) / (duration * 60)) * 100 : 0;
   const wordProgressPercent = targetWords > 0 ? Math.min((wordsWritten / targetWords) * 100, 100) : 0;
+
+  if (editorMode) {
+    return (
+      <>
+        {phase === "setup" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={String(duration)} onValueChange={(v) => setDuration(parseInt(v))}>
+              <SelectTrigger className="h-7 w-[100px] text-xs" data-testid="select-sprint-duration-editor">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DURATION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={startSprint} data-testid="button-start-sprint-editor">
+              <Timer className="w-3.5 h-3.5" />
+              سباق الكتابة
+            </Button>
+          </div>
+        )}
+
+        {(phase === "running" || phase === "paused") && (
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-mono tabular-nums ${phase === "paused" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30 dark:text-yellow-400" : "bg-orange-500/10 text-orange-600 border-orange-500/30 dark:text-orange-400"}`}>
+              <Timer className="w-3 h-3" />
+              <span dir="ltr" data-testid="text-sprint-timer-editor">{formatTime(secondsLeft)}</span>
+            </div>
+            {getWordCount && (
+              <span className="text-[10px] text-green-600 dark:text-green-400">
+                +<LtrNum>{Math.max(0, (getWordCount() - startWordCountRef.current))}</LtrNum>
+              </span>
+            )}
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={ambientPlaying ? stopAmbient : startAmbient} data-testid="button-toggle-ambient-sprint">
+              {ambientPlaying ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+            </Button>
+            {phase === "running" ? (
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={pauseSprint} data-testid="button-pause-sprint-editor">
+                <Pause className="w-3 h-3" />
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={resumeSprint} data-testid="button-resume-sprint-editor">
+                <Play className="w-3 h-3" />
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={stopSprint} data-testid="button-stop-sprint-editor">
+              <Square className="w-3 h-3" />
+            </Button>
+          </div>
+        )}
+
+        {phase === "completed" && (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={0}
+              value={wordsWritten}
+              onChange={(e) => setWordsWritten(Math.max(0, parseInt(e.target.value) || 0))}
+              className="h-7 w-[80px] text-xs text-center"
+              dir="ltr"
+              data-testid="input-sprint-words-editor"
+            />
+            <span className="text-[10px] text-muted-foreground">كلمة</span>
+            <Button size="sm" className="h-7 px-2 text-xs gap-1" onClick={finishSprint} disabled={saveSprint.isPending} data-testid="button-save-sprint-editor">
+              <Award className="w-3 h-3" />
+              حفظ
+            </Button>
+          </div>
+        )}
+
+        <Dialog open={showCompletion} onOpenChange={setShowCompletion}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-center">
+                <Trophy className="w-12 h-12 mx-auto text-amber-500 mb-2" />
+                {lastCompletedSprint && lastCompletedSprint.targetWords > 0 && lastCompletedSprint.wordsWritten >= lastCompletedSprint.targetWords
+                  ? "🎉 أحسنت! تجاوزت الهدف"
+                  : "أحسنت! أنهيت السباق"}
+              </DialogTitle>
+            </DialogHeader>
+            {lastCompletedSprint && (
+              <SprintCompletionContent sprint={lastCompletedSprint} sprintStats={sprintStats} onClose={() => setShowCompletion(false)} />
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <>
@@ -222,7 +392,7 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
                 </div>
               </div>
 
-              {projects && projects.length > 0 && (
+              {projects && projects.length > 0 && !fixedProjectId && (
                 <div>
                   <Label className="text-xs mb-1 block">المشروع (اختياري)</Label>
                   <Select value={projectId} onValueChange={setProjectId}>
@@ -326,6 +496,10 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
               </div>
 
               <div className="flex gap-2">
+                <Button size="sm" variant="ghost" onClick={ambientPlaying ? stopAmbient : startAmbient} className="gap-1" data-testid="button-toggle-ambient">
+                  {ambientPlaying ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  {ambientPlaying ? "صوت" : "صامت"}
+                </Button>
                 {phase === "running" ? (
                   <Button variant="outline" onClick={pauseSprint} className="flex-1 gap-2" data-testid="button-pause-sprint">
                     <Pause className="w-4 h-4" />
@@ -339,7 +513,7 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
                 )}
                 <Button variant="destructive" onClick={stopSprint} className="flex-1 gap-2" data-testid="button-stop-sprint">
                   <Square className="w-4 h-4" />
-                  إنهاء مبكراً
+                  إنهاء
                 </Button>
               </div>
             </div>
@@ -385,57 +559,74 @@ export function WritingSprintTimer({ projects }: { projects?: NovelProject[] }) 
                 : "أحسنت! أنهيت السباق"}
             </DialogTitle>
           </DialogHeader>
-
           {lastCompletedSprint && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-center">
-                  <Flame className="w-5 h-5 mx-auto text-orange-500 mb-1" />
-                  <div className="text-xl font-bold" data-testid="text-completion-words">
-                    <LtrNum>{lastCompletedSprint.wordsWritten.toLocaleString("ar-EG")}</LtrNum>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">كلمة</div>
-                </div>
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
-                  <Clock className="w-5 h-5 mx-auto text-blue-500 mb-1" />
-                  <div className="text-xl font-bold" data-testid="text-completion-duration">
-                    <LtrNum>{lastCompletedSprint.duration}</LtrNum>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">دقيقة</div>
-                </div>
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
-                  <Zap className="w-5 h-5 mx-auto text-green-500 mb-1" />
-                  <div className="text-xl font-bold" data-testid="text-completion-wpm">
-                    <LtrNum>{lastCompletedSprint.wpm}</LtrNum>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">كلمة/دقيقة</div>
-                </div>
-                {lastCompletedSprint.targetWords > 0 && (
-                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
-                    <Target className="w-5 h-5 mx-auto text-purple-500 mb-1" />
-                    <div className="text-xl font-bold" data-testid="text-completion-target-pct">
-                      <LtrNum>{Math.round((lastCompletedSprint.wordsWritten / lastCompletedSprint.targetWords) * 100)}</LtrNum>%
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">من الهدف</div>
-                  </div>
-                )}
-              </div>
-
-              {sprintStats && sprintStats.bestSprint > 0 && lastCompletedSprint.wordsWritten > sprintStats.bestSprint && (
-                <div className="bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-lg p-3 text-center">
-                  <TrendingUp className="w-5 h-5 mx-auto text-amber-600 dark:text-amber-400 mb-1" />
-                  <p className="text-sm font-bold text-amber-800 dark:text-amber-200">رقم قياسي جديد! 🏆</p>
-                </div>
-              )}
-
-              <Button onClick={() => setShowCompletion(false)} variant="outline" className="w-full" data-testid="button-close-completion">
-                إغلاق
-              </Button>
-            </div>
+            <SprintCompletionContent sprint={lastCompletedSprint} sprintStats={sprintStats} onClose={() => setShowCompletion(false)} />
           )}
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function SprintCompletionContent({ sprint, sprintStats, onClose }: {
+  sprint: { wordsWritten: number; durationSeconds: number; targetWords: number; wpm: number; quote: string };
+  sprintStats?: SprintStats;
+  onClose: () => void;
+}) {
+  const durationMinutes = Math.round(sprint.durationSeconds / 60);
+  return (
+    <div className="space-y-4">
+      <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 text-center border border-amber-200 dark:border-amber-800">
+        <p className="text-sm font-serif leading-relaxed text-amber-800 dark:text-amber-200" data-testid="text-abu-hashim-quote">
+          « {sprint.quote} »
+        </p>
+        <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">— أبو هاشم</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-center">
+          <Flame className="w-5 h-5 mx-auto text-orange-500 mb-1" />
+          <div className="text-xl font-bold" data-testid="text-completion-words">
+            <LtrNum>{sprint.wordsWritten.toLocaleString("ar-EG")}</LtrNum>
+          </div>
+          <div className="text-[10px] text-muted-foreground">كلمة</div>
+        </div>
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+          <Clock className="w-5 h-5 mx-auto text-blue-500 mb-1" />
+          <div className="text-xl font-bold" data-testid="text-completion-duration">
+            <LtrNum>{durationMinutes}</LtrNum>
+          </div>
+          <div className="text-[10px] text-muted-foreground">دقيقة</div>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+          <Zap className="w-5 h-5 mx-auto text-green-500 mb-1" />
+          <div className="text-xl font-bold" data-testid="text-completion-wpm">
+            <LtrNum>{sprint.wpm}</LtrNum>
+          </div>
+          <div className="text-[10px] text-muted-foreground">كلمة/دقيقة</div>
+        </div>
+        {sprint.targetWords > 0 && (
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
+            <Target className="w-5 h-5 mx-auto text-purple-500 mb-1" />
+            <div className="text-xl font-bold" data-testid="text-completion-target-pct">
+              <LtrNum>{Math.round((sprint.wordsWritten / sprint.targetWords) * 100)}</LtrNum>%
+            </div>
+            <div className="text-[10px] text-muted-foreground">من الهدف</div>
+          </div>
+        )}
+      </div>
+
+      {sprintStats && sprintStats.bestSprint > 0 && sprint.wordsWritten > sprintStats.bestSprint && (
+        <div className="bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-lg p-3 text-center">
+          <TrendingUp className="w-5 h-5 mx-auto text-amber-600 dark:text-amber-400 mb-1" />
+          <p className="text-sm font-bold text-amber-800 dark:text-amber-200">رقم قياسي جديد! 🏆</p>
+        </div>
+      )}
+
+      <Button onClick={onClose} variant="outline" className="w-full" data-testid="button-close-completion">
+        إغلاق
+      </Button>
+    </div>
   );
 }
 

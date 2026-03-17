@@ -11641,11 +11641,10 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
 
   // ── Writing Sprint Routes ──────────────────────────────────────────────────
   const createSprintSchema = z.object({
-    durationMinutes: z.number().int().min(1).max(120),
+    durationSeconds: z.number().int().min(1).max(7200),
     wordsWritten: z.number().int().min(0).max(100000),
     targetWords: z.number().int().min(0).max(100000).nullable().optional(),
     projectId: z.number().int().positive().nullable().optional(),
-    startedAt: z.string().datetime().optional(),
   });
 
   app.post("/api/writing-sprints", isAuthenticated, async (req: any, res) => {
@@ -11653,7 +11652,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const userId = req.user.claims.sub;
       const parsed = createSprintSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: formatZodErrors(parsed.error) });
-      const { durationMinutes, wordsWritten, targetWords, projectId, startedAt } = parsed.data;
+      const { durationSeconds, wordsWritten, targetWords, projectId } = parsed.data;
 
       if (projectId) {
         const proj = await storage.getProject(projectId);
@@ -11663,13 +11662,14 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const sprint = await storage.createWritingSprint({
         userId,
         projectId: projectId ?? null,
-        durationMinutes,
+        durationSeconds,
         wordsWritten,
         targetWords: targetWords ?? null,
-        status: "completed",
-        startedAt: startedAt ? new Date(startedAt) : new Date(Date.now() - durationMinutes * 60 * 1000),
-        endedAt: new Date(),
+        completedAt: new Date(),
       });
+
+      await updateWritingStreak(userId);
+
       res.json(sprint);
     } catch (error) {
       console.error("Create sprint error:", error);

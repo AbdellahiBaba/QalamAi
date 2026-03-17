@@ -289,7 +289,7 @@ export interface IStorage {
   getChallengeEntryVoteCount(entryId: number, userId?: string): Promise<{ voteCount: number; voted: boolean }>;
   createWritingSprint(data: InsertWritingSprint): Promise<WritingSprint>;
   getWritingSprintsByUser(userId: string, limit?: number): Promise<WritingSprint[]>;
-  getWritingSprintStats(userId: string): Promise<{ totalSprints: number; totalWords: number; totalMinutes: number; avgWordsPerSprint: number; bestSprint: number; thisWeekSprints: number; thisWeekWords: number }>;
+  getWritingSprintStats(userId: string): Promise<{ totalSprints: number; totalWords: number; totalMinutes: number; avgWordsPerSprint: number; bestSprint: number; thisWeekSprints: number; thisWeekWords: number; thisWeekMinutes: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3315,14 +3315,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWritingSprintsByUser(userId: string, limit = 20): Promise<WritingSprint[]> {
-    return db.select().from(writingSprints).where(eq(writingSprints.userId, userId)).orderBy(desc(writingSprints.createdAt)).limit(limit);
+    return db.select().from(writingSprints).where(eq(writingSprints.userId, userId)).orderBy(desc(writingSprints.completedAt)).limit(limit);
   }
 
-  async getWritingSprintStats(userId: string): Promise<{ totalSprints: number; totalWords: number; totalMinutes: number; avgWordsPerSprint: number; bestSprint: number; thisWeekSprints: number; thisWeekWords: number }> {
+  async getWritingSprintStats(userId: string): Promise<{ totalSprints: number; totalWords: number; totalMinutes: number; avgWordsPerSprint: number; bestSprint: number; thisWeekSprints: number; thisWeekWords: number; thisWeekMinutes: number }> {
     const allTime = await db.select({
       totalSprints: sql<number>`COUNT(*)::int`,
       totalWords: sql<number>`COALESCE(SUM(${writingSprints.wordsWritten}), 0)::int`,
-      totalMinutes: sql<number>`COALESCE(SUM(${writingSprints.durationMinutes}), 0)::int`,
+      totalSeconds: sql<number>`COALESCE(SUM(${writingSprints.durationSeconds}), 0)::int`,
       bestSprint: sql<number>`COALESCE(MAX(${writingSprints.wordsWritten}), 0)::int`,
     }).from(writingSprints).where(eq(writingSprints.userId, userId));
 
@@ -3331,18 +3331,20 @@ export class DatabaseStorage implements IStorage {
     const thisWeek = await db.select({
       cnt: sql<number>`COUNT(*)::int`,
       words: sql<number>`COALESCE(SUM(${writingSprints.wordsWritten}), 0)::int`,
-    }).from(writingSprints).where(and(eq(writingSprints.userId, userId), sql`${writingSprints.createdAt} >= ${weekAgo}`));
+      seconds: sql<number>`COALESCE(SUM(${writingSprints.durationSeconds}), 0)::int`,
+    }).from(writingSprints).where(and(eq(writingSprints.userId, userId), sql`${writingSprints.completedAt} >= ${weekAgo}`));
 
     const stats = allTime[0];
     const week = thisWeek[0];
     return {
       totalSprints: stats?.totalSprints ?? 0,
       totalWords: stats?.totalWords ?? 0,
-      totalMinutes: stats?.totalMinutes ?? 0,
+      totalMinutes: Math.round((stats?.totalSeconds ?? 0) / 60),
       avgWordsPerSprint: stats?.totalSprints ? Math.round((stats.totalWords ?? 0) / stats.totalSprints) : 0,
       bestSprint: stats?.bestSprint ?? 0,
       thisWeekSprints: week?.cnt ?? 0,
       thisWeekWords: week?.words ?? 0,
+      thisWeekMinutes: Math.round((week?.seconds ?? 0) / 60),
     };
   }
 }

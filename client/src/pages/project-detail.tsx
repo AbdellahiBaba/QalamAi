@@ -36,6 +36,7 @@ import { getProjectPriceUSD, userPlanCoversType } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
 import { toArabicOrdinal, estimateReadingTime } from "@shared/utils";
 import { AbuHashimChat } from "@/components/abu-hashim-chat";
+import { WritingSprintTimer } from "@/components/writing-sprint-timer";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 interface ProjectData extends NovelProject {
@@ -3889,6 +3890,11 @@ export default function ProjectDetail() {
                                     <AmbientIcon className={`w-3.5 h-3.5 ${ambientSound !== "off" ? "text-primary" : ""}`} />
                                     {ambientLabel}
                                   </Button>
+                                  <WritingSprintTimer
+                                    editorMode
+                                    projectId={project.id}
+                                    getWordCount={() => countWords(editContent)}
+                                  />
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {sessionWordDelta !== 0 && (
