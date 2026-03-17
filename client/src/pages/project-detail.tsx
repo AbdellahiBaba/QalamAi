@@ -39,6 +39,7 @@ import { AbuHashimChat } from "@/components/abu-hashim-chat";
 import { WritingSprintTimer } from "@/components/writing-sprint-timer";
 import { MilestoneCardModal } from "@/components/milestone-card-modal";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { StoryMap } from "@/components/story-map";
 
 interface ProjectData extends NovelProject {
   characters: Character[];
@@ -2385,6 +2386,12 @@ export default function ProjectDetail() {
                 <FileText className="w-4 h-4 ml-1.5" />
                 {labels.chaptersLabel}
               </TabsTrigger>
+              {project.chapters && project.chapters.length > 1 && (
+                <TabsTrigger value="story-map" data-testid="tab-story-map" className="flex-shrink-0">
+                  <Layers className="w-4 h-4 ml-1.5" />
+                  خريطة المشروع
+                </TabsTrigger>
+              )}
               {project.projectType !== "khawater" && project.projectType !== "social_media" && project.projectType !== "poetry" && (
                 <TabsTrigger value="glossary" data-testid="tab-glossary" className="flex-shrink-0">
                   <List className="w-4 h-4 ml-1.5" />
@@ -3763,6 +3770,16 @@ export default function ProjectDetail() {
               </Card>
             )}
           </TabsContent>}
+
+          <TabsContent value="story-map" className="space-y-4">
+            <ErrorBoundary fallbackMode="inline" label="خريطة المشروع">
+              <StoryMap
+                projectId={projectId!}
+                chapters={project.chapters || []}
+                projectType={project.projectType}
+              />
+            </ErrorBoundary>
+          </TabsContent>
 
           <TabsContent value="chapters" className="space-y-4">
             <ErrorBoundary fallbackMode="inline" label="الفصول">

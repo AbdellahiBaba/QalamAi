@@ -1063,6 +1063,80 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/projects/:id/structure-analysis", isAuthenticated, async (req: any, res) => {
+    try {
+      const projectId = parseIntParam(req.params.id);
+      if (!projectId) return res.status(400).json({ error: "معرّف المشروع غير صالح" });
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "يجب تسجيل الدخول" });
+
+      if (await checkApiSuspension(userId, res)) return;
+
+      const aiAllowed = await checkAiRateLimit(req, res);
+      if (!aiAllowed) return;
+
+      const project = await storage.getProjectWithDetails(projectId);
+      if (!project || project.userId !== userId) {
+        return res.status(404).json({ error: "المشروع غير موجود" });
+      }
+
+      const chapterSummary = (project.chapters || [])
+        .sort((a, b) => a.chapterNumber - b.chapterNumber)
+        .map(ch => {
+          const wc = ch.content ? ch.content.split(/\s+/).filter((w: string) => w.length > 0).length : 0;
+          return `الفصل ${ch.chapterNumber} "${ch.title || "بدون عنوان"}": ${wc} كلمة، الحالة: ${ch.status === "completed" ? "مكتمل" : "مسودة"}${ch.paywallEnabled ? " (مقفل)" : ""}`;
+        }).join("\n");
+
+      const totalWords = (project.chapters || []).reduce((sum, ch) => {
+        return sum + (ch.content ? ch.content.split(/\s+/).filter((w: string) => w.length > 0).length : 0);
+      }, 0);
+
+      const prompt = `أنت أبو هاشم، محرر أدبي عربي خبير. حلل البنية التالية لمشروع "${project.title}" (${project.projectType === "novel" ? "رواية" : project.projectType === "scenario" ? "سيناريو" : project.projectType === "short_story" ? "قصة قصيرة" : project.projectType === "essay" ? "مقال" : project.projectType === "memoire" ? "مذكرة" : "عمل أدبي"}) وقدم تحليلاً موجزاً بـ 3-4 جمل عن:
+1. توازن أطوال الفصول (هل هناك فصول قصيرة جداً أو طويلة جداً مقارنة بالمتوسط؟)
+2. الإيقاع العام (هل يتسارع أم يتباطأ؟)
+3. اقتراحات بنيوية (أين يمكن تحسين التوازن؟)
+
+إجمالي الكلمات: ${totalWords}
+عدد الفصول: ${(project.chapters || []).length}
+
+${chapterSummary}
+
+أجب بالعربية فقط. كن مختصراً ومفيداً.`;
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_completion_tokens: 500,
+        stream: true,
+        messages: [
+          { role: "system", content: "أنت أبو هاشم، مستشار أدبي عربي. أجب بتحليل بنيوي مختصر ومفيد." },
+          { role: "user", content: prompt },
+        ],
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+
+      await logApiUsage(userId, projectId, "structure-analysis", "gpt-4o-mini", {});
+    } catch (e: unknown) {
+      console.error("Error in structure analysis:", e);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "فشل تحليل البنية" });
+      } else {
+        res.end();
+      }
+    }
+  });
+
   async function checkAiRateLimit(req: any, res: any): Promise<boolean> {
     const userId = req.user?.claims?.sub;
     if (!userId) return false;
