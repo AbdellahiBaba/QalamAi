@@ -394,6 +394,10 @@ export default function ProjectDetail() {
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const [showRegenerateCoverConfirm, setShowRegenerateCoverConfirm] = useState(false);
+  const [coverStyle, setCoverStyle] = useState<string>("calligraphy");
+  const [coverVariants, setCoverVariants] = useState<string[]>([]);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null);
+  const [showCoverStylePicker, setShowCoverStylePicker] = useState(false);
   const [rewriteChapterId, setRewriteChapterId] = useState<number | null>(null);
   const [rewriteContent, setRewriteContent] = useState("");
   const [rewriteTone, setRewriteTone] = useState("formal");
@@ -2419,7 +2423,7 @@ export default function ProjectDetail() {
           </div>
 
           <TabsContent value="overview" className="space-y-6">
-            {project.coverImageUrl && (
+            {project.coverImageUrl && !showCoverStylePicker && (
               <Card>
                 <CardContent className="p-6 space-y-4">
                   <div className="flex justify-center">
@@ -2436,19 +2440,161 @@ export default function ProjectDetail() {
                       variant="outline"
                       size="sm"
                       disabled={isGeneratingCover}
-                      onClick={() => setShowRegenerateCoverConfirm(true)}
+                      onClick={() => { setCoverVariants([]); setSelectedVariantIndex(null); setShowCoverStylePicker(true); }}
                       data-testid="button-regenerate-cover"
                     >
-                      {isGeneratingCover ? (
-                        <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ إعادة إنشاء الغلاف...</>
-                      ) : (
-                        <><RefreshCw className="w-3.5 h-3.5 ml-1" /> إعادة إنشاء الغلاف</>
-                      )}
+                      <RefreshCw className="w-3.5 h-3.5 ml-1" /> إعادة إنشاء الغلاف بأسلوب جديد
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             )}
+
+            {(showCoverStylePicker || (!project.coverImageUrl && !showCoverStylePicker)) && (() => {
+              const showPicker = showCoverStylePicker || !project.coverImageUrl;
+              if (!showPicker) return null;
+              const coverStyles = [
+                { id: "calligraphy", label: "خط عربي", desc: "غلاف يهيمن عليه الخط العربي الأنيق", icon: "✦" },
+                { id: "artistic", label: "رسم فني", desc: "لوحة فنية بألوان زيتية ومائية", icon: "🎨" },
+                { id: "cinematic", label: "سينمائي", desc: "تصميم درامي بأسلوب ملصقات الأفلام", icon: "🎬" },
+                { id: "abstract", label: "تجريدي", desc: "أشكال هندسية مستوحاة من الزخرفة الإسلامية", icon: "◆" },
+              ];
+              return (
+                <Card>
+                  <CardContent className="p-4 sm:p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-serif text-lg font-semibold flex items-center gap-2" data-testid="text-cover-style-title">
+                        <Layers className="w-5 h-5 text-muted-foreground" />
+                        {coverVariants.length > 0 ? "اختر الغلاف المفضل" : "اختر أسلوب الغلاف"}
+                      </h3>
+                      {showCoverStylePicker && project.coverImageUrl && (
+                        <Button variant="ghost" size="sm" onClick={() => { setShowCoverStylePicker(false); setCoverVariants([]); setSelectedVariantIndex(null); }} className="h-7 text-xs" data-testid="button-cancel-cover-style">
+                          <X className="w-3 h-3 ml-1" /> إلغاء
+                        </Button>
+                      )}
+                    </div>
+
+                    {coverVariants.length === 0 && !isGeneratingCover && (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {coverStyles.map((s) => (
+                            <button
+                              key={s.id}
+                              onClick={() => setCoverStyle(s.id)}
+                              className={`p-3 rounded-lg border-2 text-center transition-all hover:shadow-md ${coverStyle === s.id ? "border-primary bg-primary/5 shadow-sm" : "border-muted hover:border-primary/40"}`}
+                              data-testid={`button-cover-style-${s.id}`}
+                            >
+                              <span className="text-2xl block mb-1">{s.icon}</span>
+                              <p className="text-sm font-semibold">{s.label}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{s.desc}</p>
+                            </button>
+                          ))}
+                        </div>
+                        <Button
+                          className="w-full"
+                          disabled={isGeneratingCover}
+                          onClick={async () => {
+                            setIsGeneratingCover(true);
+                            setCoverVariants([]);
+                            setSelectedVariantIndex(null);
+                            try {
+                              const res = await apiRequest("POST", `/api/projects/${projectId}/cover-variants`, { style: coverStyle });
+                              const data = await res.json();
+                              setCoverVariants(data.variants || []);
+                            } catch {
+                              toast({ title: "فشل في إنشاء تنويعات الغلاف", variant: "destructive" });
+                            } finally {
+                              setIsGeneratingCover(false);
+                            }
+                          }}
+                          data-testid="button-generate-cover-variants"
+                        >
+                          <Sparkles className="w-4 h-4 ml-2" />
+                          توليد ٣ تنويعات للغلاف
+                        </Button>
+                      </>
+                    )}
+
+                    {isGeneratingCover && coverVariants.length === 0 && (
+                      <div className="space-y-3">
+                        <p className="text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          جارٍ إنشاء ٣ تنويعات للغلاف...
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[0, 1, 2].map((i) => (
+                            <Skeleton key={i} className="aspect-square rounded-lg" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {coverVariants.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-3 gap-3">
+                          {coverVariants.map((variant, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setSelectedVariantIndex(idx)}
+                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:shadow-lg ${selectedVariantIndex === idx ? "border-primary ring-2 ring-primary/30 shadow-md" : "border-muted hover:border-primary/40"}`}
+                              data-testid={`button-select-variant-${idx}`}
+                            >
+                              <img src={variant} alt={`تنويعة ${idx + 1}`} className="w-full aspect-square object-cover" />
+                              {selectedVariantIndex === idx && (
+                                <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-1">
+                                  <CheckCircle className="w-4 h-4" />
+                                </div>
+                              )}
+                              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                                <span className="text-white text-xs font-medium">تنويعة {idx + 1}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            disabled={selectedVariantIndex === null || isGeneratingCover}
+                            onClick={async () => {
+                              if (selectedVariantIndex === null) return;
+                              setIsGeneratingCover(true);
+                              try {
+                                await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { coverImageUrl: coverVariants[selectedVariantIndex] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+                                toast({ title: "تم اعتماد الغلاف بنجاح" });
+                                setCoverVariants([]);
+                                setSelectedVariantIndex(null);
+                                setShowCoverStylePicker(false);
+                              } catch {
+                                toast({ title: "فشل في حفظ الغلاف", variant: "destructive" });
+                              } finally {
+                                setIsGeneratingCover(false);
+                              }
+                            }}
+                            data-testid="button-apply-variant"
+                          >
+                            <CheckCircle className="w-4 h-4 ml-2" />
+                            اعتماد هذا الغلاف
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={isGeneratingCover}
+                            onClick={() => {
+                              setCoverVariants([]);
+                              setSelectedVariantIndex(null);
+                            }}
+                            data-testid="button-retry-variants"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 ml-1" />
+                            إعادة التوليد
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3413,33 +3559,6 @@ export default function ProjectDetail() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground leading-relaxed">{project.mainIdea}</p>
-                  )}
-                  {!project.coverImageUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isGeneratingCover}
-                      onClick={async () => {
-                        setIsGeneratingCover(true);
-                        try {
-                          const res = await apiRequest("POST", `/api/projects/${projectId}/generate-cover`);
-                          await res.json();
-                          queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                          toast({ title: `تم إنشاء غلاف ${labels.typeLabel}` });
-                        } catch {
-                          toast({ title: "فشل في إنشاء الغلاف", variant: "destructive" });
-                        } finally {
-                          setIsGeneratingCover(false);
-                        }
-                      }}
-                      data-testid="button-generate-cover"
-                    >
-                      {isGeneratingCover ? (
-                        <><Loader2 className="w-3.5 h-3.5 ml-1 animate-spin" /> جارٍ إنشاء الغلاف...</>
-                      ) : (
-                        <><ImagePlus className="w-3.5 h-3.5 ml-1" /> إنشاء غلاف {labels.typeLabel}</>
-                      )}
-                    </Button>
                   )}
                 </CardContent>
               </Card>
@@ -5794,38 +5913,6 @@ export default function ProjectDetail() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={showRegenerateCoverConfirm} onOpenChange={setShowRegenerateCoverConfirm}>
-          <AlertDialogContent dir="rtl">
-            <AlertDialogHeader>
-              <AlertDialogTitle data-testid="text-confirm-regenerate-cover-title">إعادة إنشاء الغلاف</AlertDialogTitle>
-              <AlertDialogDescription data-testid="text-confirm-regenerate-cover-desc">
-                هل أنت متأكد من إعادة إنشاء غلاف الرواية؟ سيتم استبدال الغلاف الحالي بغلاف جديد.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-row-reverse gap-2">
-              <AlertDialogCancel data-testid="button-cancel-regenerate-cover">إلغاء</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  setShowRegenerateCoverConfirm(false);
-                  setIsGeneratingCover(true);
-                  try {
-                    const res = await apiRequest("POST", `/api/projects/${projectId}/generate-cover`);
-                    await res.json();
-                    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
-                    toast({ title: `تم إعادة إنشاء غلاف ${labels.typeLabel} بنجاح` });
-                  } catch {
-                    toast({ title: "فشل في إعادة إنشاء الغلاف", variant: "destructive" });
-                  } finally {
-                    setIsGeneratingCover(false);
-                  }
-                }}
-                data-testid="button-confirm-regenerate-cover"
-              >
-                نعم، أعد إنشاء الغلاف
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         <Dialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog}>
           <DialogContent className="max-w-md" dir="rtl">
