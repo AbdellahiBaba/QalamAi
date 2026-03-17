@@ -12861,6 +12861,30 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     }
   });
 
+  app.get("/api/courses/:id/lessons", isAuthenticated, async (req: any, res) => {
+    try {
+      const courseId = parseIntParam(req.params.id);
+      if (courseId === null) return res.status(400).json({ error: "معرّف غير صالح" });
+      const userId = req.user.claims.sub;
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
+      const isOwner = course.authorId === userId;
+      const enrollment = await storage.getCourseEnrollment(courseId, userId);
+      const isFree = course.priceCents === 0;
+      if (!isOwner && !enrollment && !isFree) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      const lessons = await storage.getCourseLessons(courseId);
+      const completions = enrollment ? await storage.getLessonCompletions(courseId, userId) : [];
+      const lessonsData = lessons.map(l => ({
+        ...l,
+        completed: completions.some((c: any) => c.lessonId === l.id),
+      }));
+      res.json(lessonsData);
+    } catch (error) {
+      console.error("Error fetching course lessons:", error);
+      res.status(500).json({ error: "فشل في تحميل الدروس" });
+    }
+  });
+
   app.post("/api/courses/:id/lessons", isAuthenticated, async (req: any, res) => {
     try {
       const courseId = parseIntParam(req.params.id);
@@ -12872,6 +12896,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const { title, content, excerptChapterId, exercisePrompt, orderIndex } = req.body;
       if (!title?.trim()) return res.status(400).json({ error: "عنوان الدرس مطلوب" });
       const existingLessons = await storage.getCourseLessons(courseId);
+      if (existingLessons.length >= 20) return res.status(400).json({ error: "الحد الأقصى 20 درساً لكل دورة" });
       const lesson = await storage.createCourseLesson({
         courseId,
         orderIndex: orderIndex !== undefined ? parseInt(orderIndex) : existingLessons.length,

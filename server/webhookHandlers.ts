@@ -82,6 +82,8 @@ export class WebhookHandlers {
       await WebhookHandlers.activateProject(userId, parseInt(projectId));
     } else if (type === 'author_tip') {
       await WebhookHandlers.handleTipCompleted(session);
+    } else if (type === 'course_purchase' && userId && session.metadata?.courseId) {
+      await WebhookHandlers.handleCourseEnrollment(userId, parseInt(session.metadata.courseId), session.id);
     } else {
       console.warn(`[Webhook] Unknown checkout type or missing fields: type=${type}`);
     }
@@ -329,6 +331,36 @@ export class WebhookHandlers {
       }).catch((err) => console.error('[Webhook] Failed to create notification:', err.message));
     } catch (err) {
       console.error('[Webhook] Error activating project:', err);
+    }
+  }
+
+  static async handleCourseEnrollment(userId: string, courseId: number, stripeSessionId: string): Promise<void> {
+    try {
+      const course = await storage.getWritingCourse(courseId);
+      if (!course) {
+        console.error(`[Webhook] Course not found: ${courseId}`);
+        return;
+      }
+      await storage.enrollInCourse(courseId, userId, stripeSessionId);
+      console.log(`[Webhook] User ${userId} enrolled in course ${courseId} via Stripe session ${stripeSessionId}`);
+
+      storage.createNotification({
+        userId,
+        type: "course_enrollment",
+        title: "تم التسجيل في الدورة!",
+        message: `تم تسجيلك بنجاح في دورة "${course.title}".`,
+        link: `/courses/${courseId}`,
+      }).catch((err) => console.error('[Webhook] Failed to create enrollment notification:', err.message));
+
+      storage.createNotification({
+        userId: course.authorId,
+        type: "new_enrollment",
+        title: "تسجيل جديد في دورتك",
+        message: `سجّل طالب جديد في دورة "${course.title}"`,
+        link: `/courses/${courseId}`,
+      }).catch((err) => console.error('[Webhook] Failed to create author enrollment notification:', err.message));
+    } catch (err) {
+      console.error('[Webhook] Error handling course enrollment:', err);
     }
   }
 }

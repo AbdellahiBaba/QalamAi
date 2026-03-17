@@ -40,6 +40,7 @@ import {
   Tag,
   Phone,
   FileEdit,
+  GraduationCap,
 } from "lucide-react";
 
 const primaryNavLinks = [
@@ -47,6 +48,7 @@ const primaryNavLinks = [
   { label: "المعرض", href: "/gallery", icon: Image },
   { label: "المقالات", href: "/essays", icon: Newspaper },
   { label: "تحديات الكتابة", href: "/challenges", icon: Trophy },
+  { label: "مدرسة الكتابة", href: "/courses", icon: GraduationCap },
   { label: "أبو هاشم", href: "/abu-hashim", icon: Feather },
 ];
 

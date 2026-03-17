@@ -248,8 +248,8 @@ export default function CourseEditor() {
         {isEditing && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>الدروس ({lessons.length})</CardTitle>
-              <Button size="sm" onClick={handleAddLesson} disabled={addLessonMutation.isPending} data-testid="button-add-lesson">
+              <CardTitle>الدروس ({lessons.length}/20)</CardTitle>
+              <Button size="sm" onClick={handleAddLesson} disabled={addLessonMutation.isPending || lessons.length >= 20} data-testid="button-add-lesson">
                 <Plus className="h-4 w-4 ml-1" /> إضافة درس
               </Button>
             </CardHeader>
