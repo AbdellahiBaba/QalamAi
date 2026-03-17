@@ -12687,15 +12687,34 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
   });
 
   // ── Writing Courses (مدرسة الكتابة) ─────────────────────────────────────────
-  app.get("/api/courses", async (_req: any, res) => {
+  app.get("/api/courses", async (req: any, res) => {
     try {
       const courses = await storage.getPublishedCourses();
+      const userId = req.user?.claims?.sub ?? null;
       const enriched = await Promise.all(courses.map(async (c) => {
         const author = await storage.getUser(c.authorId);
         const stats = await storage.getCourseStats(c.id);
         const lessons = await storage.getCourseLessons(c.id);
         const ratingData = await storage.getCourseAverageRating(c.id);
-        return { ...c, authorName: author?.displayName || author?.firstName || "كاتب", lessonCount: lessons.length, ...stats, ...ratingData };
+        let enrolled = false;
+        let completedLessonsCount = 0;
+        if (userId) {
+          const enrollment = await storage.getCourseEnrollment(c.id, userId);
+          enrolled = !!enrollment;
+          if (enrolled) {
+            const completions = await storage.getLessonCompletions(c.id, userId);
+            completedLessonsCount = completions.length;
+          }
+        }
+        return {
+          ...c,
+          authorName: author?.displayName || author?.firstName || "كاتب",
+          lessonCount: lessons.length,
+          enrolled,
+          completedLessonsCount,
+          ...stats,
+          ...ratingData,
+        };
       }));
       enriched.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
       res.json(enriched);
@@ -12784,10 +12803,11 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
           completions = await storage.getLessonCompletions(id, userId);
         }
       }
-      const canAccessContent = enrolled || isOwner || course.priceCents === 0;
-      const lessonsData = lessons.map((l, idx) => ({
+      // All enrolled users and owners get full access; courses are free to read after enrolling
+      const canAccessContent = enrolled || isOwner;
+      const lessonsData = lessons.map((l) => ({
         ...l,
-        content: canAccessContent ? l.content : (idx === 0 ? l.content : null),
+        content: canAccessContent ? l.content : null,
         completed: completions.some((c: any) => c.lessonId === l.id),
       }));
       res.json({
@@ -12856,8 +12876,8 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const isAdminUser = userRecord?.isAdmin === true;
       if (!course.isPublished && !isOwner && !isAdminUser) return res.status(403).json({ error: "الدورة غير منشورة" });
       const enrollment = await storage.getCourseEnrollment(courseId, userId);
-      const isFree = course.priceCents === 0;
-      if (!isOwner && !isAdminUser && !enrollment && !isFree) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      // Content accessible to enrolled users and owners; enrollment is free
+      if (!isOwner && !isAdminUser && !enrollment) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
       const lessons = await storage.getCourseLessons(courseId);
       const completions = enrollment ? await storage.getLessonCompletions(courseId, userId) : [];
       const lessonsData = lessons.map(l => ({
@@ -13017,17 +13037,8 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const course = await storage.getWritingCourse(courseId);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       if (!course.isPublished) return res.status(403).json({ error: "الدورة غير منشورة بعد" });
-      if (course.priceCents > 0 && course.authorId !== userId && !FREE_ACCESS_USER_IDS.includes(userId)) {
-        const { sessionId } = req.body;
-        if (!sessionId) return res.status(400).json({ error: "يجب إتمام عملية الدفع أولاً" });
-        const stripe = await getUncachableStripeClient();
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
-        if (session.payment_status !== "paid") return res.status(400).json({ error: "الدفع لم يكتمل" });
-        if (session.metadata?.courseId !== String(courseId) || session.metadata?.userId !== userId) {
-          return res.status(400).json({ error: "جلسة دفع غير صالحة" });
-        }
-      }
-      const enrollment = await storage.enrollInCourse(courseId, userId, req.body?.sessionId);
+      // Enrollment is free; all published courses are open to enroll
+      const enrollment = await storage.enrollInCourse(courseId, userId);
       await notifyUser(course.authorId, "enrollment", "تسجيل جديد في دورتك", `سجّل طالب جديد في دورة "${course.title}"`, `/courses/${courseId}`);
       res.json(enrollment);
     } catch (error) {
@@ -13046,7 +13057,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       if (!course.isPublished && course.authorId !== userId) return res.status(403).json({ error: "الدورة غير منشورة" });
       const enrollment = await storage.getCourseEnrollment(courseId, userId);
-      if (!enrollment && course.priceCents > 0 && course.authorId !== userId) return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      // Auto-enroll if not already enrolled (enrollment is free)
       if (!enrollment) {
         await storage.enrollInCourse(courseId, userId);
       }
@@ -13172,9 +13183,10 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const lessons = await storage.getCourseLessons(courseId);
       const lesson = lessons.find(l => l.id === lessonId);
       if (!lesson) return res.status(404).json({ error: "الدرس غير موجود" });
-      const enrollment = await storage.getCourseEnrollment(courseId, userId);
-      if (!enrollment && course.priceCents > 0 && course.authorId !== userId) {
-        return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      // Auto-enroll if not already enrolled (enrollment is free)
+      const existingEnrollment = await storage.getCourseEnrollment(courseId, userId);
+      if (!existingEnrollment) {
+        await storage.enrollInCourse(courseId, userId);
       }
 
       res.setHeader("Content-Type", "text/event-stream");
@@ -13244,9 +13256,10 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const lessons = await storage.getCourseLessons(courseId);
       const lesson = lessons.find(l => l.id === lessonId);
       if (!lesson) return res.status(404).json({ error: "الدرس غير موجود" });
+      // Auto-enroll if not already enrolled (enrollment is free)
       const enrollment = await storage.getCourseEnrollment(courseId, userId);
-      if (!enrollment && course.priceCents > 0 && course.authorId !== userId) {
-        return res.status(403).json({ error: "يجب التسجيل في الدورة أولاً" });
+      if (!enrollment) {
+        await storage.enrollInCourse(courseId, userId);
       }
 
       res.setHeader("Content-Type", "text/event-stream");

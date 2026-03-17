@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { useParams, useLocation, useSearch } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { BookOpen, GraduationCap, Users, Lock, CheckCircle2, CircleDot, ChevronLeft, Loader2, ShoppingCart, Quote, Sparkles, Brain } from "lucide-react";
+import { BookOpen, GraduationCap, Users, Lock, CheckCircle2, CircleDot, ChevronLeft, Loader2, Quote, Sparkles, Brain } from "lucide-react";
 
 function ExcerptSection({ chapterId }: { chapterId: number }) {
   const { data: chapter } = useQuery<any>({
@@ -260,7 +260,6 @@ export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const search = useSearch();
   const { toast } = useToast();
   const [activeLesson, setActiveLesson] = useState<number | null>(null);
   const [exerciseText, setExerciseText] = useState("");
@@ -270,22 +269,8 @@ export default function CourseDetail() {
     queryKey: ["/api/courses", id],
   });
 
-  const checkoutMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/courses/${id}/checkout`),
-    onSuccess: async (res) => {
-      const data = await res.json();
-      if (data.alreadyEnrolled) {
-        queryClient.invalidateQueries({ queryKey: ["/api/courses", id] });
-        toast({ title: "أنت مسجل بالفعل" });
-      } else if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
-    },
-    onError: () => toast({ title: "فشل في إنشاء عملية الدفع", variant: "destructive" }),
-  });
-
   const enrollMutation = useMutation({
-    mutationFn: (sessionId?: string) => apiRequest("POST", `/api/courses/${id}/enroll`, { sessionId }),
+    mutationFn: (_?: string) => apiRequest("POST", `/api/courses/${id}/enroll`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses/enrolled"] });
@@ -301,15 +286,6 @@ export default function CourseDetail() {
       toast({ title: "تم إكمال الدرس!" });
     },
   });
-
-  useEffect(() => {
-    const params = new URLSearchParams(search);
-    const payment = params.get("payment");
-    const sessionId = params.get("session_id");
-    if (payment === "success" && sessionId && user) {
-      enrollMutation.mutate(sessionId);
-    }
-  }, [search, user]);
 
   useEffect(() => {
     setExerciseText("");
@@ -509,11 +485,9 @@ export default function CourseDetail() {
           <div className="space-y-4">
             <Card>
               <CardContent className="p-6 text-center space-y-4">
-                <div className="text-3xl font-bold">
-                  {course.priceCents > 0 ? `$${(course.priceCents / 100).toFixed(2)}` : "مجانية"}
-                </div>
+                <div className="text-lg font-semibold text-muted-foreground">التسجيل مجاني</div>
                 {course.enrolled ? (
-                  <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-base px-4 py-1">
+                  <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-base px-4 py-1" data-testid="badge-enrolled">
                     <CheckCircle2 className="h-4 w-4 ml-1" /> مسجّل
                   </Badge>
                 ) : course.isOwner ? (
@@ -525,21 +499,17 @@ export default function CourseDetail() {
                     className="w-full"
                     onClick={() => {
                       if (!user) return setLocation("/login");
-                      if (course.priceCents === 0) {
-                        enrollMutation.mutate(undefined);
-                      } else {
-                        checkoutMutation.mutate();
-                      }
+                      enrollMutation.mutate(undefined);
                     }}
-                    disabled={checkoutMutation.isPending || enrollMutation.isPending}
+                    disabled={enrollMutation.isPending}
                     data-testid="button-enroll"
                   >
-                    {(checkoutMutation.isPending || enrollMutation.isPending) ? (
+                    {enrollMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin ml-2" />
                     ) : (
-                      <ShoppingCart className="h-4 w-4 ml-2" />
+                      <GraduationCap className="h-4 w-4 ml-2" />
                     )}
-                    {course.priceCents > 0 ? "اشترِ الدورة" : "سجّل مجاناً"}
+                    سجّل مجاناً
                   </Button>
                 )}
               </CardContent>

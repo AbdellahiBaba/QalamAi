@@ -288,9 +288,11 @@ export default function CoursesGallery() {
                         <span className="flex items-center gap-1"><BookOpen className="h-3.5 w-3.5" /> {course.lessonCount} درس</span>
                         <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {course.enrollmentCount}</span>
                       </div>
-                      <Badge variant={course.priceCents > 0 ? "default" : "secondary"}>
-                        {course.priceCents > 0 ? `$${(course.priceCents / 100).toFixed(2)}` : "مجانية"}
-                      </Badge>
+                      {course.enrolled ? (
+                        <Badge variant="secondary" className="text-xs text-green-600 border-green-400">مسجّل</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">مجانية</Badge>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
