@@ -12789,7 +12789,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const userId = req.user?.claims?.sub;
       const isOwner = userId === course.authorId;
       let isAdminViewer = false;
-      if (userId) { const u = await storage.getUser(userId); isAdminViewer = u?.isAdmin === true; }
+      if (userId) { const u = await storage.getUser(userId); isAdminViewer = u?.role === "admin"; }
       if (!course.isPublished && !isOwner && !isAdminViewer) return res.status(404).json({ error: "الدورة غير موجودة" });
       const author = await storage.getUser(course.authorId);
       const lessons = await storage.getCourseLessons(id);
@@ -12873,7 +12873,7 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       const isOwner = course.authorId === userId;
       const userRecord = await storage.getUser(userId);
-      const isAdminUser = userRecord?.isAdmin === true;
+      const isAdminUser = userRecord?.role === "admin";
       if (!course.isPublished && !isOwner && !isAdminUser) return res.status(403).json({ error: "الدورة غير منشورة" });
       const enrollment = await storage.getCourseEnrollment(courseId, userId);
       // Content accessible to enrolled users and owners; enrollment is free

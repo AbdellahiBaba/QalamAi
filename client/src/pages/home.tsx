@@ -291,6 +291,12 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: enrolledCourses } = useQuery<any[]>({
+    queryKey: ["/api/courses/enrolled"],
+    enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+  });
+
   const [trialRemaining, setTrialRemaining] = useState<{ hours: number; minutes: number } | null>(null);
 
   const [welcomeOpen, setWelcomeOpen] = useState(false);
@@ -1192,6 +1198,44 @@ export default function Home() {
 
         {/* Active Challenge Banner */}
         <ChallengeBanner />
+
+        {/* Writing School: Enrolled Incomplete Courses Highlight */}
+        {user && enrolledCourses && enrolledCourses.some(c => c.completedLessons < c.lessonCount) && (
+          <Card className="mb-6 border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50/60 to-violet-50/60 dark:from-indigo-950/30 dark:to-violet-950/30" data-testid="card-resume-courses">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <GraduationCap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-semibold text-indigo-700 dark:text-indigo-300">أكمل مسيرتك في مدرسة الكتابة</h3>
+              </div>
+              <div className="flex flex-col gap-2">
+                {enrolledCourses.filter(c => c.completedLessons < c.lessonCount).slice(0, 2).map(course => (
+                  <Link key={course.id} href={`/courses/${course.id}`}>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-white/70 dark:bg-white/5 border border-indigo-100 dark:border-indigo-900 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer" data-testid={`card-resume-course-${course.id}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{course.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{course.completedLessons} من {course.lessonCount} درس مكتمل</p>
+                        <div className="mt-1.5 h-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 overflow-hidden">
+                          <div
+                            className="h-full bg-indigo-500 rounded-full transition-all"
+                            style={{ width: `${course.lessonCount > 0 ? Math.round((course.completedLessons / course.lessonCount) * 100) : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-indigo-500 shrink-0" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              {enrolledCourses.filter(c => c.completedLessons < c.lessonCount).length > 2 && (
+                <Link href="/courses">
+                  <span className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer mt-2 block" data-testid="link-all-incomplete-courses">
+                    عرض جميع الدورات ({enrolledCourses.filter(c => c.completedLessons < c.lessonCount).length})
+                  </span>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Daily Writing Prompt */}
         {dailyPromptData?.prompt && (
