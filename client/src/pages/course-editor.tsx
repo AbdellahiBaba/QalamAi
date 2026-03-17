@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,7 @@ export default function CourseEditor() {
   const [description, setDescription] = useState("");
   const [priceCents, setPriceCents] = useState(0);
   const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [isPublished, setIsPublished] = useState(false);
   const [lessons, setLessons] = useState<LessonForm[]>([]);
   const [activeLessonIdx, setActiveLessonIdx] = useState<number | null>(null);
 
@@ -54,6 +56,7 @@ export default function CourseEditor() {
       setDescription(course.description || "");
       setPriceCents(course.priceCents || 0);
       setCoverImageUrl(course.coverImageUrl || "");
+      setIsPublished(course.isPublished || false);
       if (course.lessons) {
         setLessons(course.lessons.map((l: any) => ({
           id: l.id,
@@ -78,7 +81,7 @@ export default function CourseEditor() {
   });
 
   const updateCourseMutation = useMutation({
-    mutationFn: () => apiRequest("PUT", `/api/courses/${courseId}`, { title, description, priceCents, coverImageUrl: coverImageUrl || undefined }),
+    mutationFn: () => apiRequest("PUT", `/api/courses/${courseId}`, { title, description, priceCents, coverImageUrl: coverImageUrl || undefined, isPublished }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", courseId] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses/my"] });
@@ -235,13 +238,10 @@ export default function CourseEditor() {
               <Input type="number" value={priceCents} onChange={(e) => setPriceCents(parseInt(e.target.value) || 0)} min={0} data-testid="input-course-price" />
               {priceCents > 0 && <p className="text-xs text-muted-foreground mt-1">السعر: ${(priceCents / 100).toFixed(2)} — حصتك بعد العمولة (20%): ${((priceCents * 0.8) / 100).toFixed(2)}</p>}
             </div>
-            {isEditing && course && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                {course.isPublished ? (
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">منشورة</Badge>
-                ) : (
-                  <Badge variant="secondary">مسودة — ستُنشر بعد مراجعة الإدارة</Badge>
-                )}
+            {isEditing && (
+              <div className="flex items-center gap-3">
+                <Switch checked={isPublished} onCheckedChange={setIsPublished} data-testid="switch-publish" />
+                <Label>{isPublished ? "الدورة منشورة" : "مسودة (غير مرئية)"}</Label>
               </div>
             )}
             <div className="flex gap-2">

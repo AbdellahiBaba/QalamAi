@@ -12833,12 +12833,13 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
       const course = await storage.getWritingCourse(id);
       if (!course) return res.status(404).json({ error: "الدورة غير موجودة" });
       if (course.authorId !== userId) return res.status(403).json({ error: "غير مصرّح" });
-      const { title, description, priceCents, coverImageUrl } = req.body;
+      const { title, description, priceCents, coverImageUrl, isPublished } = req.body;
       const updated = await storage.updateWritingCourse(id, {
         ...(title !== undefined ? { title: sanitizeText(title).substring(0, 200) } : {}),
         ...(description !== undefined ? { description: sanitizeText(description).substring(0, 2000) } : {}),
         ...(priceCents !== undefined ? { priceCents: Math.max(0, parseInt(priceCents) || 0) } : {}),
         ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
+        ...(isPublished !== undefined ? { isPublished: !!isPublished } : {}),
       });
       res.json(updated);
     } catch (error) {
