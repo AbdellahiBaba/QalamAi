@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { GraduationCap, Plus, Trash2, Save, Loader2, ChevronLeft, ArrowUp, ArrowDown, BookOpen } from "lucide-react";
+import { GraduationCap, Plus, Trash2, Save, Loader2, ChevronLeft, ArrowUp, ArrowDown, BookOpen, ArrowRight } from "lucide-react";
+import { SharedNavbar } from "@/components/shared-navbar";
 
 interface LessonForm {
   id?: number;
@@ -176,11 +177,20 @@ export default function CourseEditor() {
 
   if (!user?.verified) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
-        <div className="text-center space-y-4">
-          <GraduationCap className="h-16 w-16 text-muted-foreground/30 mx-auto" />
-          <p className="text-lg">يجب أن تكون كاتباً موثقاً لإنشاء دورات</p>
-          <Button onClick={() => setLocation("/apply-verified")} data-testid="button-apply-verified">تقديم طلب التوثيق</Button>
+      <div className="min-h-screen bg-background" dir="rtl">
+        <SharedNavbar />
+        <div className="flex items-center justify-center pt-32">
+          <div className="text-center space-y-4">
+            <GraduationCap className="h-16 w-16 text-muted-foreground/30 mx-auto" />
+            <p className="text-lg">يجب أن تكون كاتباً موثقاً لإنشاء دورات</p>
+            <div className="flex gap-3 justify-center">
+              <Button variant="ghost" onClick={() => setLocation("/courses")} data-testid="button-back-courses-unverified">
+                <ArrowRight className="h-4 w-4 ml-1" />
+                العودة للدورات
+              </Button>
+              <Button onClick={() => setLocation("/apply-verified")} data-testid="button-apply-verified">تقديم طلب التوثيق</Button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -189,7 +199,8 @@ export default function CourseEditor() {
   if (isEditing && courseLoading) {
     return (
       <div className="min-h-screen bg-background" dir="rtl">
-        <div className="max-w-4xl mx-auto px-4 py-8 space-y-4">
+        <SharedNavbar />
+        <div className="max-w-4xl mx-auto px-4 pt-24 pb-8 space-y-4">
           <Skeleton className="h-10 w-1/2" />
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />
@@ -200,9 +211,10 @@ export default function CourseEditor() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Button variant="ghost" className="mb-4" onClick={() => setLocation("/courses")} data-testid="button-back-courses">
-          <ChevronLeft className="h-4 w-4 ml-1" />
+      <SharedNavbar />
+      <div className="max-w-4xl mx-auto px-4 pt-24 pb-8">
+        <Button variant="ghost" size="sm" className="mb-4 gap-2 text-muted-foreground" onClick={() => setLocation("/courses")} data-testid="button-back-courses">
+          <ArrowRight className="h-4 w-4" />
           العودة للدورات
         </Button>
 
