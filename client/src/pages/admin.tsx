@@ -754,95 +754,208 @@ function AdminTopVotedTab() {
     queryKey: ["/api/admin/top-voted"],
   });
 
+  const { data: featuredData, isLoading: featuredLoading, refetch: refetchFeatured } = useQuery<{ featured: { id: number; projectId: number; featuredAt: string; voteCount: number; project: { id: number; title: string; shareToken: string | null; authorName: string | null; authorId: string; coverImageUrl: string | null; projectType: string | null; mainIdea: string | null; authorProfileImage: string | null } }[] }>({
+    queryKey: ["/api/hall-of-glory/featured"],
+  });
+
   const featureMutation = useMutation({
     mutationFn: (projectId: number) =>
       apiRequest("POST", "/api/admin/hall-of-glory/feature", { projectId }),
     onSuccess: () => {
       toast({ title: "تمّ التمييز", description: "تمّت إضافة العمل إلى قاعة المجد." });
       refetch();
-      queryClient.invalidateQueries({ queryKey: ["/api/hall-of-glory/featured"] });
+      refetchFeatured();
     },
     onError: () => {
       toast({ title: "خطأ", description: "لم يتمكن النظام من تمييز العمل.", variant: "destructive" });
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const removeMutation = useMutation({
+    mutationFn: (projectId: number) =>
+      apiRequest("DELETE", `/api/admin/hall-of-glory/feature/${projectId}`),
+    onSuccess: () => {
+      toast({ title: "تمّت الإزالة", description: "تمّت إزالة العمل من قاعة المجد." });
+      refetch();
+      refetchFeatured();
+    },
+    onError: () => {
+      toast({ title: "خطأ", description: "فشلت الإزالة من قاعة المجد.", variant: "destructive" });
+    },
+  });
 
+  const featuredWorks = featuredData?.featured ?? [];
   const projects = data?.projects ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Currently Featured Section */}
       <div>
-        <h2 className="text-xl font-bold font-serif mb-1">الأعمال الأكثر تصويتاً</h2>
-        <p className="text-sm text-muted-foreground">ميّز الأعمال الأكثر تصويتاً لتظهر في قاعة المجد.</p>
+        <div className="flex items-center gap-2 mb-3">
+          <Crown className="w-5 h-5 text-amber-500" />
+          <h2 className="text-xl font-bold font-serif">الأعمال المميزة حالياً في قاعة المجد</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">يمكنك إزالة أي عمل من قاعة المجد بالضغط على زر الإزالة.</p>
+
+        {featuredLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : featuredWorks.length === 0 ? (
+          <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground" data-testid="text-no-featured">
+            لا توجد أعمال مميزة في قاعة المجد حتى الآن.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {featuredWorks.map((item) => {
+              const essayTypes = ["essay", "khawater", "memoire"];
+              const href = essayTypes.includes(item.project.projectType || "")
+                ? `/essay/${item.project.shareToken}`
+                : `/shared/${item.project.shareToken}`;
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 rounded-xl border p-4 bg-amber-500/5 border-amber-500/20"
+                  data-testid={`card-featured-manage-${item.id}`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {item.project.coverImageUrl && (
+                      <img
+                        src={item.project.coverImageUrl}
+                        alt={item.project.title}
+                        className="w-10 h-10 rounded-lg object-cover shrink-0 border"
+                        data-testid={`img-featured-cover-${item.id}`}
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold truncate" data-testid={`text-featured-title-${item.id}`}>{item.project.title}</p>
+                        {item.project.projectType && (
+                          <Badge variant="outline" className="text-[10px] shrink-0">
+                            {PROJECT_TYPE_LABELS[item.project.projectType] ?? item.project.projectType}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5" data-testid={`text-featured-author-${item.id}`}>{item.project.authorName}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1 text-xs font-medium text-amber-500">
+                      <Star className="w-3.5 h-3.5 fill-amber-400" />
+                      {item.voteCount}
+                    </div>
+                    {item.project.shareToken && (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                        data-testid={`link-featured-view-${item.id}`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => removeMutation.mutate(item.projectId)}
+                      disabled={removeMutation.isPending}
+                      data-testid={`button-remove-featured-${item.id}`}
+                      className="gap-1.5 text-xs h-7 px-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      إزالة من المجد
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {projects.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-10 text-center">لا توجد أعمال مُصوَّت عليها بعد.</p>
-      ) : (
-        <div className="space-y-3">
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              className="flex items-center justify-between gap-4 rounded-xl border p-4 bg-card"
-              data-testid={`card-top-voted-${project.id}`}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold truncate" data-testid={`text-voted-title-${project.id}`}>{project.title}</p>
-                  {project.projectType && (
-                    <Badge variant="outline" className="text-[10px] shrink-0" data-testid={`badge-type-voted-${project.id}`}>
-                      {PROJECT_TYPE_LABELS[project.projectType] ?? project.projectType}
-                    </Badge>
+      {/* Top Voted Section */}
+      <div>
+        <h2 className="text-xl font-bold font-serif mb-1">الأعمال الأكثر تصويتاً</h2>
+        <p className="text-sm text-muted-foreground mb-4">ميّز الأعمال الأكثر تصويتاً لتظهر في قاعة المجد.</p>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : projects.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-10 text-center">لا توجد أعمال مُصوَّت عليها بعد.</p>
+        ) : (
+          <div className="space-y-3">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="flex items-center justify-between gap-4 rounded-xl border p-4 bg-card"
+                data-testid={`card-top-voted-${project.id}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold truncate" data-testid={`text-voted-title-${project.id}`}>{project.title}</p>
+                    {project.projectType && (
+                      <Badge variant="outline" className="text-[10px] shrink-0" data-testid={`badge-type-voted-${project.id}`}>
+                        {PROJECT_TYPE_LABELS[project.projectType] ?? project.projectType}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5" data-testid={`text-voted-author-${project.id}`}>{project.authorName}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-1 text-sm font-medium text-amber-500" data-testid={`text-vote-count-${project.id}`}>
+                    <Star className="w-4 h-4 fill-amber-400" />
+                    {project.voteCount}
+                  </div>
+                  {project.shareToken && (
+                    <a
+                      href={`/essay/${project.shareToken}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                      data-testid={`link-voted-essay-${project.id}`}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                  {project.alreadyFeatured ? (
+                    <div className="flex items-center gap-2">
+                      <Badge className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1" data-testid={`badge-featured-${project.id}`}>
+                        <Crown className="w-3 h-3" /> في المجد
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeMutation.mutate(project.id)}
+                        disabled={removeMutation.isPending}
+                        data-testid={`button-remove-voted-${project.id}`}
+                        className="gap-1 text-xs h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        إزالة
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => featureMutation.mutate(project.id)}
+                      disabled={featureMutation.isPending}
+                      data-testid={`button-feature-${project.id}`}
+                      className="gap-1.5 text-xs"
+                    >
+                      <Crown className="w-3.5 h-3.5" />
+                      تمييز في المجد
+                    </Button>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5" data-testid={`text-voted-author-${project.id}`}>{project.authorName}</p>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="flex items-center gap-1 text-sm font-medium text-amber-500" data-testid={`text-vote-count-${project.id}`}>
-                  <Star className="w-4 h-4 fill-amber-400" />
-                  {project.voteCount}
-                </div>
-                {project.shareToken && (
-                  <a
-                    href={`/essay/${project.shareToken}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                    data-testid={`link-voted-essay-${project.id}`}
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                )}
-                {project.alreadyFeatured ? (
-                  <Badge className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1" data-testid={`badge-featured-${project.id}`}>
-                    <Crown className="w-3 h-3" /> في المجد
-                  </Badge>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => featureMutation.mutate(project.id)}
-                    disabled={featureMutation.isPending}
-                    data-testid={`button-feature-${project.id}`}
-                    className="gap-1.5 text-xs"
-                  >
-                    <Crown className="w-3.5 h-3.5" />
-                    تمييز في المجد
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

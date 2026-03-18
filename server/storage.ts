@@ -288,7 +288,8 @@ export interface IStorage {
   getUserVote(projectId: number, userId: string): Promise<WorkVote | undefined>;
   getTopVotedProjects(limit?: number): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; alreadyFeatured: boolean }>>;
   featureInHallOfGlory(projectId: number, adminId: string): Promise<HallOfGloryFeatured>;
-  getFeaturedHallOfGlory(): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>>;
+  removeFromHallOfGlory(projectId: number): Promise<void>;
+  getFeaturedHallOfGlory(): Promise<Array<NovelProject & { featuredId: number; voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>>;
   toggleChallengeEntryVote(entryId: number, userId: string): Promise<{ voted: boolean; voteCount: number }>;
   getChallengeEntryVoteCount(entryId: number, userId?: string): Promise<{ voteCount: number; voted: boolean }>;
   createWritingSprint(data: InsertWritingSprint): Promise<WritingSprint>;
@@ -3307,10 +3308,15 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async getFeaturedHallOfGlory(): Promise<Array<NovelProject & { voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>> {
+  async removeFromHallOfGlory(projectId: number): Promise<void> {
+    await db.delete(hallOfGloryFeatured).where(eq(hallOfGloryFeatured.projectId, projectId));
+  }
+
+  async getFeaturedHallOfGlory(): Promise<Array<NovelProject & { featuredId: number; voteCount: number; authorName: string | null; authorProfileImage: string | null; authorId: string; featuredAt: Date | null }>> {
     const rows = await db
       .select({
         project: novelProjects,
+        featuredId: hallOfGloryFeatured.id,
         voteCount: count(workVotes.id),
         authorName: sql<string | null>`COALESCE(${users.displayName}, ${users.firstName})`,
         authorProfileImage: users.profileImageUrl,
@@ -3321,9 +3327,9 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(novelProjects, eq(novelProjects.id, hallOfGloryFeatured.projectId))
       .leftJoin(users, eq(users.id, novelProjects.userId))
       .leftJoin(workVotes, eq(workVotes.projectId, novelProjects.id))
-      .groupBy(novelProjects.id, users.displayName, users.firstName, users.profileImageUrl, users.id, hallOfGloryFeatured.featuredAt)
+      .groupBy(novelProjects.id, users.displayName, users.firstName, users.profileImageUrl, users.id, hallOfGloryFeatured.featuredAt, hallOfGloryFeatured.id)
       .orderBy(desc(hallOfGloryFeatured.featuredAt));
-    return rows.map(r => ({ ...r.project, voteCount: Number(r.voteCount), authorName: r.authorName, authorProfileImage: r.authorProfileImage, authorId: r.authorId ?? r.project.userId, featuredAt: r.featuredAt }));
+    return rows.map(r => ({ ...r.project, featuredId: r.featuredId, voteCount: Number(r.voteCount), authorName: r.authorName, authorProfileImage: r.authorProfileImage, authorId: r.authorId ?? r.project.userId, featuredAt: r.featuredAt }));
   }
 
   async toggleChallengeEntryVote(entryId: number, userId: string): Promise<{ voted: boolean; voteCount: number }> {

@@ -10689,8 +10689,8 @@ ${ch.content}
   app.get("/api/hall-of-glory/featured", async (_req, res) => {
     try {
       const featured = await storage.getFeaturedHallOfGlory();
-      const mapped = featured.map((f, idx) => ({
-        id: idx + 1,
+      const mapped = featured.map((f) => ({
+        id: f.featuredId,
         projectId: f.id,
         featuredAt: f.featuredAt ? f.featuredAt.toISOString() : new Date().toISOString(),
         voteCount: f.voteCount,
@@ -11983,6 +11983,18 @@ ${postIndex === 0 ? "ركز على سهولة الاستخدام والبدء م
     } catch (error) {
       console.error("[Admin] Feature in HoG error:", error);
       res.status(500).json({ error: "فشل في الإضافة إلى قاعة المجد" });
+    }
+  });
+
+  app.delete("/api/admin/hall-of-glory/feature/:projectId", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const projectId = parseIntParam(req.params.projectId);
+      if (!projectId) return res.status(400).json({ error: "معرف مشروع غير صالح" });
+      await storage.removeFromHallOfGlory(projectId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Remove from HoG error:", error);
+      res.status(500).json({ error: "فشل في الإزالة من قاعة المجد" });
     }
   });
 
