@@ -210,7 +210,14 @@ export default function HallOfGlory() {
     <div className="min-h-screen bg-background flex flex-col" dir="rtl">
       <SharedNavbar />
 
-      <section className="relative overflow-hidden py-16 sm:py-20 text-center">
+      <div className="max-w-5xl mx-auto px-4 pt-20">
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-hall-of-glory">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
+      </div>
+
+      <section className="relative overflow-hidden py-8 sm:py-12 text-center">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-yellow-500/30 to-transparent" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,_rgba(234,179,8,0.08)_0%,_transparent_60%)]" />
