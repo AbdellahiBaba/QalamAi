@@ -32,6 +32,7 @@ import {
   BookMarked,
   ScrollText,
   Award,
+  ArrowRight,
 } from "lucide-react";
 
 const novelFeatures = [
@@ -264,7 +265,13 @@ export default function Features() {
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />
 
-      <section className="pt-32 pb-16 px-6">
+      <div className="max-w-6xl mx-auto px-6 pt-24">
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-features">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
+      </div>
+      <section className="pt-8 pb-16 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="font-serif text-4xl lg:text-5xl font-bold mb-6 text-foreground" data-testid="text-features-hero-title">
             مميزات <span className="text-primary">QalamAI</span>

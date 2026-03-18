@@ -4,9 +4,10 @@ import { SharedNavbar } from "@/components/shared-navbar";
 import { SharedFooter } from "@/components/shared-footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-import { Trophy, Eye, Users, BookOpen, Star, BadgeCheck, Coffee } from "lucide-react";
+import { Trophy, Eye, Users, BookOpen, Star, BadgeCheck, Coffee, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
@@ -66,6 +67,10 @@ export default function Leaderboard() {
       <SharedNavbar />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16">
+        <Button variant="ghost" size="sm" className="mb-4 gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-leaderboard">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
         <div className="flex items-center gap-3 mb-2">
           <Trophy className="w-7 h-7 text-yellow-500" />
           <h1 className="font-serif text-3xl font-bold" data-testid="text-leaderboard-title">لوحة الكتّاب المتصدرين</h1>

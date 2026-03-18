@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Feather, Heart, Shield, BookOpen, Cpu, Globe, Eye, Compass, Gem, PenTool } from "lucide-react";
+import { Feather, Heart, Shield, BookOpen, Cpu, Globe, Eye, Compass, Gem, PenTool, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { SharedNavbar } from "@/components/shared-navbar";
@@ -45,7 +45,13 @@ export default function About() {
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />
 
-      <section className="pt-32 pb-16 px-6">
+      <div className="max-w-4xl mx-auto px-6 pt-24">
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-about">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
+      </div>
+      <section className="pt-8 pb-16 px-6">
         <div className="max-w-4xl mx-auto text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
             <BookOpen className="w-4 h-4 text-primary" />

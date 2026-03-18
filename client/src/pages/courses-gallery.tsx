@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, GraduationCap, Users, Plus, Star, Flame, Loader2, CheckCircle2 } from "lucide-react";
+import { BookOpen, GraduationCap, Users, Plus, Star, Flame, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -82,6 +82,10 @@ export default function CoursesGallery() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <div className="max-w-6xl mx-auto px-4 py-8">
+        <Button variant="ghost" size="sm" className="mb-4 gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-courses-gallery">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold font-serif flex items-center gap-3" data-testid="text-courses-title">

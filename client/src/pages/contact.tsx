@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mail, Send, MapPin, Clock, Loader2 } from "lucide-react";
+import { Mail, Send, MapPin, Clock, Loader2, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -46,7 +46,13 @@ export default function Contact() {
     <div className="min-h-screen bg-background" dir="rtl">
       <SharedNavbar />
 
-      <section className="pt-32 pb-16 px-6">
+      <div className="max-w-6xl mx-auto px-6 pt-24">
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-contact">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
+      </div>
+      <section className="pt-8 pb-16 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="font-serif text-4xl lg:text-5xl font-bold mb-4" data-testid="text-contact-title">
             تواصل <span className="text-primary">معنا</span>

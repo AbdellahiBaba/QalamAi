@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { BookMarked, Plus, Trash2, Globe, Lock, ExternalLink, BookOpen, ChevronDown, ChevronUp, X } from "lucide-react";
+import { BookMarked, Plus, Trash2, Globe, Lock, ExternalLink, BookOpen, ChevronDown, ChevronUp, X, ArrowRight } from "lucide-react";
 
 interface Collection {
   id: number;
@@ -187,6 +187,10 @@ export default function MyLists() {
       <SharedNavbar />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 pb-16">
+        <Button variant="ghost" size="sm" className="mb-4 gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-my-lists">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <BookMarked className="w-7 h-7 text-primary" />

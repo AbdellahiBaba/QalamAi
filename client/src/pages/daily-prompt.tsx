@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Flame, PenLine, Users, Clock, Trophy, ChevronDown, ChevronUp, Send, Lock } from "lucide-react";
+import { Flame, PenLine, Users, Clock, Trophy, ChevronDown, ChevronUp, Send, Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -157,6 +157,10 @@ export default function DailyPromptPage() {
       <SharedNavbar />
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10 space-y-8">
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => window.history.back()} data-testid="button-back-daily-prompt">
+          <ArrowRight className="w-4 h-4" />
+          رجوع
+        </Button>
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium">
