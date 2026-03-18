@@ -100,7 +100,7 @@ const createProjectSchema = z.object({
   poetryEmotionLevel: z.number().int().min(1).max(10).optional().nullable(),
   poetryRawiHaraka: z.string().max(100).optional().nullable(),
   poetryRidf: z.string().max(500).optional().nullable(),
-  poetryMuarada: z.string().max(500).optional().nullable(),
+  poetryMuarada: z.string().max(10000).optional().nullable(),
   memoireUniversity: z.string().max(500).optional().nullable(),
   memoireCountry: z.string().max(200).optional().nullable(),
   memoireFaculty: z.string().max(500).optional().nullable(),
