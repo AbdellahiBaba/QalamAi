@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatCents } from "@/lib/utils";
+import LtrNum from "@/components/ui/ltr-num";
 import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -847,7 +848,7 @@ export default function SharedProject() {
                       <Lock className="w-8 h-8 text-amber-500 mx-auto" />
                       <p className="font-serif text-base font-semibold">هذا الفصل مدفوع</p>
                       <p className="text-sm text-muted-foreground">
-                        افتح هذا الفصل مقابل <span className="font-bold text-foreground">${formatCents(ch.priceCents || 199)}</span>
+                        افتح هذا الفصل مقابل <span className="font-bold text-foreground">$<LtrNum>{formatCents(ch.priceCents || 199)}</LtrNum></span>
                       </p>
                       <Button
                         className="gap-2"

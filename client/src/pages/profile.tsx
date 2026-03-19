@@ -66,7 +66,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
-import { formatCents } from "@/lib/utils";
+import { formatCents, formatDollars } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
 import { COUNTRIES, getCountry } from "@/lib/countries";
@@ -1137,7 +1137,7 @@ export default function Profile() {
                   <div>
                     <p className="text-sm text-muted-foreground">إكراميات مستلمة</p>
                     <p className="text-xl font-bold" data-testid="text-tips-total">
-                      ${formatCents(tipsReceived?.totalCents ?? 0)} <span className="text-sm font-normal text-muted-foreground">({tipsReceived?.tips?.length ?? 0} داعم)</span>
+                      $<LtrNum>{formatCents(tipsReceived?.totalCents ?? 0)}</LtrNum> <span className="text-sm font-normal text-muted-foreground">({tipsReceived?.tips?.length ?? 0} داعم)</span>
                     </p>
                   </div>
                 </CardContent>
@@ -1378,7 +1378,7 @@ export default function Profile() {
                           <div className="flex items-center gap-3 flex-wrap">
                             {project.paid && (
                               <span className="text-sm font-medium text-muted-foreground" data-testid={`text-price-${project.id}`}>
-                                <LtrNum>{getProjectPriceUSD(project.pageCount)}</LtrNum> دولار
+                                <LtrNum>{formatDollars(getProjectPriceUSD(project.pageCount))}</LtrNum> دولار
                               </span>
                             )}
                             <span

@@ -22,7 +22,7 @@ import { Menu } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { NovelProject, Notification } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
-import { formatCents } from "@/lib/utils";
+import { formatCents, formatDollars } from "@/lib/utils";
 import { estimateReadingTime } from "@shared/utils";
 import { useMemo, useState, useEffect, useRef, lazy, Suspense } from "react";
 import LtrNum from "@/components/ui/ltr-num";
@@ -1127,7 +1127,7 @@ export default function Home() {
                 <Coffee className="w-4 h-4 text-amber-600" />
                 <h3 className="font-semibold text-sm">الدعم الذي تلقيته</h3>
                 <span className="mr-auto text-xs text-amber-600 font-medium">
-                  {formatCents(tipsReceived.filter(t => t.status === "completed").reduce((sum, t) => sum + t.amountCents, 0))} USD
+                  $<LtrNum>{formatCents(tipsReceived.filter(t => t.status === "completed").reduce((sum, t) => sum + t.amountCents, 0))}</LtrNum> USD
                 </span>
               </div>
               <div className="space-y-2">
@@ -1138,7 +1138,7 @@ export default function Home() {
                       <AvatarFallback className="text-xs">{tip.fromUserName?.[0] ?? "?"}</AvatarFallback>
                     </Avatar>
                     <span className="flex-1 truncate text-muted-foreground">{tip.fromUserName ?? "قارئ مجهول"}</span>
-                    <span className="text-amber-600 font-medium shrink-0" dir="ltr">${formatCents(tip.amountCents)}</span>
+                    <span className="text-amber-600 font-medium shrink-0">$<LtrNum>{formatCents(tip.amountCents)}</LtrNum></span>
                     <span className="text-xs text-muted-foreground shrink-0">
                       {new Date(tip.createdAt).toLocaleDateString("ar-EG", { month: "short", day: "numeric" })}
                     </span>
@@ -1670,7 +1670,7 @@ export default function Home() {
                     {!project.paid && (
                       <div className="flex items-center justify-between gap-2 pt-1">
                         <span className="text-sm font-semibold text-primary" data-testid={`text-price-${project.id}`}>
-                          <LtrNum>{getProjectPriceUSD(project.pageCount)}</LtrNum> دولار
+                          <LtrNum>{formatDollars(getProjectPriceUSD(project.pageCount))}</LtrNum> دولار
                         </span>
                         <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                           <CreditCard className="w-3.5 h-3.5" />

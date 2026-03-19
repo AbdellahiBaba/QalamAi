@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatDollars } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { ttqTrack, ttqIdentify } from "@/lib/ttq";
 import { useDocumentTitle } from "@/hooks/use-document-title";
@@ -2216,7 +2217,7 @@ export default function ProjectDetail() {
                     <>
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="text-2xl font-bold text-red-800 dark:text-red-300" data-testid="text-project-price">
-                          <LtrNum>{getProjectPriceUSD(project.pageCount)}</LtrNum> دولار
+                          <LtrNum>{formatDollars(getProjectPriceUSD(project.pageCount))}</LtrNum> دولار
                         </div>
                         <span className="text-sm text-red-600 dark:text-red-400">
                           (<LtrNum>{project.pageCount}</LtrNum> صفحة)

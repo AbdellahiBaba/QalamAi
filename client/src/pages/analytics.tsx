@@ -254,7 +254,7 @@ export default function Analytics() {
                     <Coffee className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-total-tips-card">
-                    ${formatCents(totalTipsCents)}
+                    $<LtrNum>{formatCents(totalTipsCents)}</LtrNum>
                   </div>
                 </CardContent>
               </Card>
@@ -560,7 +560,7 @@ export default function Analytics() {
                   <div className="text-center mb-4 p-3 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">إجمالي الإكراميات</p>
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-total-tips">
-                      ${formatCents(tipsData.totalCents)}
+                      $<LtrNum>{formatCents(tipsData.totalCents)}</LtrNum>
                     </p>
                   </div>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -575,7 +575,7 @@ export default function Analytics() {
                           </span>
                         </div>
                         <Badge variant="outline" className="text-green-600 dark:text-green-400">
-                          ${formatCents(tip.amountCents)}
+                          $<LtrNum>{formatCents(tip.amountCents)}</LtrNum>
                         </Badge>
                       </div>
                     ))}
