@@ -2523,7 +2523,7 @@ export default function ProjectDetail() {
                         onClick={async () => {
                           setIsGeneratingCover(true);
                           try {
-                            await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { imageUrl: coverVariants[previewVariantIndex].imageUrl });
+                            await apiRequest("POST", `/api/projects/${projectId}/apply-cover-variant`, { variantIndex: previewVariantIndex });
                             queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
                             toast({ title: "تم اعتماد الغلاف بنجاح" });
                             setShowCoverVariantsDialog(false);

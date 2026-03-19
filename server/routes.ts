@@ -24,6 +24,8 @@ import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 import path from "path";
 import crypto from "crypto";
 
+const coverVariantsCache = new Map<number, Array<{ style: string; label: string; imageUrl: string }>>();
+
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -3530,6 +3532,8 @@ ${allPages.map(p => `  <url>
         logImageUsage(req.user.claims.sub, id, "cover_variant");
       }
 
+      coverVariantsCache.set(id, variants as Array<{ style: string; label: string; imageUrl: string }>);
+
       res.json({ variants });
     } catch (error) {
       console.error("Error generating cover variants:", error);
@@ -3555,12 +3559,18 @@ ${allPages.map(p => `  <url>
         }
       }
 
-      const { imageUrl } = req.body;
-      if (!imageUrl || typeof imageUrl !== "string" || !imageUrl.startsWith("data:image/")) {
-        return res.status(400).json({ error: "بيانات الصورة غير صالحة" });
+      const { variantIndex } = req.body;
+      if (typeof variantIndex !== "number") {
+        return res.status(400).json({ error: "رقم التنويع غير صالح" });
       }
+      const cachedVariants = coverVariantsCache.get(id);
+      if (!cachedVariants || !cachedVariants[variantIndex]) {
+        return res.status(400).json({ error: "التنويع غير موجود — أعد إنشاء الغلاف" });
+      }
+      const imageUrl = cachedVariants[variantIndex].imageUrl;
 
       await storage.updateProject(id, { coverImageUrl: imageUrl });
+      coverVariantsCache.delete(id);
       logImageUsage(req.user.claims.sub, id, "cover_apply");
       res.json({ coverImageUrl: imageUrl });
     } catch (error) {
