@@ -21,7 +21,7 @@ import {
   Sparkles, ChevronDown, ChevronUp, PenTool, Download, Lock, CreditCard,
   RefreshCw, Pencil, Save, X, Eye, ImagePlus, UserPlus, Plus, RotateCcw, History,
   Share2, Copy, LinkIcon, Bookmark, BookmarkCheck, Shield, List, Wand2, Info, Clock, Keyboard, Target, Trash2, MoreVertical, Crown, Layers,
-  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck, AlertTriangle, FileEdit
+  Maximize2, Minimize2, Music, CloudRain, Coffee, Type, Focus, Tag, UserCheck, AlertTriangle, FileEdit, Check
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -4495,20 +4495,48 @@ export default function ProjectDetail() {
                                             const revised = editorialReviewContent.slice(idx + marker.length).trim();
                                             if (!revised) return null;
                                             return (
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="text-xs h-7"
-                                                onClick={() => {
-                                                  setEditContent(revised);
-                                                  setEditingChapter(chapter.id);
-                                                  toast({ title: "تم تحميل النص المنقّح في المحرر" });
-                                                }}
-                                                data-testid={`button-apply-editorial-${chapter.id}`}
-                                              >
-                                                <Pencil className="w-3 h-3 ml-1" />
-                                                فتح المنقّح في المحرر
-                                              </Button>
+                                              <>
+                                                <Button
+                                                  size="sm"
+                                                  variant="default"
+                                                  className="text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                                                  disabled={saveChapterMutation.isPending}
+                                                  onClick={() => {
+                                                    saveChapterMutation.mutate(
+                                                      { chapterId: chapter.id, content: revised, silent: true },
+                                                      {
+                                                        onSuccess: () => {
+                                                          setEditorialReviewChapterId(null);
+                                                          setEditorialReviewContent("");
+                                                          toast({ title: "✓ تم تطبيق النص المنقّح على الفصل" });
+                                                        },
+                                                      }
+                                                    );
+                                                  }}
+                                                  data-testid={`button-apply-editorial-direct-${chapter.id}`}
+                                                >
+                                                  {saveChapterMutation.isPending ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                  ) : (
+                                                    <Check className="w-3 h-3" />
+                                                  )}
+                                                  تطبيق مباشرةً
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="text-xs h-7"
+                                                  onClick={() => {
+                                                    setEditContent(revised);
+                                                    setEditingChapter(chapter.id);
+                                                    toast({ title: "تم تحميل النص المنقّح في المحرر" });
+                                                  }}
+                                                  data-testid={`button-apply-editorial-${chapter.id}`}
+                                                >
+                                                  <Pencil className="w-3 h-3 ml-1" />
+                                                  فتح في المحرر
+                                                </Button>
+                                              </>
                                             );
                                           })()}
                                           <Button
