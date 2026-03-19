@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { FREE_ANALYSIS_USES, PAID_ANALYSIS_USES } from "@shared/schema";
 import LtrNum from "@/components/ui/ltr-num";
+import { formatCents, formatDollars } from "@/lib/utils";
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -3189,7 +3190,7 @@ export default function Admin() {
                       <CardContent className="p-5 text-center">
                         <DollarSign className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
                         <div className="text-3xl font-bold mb-1" data-testid="text-revenue-total">
-                          ${(analytics.revenueData.totalRevenue / 100).toFixed(2)}
+                          ${formatCents(analytics.revenueData.totalRevenue)}
                         </div>
                         <div className="text-xs text-muted-foreground">إجمالي الإيرادات</div>
                       </CardContent>
@@ -3198,7 +3199,7 @@ export default function Admin() {
                       <CardContent className="p-5 text-center">
                         <DollarSign className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
                         <div className="text-3xl font-bold mb-1" data-testid="text-revenue-monthly">
-                          ${(analytics.revenueData.monthlyRevenue / 100).toFixed(2)}
+                          ${formatCents(analytics.revenueData.monthlyRevenue)}
                         </div>
                         <div className="text-xs text-muted-foreground">إيرادات الشهر</div>
                       </CardContent>
@@ -3210,7 +3211,7 @@ export default function Admin() {
                           {analytics.revenueData.revenueByType.map((item) => (
                             <div key={item.type} className="flex items-center justify-between gap-2 text-sm" data-testid={`text-revenue-type-${item.type}`}>
                               <span>{projectTypeLabels[item.type] || item.type}</span>
-                              <span className="font-medium">${(item.amount / 100).toFixed(2)}</span>
+                              <span className="font-medium">${formatCents(item.amount)}</span>
                             </div>
                           ))}
                         </div>
@@ -3223,7 +3224,7 @@ export default function Admin() {
                           {analytics.revenueData.paidPlans.map((item) => (
                             <div key={item.plan} className="flex items-center justify-between gap-2 text-sm" data-testid={`text-paid-plan-${item.plan}`}>
                               <span>{planLabels[item.plan] || item.plan} ({item.count})</span>
-                              <span className="font-medium">${(item.revenue / 100).toFixed(2)}</span>
+                              <span className="font-medium">${formatCents(item.revenue)}</span>
                             </div>
                           ))}
                         </div>
@@ -3611,7 +3612,7 @@ export default function Admin() {
                     <div>
                       <p className="text-xs text-muted-foreground">التكلفة التقديرية</p>
                       <p className="text-xl font-bold" data-testid="text-total-api-cost" dir="ltr">
-                        ${((apiUsageData || []).reduce((s, r) => s + r.totalCostMicro, 0) / 1_000_000).toFixed(2)}
+                        ${formatDollars((apiUsageData || []).reduce((s, r) => s + r.totalCostMicro, 0) / 1_000_000)}
                       </p>
                     </div>
                   </CardContent>
@@ -3679,7 +3680,7 @@ export default function Admin() {
                             </td>
                             <td className="p-3"><LtrNum>{row.totalCalls.toLocaleString()}</LtrNum></td>
                             <td className="p-3"><LtrNum>{row.totalTokens.toLocaleString()}</LtrNum></td>
-                            <td className="p-3" dir="ltr">${(row.totalCostMicro / 1_000_000).toFixed(4)}</td>
+                            <td className="p-3" dir="ltr">${formatDollars(row.totalCostMicro / 1_000_000, 4)}</td>
                             <td className="p-3">
                               {row.apiSuspended ? (
                                 <Badge variant="destructive" className="text-xs">معلّق</Badge>
@@ -3756,7 +3757,7 @@ export default function Admin() {
                           </div>
                           <div>
                             <p className="text-muted-foreground">التكلفة</p>
-                            <p className="font-bold" dir="ltr">${(row.totalCostMicro / 1_000_000).toFixed(4)}</p>
+                            <p className="font-bold" dir="ltr">${formatDollars(row.totalCostMicro / 1_000_000, 4)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -4941,7 +4942,7 @@ export default function Admin() {
                         <td className="p-2 text-xs" dir="ltr">{log.model}</td>
                         <td className="p-2 text-xs"><LtrNum>{log.promptTokens.toLocaleString()}</LtrNum></td>
                         <td className="p-2 text-xs"><LtrNum>{log.completionTokens.toLocaleString()}</LtrNum></td>
-                        <td className="p-2 text-xs" dir="ltr">${(log.estimatedCostMicro / 1_000_000).toFixed(6)}</td>
+                        <td className="p-2 text-xs" dir="ltr">${formatDollars(log.estimatedCostMicro / 1_000_000, 6)}</td>
                         <td className="p-2 text-xs" dir="ltr">{new Date(log.createdAt).toLocaleString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
                       </tr>
                     ))}

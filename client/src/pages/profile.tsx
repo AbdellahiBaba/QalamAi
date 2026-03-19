@@ -66,6 +66,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SiX, SiInstagram, SiTiktok, SiFacebook, SiLinkedin, SiYoutube } from "react-icons/si";
 import type { NovelProject } from "@shared/schema";
 import { getProjectPriceUSD } from "@shared/schema";
+import { formatCents } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import LtrNum from "@/components/ui/ltr-num";
 import { COUNTRIES, getCountry } from "@/lib/countries";
@@ -1136,7 +1137,7 @@ export default function Profile() {
                   <div>
                     <p className="text-sm text-muted-foreground">إكراميات مستلمة</p>
                     <p className="text-xl font-bold" data-testid="text-tips-total">
-                      ${((tipsReceived?.totalCents ?? 0) / 100).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">({tipsReceived?.tips?.length ?? 0} داعم)</span>
+                      ${formatCents(tipsReceived?.totalCents ?? 0)} <span className="text-sm font-normal text-muted-foreground">({tipsReceived?.tips?.length ?? 0} داعم)</span>
                     </p>
                   </div>
                 </CardContent>

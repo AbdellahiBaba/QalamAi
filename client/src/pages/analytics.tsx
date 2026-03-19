@@ -27,6 +27,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts";
 import LtrNum from "@/components/ui/ltr-num";
+import { formatCents } from "@/lib/utils";
 
 const STORY_COLORS = ["hsl(var(--primary))", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
 
@@ -253,7 +254,7 @@ export default function Analytics() {
                     <Coffee className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-total-tips-card">
-                    $<LtrNum>{(totalTipsCents / 100).toFixed(2)}</LtrNum>
+                    ${formatCents(totalTipsCents)}
                   </div>
                 </CardContent>
               </Card>
@@ -559,7 +560,7 @@ export default function Analytics() {
                   <div className="text-center mb-4 p-3 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground">إجمالي الإكراميات</p>
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-total-tips">
-                      $<LtrNum>{(tipsData.totalCents / 100).toFixed(2)}</LtrNum>
+                      ${formatCents(tipsData.totalCents)}
                     </p>
                   </div>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -574,7 +575,7 @@ export default function Analytics() {
                           </span>
                         </div>
                         <Badge variant="outline" className="text-green-600 dark:text-green-400">
-                          $<LtrNum>{(tip.amountCents / 100).toFixed(2)}</LtrNum>
+                          ${formatCents(tip.amountCents)}
                         </Badge>
                       </div>
                     ))}

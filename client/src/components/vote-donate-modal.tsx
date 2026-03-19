@@ -88,7 +88,7 @@ export function VoteDonateModal({ open, onClose, authorId, authorName, projectId
               type="number"
               min="1"
               step="0.5"
-              placeholder="0.00"
+              placeholder="0,00"
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
               className="text-center"

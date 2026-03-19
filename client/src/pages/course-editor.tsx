@@ -36,6 +36,7 @@ export default function CourseEditor() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priceCents, setPriceCents] = useState(0);
+  const formatCentsLocal = (c: number, d = 2) => (c / 100).toFixed(d).replace(".", ",");
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [isPublished, setIsPublished] = useState(false);
   const [lessons, setLessons] = useState<LessonForm[]>([]);
@@ -248,7 +249,7 @@ export default function CourseEditor() {
             <div>
               <Label>السعر (بالسنت، 0 = مجانية)</Label>
               <Input type="number" value={priceCents} onChange={(e) => setPriceCents(parseInt(e.target.value) || 0)} min={0} data-testid="input-course-price" />
-              {priceCents > 0 && <p className="text-xs text-muted-foreground mt-1">السعر: ${(priceCents / 100).toFixed(2)} — حصتك بعد العمولة (20%): ${((priceCents * 0.8) / 100).toFixed(2)}</p>}
+              {priceCents > 0 && <p className="text-xs text-muted-foreground mt-1">السعر: ${formatCentsLocal(priceCents)} — حصتك بعد العمولة (20%): ${formatCentsLocal(priceCents * 0.8)}</p>}
             </div>
             {isEditing && (
               <div className="flex items-center gap-3">
