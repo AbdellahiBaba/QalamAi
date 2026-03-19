@@ -3395,22 +3395,18 @@ ${allPages.map(p => `  <url>
         return res.status(400).json({ error: "موضوع البريد مطلوب" });
       }
 
-      const stripe = await getUncachableStripeClient();
-
-      const coupon = await stripe.coupons.create({
-        percent_off: 25,
-        duration: "once",
-        name: "أبو هاشم - خصم 25%",
-        max_redemptions: 500,
-      });
-
-      const suffix = Date.now().toString(36).toUpperCase().slice(-4);
+      const suffix = Date.now().toString(36).toUpperCase().slice(-5);
       const promoCodeStr = `QALAM25-${suffix}`;
 
-      const promoCode = await stripe.promotionCodes.create({
-        coupon: coupon.id,
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 30);
+
+      await storage.createPromoCode({
         code: promoCodeStr,
-        max_redemptions: 500,
+        discountPercent: 25,
+        maxUses: 500,
+        validUntil,
+        applicableTo: "all",
       });
 
       const targets = await storage.getUsersWithoutPaidPlan();
@@ -3422,12 +3418,11 @@ ${allPages.map(p => `  <url>
         emailBody.trim(),
       );
 
-      console.log(`[Admin] Promo campaign sent: code=${promoCodeStr}, sent=${sent}, failed=${failed}, stripePromoId=${promoCode.id}`);
+      console.log(`[Admin] Promo campaign sent: code=${promoCodeStr}, sent=${sent}, failed=${failed}, targets=${targets.length}`);
 
       res.json({
         promoCode: promoCodeStr,
-        stripePromoId: promoCode.id,
-        stripeCouponId: coupon.id,
+        validUntil: validUntil.toISOString(),
         targetCount: targets.length,
         sent,
         failed,

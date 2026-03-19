@@ -38,7 +38,7 @@ interface CampaignPreview {
 
 interface CampaignResult {
   promoCode: string;
-  stripePromoId: string;
+  validUntil: string;
   targetCount: number;
   sent: number;
   failed: number;
@@ -387,12 +387,18 @@ export default function AdminBulkEmail() {
                 <Separator />
                 <div className="space-y-1.5 text-xs text-muted-foreground">
                   <div className="flex justify-between">
-                    <span>Stripe Promo ID</span>
-                    <span className="font-mono">{result.stripePromoId}</span>
+                    <span>نسبة الخصم</span>
+                    <span className="font-medium text-foreground">25% على جميع الخطط</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>نسبة الخصم</span>
-                    <span>25% — استخدام واحد</span>
+                    <span>صالح حتى</span>
+                    <span className="font-medium text-foreground">
+                      {new Date(result.validUntil).toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>الحد الأقصى للاستخدام</span>
+                    <span className="font-medium text-foreground">500 مرة</span>
                   </div>
                 </div>
               </CardContent>
