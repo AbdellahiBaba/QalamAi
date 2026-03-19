@@ -36,7 +36,7 @@ export default function CourseEditor() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priceCents, setPriceCents] = useState(0);
-  const formatCentsLocal = (c: number, d = 2) => (c / 100).toFixed(d).replace(".", ",");
+  const formatCentsLocal = (c: number, d = 2) => (c / 100).toFixed(d).replace(".", ","); 
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [isPublished, setIsPublished] = useState(false);
   const [lessons, setLessons] = useState<LessonForm[]>([]);
