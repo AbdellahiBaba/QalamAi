@@ -11,7 +11,7 @@ import { toArabicOrdinal } from "@shared/utils";
 import { z } from "zod";
 import OpenAI from "openai";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
-import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail, sendNewChallengeEmail, sendChallengeWinnerEmail, verifyDigestUnsubscribeToken } from "./email";
+import { sendNovelCompletionEmail, sendTicketReplyEmail, sendViewMilestoneNotification, sendVerifiedApplicationStatusEmail, sendNewPublicationEmail, sendMonthlyAuthorReport, sendEmailSubscriptionConfirmation, sendEmailSubscriberPublication, sendGiftReceivedEmail, sendAuthorNewsletter, sendNotificationEmail, sendNewChallengeEmail, sendChallengeWinnerEmail, verifyDigestUnsubscribeToken, sendBulkPromoEmail } from "./email";
 import { processTrialExpiry } from "./trial-processor";
 import { logApiUsage, logImageUsage } from "./api-usage";
 import { trackServerEvent, invalidatePixelCache } from "./tracking";
@@ -3332,6 +3332,109 @@ ${allPages.map(p => `  <url>
     } catch (error) {
       console.error("Error in marketing chat:", error);
       res.status(500).json({ error: "فشل في الحصول على رد من نموذج التسويق" });
+    }
+  });
+
+  app.post("/api/admin/promo-campaign/generate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const adminUser = await storage.getUser(userId);
+      if (!SUPER_ADMIN_IDS.includes(userId) && adminUser?.role !== "admin") {
+        return res.status(403).json({ error: "غير مصرّح" });
+      }
+
+      const targets = await storage.getUsersWithoutPaidPlan();
+      const targetCount = targets.length;
+
+      const system = `أنت أبو هاشم، المساعد الأدبي الذكي لمنصّة QalamAI — منصّة الكتابة الإبداعية العربية بالذكاء الاصطناعي.
+مهمّتك كتابة بريد إلكتروني تسويقي احترافي وجذّاب باللغة العربية الفصيحة يُرسَل للمستخدمين الذين لا يملكون خطة مدفوعة.
+الهدف: إقناعهم بالترقية واستخدام كود الخصم المرفق.
+القواعد:
+- اكتب فقرات متدفّقة بلا عناوين جانبية
+- اللغة دافئة وشخصية وأدبية
+- أبرز قيمة المنصّة (توليد الفصول، أبو هاشم، غلاف الذكاء الاصطناعي، التصدير PDF/EPUB)
+- لا تذكر الكود (سيُضاف تلقائياً في القالب)
+- لا تكتب تحية أو ختام (تُضاف تلقائياً)
+- الطول: 3-4 فقرات فقط`;
+
+      const userMsg = `اكتب رسالة تسويقية مقنعة للمستخدمين غير المشتركين في QalamAI. الرسالة ستحمل كود خصم 25% في نهايتها. اجعلها تلمس قلب الكاتب وتشعره أن حلمه في الكتابة قاب قوسين أو أدنى.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userMsg },
+        ],
+        max_completion_tokens: 800,
+        temperature: 0.85,
+      });
+
+      const emailBody = response.choices[0]?.message?.content?.trim() || "";
+      const emailSubject = "عرض حصري من أبو هاشم — خصم 25% على خطة QalamAI";
+
+      res.json({ emailBody, emailSubject, targetCount });
+    } catch (error) {
+      console.error("Error generating promo campaign:", error);
+      res.status(500).json({ error: "فشل في توليد محتوى الحملة" });
+    }
+  });
+
+  app.post("/api/admin/promo-campaign/send", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const adminUser = await storage.getUser(userId);
+      if (!SUPER_ADMIN_IDS.includes(userId) && adminUser?.role !== "admin") {
+        return res.status(403).json({ error: "غير مصرّح" });
+      }
+
+      const { emailBody, emailSubject } = req.body;
+      if (!emailBody || typeof emailBody !== "string" || !emailBody.trim()) {
+        return res.status(400).json({ error: "محتوى البريد مطلوب" });
+      }
+      if (!emailSubject || typeof emailSubject !== "string" || !emailSubject.trim()) {
+        return res.status(400).json({ error: "موضوع البريد مطلوب" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+
+      const coupon = await stripe.coupons.create({
+        percent_off: 25,
+        duration: "once",
+        name: "أبو هاشم - خصم 25%",
+        max_redemptions: 500,
+      });
+
+      const suffix = Date.now().toString(36).toUpperCase().slice(-4);
+      const promoCodeStr = `QALAM25-${suffix}`;
+
+      const promoCode = await stripe.promotionCodes.create({
+        coupon: coupon.id,
+        code: promoCodeStr,
+        max_redemptions: 500,
+      });
+
+      const targets = await storage.getUsersWithoutPaidPlan();
+      const { sent, failed } = await sendBulkPromoEmail(
+        targets,
+        promoCodeStr,
+        25,
+        emailSubject.trim(),
+        emailBody.trim(),
+      );
+
+      console.log(`[Admin] Promo campaign sent: code=${promoCodeStr}, sent=${sent}, failed=${failed}, stripePromoId=${promoCode.id}`);
+
+      res.json({
+        promoCode: promoCodeStr,
+        stripePromoId: promoCode.id,
+        stripeCouponId: coupon.id,
+        targetCount: targets.length,
+        sent,
+        failed,
+      });
+    } catch (error: any) {
+      console.error("Error sending promo campaign:", error);
+      res.status(500).json({ error: error?.message || "فشل في إرسال الحملة" });
     }
   });
 

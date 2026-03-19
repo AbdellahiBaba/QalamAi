@@ -282,6 +282,7 @@ export interface IStorage {
   getUsersForFollowDigest(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
   getUsersForMonthlyReport(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
   getUsersForChallengeEmails(): Promise<Array<{ id: string; email: string; displayName: string | null }>>;
+  getUsersWithoutPaidPlan(): Promise<Array<{ id: string; email: string; displayName: string | null; firstName: string | null }>>;
   addVote(projectId: number, userId: string): Promise<WorkVote>;
   removeVote(projectId: number, userId: string): Promise<void>;
   getVoteCount(projectId: number): Promise<number>;
@@ -3253,6 +3254,16 @@ export class DatabaseStorage implements IStorage {
         or(eq(users.emailChallenges, true), isNull(users.emailChallenges))
       ));
     return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null }>;
+  }
+
+  async getUsersWithoutPaidPlan(): Promise<Array<{ id: string; email: string; displayName: string | null; firstName: string | null }>> {
+    const rows = await db.select({ id: users.id, email: users.email, displayName: users.displayName, firstName: users.firstName })
+      .from(users)
+      .where(and(
+        isNotNull(users.email),
+        or(eq(users.plan, "free"), isNull(users.plan))
+      ));
+    return rows.filter(r => r.email) as Array<{ id: string; email: string; displayName: string | null; firstName: string | null }>;
   }
 
   async addVote(projectId: number, userId: string): Promise<WorkVote> {

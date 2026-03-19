@@ -1078,3 +1078,56 @@ export async function sendChallengeWinnerEmail(
     console.error(`[Email] Failed to send challenge winner email to ${winnerEmail}:`, err);
   }
 }
+
+export async function sendBulkPromoEmail(
+  recipients: Array<{ email: string; displayName: string | null; firstName: string | null }>,
+  promoCode: string,
+  discountPercent: number,
+  emailSubject: string,
+  aiBody: string,
+  onProgress?: (sent: number, total: number) => void,
+): Promise<{ sent: number; failed: number }> {
+  const t = getTransporter();
+  if (!t || recipients.length === 0) return { sent: 0, failed: recipients.length };
+
+  const baseUrl = getBaseUrl();
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const recipient of recipients) {
+    const name = recipient.firstName || recipient.displayName || "كاتبنا العزيز";
+    const body = `
+<p style="color:#333;line-height:1.8;font-size:16px;">عزيزي <strong style="color:${BRAND_BLUE};">${name}</strong>،</p>
+<div style="color:#444;line-height:1.9;font-size:15px;white-space:pre-wrap;">${aiBody}</div>
+<div style="margin:32px 0;padding:24px;background:linear-gradient(135deg,${BRAND_BLUE},#1a2f45);border-radius:12px;text-align:center;">
+  <p style="margin:0 0 8px;color:#aabbcc;font-size:13px;">كود الخصم الحصري</p>
+  <p style="margin:0 0 4px;color:${BRAND_GOLD};font-size:36px;font-weight:bold;letter-spacing:4px;font-family:monospace;">${promoCode}</p>
+  <p style="margin:0;color:#8899aa;font-size:13px;">خصم <strong style="color:${BRAND_GOLD};">${discountPercent}%</strong> على أي خطة — لاستخدام واحد فقط</p>
+</div>
+<div style="text-align:center;margin:24px 0;">
+  <a href="${baseUrl}/pricing"
+     style="display:inline-block;background:${BRAND_GOLD};color:#fff;padding:14px 40px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
+    استخدم الكود الآن
+  </a>
+</div>
+<p style="color:#999;font-size:12px;text-align:center;margin-top:16px;">هذا العرض حصري ولاستخدام واحد فقط · QalamAI</p>`;
+
+    try {
+      await t.sendMail({
+        from: `"QalamAI" <${process.env.SMTP_USER}>`,
+        to: recipient.email,
+        subject: emailSubject,
+        html: wrapInTemplate(emailSubject, body),
+      });
+      sent++;
+    } catch (err) {
+      console.error(`[Email] Failed to send promo email to ${recipient.email}:`, err);
+      failed++;
+    }
+    if (onProgress) onProgress(sent, recipients.length);
+  }
+
+  console.log(`[Email] Bulk promo email sent to ${sent}/${recipients.length} recipients (${failed} failed)`);
+  return { sent, failed };
+}

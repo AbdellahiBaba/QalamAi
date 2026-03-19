@@ -2334,6 +2334,25 @@ export default function Admin() {
             </span>
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
+            <Link href="/admin/bulk-email">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 hidden sm:flex border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                data-testid="button-bulk-email"
+              >
+                <Send className="w-3.5 h-3.5" />
+                حملة بريدية
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="flex sm:hidden text-amber-600"
+                data-testid="button-bulk-email-mobile"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </Link>
             <Link href="/admin/social-hub">
               <Button
                 size="sm"
