@@ -20,6 +20,10 @@ export function verifyDigestUnsubscribeToken(userId: string, category: string, t
 
 let transporter: nodemailer.Transporter | null = null;
 
+function getSmtpPort(): number {
+  return parseInt((process.env.SMTP_PORT || "587").trim());
+}
+
 function getTransporter(): nodemailer.Transporter | null {
   if (transporter) return transporter;
   const host = process.env.SMTP_HOST;
@@ -27,11 +31,13 @@ function getTransporter(): nodemailer.Transporter | null {
   const pass = process.env.SMTP_PASS;
   if (!host || !user || !pass) return null;
 
+  const port = getSmtpPort();
   transporter = nodemailer.createTransport({
-    host,
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: process.env.SMTP_PORT === "465",
-    auth: { user, pass },
+    host: host.trim(),
+    port,
+    secure: port === 465,
+    auth: { user: user.trim(), pass },
+    tls: { rejectUnauthorized: false },
   });
   return transporter;
 }
@@ -40,10 +46,19 @@ export function checkSmtpStatus(): void {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const port = process.env.SMTP_PORT || "587";
+  const port = getSmtpPort();
 
   if (host && user && pass) {
-    console.log(`[Email] SMTP configured: host=${host}, port=${port}, user=${user}`);
+    console.log(`[Email] SMTP configured: host=${host.trim()}, port=${port}, secure=${port === 465}, user=${user.trim()}`);
+    // Verify the SMTP connection at startup
+    const t = getTransporter();
+    if (t) {
+      t.verify().then(() => {
+        console.log("[Email] SMTP connection verified successfully");
+      }).catch((err: Error) => {
+        console.error("[Email] SMTP connection FAILED:", err.message);
+      });
+    }
   } else {
     const missing = [];
     if (!host) missing.push("SMTP_HOST");
@@ -1084,11 +1099,12 @@ function buildBulkTransporter(): nodemailer.Transporter | null {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if (!host || !user || !pass) return null;
+  const port = getSmtpPort();
   return nodemailer.createTransport({
-    host,
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: process.env.SMTP_PORT === "465",
-    auth: { user, pass },
+    host: host.trim(),
+    port,
+    secure: port === 465,
+    auth: { user: user.trim(), pass },
     pool: true,
     maxConnections: 1,
     maxMessages: 50,
