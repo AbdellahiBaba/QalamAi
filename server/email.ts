@@ -5,10 +5,9 @@ const BRAND_GOLD = "#D4A017";
 const BRAND_BLUE = "#0D1B2A";
 
 function getDigestUnsubscribeUrl(userId: string, category: "digest" | "follow"): string {
-  const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
   const secret = process.env.SESSION_SECRET || "qalamai-unsubscribe-secret";
   const token = crypto.createHmac("sha256", secret).update(`${userId}:${category}`).digest("hex");
-  return `${baseUrl}/api/digest-unsubscribe?uid=${encodeURIComponent(userId)}&cat=${category}&tok=${token}`;
+  return `${getBaseUrl()}/api/digest-unsubscribe?uid=${encodeURIComponent(userId)}&cat=${category}&tok=${token}`;
 }
 
 export function verifyDigestUnsubscribeToken(userId: string, category: string, token: string): boolean {
@@ -69,6 +68,10 @@ export function checkSmtpStatus(): void {
 }
 
 function getBaseUrl(): string {
+  // Custom domain takes top priority
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL.trim().replace(/\/$/, "");
+  }
   if (process.env.REPLIT_DEPLOYMENT_URL) {
     return `https://${process.env.REPLIT_DEPLOYMENT_URL}`;
   }
