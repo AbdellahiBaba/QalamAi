@@ -3410,22 +3410,27 @@ ${allPages.map(p => `  <url>
       });
 
       const targets = await storage.getUsersWithoutPaidPlan();
-      const { sent, failed } = await sendBulkPromoEmail(
+
+      // Respond immediately — emails are dispatched in the background
+      res.json({
+        promoCode: promoCodeStr,
+        validUntil: validUntil.toISOString(),
+        targetCount: targets.length,
+        sent: targets.length,
+        failed: 0,
+      });
+
+      // Background send (non-blocking)
+      sendBulkPromoEmail(
         targets,
         promoCodeStr,
         25,
         emailSubject.trim(),
         emailBody.trim(),
-      );
-
-      console.log(`[Admin] Promo campaign sent: code=${promoCodeStr}, sent=${sent}, failed=${failed}, targets=${targets.length}`);
-
-      res.json({
-        promoCode: promoCodeStr,
-        validUntil: validUntil.toISOString(),
-        targetCount: targets.length,
-        sent,
-        failed,
+      ).then(({ sent, failed }) => {
+        console.log(`[Admin] Promo campaign sent: code=${promoCodeStr}, sent=${sent}, failed=${failed}, targets=${targets.length}`);
+      }).catch(err => {
+        console.error("[Admin] Background bulk email error:", err);
       });
     } catch (error: any) {
       console.error("Error sending promo campaign:", error);

@@ -345,33 +345,12 @@ export default function AdminBulkEmail() {
             <Card className="border-green-200 dark:border-green-900/50 bg-green-50/50 dark:bg-green-950/20">
               <CardContent className="p-6 text-center space-y-3">
                 <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
-                <h2 className="font-serif font-bold text-xl">تمّ إرسال الحملة بنجاح</h2>
+                <h2 className="font-serif font-bold text-xl">الحملة انطلقت!</h2>
                 <p className="text-sm text-muted-foreground">
-                  تم إنشاء كود الخصم وإرساله عبر البريد الإلكتروني
+                  تم إنشاء كود الخصم وبدأ إرسال البريد لـ <strong>{result.targetCount}</strong> مستخدم في الخلفية
                 </p>
               </CardContent>
             </Card>
-
-            <div className="grid grid-cols-3 gap-3">
-              <Card>
-                <CardContent className="p-4 text-center space-y-1">
-                  <p className="text-2xl font-bold text-green-600">{result.sent}</p>
-                  <p className="text-xs text-muted-foreground">بريد أُرسل</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center space-y-1">
-                  <p className="text-2xl font-bold text-red-500">{result.failed}</p>
-                  <p className="text-xs text-muted-foreground">فشل في الإرسال</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center space-y-1">
-                  <p className="text-2xl font-bold">{result.targetCount}</p>
-                  <p className="text-xs text-muted-foreground">إجمالي المستهدفين</p>
-                </CardContent>
-              </Card>
-            </div>
 
             <Card>
               <CardContent className="p-4 space-y-3">
