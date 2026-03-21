@@ -161,7 +161,7 @@ export default function AdminBulkEmail() {
             <div className="space-y-1">
               <h2 className="font-serif font-bold text-base">أبو هاشم يكتب — أنت ترسل</h2>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                يقوم أبو هاشم بكتابة رسالة تسويقية أدبية مقنعة، ثم تستعرضها وتعتمدها. عند الإرسال يُنشئ النظام تلقائياً كود خصم 25% صالحاً في Stripe ويرسله لجميع المستخدمين من الخطة المجانية.
+                يقوم أبو هاشم بكتابة رسالة تسويقية أدبية مقنعة، ثم تستعرضها وتعتمدها. عند الإرسال يُنشئ النظام تلقائياً كود خصم 25% صالحاً في قاعدة البيانات ويرسله لجميع المستخدمين من الخطة المجانية.
               </p>
             </div>
           </CardContent>
@@ -191,7 +191,7 @@ export default function AdminBulkEmail() {
                 <div className="p-4 rounded-lg bg-muted/50 space-y-1">
                   <Mail className="w-5 h-5 text-green-500 mx-auto" />
                   <p className="text-xl font-bold">تلقائي</p>
-                  <p className="text-xs text-muted-foreground">Stripe + Email</p>
+                  <p className="text-xs text-muted-foreground">كود + بريد تلقائي</p>
                 </div>
               </div>
               <Button
@@ -283,7 +283,7 @@ export default function AdminBulkEmail() {
             {/* Promo code preview */}
             <Card className="border-dashed border-2">
               <CardContent className="p-4 text-center space-y-2">
-                <p className="text-xs text-muted-foreground">سيُنشأ كود خصم Stripe تلقائياً بهذا الشكل</p>
+                <p className="text-xs text-muted-foreground">سيُنشأ كود الخصم تلقائياً بهذا الشكل</p>
                 <p className="text-2xl font-mono font-bold tracking-widest text-amber-600 dark:text-amber-400">
                   QALAM25-XXXX
                 </p>
@@ -333,7 +333,7 @@ export default function AdminBulkEmail() {
               </div>
               <div>
                 <p className="font-serif font-semibold text-lg">جارٍ الإرسال...</p>
-                <p className="text-sm text-muted-foreground mt-1">يتم إنشاء كود الخصم في Stripe وإرسال البريد</p>
+                <p className="text-sm text-muted-foreground mt-1">يتم إنشاء كود الخصم وإرسال البريد الإلكتروني</p>
               </div>
             </CardContent>
           </Card>
@@ -347,7 +347,7 @@ export default function AdminBulkEmail() {
                 <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
                 <h2 className="font-serif font-bold text-xl">تمّ إرسال الحملة بنجاح</h2>
                 <p className="text-sm text-muted-foreground">
-                  تم إنشاء كود الخصم في Stripe وإرساله عبر البريد الإلكتروني
+                  تم إنشاء كود الخصم وإرساله عبر البريد الإلكتروني
                 </p>
               </CardContent>
             </Card>

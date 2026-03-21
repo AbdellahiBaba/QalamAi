@@ -1079,6 +1079,28 @@ export async function sendChallengeWinnerEmail(
   }
 }
 
+function buildBulkTransporter(): nodemailer.Transporter | null {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+  return nodemailer.createTransport({
+    host,
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: process.env.SMTP_PORT === "465",
+    auth: { user, pass },
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 50,
+    rateDelta: 1500,
+    rateLimit: 1,
+    socketTimeout: 30000,
+    greetingTimeout: 20000,
+    connectionTimeout: 20000,
+    tls: { rejectUnauthorized: false },
+  });
+}
+
 export async function sendBulkPromoEmail(
   recipients: Array<{ email: string; displayName: string | null; firstName: string | null }>,
   promoCode: string,
@@ -1087,15 +1109,17 @@ export async function sendBulkPromoEmail(
   aiBody: string,
   onProgress?: (sent: number, total: number) => void,
 ): Promise<{ sent: number; failed: number }> {
-  const t = getTransporter();
-  if (!t || recipients.length === 0) return { sent: 0, failed: recipients.length };
+  if (recipients.length === 0) return { sent: 0, failed: 0 };
+
+  const t = buildBulkTransporter();
+  if (!t) return { sent: 0, failed: recipients.length };
 
   const baseUrl = getBaseUrl();
 
   let sent = 0;
   let failed = 0;
 
-  for (const recipient of recipients) {
+  const sendOne = async (recipient: typeof recipients[number]): Promise<boolean> => {
     const name = recipient.firstName || recipient.displayName || "كاتبنا العزيز";
     const body = `
 <p style="color:#333;line-height:1.8;font-size:16px;">عزيزي <strong style="color:${BRAND_BLUE};">${name}</strong>،</p>
@@ -1112,7 +1136,6 @@ export async function sendBulkPromoEmail(
   </a>
 </div>
 <p style="color:#999;font-size:12px;text-align:center;margin-top:16px;">هذا العرض حصري ولاستخدام واحد فقط · QalamAI</p>`;
-
     try {
       await t.sendMail({
         from: `"QalamAI" <${process.env.SMTP_USER}>`,
@@ -1120,13 +1143,28 @@ export async function sendBulkPromoEmail(
         subject: emailSubject,
         html: wrapInTemplate(emailSubject, body),
       });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  for (const recipient of recipients) {
+    let ok = await sendOne(recipient);
+    if (!ok) {
+      await new Promise(r => setTimeout(r, 3000));
+      ok = await sendOne(recipient);
+    }
+    if (ok) {
       sent++;
-    } catch (err) {
-      console.error(`[Email] Failed to send promo email to ${recipient.email}:`, err);
+    } else {
+      console.error(`[Email] Failed to send promo email to ${recipient.email} (after retry)`);
       failed++;
     }
-    if (onProgress) onProgress(sent, recipients.length);
+    if (onProgress) onProgress(sent + failed, recipients.length);
   }
+
+  try { (t as any).close?.(); } catch {}
 
   console.log(`[Email] Bulk promo email sent to ${sent}/${recipients.length} recipients (${failed} failed)`);
   return { sent, failed };
