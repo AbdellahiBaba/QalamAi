@@ -1,48 +1,5 @@
 # QalamAI — Arabic Writing Platform
-<div align="center">
 
-<!-- Frontend -->
-[React](https://react.dev)
-[TypeScript](https://www.typescriptlang.org)
-[TailwindCSS](https://tailwindcss.com)
-[Shadcn UI](https://ui.shadcn.com)
-[Radix UI](https://www.radix-ui.com)
-[Vite](https://vitejs.dev)
-
-<!-- Backend -->
-[Node.js](https://nodejs.org)
-[Express.js](https://expressjs.com)
-[PostgreSQL](https://www.postgresql.org)
-[Drizzle ORM](https://orm.drizzle.team)
-
-<!-- AI & Media -->
-[OpenAI GPT‑5.2](https://platform.openai.com)
-[DALL‑E](https://platform.openai.com/docs/guides/images)
-[FFmpeg](https://ffmpeg.org)
-[XTTS v2 (Coqui)](https://coqui.ai)
-
-<!-- Payments -->
-[Stripe](https://stripe.com)
-
-<!-- Auth -->
-[Replit Auth](https://docs.replit.com)
-
-<!-- Emails -->
-[Nodemailer](https://nodemailer.com)
-
-<!-- Document Export -->
-[pdfkit](https://pdfkit.org)
-[archiver](https://www.npmjs.com/package/archiver)
-[docx](https://www.npmjs.com/package/docx)
-
-<!-- Security -->
-[Helmet](https://helmetjs.github.io)
-[Zod](https://zod.dev)
-
-<!-- PWA -->
-[Service Workers](https://developer.mozilla.org/docs/Web/API/Service_Worker_API)
-
-</div>
 
 
 
