@@ -3,45 +3,45 @@
 <div align="center">
 
 <!-- Frontend -->
-[React](https://react.dev)
-[TypeScript](https://www.typescriptlang.org)
-[TailwindCSS](https://tailwindcss.com)
-[Shadcn UI](https://ui.shadcn.com)
-[Radix UI](https://www.radix-ui.com)
-[Vite](https://vitejs.dev)
+[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Shadcn UI](https://img.shields.io/badge/shadcn%2Fui-000000?logo=radixui&logoColor=white)](https://ui.shadcn.com)
+[![Radix UI](https://img.shields.io/badge/Radix_UI-161618?logo=radixui&logoColor=white)](https://www.radix-ui.com)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
 
 <!-- Backend -->
-[Node.js](https://nodejs.org)
-[Express.js](https://expressjs.com)
-[PostgreSQL](https://www.postgresql.org)
-[Drizzle ORM](https://orm.drizzle.team)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Express.js](https://img.shields.io/badge/Express.js-000000?logo=express&logoColor=white)](https://expressjs.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-F7DF1E?logo=javascript&logoColor=black)](https://orm.drizzle.team)
 
 <!-- AI & Media -->
-[OpenAI GPT‑5.2](https://platform.openai.com)
-[DALL‑E](https://platform.openai.com/docs/guides/images)
-[FFmpeg](https://ffmpeg.org)
-[XTTS v2 (Coqui)](https://coqui.ai)
+[![OpenAI](https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white)](https://platform.openai.com)
+[![DALL·E](https://img.shields.io/badge/DALL·E-000000?logo=openai&logoColor=white)](https://platform.openai.com/docs/guides/images)
+[![FFmpeg](https://img.shields.io/badge/FFmpeg-007808?logo=ffmpeg&logoColor=white)](https://ffmpeg.org)
+[![Coqui TTS](https://img.shields.io/badge/XTTS_v2-FFB000?logo=python&logoColor=black)](https://coqui.ai)
 
 <!-- Payments -->
-[Stripe](https://stripe.com)
+[![Stripe](https://img.shields.io/badge/Stripe-635BFF?logo=stripe&logoColor=white)](https://stripe.com)
 
 <!-- Auth -->
-[Replit Auth](https://docs.replit.com)
+[![Replit Auth](https://img.shields.io/badge/Replit_Auth-F26207?logo=replit&logoColor=white)](https://docs.replit.com)
 
 <!-- Emails -->
-[Nodemailer](https://nodemailer.com)
+[![Nodemailer](https://img.shields.io/badge/Nodemailer-009688?logo=minutemailer&logoColor=white)](https://nodemailer.com)
 
 <!-- Document Export -->
-[pdfkit](https://pdfkit.org)
-[archiver](https://www.npmjs.com/package/archiver)
-[docx](https://www.npmjs.com/package/docx)
+[![pdfkit](https://img.shields.io/badge/pdfkit-CC0000?logo=adobeacrobatreader&logoColor=white)](https://pdfkit.org)
+[![archiver](https://img.shields.io/badge/archiver-000000?logo=zip&logoColor=white)](https://www.npmjs.com/package/archiver)
+[![docx](https://img.shields.io/badge/docx-2B579A?logo=microsoftword&logoColor=white)](https://www.npmjs.com/package/docx)
 
 <!-- Security -->
-[Helmet](https://helmetjs.github.io)
-[Zod](https://zod.dev)
+[![Helmet](https://img.shields.io/badge/Helmet-000000?logo=helmet&logoColor=white)](https://helmetjs.github.io)
+[![Zod](https://img.shields.io/badge/Zod-3E67B1?logo=typescript&logoColor=white)](https://zod.dev)
 
 <!-- PWA -->
-[Service Workers](https://developer.mozilla.org/docs/Web/API/Service_Worker_API)
+[![PWA](https://img.shields.io/badge/PWA-5A0FC8?logo=pwa&logoColor=white)](https://developer.mozilla.org/docs/Web/API/Service_Worker_API)
 
 </div>
 
