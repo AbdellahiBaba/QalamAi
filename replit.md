@@ -1,5 +1,190 @@
 # QalamAI — Arabic Writing Platform
 
+📘 QalamAI — Arabic AI Writing Platform
+<p align="center">
+<!-- Replace with your logo -->
+<img src="YOUR_LOGO_URL_HERE" width="180" alt="QalamAI Logo"/>
+</p>
+
+<div align="center">
+
+🔗 Technologies & Tools Used
+React
+TypeScript
+TailwindCSS
+Shadcn UI
+Radix UI
+Vite
+
+Node.js
+Express.js
+PostgreSQL
+Drizzle ORM
+
+OpenAI GPT‑5.2
+DALL‑E (platform.openai.com in Bing)
+FFmpeg
+XTTS v2
+
+Stripe
+Nodemailer
+
+pdfkit
+archiver
+docx
+
+Helmet
+Zod
+
+</div>
+
+📖 Overview
+Short version (≤340 chars):  
+QalamAI is an AI‑powered Arabic writing platform featuring the virtual assistant “Abu Hashim.” It supports eight writing modes—novels, essays/news, screenplays, short stories, reflections, social media content, classical poetry, and academic memoires—helping creators produce high‑quality Arabic content.
+
+Full version:  
+QalamAI is a next‑generation Arabic writing platform built for authors, journalists, screenwriters, poets, and students. It provides specialized AI workflows for eight major content types and integrates advanced tools for writing, editing, publishing, analytics, and monetization. Powered by GPT‑5.2 and enhanced with DALL‑E, XTTS v2, and FFmpeg, QalamAI aims to elevate Arabic literary creation through modern AI.
+
+🧠 Core Writing Modes
+Mode	Description
+Novel Writing	Multi‑chapter projects, outlines, pacing analysis, structure maps
+Essay / News Writing	Professional journalism workflows
+Drama / Screenplay	Scene‑based writing, structure analysis, Reels generator
+Short Story	Compact narrative generation
+Khawater / Reflections	Poetic and expressive prose
+Social Media Content	Posts, captions, scripts
+Classical Arabic Poetry	Prosody engine + meter validation
+Academic Memoire	Major‑aware academic writing with thesis‑style export
+🏗️ System Architecture
+Frontend
+React 18 + TypeScript
+
+Tailwind CSS + Shadcn UI
+
+Mobile‑responsive SPA
+
+Arabic‑optimized typography (Cairo, Amiri)
+
+Dark mode, focus mode, drag‑and‑drop chapters
+
+PWA support with offline caching
+
+Backend
+Express.js + TypeScript
+
+PostgreSQL with relational integrity
+
+AI integration: GPT‑5.2, DALL‑E, XTTS v2
+
+FFmpeg for video composition
+
+Authentication: Email/Password + Replit Auth
+
+Payments: Stripe (subscriptions, paywalls, tips)
+
+Security: Helmet, CSRF, sanitization, rate limiting
+
+🚀 Key Features
+AI‑Driven Writing
+Outline generation
+
+Sequential chapter writing
+
+Tone‑controlled rewriting
+
+Character & title suggestions
+
+Plagiarism/originality checks
+
+Specialized engines:
+
+Classical Poetry Prosody
+
+Academic Memoire Engine
+
+Reels Generator (script → images → TTS → MP4)
+
+Advanced Authoring Tools
+Inline editor with auto‑save
+
+Version history
+
+Focus mode & distraction‑free writing
+
+Project blueprints
+
+Editorial review mode (Abu Hashim المحرر) with streaming SSE
+
+Export & Publishing
+PDF, EPUB, DOCX export with RTL/BiDi support
+
+Academic thesis‑style export
+
+Public gallery publishing
+
+User & Community Features
+Public author profiles
+
+Reading lists & bookmarks
+
+Quotes system
+
+Reading clubs with chapter‑based discussions
+
+Writing challenges
+
+Beta reader system
+
+Monetization
+Subscription plans
+
+Chapter paywalls
+
+Gift subscriptions
+
+Reading rewards (points → discounts)
+
+Public tipping system
+
+AI Chat & Avatar
+Contextual AI chat with Abu Hashim
+
+DALL‑E avatar generation
+
+Persistent conversation history
+
+Admin Panel
+User management
+
+Content moderation
+
+Reports & analytics
+
+Revenue dashboard (MRR, churn, plan distribution)
+
+Promo codes
+
+Impersonation mode
+
+Bulk moderation tools
+
+🔐 Security
+Helmet security headers
+
+CSRF protection
+
+Strong password policies
+
+Account lockout
+
+Sanitized HTML output
+
+Stripe webhook validation
+
+Scanner‑probe blocking middleware
+
+Zod validation on all major endpoints
+
 ## Overview
 QalamAI is an AI-powered Arabic writing platform designed to assist authors, journalists, screenwriters, and students in creating diverse Arabic content. It features a virtual literary agent, "Abu Hashim," and supports eight core content types: Novel Writing, Professional Essay/News Writing, Drama/Film Scenario Writing, Short Story, Khawater/Reflections, Social Media Content, Arabic Classical Poetry, and Academic Graduation Memoire. The platform aims to be the leading tool for Arabic content creation, preserving and enhancing Arabic literary traditions through AI.
 
